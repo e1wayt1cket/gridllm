@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>电力市场实时大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0f1e;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card {
+            background: #1e2434;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .card h3 {
+            margin-top: 0;
+            color: #4caf50;
+            font-size: 1.2rem;
+        }
+        .price-big {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ffaa00;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .soc-bar {
+            background: #2a3344;
+            border-radius: 10px;
+            height: 20px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+        .soc-fill {
+            background: #4caf50;
+            width: 0%;
+            height: 100%;
+            transition: width 0.5s;
+        }
+        .grid-status {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .label {
+            color: #aaa;
+            font-size: 0.8rem;
+        }
+        .value {
+            font-weight: bold;
+        }
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: #777;
+        }
+        @media (max-width: 900px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<h1 style="text-align:center; margin-bottom:20px;">⚡ 电力市场实时交易大屏 ⚡</h1>
+<div class="dashboard">
+    <!-- 价格卡片 -->
+    <div class="card">
+        <h3>💰 实时出清价格</h3>
+        <div class="price-big" id="priceValue">--</div>
+        <div id="priceChart" style="height:200px;"></div>
+    </div>
+    <!-- 储能SOC卡片 -->
+    <div class="card">
+        <h3>🔋 储能荷电状态 (SOC)</h3>
+        <div id="socList"></div>
+    </div>
+    <!-- 电网与外送卡片 -->
+    <div class="card">
+        <h3>🏭 电网供电 & 线路潮流</h3>
+        <div id="gridInfo">加载中...</div>
+        <div id="lineChart" style="height:180px; margin-top:10px;"></div>
+    </div>
+    <!-- 负荷满足情况 -->
+    <div class="card">
+        <h3>🏠 负荷满足 (已服务 / 总负荷)</h3>
+        <div id="loadInfo"></div>
+    </div>
+    <!-- 额外指标：社会福利 -->
+    <div class="card">
+        <h3>📊 社会福利</h3>
+        <div id="welfare" style="font-size:1.8rem; text-align:center;">--</div>
+    </div>
+    <!-- 预留：净交易量等 -->
+    <div class="card">
+        <h3>📈 净交易量 (实时)</h3>
+        <div id="netTrade">--</div>
+    </div>
+</div>
+<footer>数据每5秒更新一次 | 模拟滚动时域市场出清</footer>
+
+<script>
+    // 初始化 ECharts 图表
+    const priceChart = echarts.init(document.getElementById('priceChart'));
+    priceChart.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', name: '时间 (小时)', data: [] },
+        yAxis: { type: 'value', name: '£/MWh' },
+        series: [{ type: 'line', smooth: true, data: [], lineStyle: { color: '#ffaa00' } }],
+        grid: { containLabel: true }
+    });
+    const lineChart = echarts.init(document.getElementById('lineChart'));
+    lineChart.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', name: '时间 (小时)', data: [] },
+        yAxis: { type: 'value', name: 'MW' },
+        series: [
+            { name: '线路0-1', type: 'line', data: [], lineStyle: { color: '#42a5f5' } },
+            { name: '线路1-2', type: 'line', data: [], lineStyle: { color: '#ff7043' } }
+        ]
+    });
+
+    let priceHistory = [];
+    let timeLabels = [];
+    let flowHistory = { flow01: [], flow12: [] };
+
+    // 连接 WebSocket —— 使用当前页面 host，避免硬编码端口导致连接失败
+    const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
+    const wsUrl = `${proto}://${location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = () => console.log('WebSocket 已连接');
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('收到数据:', data);
+        // 更新价格大数字
+        document.getElementById('priceValue').innerText = data.price.toFixed(2) + ' £/MWh';
+        // 更新价格曲线
+        const hourLabel = `T=${data.timestamp}`;
+        timeLabels.push(hourLabel);
+        priceHistory.push(data.price);
+        if (timeLabels.length > 20) {
+            timeLabels.shift();
+            priceHistory.shift();
+        }
+        priceChart.setOption({
+            xAxis: { data: timeLabels },
+            series: [{ data: priceHistory }]
+        });
+
+        // 更新储能SOC列表
+        const socDiv = document.getElementById('socList');
+        socDiv.innerHTML = '';
+        for (const [name, soc] of Object.entries(data.soc)) {
+            const percent = (soc / 7.5 * 100).toFixed(1); // 假设最大SOC 7.5 MWh（需根据实际调整）
+            socDiv.innerHTML += `
+                <div style="margin-bottom: 12px;">
+                    <div>${name}</div>
+                    <div class="soc-bar"><div class="soc-fill" style="width: ${percent}%;"></div></div>
+                    <div style="font-size:0.8rem;">${soc.toFixed(2)} MWh (${percent}%)</div>
+                </div>
+            `;
+        }
+
+        // 更新电网供电和潮流
+        document.getElementById('gridInfo').innerHTML = `
+            <div class="grid-status"><span class="label">电网供电 (MW):</span><span class="value">${data.grid_supply.toFixed(2)}</span></div>
+            <div class="grid-status"><span class="label">线路0-1潮流 (MW):</span><span class="value">${data.line_flow.flow01.toFixed(2)}</span></div>
+            <div class="grid-status"><span class="label">线路1-2潮流 (MW):</span><span class="value">${data.line_flow.flow12.toFixed(2)}</span></div>
+        `;
+        // 线路潮流曲线
+        flowHistory.flow01.push(data.line_flow.flow01);
+        flowHistory.flow12.push(data.line_flow.flow12);
+        if (flowHistory.flow01.length > 20) {
+            flowHistory.flow01.shift();
+            flowHistory.flow12.shift();
+        }
+        lineChart.setOption({
+            xAxis: { data: timeLabels },
+            series: [
+                { data: flowHistory.flow01 },
+                { data: flowHistory.flow12 }
+            ]
+        });
+
+        // 负荷满足情况（示例：显示每个智能体的 served / load_real，需要后端提供load_real，此处简化只显示served）
+        const loadDiv = document.getElementById('loadInfo');
+        loadDiv.innerHTML = '<table style="width:100%"><tr><th>智能体</th><th>已服务 (MW)</th></tr>';
+        for (const [name, served] of Object.entries(data.load_served)) {
+            loadDiv.innerHTML += `<tr><td>${name}</td><td style="text-align:right">${served.toFixed(2)}</td></tr>`;
+        }
+        loadDiv.innerHTML += '</table>';
+
+        // 社会福利（后端需要提供，暂缺）
+        document.getElementById('welfare').innerText = data.welfare ? data.welfare.toFixed(0) + ' £' : '--';
+        // 净交易量（可简单显示总买-总卖，需要后端扩展）
+        document.getElementById('netTrade').innerHTML = '需后端提供净交易量数据';
+    };
+    ws.onerror = (err) => console.error('WebSocket错误', err);
+    ws.onclose = () => console.log('WebSocket断开，5秒后重连...');
+</script>
+</body>
+</html>
