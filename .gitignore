@@ -1,0 +1,43 @@
+# 图片文件
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 虚拟环境
+venv/
+env/
+.venv/
+
+# 日志文件
+*.log
+dash.log
+
+# 数据文件
+*.csv
+*.xlsx
+*.parquet
+*.db
+*.sqlite3
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 其他
+*.deb
+plots/
