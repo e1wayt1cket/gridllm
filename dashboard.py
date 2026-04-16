@@ -4,15 +4,20 @@ from dash import html, dcc
 import plotly.graph_objs as go
 import datetime
 
+
 def generate_demo_data():
     steps = 96
     times = [f"{h:02d}:{m:02d}" for h in range(24) for m in [0, 15, 30, 45]]
     rng = np.random.default_rng(42)
 
-    price_1 = 400 + 30 * np.sin(np.linspace(0, 4 * np.pi, steps)) + rng.normal(0, 12, steps)
-    price_2 = 420 + 20 * np.cos(np.linspace(0, 2 * np.pi, steps)) + rng.normal(0, 13, steps)
-    vol_1 = 20 + 8 * np.abs(np.sin(np.linspace(0, 4 * np.pi, steps))) + rng.normal(1, 2, steps)
-    vol_2 = 22 + 6 * np.abs(np.cos(np.linspace(0, 3 * np.pi, steps))) + rng.normal(1, 2, steps)
+    price_1 = 400 + 30 * \
+        np.sin(np.linspace(0, 4 * np.pi, steps)) + rng.normal(0, 12, steps)
+    price_2 = 420 + 20 * \
+        np.cos(np.linspace(0, 2 * np.pi, steps)) + rng.normal(0, 13, steps)
+    vol_1 = 20 + 8 * \
+        np.abs(np.sin(np.linspace(0, 4 * np.pi, steps))) + rng.normal(1, 2, steps)
+    vol_2 = 22 + 6 * \
+        np.abs(np.cos(np.linspace(0, 3 * np.pi, steps))) + rng.normal(1, 2, steps)
 
     today = datetime.datetime.now().strftime('%Y-%m-%d')
     stats = {
@@ -32,6 +37,7 @@ def generate_demo_data():
         "vol_2": vol_2,
         "stats": stats,
     }
+
 
 def serve_app():
     data = generate_demo_data()
@@ -76,6 +82,7 @@ def serve_app():
 
     app.layout = layout
     app.run(debug=True, port=8060, host="127.0.0.1")
+
 
 if __name__ == "__main__":
     serve_app()
