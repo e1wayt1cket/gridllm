@@ -91,12 +91,12 @@ def determine_storage_mode(
     bid_mult = ap.get("bid_mult", 1.0)
     offer_adder = ap.get("offer_adder", 0.0)
     if prev_soc <= storage.soc_min + 0.02:
-        if p_ch_max > 0 and wholesale_t < agent.bid_value * bid_mult * 0.9:
+        if np.any(wholesale_t < agent.bid_value * bid_mult * 0.9) and p_ch_max > 0:
             mode, t_ch, t_dis = "charge", p_ch_max, 0.0
         else:
             return "idle", 0.0, 0.0
     elif prev_soc >= storage.soc_max - 0.02:
-        if p_dis_max > 0 and wholesale_t > agent.offer_cost + offer_adder:
+        if np.any(wholesale_t > agent.offer_cost + offer_adder) and p_dis_max > 0:
             mode, t_ch, t_dis = "discharge", 0.0, p_dis_max
         else:
             return "idle", 0.0, 0.0
@@ -108,9 +108,9 @@ def determine_storage_mode(
         soc_ratio = (prev_soc - storage.soc_min) / soc_range if soc_range > 0 else 0.5
         charge_threshold *= (0.7 + 0.6 * soc_ratio)
         discharge_threshold *= (1.3 - 0.6 * soc_ratio)
-        if wholesale_t < charge_threshold and p_ch_max > 0:
+        if np.any(wholesale_t < charge_threshold) and p_ch_max > 0:
             mode, t_ch, t_dis = "charge", p_ch_max, 0.0
-        elif wholesale_t > discharge_threshold and p_dis_max > 0:
+        elif np.any(wholesale_t > discharge_threshold) and p_dis_max > 0:
             mode, t_ch, t_dis = "discharge", 0.0, p_dis_max
         else:
             return "idle", 0.0, 0.0
@@ -173,9 +173,11 @@ def solve_dc_opf_gurobi(
                 action_params.get(a.name), prev_ch, prev_dis
             )
         # 报价系数
+        # 传入的 action_params 中的 bid_mult/offer_adder 可能是数组
         ap = action_params.get(a.name, {})
-        bid = a.bid_value * ap.get("bid_mult", 1.0)
-        offer = a.offer_cost + ap.get("offer_adder", 0.0)
+        # 如果是数组，取第 t 个元素；否则默认数值
+        bid = a.bid_value * (ap["bid_mult"][t] if isinstance(ap.get("bid_mult"), np.ndarray) else ap.get("bid_mult", 1.0))
+        offer = a.offer_cost + (ap["offer_adder"][t] if isinstance(ap.get("offer_adder"), np.ndarray) else ap.get("offer_adder", 0.0))
 
         agent_info[a.name] = {
             'bus': a.bus,

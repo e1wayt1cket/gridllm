@@ -8,7 +8,9 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import numpy as np
 
-from MakerB.agent.agent_trading import MarketConfig, clear_market, random_actions  # Removed extract_agent_result import
+# 更新导入以使用当前项目结构
+from models import MarketConfig
+from market import clear_market, adaptive_bidding
 from scenarios import get_scenario
 
 
@@ -21,7 +23,7 @@ class AdviceRequest:
     agents_data: Dict[str, Any]
     market_results: Dict[str, Any]
     query: str
-    use_ac_opf: bool = True  # Default to AC OPF to match our changes
+    use_ac_opf: bool = False  # 使用DC OPF作为默认
 
 
 class LLMAdvisor:
@@ -31,7 +33,7 @@ class LLMAdvisor:
     def __init__(self, api_url: str = "http://localhost:11434/api/generate", model: str = "llama2"):
         self.api_url = api_url
         self.model = model
-        self.default_config = MarketConfig(use_ac_opf=True)  # Updated to AC OPF
+        self.default_config = MarketConfig(use_ac_opf=False)  # 使用DC OPF作为默认
 
     def get_strategic_advice(self, req: AdviceRequest) -> str:
         """
@@ -54,7 +56,7 @@ class LLMAdvisor:
         Construct prompt for LLM
         """
         # Extract key metrics
-        avg_price = req.market_results['price'].mean()
+        avg_price = req.market_results['price'].mean() if isinstance(req.market_results['price'], np.ndarray) else req.market_results['price']
         re_consumption_rate = req.market_results['re_consumption_rate']
         welfare = req.market_results['welfare']
         
@@ -95,11 +97,18 @@ class LLMAdvisor:
             "stream": False
         }
         
-        response = requests.post(self.api_url, json=payload)
-        response.raise_for_status()
-        
-        result = response.json()
-        return result.get("response", "No response from LLM")
+        try:
+            response = requests.post(self.api_url, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            return result.get("response", "No response from LLM")
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to connect to LLM API: {e}")
+            return f"API connection failed: {e}"
+        except Exception as e:
+            print(f"Unexpected error when calling LLM API: {e}")
+            return f"Unexpected error: {e}"
 
     def _fallback_advice(self, query: str) -> str:
         """
@@ -117,11 +126,8 @@ class LLMAdvisor:
         
         Current Configuration:
         - Using AC OPF: {self.default_config.use_ac_opf}
-        - OPF Tolerance (AC): {self.default_config.acopf_tolerance}
-        - OPF Tolerance (DC): {self.default_config.dcopf_tolerance}
         """
 
-    # [修改1] 新增：自然语言指令解析（dashboard 需要此方法）
     def parse_natural_language_to_config(self, user_input: str) -> Dict[str, Any]:
         """
         将自然语言指令转换为结构化配置。
@@ -173,8 +179,12 @@ class LLMAdvisor:
 
         if any(kw in user_input_lower for kw in ["纳什", "nash", "博弈", "game"]):
             config["parameters"]["strategy"] = "nash"
-        elif any(kw in user_input_lower for kw in ["学习", "learning", "q-learning", "rl"]):
-            config["parameters"]["strategy"] = "q_learning"
+        elif any(kw in user_input_lower for kw in ["lmp", "边际电价", "价格", "price"]):
+            config["parameters"]["strategy"] = "lmp_based"
+        elif any(kw in user_input_lower for kw in ["最佳响应", "best response", "响应"]):
+            config["parameters"]["strategy"] = "best_response"
+        elif any(kw in user_input_lower for kw in ["随机", "random"]):
+            config["parameters"]["strategy"] = "random"
 
         if any(kw in user_input_lower for kw in ["ac", "交流"]):
             config["parameters"]["use_ac_opf"] = True
@@ -195,6 +205,10 @@ def analyze_storage_performance(market_results: Dict, agents_data: Dict) -> str:
     storage_analysis = []
     
     for agent_name, sched in market_results['schedules'].items():
+        # 跳过特殊键
+        if agent_name == 'GRID':
+            continue
+            
         agent_info = agents_data.get(agent_name, {})
         
         if agent_info.get('has_storage', False):
@@ -218,15 +232,18 @@ def analyze_storage_performance(market_results: Dict, agents_data: Dict) -> str:
             
             storage_analysis.append(analysis)
     
-    return "\n".join(storage_analysis)
+    return "\n".join(storage_analysis) if storage_analysis else "No storage agents found in this scenario."
 
 
-def run_strategic_analysis(scenario_name: str, T: int = 24) -> Dict[str, Any]:
+def run_strategic_analysis(scenario_name: str, strategy: str = "random", T: int = 96) -> Dict[str, Any]:
     """Run a complete strategic analysis"""
     agents, wholesale = get_scenario(scenario_name, T=T)
     config = MarketConfig(use_ac_opf=False)
-    actions = random_actions(agents, config)
-    # [修改3] 修复：clear_market 不再接受 wholesale 参数
+    
+    # 使用指定的策略
+    actions = adaptive_bidding(agents, config, strategy=strategy)
+    
+    # 运行市场出清
     market_results = clear_market(agents, T, 'DA', actions, config)
 
     agents_data = {}
@@ -235,7 +252,8 @@ def run_strategic_analysis(scenario_name: str, T: int = 24) -> Dict[str, Any]:
             'has_storage': agent.storage is not None,
             'has_pv': agent.is_prosumer and np.sum(agent.pv_forecast) > 0,
             'has_wind': agent.has_wind,
-            'load_type': getattr(agent, 'load_type', 'unknown')
+            'load_type': getattr(agent, 'load_type', 'unknown'),
+            'is_prosumer': agent.is_prosumer
         }
 
     advisor = LLMAdvisor()
@@ -265,3 +283,36 @@ def run_strategic_analysis(scenario_name: str, T: int = 24) -> Dict[str, Any]:
     storage_analysis = analyze_storage_performance(market_results, agents_data)
     analysis_results['storage_analysis'] = storage_analysis
     return analysis_results
+
+
+def run_llm_analysis_for_dashboard(scenario_name: str, strategy: str = "random", T: int = 96) -> Dict[str, Any]:
+    """
+    专为dashboard设计的LLM分析函数
+    """
+    try:
+        results = run_strategic_analysis(scenario_name, strategy, T)
+        return {
+            "status": "success",
+            "results": results
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error running LLM analysis: {str(e)}"
+        }
+
+
+if __name__ == "__main__":
+    # 示例用法
+    print("LLM Advisor Module - Testing")
+    advisor = LLMAdvisor()
+    
+    # 解析自然语言示例
+    user_input = "我想看高可再生渗透率场景下的市场表现"
+    parsed_config = advisor.parse_natural_language_to_config(user_input)
+    print(f"Parsed Config: {parsed_config}")
+    
+    # 运行战略分析示例
+    analysis = run_strategic_analysis("high_re", strategy="random", T=24)
+    print(f"Analysis completed for {len(analysis['advice'])} queries")
+    print(f"Storage analysis: {analysis['storage_analysis'][:100]}...")
