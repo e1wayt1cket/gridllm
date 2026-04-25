@@ -513,11 +513,32 @@ def clear_market_multi_obj_lp(
                 inj += p_dis[a.name][t] - p_ch[a.name][t]
             net_inj_bus[b] += inj
 
-        if 1 in net_inj_bus and 2 in net_inj_bus:
-            flow12 = net_inj_bus[2]
-            flow01 = net_inj_bus[1] + net_inj_bus[2]
-            constraints += [flow12 <= network.cap12, flow12 >= -network.cap12]
-            constraints += [flow01 <= network.cap01, flow01 >= -network.cap01]
+        # ---- 通用网络潮流约束 ----
+        # 对每条支路 (from_bus -> to_bus)，计算流过该支路的功率
+        # 径向网假设：flow_ij = Σ net_inj(bus_k), k为j侧所有下游节点
+        for branch in network.branches:
+            bus_from = branch["from"]
+            bus_to = branch["to"]
+            cap = branch["cap"]
+
+            # 找出 bus_to 及其所有下游节点的集合
+            # 用BFS从bus_to出发沿支路方向搜索下游
+            downstream = set()
+            queue = [bus_to]
+            visited_bfs = set()
+            while queue:
+                node = queue.pop(0)
+                if node in visited_bfs:
+                    continue
+                visited_bfs.add(node)
+                downstream.add(node)
+                for br in network.branches:
+                    if br["from"] == node and br["to"] not in visited_bfs:
+                        queue.append(br["to"])
+
+            # 支路潮流 = 所有下游节点净注入之和
+            flow_ij = sum(net_inj_bus.get(b, 0) for b in downstream)
+            constraints += [flow_ij <= cap, flow_ij >= -cap]
 
     # ============================
     # 双目标函数
@@ -684,7 +705,13 @@ def build_demo_case(T=96, with_wind: bool = False) -> Tuple[List[Agent], Network
         0.82860775, 1.50748175, 1.47349775, 1.43748175, 1.39248175,
         1.20401675, 1.14851675
     ])
-    wholesale = np.tile(base_price, 2)
+    # 重复base_price以匹配T个时段（每12个元素代表12小时，需要扩展到T小时）
+    # 如果是96个15分钟时段（24小时），需要重复2次
+    # 如果是24小时，需要重复2次（12*2=24）
+    # 如果是96个15分钟时段，需要重复8次（12*8=96）
+    repeats = max(1, (T + len(base_price) - 1) // len(base_price))  # 向上取整
+    wholesale = np.tile(base_price, repeats)[:T]
+    
 
     # 预测与实际（简单加噪）
     def noisy(x, sigma=0.1):
@@ -826,14 +853,14 @@ def one_day_demo():
     # 日前：基于预测
     act_DA = random_actions(agents)
     da = clear_market_lp(
-        agents=agents, network=network, T=96, stage="DA",
+        agents=agents, network=network, T=T, stage="DA",
         wholesale_price=wholesale, action_params=act_DA
     )
 
     # 日内/实时：基于实际（可做滚动，这里简化为一次 RT）
     act_RT = random_actions(agents)
     rt = clear_market_lp(
-        agents=agents, network=network, T=96, stage="RT",
+        agents=agents, network=network, T=T, stage="RT",
         wholesale_price=wholesale, action_params=act_RT
     )
 
@@ -1034,16 +1061,8 @@ def solve_pareto_front_epsilon(
     print(f"{'='*60}")
     return pareto_front
 
-
-# ============================================================
-# 任务3: 多场景构建与批量运行
-# ============================================================
-
-
 def build_scenarios():
     """
-    构建多场景列表（任务3）
-
     返回: list of dict, 每个 dict 含 {
         name: 场景名称,
         desc: 描述,
@@ -1086,20 +1105,6 @@ def build_scenarios():
         "with_wind": True,
     })
 
-    # ---- 场景D: 松约束（线路容量放大→近似无拥塞）----
-    ag_D, _, wp_D = build_demo_case(T=T, with_wind=True)
-    net_D = Network.from_edges([
-        (0, 1, 20.0),
-        (1, 2, 15.0),
-        (2, 3, 15.0),
-        (3, 4, 12.0),
-    ])
-    scenarios.append({
-        "name": "D-松约束",
-        "desc": "7Agent/5节点/线路松/无拥塞",
-        "agents": ag_D, "network": net_D, "wholesale": wp_D,
-        "with_wind": True,
-    })
 
     # ---- 场景E: 高峰负荷（负荷放大1.5倍）----
     ag_E, net_E, wp_E = build_demo_case(T=T, with_wind=True)
@@ -1119,8 +1124,6 @@ def build_scenarios():
 
 def run_all_scenarios(multi_obj: bool = True):
     """
-    运行所有场景的对比分析（任务3）
-
     参数:
       multi_obj: 是否使用双目标优化（True=双目标, False=单目标）
     """
@@ -1211,7 +1214,12 @@ def run_one_day_demo(with_wind: bool = False):
     agents, network, wholesale = build_demo_case(T=96, with_wind=with_wind)
 
     mode_str = " (含风电)" if with_wind else ""
-    print(f"=== 单日演示{mode_str}: {len(agents)} Agents, {len(network.branches)} Branches ===")
+    print("=" * 80)
+    print(f"电力市场单日模拟演示{mode_str}")
+    print("=" * 80)
+    print(f"系统配置: {len(agents)}个智能体, {len(network.branches)}条线路")
+    print(f"模拟时段: 96个15分钟时段 (24小时)")
+    print("-" * 80)
 
     # 日前
     act_DA = random_actions(agents)
@@ -1229,23 +1237,114 @@ def run_one_day_demo(with_wind: bool = False):
 
     payment = two_settlement(agents, da, rt)
 
-    print(f"Day-Ahead (DA) welfare: {round(da['welfare'], 2)}")
-    print(f"Real-Time (RT) welfare: {round(rt['welfare'], 2)}")
-    print("\n--- Payments (positive = cost, negative = revenue) ---")
-    for k, v in payment.items():
-        print(f"{k:14s}  {v:8.2f} ¥")
+    print("\n📈 市场出清结果:")
+    print("-" * 60)
+    print(f"{'指标':<20} {'日前市场(DA)':>15} {'实时市场(RT)':>15}")
+    print(f"{'-'*50}")
+    print(f"{'社会福利(¥)':<20} {da['welfare']:>15.2f} {rt['welfare']:>15.2f}")
+    
+    # 计算可再生消纳率
+    def calc_re_consumption(result, agents_list):
+        total_re = 0.0
+        total_re_used = 0.0
+        for a in agents_list:
+            if a.is_prosumer:
+                total_re += np.sum(a.pv_forecast)
+                total_re_used += np.sum(result["schedules"][a.name]["pv_used"])
+                if a.has_wind():
+                    total_re_used += np.sum(result["schedules"][a.name].get("wind_used", [0]))
+        return (total_re_used / total_re * 100) if total_re > 0 else 0
+    
+    da_re_rate = calc_re_consumption(da, agents)
+    rt_re_rate = calc_re_consumption(rt, agents)
+    print(f"{'可再生消纳率(%)':<20} {da_re_rate:>15.1f} {rt_re_rate:>15.1f}")
+    
+    # 负荷满足率
+    def calc_load_satisfaction(result, agents_list):
+        total_load = 0.0
+        total_served = 0.0
+        for a in agents_list:
+            total_load += np.sum(a.load_forecast)
+            total_served += np.sum(result["schedules"][a.name]["served"])
+        return (total_served / total_load * 100) if total_load > 0 else 100
+    
+    da_load_rate = calc_load_satisfaction(da, agents)
+    rt_load_rate = calc_load_satisfaction(rt, agents)
+    print(f"{'负荷满足率(%)':<20} {da_load_rate:>15.1f} {rt_load_rate:>15.1f}")
 
-    # 各Agent快照
+    print("\n💰 结算结果 (正数=成本, 负数=收益):")
+    print("-" * 60)
+    total_payment = 0
+    for k, v in payment.items():
+        total_payment += v
+        payment_type = "成本" if v > 0 else "收益" if v < 0 else "平衡"
+        print(f"{k:14s}  {v:8.2f} ¥ ({payment_type})")
+    print(f"{'总计':14s}  {total_payment:8.2f} ¥")
+
+    print("\n👥 各智能体运行快照 (前4个):")
+    print("-" * 80)
+    
     for a in agents[:4]:  # 只显示前4个避免太长
         sch_da = da["schedules"][a.name]
         sch_rt = rt["schedules"][a.name]
-        print(f"\n--- {a.name} snapshot ---")
+        
+        print(f"\n🔹 {a.name} @ bus{a.bus}:")
+        print(f"  类型: {'产消者' if a.is_prosumer else '纯负荷'}")
+        
+        if a.is_prosumer:
+            # PV使用情况
+            pv_forecast = np.sum(a.pv_forecast)
+            pv_used_da = np.sum(sch_da.get("pv_used", [0]))
+            pv_used_rt = np.sum(sch_rt.get("pv_used", [0]))
+            pv_rate_da = (pv_used_da / pv_forecast * 100) if pv_forecast > 0 else 0
+            pv_rate_rt = (pv_used_rt / pv_forecast * 100) if pv_forecast > 0 else 0
+            
+            print(f"  PV预测: {pv_forecast:.2f} MWh")
+            print(f"  PV使用 - DA: {pv_used_da:.2f} MWh ({pv_rate_da:.1f}%), RT: {pv_used_rt:.2f} MWh ({pv_rate_rt:.1f}%)")
+            
+            # 风电使用情况
+            if a.has_wind():
+                wind_forecast = np.sum(a.wind_forecast)
+                wind_used_da = np.sum(sch_da.get("wind_used", [0]))
+                wind_used_rt = np.sum(sch_rt.get("wind_used", [0]))
+                wind_rate_da = (wind_used_da / wind_forecast * 100) if wind_forecast > 0 else 0
+                wind_rate_rt = (wind_used_rt / wind_forecast * 100) if wind_forecast > 0 else 0
+                
+                print(f"  风电预测: {wind_forecast:.2f} MWh")
+                print(f"  风电使用 - DA: {wind_used_da:.2f} MWh ({wind_rate_da:.1f}%), RT: {wind_used_rt:.2f} MWh ({wind_rate_rt:.1f}%)")
+        
+        # 负荷满足情况
+        load_forecast = np.sum(a.load_forecast)
+        served_da = np.sum(sch_da["served"])
+        served_rt = np.sum(sch_rt["served"])
+        load_rate_da = (served_da / load_forecast * 100) if load_forecast > 0 else 100
+        load_rate_rt = (served_rt / load_forecast * 100) if load_forecast > 0 else 100
+        
+        print(f"  负荷预测: {load_forecast:.2f} MWh")
+        print(f"  负荷满足 - DA: {served_da:.2f} MWh ({load_rate_da:.1f}%), RT: {served_rt:.2f} MWh ({load_rate_rt:.1f}%)")
+        
+        # 储能情况
         if a.storage is not None:
-            print(f"DA soc:  {np.round(sch_da.get('soc', [0]), 2)}")
-            print(f"RT soc:  {np.round(sch_rt.get('soc', [0]), 2)}")
-        pv_u = np.sum(sch_da.get("pv_used", [0]))
-        wind_u = np.sum(sch_da.get("wind_used", [0]))
-        print(f"DA PV用: {pv_u:.2f} MWh, Wind用: {wind_u:.2f} MWh")
+            soc_da = sch_da.get("soc", [0])
+            soc_rt = sch_rt.get("soc", [0])
+            soc_end_da = soc_da[-1] if len(soc_da) > 0 else 0
+            soc_end_rt = soc_rt[-1] if len(soc_rt) > 0 else 0
+            
+            print(f"  储能SOC - DA终值: {soc_end_da:.2f} MWh, RT终值: {soc_end_rt:.2f} MWh")
+            print(f"  储能容量: {a.storage.e_max:.1f} MWh, 充/放功率: {a.storage.p_ch_max:.1f}/{a.storage.p_dis_max:.1f} MW")
+        
+        # 市场交易
+        buy_da = np.sum(sch_da["p_buy"])
+        sell_da = np.sum(sch_da["p_sell"])
+        buy_rt = np.sum(sch_rt["p_buy"])
+        sell_rt = np.sum(sch_rt["p_sell"])
+        
+        print(f"  市场交易 - DA: 买入{buy_da:.2f} MWh, 卖出{sell_da:.2f} MWh, 净{buy_da-sell_da:.2f} MWh")
+        print(f"            RT: 买入{buy_rt:.2f} MWh, 卖出{sell_rt:.2f} MWh, 净{buy_rt-sell_rt:.2f} MWh")
+
+    print("\n" + "=" * 80)
+    print("单日模拟演示完成")
+    print("=" * 80)
 
 
 
@@ -1284,26 +1383,119 @@ def run_multi_obj_comparison():
     对比演示：单目标(社会福利) vs 双目标(社会福利+PV消纳)
     参考: Applied Energy 312 (2022) 118724 目标二 waste minimization
     """
-    agents, network, wholesale = build_demo_case(T=96)
+    T = 96  # 96个15分钟时段 = 24小时
+    agents, network, wholesale = build_demo_case(T=T)
     act = random_actions(agents)
 
     # ---- 方案B：双目标（社会福利 + PV消纳）----
     # 使用与论文相近的权重比例
     da_multi = clear_market_multi_obj_lp(
-        agents=agents, network=network, T=96, stage="DA",
+        agents=agents, network=network, T=T, stage="DA",
         wholesale_price=wholesale, action_params=act,
         w_welfare=1.0, w_re_consume=80.0   # 弃光惩罚权重
     )
 
 
-    # 各agent PV使用对比
-    print("\n" + "-" * 62)
-    print("各产消者(Prosumer) PV使用详情:")
-    print(f"{'Agent':<16} {'单目标PV用(MWh)':>18} {'双目标PV用(MWh)':>18}")
+    # 完善输出内容
+    print("\n" + "=" * 80)
+    print("多目标优化结果对比分析")
+    print("=" * 80)
+    
+    # 1. 总体指标
+    print("\n📊 总体指标:")
+    print(f"  社会福利: {da_multi['welfare']:.2f} ¥")
+    print(f"  可再生弃能量: {da_multi['re_waste']:.2f} MWh")
+    
+    # 计算可再生消纳率
+    total_re_available = 0.0
+    total_re_used = 0.0
     for a in agents:
         if a.is_prosumer:
-            u_m = np.sum(da_multi["schedules"][a.name]["pv_used"])
-            print(f"{a.name:<16} {u_m:>18.3f}")
+            total_re_available += np.sum(a.pv_forecast)
+            total_re_used += np.sum(da_multi["schedules"][a.name]["pv_used"])
+    
+    if total_re_available > 0:
+        re_consumption_rate = total_re_used / total_re_available * 100
+        print(f"  可再生消纳率: {re_consumption_rate:.1f}%")
+        print(f"  总可再生预测: {total_re_available:.2f} MWh")
+        print(f"  总可再生使用: {total_re_used:.2f} MWh")
+    
+    # 2. 各产消者详细数据
+    print("\n👥 各产消者(Prosumer)详细数据:")
+    print(f"{'Agent':<16} {'PV预测(MWh)':>12} {'PV使用(MWh)':>12} {'消纳率(%)':>10} {'储能充(MWh)':>12} {'储能放(MWh)':>12}")
+    print("-" * 80)
+    
+    for a in agents:
+        if a.is_prosumer:
+            pv_forecast_total = np.sum(a.pv_forecast)
+            pv_used_total = np.sum(da_multi["schedules"][a.name]["pv_used"])
+            consumption_rate = (pv_used_total / pv_forecast_total * 100) if pv_forecast_total > 0 else 0
+            
+            # 储能数据
+            if a.storage is not None:
+                p_ch_total = np.sum(da_multi["schedules"][a.name].get("p_ch", [0]))
+                p_dis_total = np.sum(da_multi["schedules"][a.name].get("p_dis", [0]))
+            else:
+                p_ch_total = 0
+                p_dis_total = 0
+            
+            print(f"{a.name:<16} {pv_forecast_total:>12.2f} {pv_used_total:>12.2f} {consumption_rate:>10.1f} {p_ch_total:>12.2f} {p_dis_total:>12.2f}")
+    
+    # 3. 负荷满足情况
+    print("\n🏠 负荷满足情况:")
+    print(f"{'Agent':<16} {'负荷预测(MWh)':>14} {'已服务(MWh)':>12} {'满足率(%)':>10}")
+    print("-" * 60)
+    
+    total_load = 0
+    total_served = 0
+    for a in agents:
+        load_total = np.sum(a.load_forecast)
+        served_total = np.sum(da_multi["schedules"][a.name]["served"])
+        served_rate = (served_total / load_total * 100) if load_total > 0 else 100
+        
+        total_load += load_total
+        total_served += served_total
+        
+        print(f"{a.name:<16} {load_total:>14.2f} {served_total:>12.2f} {served_rate:>10.1f}")
+    
+    total_served_rate = (total_served / total_load * 100) if total_load > 0 else 100
+    print(f"{'总计':<16} {total_load:>14.2f} {total_served:>12.2f} {total_served_rate:>10.1f}")
+    
+    # 4. 市场交易情况
+    print("\n💰 市场交易情况:")
+    print(f"{'Agent':<16} {'买入(MWh)':>12} {'卖出(MWh)':>12} {'净交易(MWh)':>12}")
+    print("-" * 60)
+    
+    total_buy = 0
+    total_sell = 0
+    for a in agents:
+        buy_total = np.sum(da_multi["schedules"][a.name]["p_buy"])
+        sell_total = np.sum(da_multi["schedules"][a.name]["p_sell"])
+        net_trade = buy_total - sell_total
+        
+        total_buy += buy_total
+        total_sell += sell_total
+        
+        trade_type = "净买入" if net_trade > 0 else "净卖出" if net_trade < 0 else "平衡"
+        print(f"{a.name:<16} {buy_total:>12.2f} {sell_total:>12.2f} {net_trade:>12.2f} ({trade_type})")
+    
+    print(f"{'总计':<16} {total_buy:>12.2f} {total_sell:>12.2f} {total_buy-total_sell:>12.2f}")
+    
+    # 5. 电网供电情况
+    print("\n⚡ 电网供电情况:")
+    grid_supply = np.sum(da_multi["schedules"]["GRID"]["g_grid"])
+    print(f"  电网总供电量: {grid_supply:.2f} MWh")
+    print(f"  电网供电占比: {(grid_supply/total_served*100):.1f}% (占总服务电量)")
+    
+    # 6. 网络约束情况
+    print("\n🔌 网络约束检查:")
+    print(f"  网络拓扑: {len(network.branches)}条线路")
+    for i, branch in enumerate(network.branches):
+        print(f"  线路{branch['from']}-{branch['to']}容量: {branch['cap']:.1f} MW")
+    
+    print("\n" + "=" * 80)
+    print("多目标优化完成 - 权重设置: w_welfare=1.0, w_re_consume=80.0")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
