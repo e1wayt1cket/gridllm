@@ -148,8 +148,8 @@ def create_agents_from_network(net: pp.pandapowerNet, T: int,
 def day_ahead_price_china(T: int = 96) -> np.ndarray:
     hours = np.arange(T) * 0.25
     base = 420.0
-    price = base + 150.0 * np.sin((hours - 9) / 24 * 2 * np.pi) \
-            + 130.0 * np.sin((hours - 20) / 24 * 2 * np.pi)
+    price = base + 300.0 * np.sin((hours - 9) / 24 * 2 * np.pi) \
+            + 150.0 * np.sin((hours - 20) / 24 * 2 * np.pi)
     noon_dip = -80.0 * np.exp(-((hours - 13) ** 2) / 8)
     price += noon_dip
     price = np.clip(price, 150.0, 800.0)
