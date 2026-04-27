@@ -1,7 +1,8 @@
 # dashboard.py
 """
 配电网电力市场仿真仪表板 (深色主题 · 每个图单占一行)
-集成：场景切换 / OPF模式 / 策略切换 / 纳什检验 / 伪实时仿真 / 自然语言解析 / AI解释(≤50字)
+集成：场景切换 / OPF模式 / 策略切换 / 纳什检验 / 伪实时仿真 /
+       自然语言解析 / 自动 AI 分析（曲线原因与建议 ≤200字）
 运行: python dashboard.py
 """
 
@@ -309,6 +310,56 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
             realtime_state.running = False
 
 # ------------------------------
+# 曲线特征提取（供 AI 分析使用）
+# ------------------------------
+def build_insight_summary(da_results, agents, scenario_cn):
+    lmp_matrix = da_results['lmp']
+    avg_lmp = lmp_matrix.mean()
+    min_lmp = lmp_matrix.min()
+    max_lmp = lmp_matrix.max()
+
+    soc_values = []
+    total_ch = 0.0
+    total_dis = 0.0
+    active = False
+    for a in agents:
+        sched = da_results['schedules'][a.name]
+        if a.storage:
+            soc_arr = sched['soc']
+            soc_values.extend(soc_arr)
+            total_ch += np.sum(sched['p_ch'])
+            total_dis += np.sum(sched['p_dis'])
+            active = active or (np.any(sched['p_ch'] > 0.01) or np.any(sched['p_dis'] > 0.01))
+    avg_soc = np.mean(soc_values) * 100 if soc_values else 0.0
+    min_soc = np.min(soc_values) * 100 if soc_values else 0.0
+    max_soc = np.max(soc_values) * 100 if soc_values else 0.0
+
+    load_total = sum(np.sum(a.load_forecast) for a in agents)
+    served = sum(np.sum(da_results['schedules'][a.name]['served']) for a in agents)
+    satisfaction = (served / load_total * 100) if load_total > 0 else 100.0
+
+    total_buy = sum(np.sum(da_results['schedules'][a.name]['p_buy']) for a in agents)
+    total_sell = sum(np.sum(da_results['schedules'][a.name]['p_sell']) for a in agents)
+
+    return {
+        'scenario': scenario_cn,
+        'welfare_da': f"{da_results['welfare']:.0f}",
+        're_rate': f"{da_results['re_consumption_rate']:.1f}",
+        'load_sat': f"{satisfaction:.1f}",
+        'avg_lmp': f"{avg_lmp:.1f}",
+        'min_lmp': f"{min_lmp:.1f}",
+        'max_lmp': f"{max_lmp:.1f}",
+        'avg_soc': f"{avg_soc:.1f}",
+        'min_soc': f"{min_soc:.1f}",
+        'max_soc': f"{max_soc:.1f}",
+        'total_ch': f"{total_ch:.2f}",
+        'total_dis': f"{total_dis:.2f}",
+        'total_buy': f"{total_buy:.2f}",
+        'total_sell': f"{total_sell:.2f}",
+        'storage_active': '是' if active else '否'
+    }
+
+# ------------------------------
 # Dash 应用
 # ------------------------------
 app = dash.Dash(__name__, title="配电网电力市场仿真仪表板")
@@ -365,9 +416,6 @@ app.layout = html.Div(
                                    'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
                 html.Button("纳什检验", id='nash-btn', n_clicks=0,
                             style={'backgroundColor': '#a371f7', 'color': 'white', 'border': 'none',
-                                   'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
-                html.Button("AI解释", id='ai-btn', n_clicks=0,
-                            style={'backgroundColor': '#58a6ff', 'color': 'white', 'border': 'none',
                                    'borderRadius': '6px', 'padding': '8px 20px'}),
             ], style={'display': 'flex', 'alignItems': 'center'}),
         ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'marginBottom': '20px', 'padding': '10px',
@@ -385,6 +433,7 @@ app.layout = html.Div(
         dcc.Graph(id='lmp-realtime', style={'width': '100%', 'marginBottom': '20px'}),
 
         html.Div(id='nash-output', style={'marginTop': '10px', 'color': '#c9d1d9'}),
+        # AI 自动分析（无需按钮）
         html.Div(id='ai-output', style={'marginTop': '15px', 'color': '#c9d1d9',
                                         'backgroundColor': '#161b22', 'padding': '12px',
                                         'borderRadius': '8px'}),
@@ -398,7 +447,7 @@ app.layout = html.Div(
 )
 
 # ------------------------------
-# 统一主回调
+# 统一主回调（含自动 AI 分析）
 # ------------------------------
 @app.callback(
     [Output('static-data-store', 'data'),
@@ -410,7 +459,8 @@ app.layout = html.Div(
      Output('payment-table', 'children'),
      Output('realtime-interval', 'disabled'),
      Output('lmp-realtime', 'figure'),
-     Output('nl-result', 'children')],
+     Output('nl-result', 'children'),
+     Output('ai-output', 'children')],   # 新增 AI 输出
     [Input('static-btn', 'n_clicks'),
      Input('realtime-btn', 'n_clicks'),
      Input('stop-btn', 'n_clicks'),
@@ -433,12 +483,13 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
     realtime_fig = go.Figure().update_layout(title="伪实时电价 (点击启动)", template="plotly_dark",
                                              paper_bgcolor='#161b22', plot_bgcolor='#161b22')
     nl_msg = ""
+    ai_output = dash.no_update  # 默认不更新
 
     # 定时器刷新伪实时
     if trigger_id == 'realtime-interval':
         with realtime_state.lock:
             if not realtime_state.running or len(realtime_state.lmp_history) == 0:
-                return (dash.no_update,) * 9 + (nl_msg,)
+                return (dash.no_update,) * 10 + (dash.no_update,)  # 11个输出
             try:
                 lmp_array = np.array(realtime_state.lmp_history)
                 if lmp_array.ndim != 2:
@@ -446,7 +497,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                 T, n = lmp_array.shape
             except Exception as e:
                 print(f"LMP数据转换错误: {e}")
-                return (dash.no_update,) * 9 + (nl_msg,)
+                return (dash.no_update,) * 10 + (dash.no_update,)
 
             hours = np.arange(T) * 0.25
             mean_lmp = lmp_array.mean(axis=1) if n > 0 else np.zeros(T)
@@ -465,7 +516,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                 template="plotly_dark", legend=dict(orientation='h', y=1.1),
                 margin=dict(l=40, r=20, t=60, b=40),
                 paper_bgcolor='#161b22', plot_bgcolor='#161b22')
-            return (dash.no_update,) * 9 + (nl_msg,)
+            return (dash.no_update,) * 10 + (dash.no_update,)  # 11个输出
 
     # 停止伪实时
     if trigger_id == 'stop-btn':
@@ -483,12 +534,13 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                 thread.start()
         realtime_fig = go.Figure().update_layout(title="伪实时已启动，等待数据...", template="plotly_dark",
                                                  paper_bgcolor='#161b22', plot_bgcolor='#161b22')
-        return (dash.no_update,) * 9 + (nl_msg,)
+        return (dash.no_update,) * 10 + (dash.no_update,)  # 11个输出
 
-    # 静态分析 / 自然语言解析
+    # 停止仿真（静态分析 / 自然语言解析）
     with realtime_state.lock:
         realtime_state.running = False
 
+    # 准备静态分析
     if trigger_id in ['static-btn', 'parse-btn', 'scenario-dropdown']:
         if trigger_id == 'parse-btn' and nl_text and nl_text.strip():
             advisor = LLMAdvisor()
@@ -496,6 +548,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
             nl_msg = f"✅ 解析结果: 场景={parsed['scenario_type']}, 参数={parsed['parameters']}"
             print(nl_msg)
 
+            # 提取参数
             scenario_type = parsed.get("scenario_type", "baseline")
             params = parsed.get("parameters", {})
             T = int(params.get("T", 96))
@@ -515,6 +568,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                 agents, _ = get_scenario("baseline", T=T)
                 nl_msg += " (警告: 未知场景，已替换为基准)"
 
+            # 缩放可再生和负荷
             for a in agents:
                 a.load_forecast *= load_factor
                 a.load_real *= load_factor
@@ -531,6 +585,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
             rt_results = clear_market(agents, T, "RT", rt_actions, config)
             payment = two_settlement(agents, da_results, rt_results)
 
+            # 静态数据
             static_data = {'agents_names': [a.name for a in agents], 'da_actions': {}}
             for a in agents:
                 static_data['da_actions'][a.name] = {
@@ -542,6 +597,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                     else da_actions[a.name].get('offer_adder', 0.0)
                 }
         else:
+            # 普通静态分析
             scenario_en = CN_TO_EN.get(scenario_cn, "baseline")
             agents, config, da_results, rt_results, payment, da_actions = run_static_analysis(
                 scenario_en, strategy=strategy_en, opf_mode=opf_mode
@@ -557,6 +613,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                     else da_actions[a.name].get('offer_adder', 0.0)
                 }
 
+        # 构建图表
         net = build_base_network(config)
         kpi = create_kpi_cards(da_results, rt_results, payment, agents)
         topo_fig = create_topology_figure(net)
@@ -565,12 +622,18 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
         soc_fig = create_soc_figure(da_results, agents)
         pay_tab = create_payment_table(payment, agents)
 
-        return static_data, kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, True, realtime_fig, nl_msg
+        # 自动 AI 分析（≤200字）
+        advisor = LLMAdvisor()
+        summary = build_insight_summary(da_results, agents, scenario_cn)
+        ai_output = advisor.get_insight(summary)
+
+        return (static_data, kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab,
+                True, realtime_fig, nl_msg, ai_output)
 
     raise PreventUpdate
 
 # ------------------------------
-# 纳什检验回调
+# 纳什检验回调（保持不变）
 # ------------------------------
 @app.callback(
     Output('nash-output', 'children'),
@@ -608,58 +671,6 @@ def run_nash_check(n_clicks, static_data, scenario_cn, opf_mode):
                 return html.Span(f"⚠️ 未达均衡，策略已优化 (迭代 {iters} 次)", style={'color': '#f0883e'})
         except Exception as e:
             return html.Span(f"纳什检验异常: {e}", style={'color': '#f85149'})
-
-# ------------------------------
-# AI 解释回调（≤50字）
-# ------------------------------
-@app.callback(
-    Output('ai-output', 'children'),
-    Input('ai-btn', 'n_clicks'),
-    State('static-data-store', 'data'),
-    State('scenario-dropdown', 'value'),
-    State('opf-dropdown', 'value')
-)
-def ai_insight(n_clicks, static_data, scenario_cn, opf_mode):
-    if n_clicks is None or static_data is None:
-        return "请先运行静态分析"
-
-    scenario_en = CN_TO_EN.get(scenario_cn, "baseline")
-    config = MarketConfig(opf_mode=opf_mode, verbose=False)
-    agents, _ = get_scenario(scenario_en, T=96)
-    da_actions = adaptive_bidding(agents, config, strategy='random')
-    da_results = clear_market(agents, 96, "DA", da_actions, config)
-
-    load_total = sum(np.sum(a.load_forecast) for a in agents)
-    served = sum(np.sum(da_results['schedules'][a.name]['served']) for a in agents)
-    satisfaction = (served / load_total * 100) if load_total > 0 else 100.0
-    avg_lmp = da_results['price'].mean()
-
-    soc_list = []
-    active = False
-    for a in agents:
-        if a.storage:
-            soc_arr = da_results['schedules'][a.name]['soc']
-            soc_list.append(soc_arr.mean())
-            if np.any(da_results['schedules'][a.name]['p_ch'] > 0.01) or np.any(da_results['schedules'][a.name]['p_dis'] > 0.01):
-                active = True
-    avg_soc = np.mean(soc_list) * 100 if soc_list else 0.0
-
-    summary = {
-        'scenario': scenario_cn,
-        'welfare_da': f"{da_results['welfare']:.0f}",
-        're_rate': f"{da_results['re_consumption_rate']:.1f}",
-        'load_sat': f"{satisfaction:.1f}",
-        'avg_lmp': f"{avg_lmp:.1f}",
-        'avg_soc': f"{avg_soc:.1f}",
-        'storage_active': '是' if active else '否'
-    }
-
-    advisor = LLMAdvisor()
-    insight = advisor.get_insight(summary)
-    return html.Div([
-        html.H4("AI 解释与建议", style={'color': '#58a6ff'}),
-            html.P(insight[:50], style={'whiteSpace': 'pre-wrap'})
-        ], style={'margin': '10px'})
 
 # ------------------------------
 app.index_string = '''
