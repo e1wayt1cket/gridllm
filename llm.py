@@ -9,7 +9,7 @@ import json
 import requests
 
 class LLMAdvisor:
-    def __init__(self, api_url="http://localhost:11434", model="gemma2:2b"):
+    def __init__(self, api_url="http://localhost:11434", model="gemma4:e2b"):
         self.api_url = api_url
         self.model = model
 

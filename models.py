@@ -19,7 +19,7 @@ class MarketConfig:
     penalty_unserved: float = 800.0
     base_mva: float = 1.0
     base_kv: float = 12.66
-    lambda_re: float = 0.0
+    lambda_re: float = 50.0
     rt_horizon: int = 4        # RT 每次优化的时段数
     rt_step: int = 1           # RT 步长（时段）
 

@@ -74,7 +74,7 @@ def create_agents_from_network(net: pp.pandapowerNet, T: int,
                 pv_forecast = noisy(pv_base * pv_cap, 0.15)
                 pv_real = noisy(pv_base * pv_cap, 0.20)
                 
-                storage_capacity = base_load * 3.0
+                storage_capacity = base_load * 2.0
                 storage_power = storage_capacity * 0.2
                 storage = StorageSpec(
                     e_max=storage_capacity,
@@ -88,8 +88,8 @@ def create_agents_from_network(net: pp.pandapowerNet, T: int,
                     self_discharge_rate=0.001
                 )
                 
-                bid_val = 550.0
-                offer_cost = 280.0
+                bid_val = 350.0
+                offer_cost = 180.0
                 
             else:
                 wind_cap = base_load * 2.5
@@ -100,7 +100,7 @@ def create_agents_from_network(net: pp.pandapowerNet, T: int,
                     wind_forecast = np.zeros(T)
                     wind_real = np.zeros(T)
                 
-                storage_capacity = base_load * 4.0
+                storage_capacity = base_load * 2.0
                 storage_power = storage_capacity * 0.2
                 storage = StorageSpec(
                     e_max=storage_capacity,
