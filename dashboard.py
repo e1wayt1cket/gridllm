@@ -1,7 +1,8 @@
 # dashboard.py
 """
 配电网电力市场仿真仪表板 (深色主题 · 每个图单占一行)
-集成：场景切换 / OPF模式 / 策略切换 / 纳什检验 / 伪实时仿真 / 自然语言解析
+集成：场景切换 / OPF模式 / 策略切换 / 纳什检验 / 伪实时仿真 / 自然语言解析 / AI解释(≤50字)
+运行: python dashboard.py
 """
 
 import dash
@@ -24,24 +25,19 @@ from scenarios import get_scenario
 from llm import LLMAdvisor
 
 # ------------------------------
-# 中文场景名映射
+# 中文场景名映射（精简版）
 # ------------------------------
 SCENARIO_NAMES_CN = {
-    "baseline":           "基准–风光储",
-    "no_pv":              "无光伏 (仅风电)",
-    "high_re":            "高可再生渗透",
-    "peak_load":          "高峰负荷",
-    "unbalanced":         "资源不平衡 (无商业)",
-    "low_load_high_re":   "极低负荷+极大新能源",
-    "high_load_low_re":   "极大负荷+极低新能源",
-    "congestion":         "线路阻塞",
-    "re_ramp_drop":       "新能源骤降",
-    "re_ramp_surge":      "新能源骤升",
-    "peak_congestion":    "高峰负荷+阻塞",
+    "baseline":        "基准–风光储",
+    "high_re":         "高可再生渗透",
+    "peak_load":       "高峰负荷",
+    "congestion":      "线路阻塞",
+    "re_ramp_drop":    "新能源骤降",
+    "re_ramp_surge":   "新能源骤升",
 }
 CN_TO_EN = {v: k for k, v in SCENARIO_NAMES_CN.items()}
 
-# 策略名称映射（中文到英文）
+# 策略名称映射
 STRATEGY_MAP = {
     "随机": "random",
     "最佳响应": "best_response",
@@ -69,7 +65,7 @@ class RealtimeState:
 realtime_state = RealtimeState()
 
 # ------------------------------
-# 静态分析函数
+# 静态分析函数（使用指定策略）
 # ------------------------------
 def run_static_analysis(scenario_en, strategy="random", opf_mode="lindistflow"):
     config = MarketConfig(opf_mode=opf_mode, verbose=False)
@@ -83,9 +79,10 @@ def run_static_analysis(scenario_en, strategy="random", opf_mode="lindistflow"):
     return agents, config, da_results, rt_results, payment, da_actions
 
 # ------------------------------
-# 绘图辅助（拓扑、LMP、交易、SOC、KPI、结算表）
+# 绘图辅助函数
 # ------------------------------
 def create_topology_figure(net):
+    """绘制 IEEE 33 节点拓扑 (水平/竖直)"""
     edges = [(int(r.from_bus), int(r.to_bus)) for _, r in net.line.iterrows()]
     adj = {}
     for f, t in edges:
@@ -204,11 +201,13 @@ def create_kpi_cards(da_results, rt_results, payment, agents):
     served = sum(np.sum(da_results["schedules"][a.name]["served"]) for a in agents)
     satisfaction = (served / load_total * 100) if load_total > 0 else 100.0
     total_cost = sum(payment.values())
+
     def card(title, value_main):
         return html.Div([
             html.H3(title, style={'color': '#8b949e'}),
             html.Div(value_main, style={'fontSize': '20px', 'color': '#c9d1d9'})
         ], className='kpi-card')
+
     return html.Div([
         card("日前社会福利", f"{da_results['welfare']:,.0f} ¥"),
         card("实时社会福利", f"{rt_results['welfare']:,.0f} ¥"),
@@ -235,7 +234,7 @@ def create_payment_table(payment, agents):
     return table
 
 # ------------------------------
-# 伪实时线程（使用指定策略）
+# 伪实时线程（增强鲁棒性）
 # ------------------------------
 def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
     global realtime_state
@@ -247,22 +246,28 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
         realtime_state.welfare_acc = 0.0
         realtime_state.prev_soc = {}
         realtime_state.prev_power = {}
+
     try:
         config = MarketConfig(opf_mode=opf_mode, verbose=False)
         agents, _ = get_scenario(scenario_en, T=96)
         net = build_base_network(config)
         wholesale = day_ahead_price_china(96)
         action_params = adaptive_bidding(agents, config, strategy=strategy)
+
         with realtime_state.lock:
-            realtime_state.agents = agents #type: ignore
-            realtime_state.config = config #type: ignore
-            realtime_state.net = net    #type: ignore
-            realtime_state.wholesale = wholesale    #type: ignore
-            realtime_state.action_params = action_params  #type: ignore
-            realtime_state.total_T = 96 #type: ignore
+            realtime_state.agents = agents
+            realtime_state.config = config
+            realtime_state.net = net
+            realtime_state.wholesale = wholesale
+            realtime_state.action_params = action_params
+            realtime_state.total_T = 96
+
+        fallback_lmp = np.zeros(len(net.bus))
         for t in range(96):
             with realtime_state.lock:
                 if not realtime_state.running: break
+
+            try:
                 success, lmp_t, welfare_t, agent_res, p_grid = solve_opf_gurobi(
                     net, agents, t, "RT", realtime_state.prev_soc,
                     wholesale[t], action_params, config, realtime_state.prev_power)
@@ -270,8 +275,9 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
                     if realtime_state.lmp_history:
                         lmp_t = realtime_state.lmp_history[-1]
                     else:
-                        lmp_t = np.zeros(len(net.bus))
+                        lmp_t = fallback_lmp
                 else:
+                    fallback_lmp = lmp_t.copy()
                     realtime_state.welfare_acc += welfare_t
                     for a in agents:
                         if a.storage is None: continue
@@ -281,9 +287,23 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
                         ch, dis, new_soc = StorageConstraints.execute_dispatch(a.storage, soc0, res['p_ch'], res['p_dis'])
                         realtime_state.prev_soc[name] = new_soc
                         realtime_state.prev_power[name] = (ch, dis)
-                realtime_state.lmp_history.append(lmp_t)
-                realtime_state.t = t + 1
+
+                if not isinstance(lmp_t, np.ndarray) or lmp_t.ndim != 1 or len(lmp_t) != len(net.bus):
+                    if realtime_state.lmp_history:
+                        lmp_t = realtime_state.lmp_history[-1]
+                    else:
+                        lmp_t = fallback_lmp
+                realtime_state.lmp_history.append(lmp_t.copy())
+            except Exception as e:
+                print(f"伪实时时段 {t} 出错: {e}")
+                if realtime_state.lmp_history:
+                    lmp_t = realtime_state.lmp_history[-1]
+                else:
+                    lmp_t = fallback_lmp
+                realtime_state.lmp_history.append(lmp_t.copy())
             time.sleep(step_sec)
+    except Exception as e:
+        print(f"伪实时线程严重错误: {e}")
     finally:
         with realtime_state.lock:
             realtime_state.running = False
@@ -299,7 +319,7 @@ app.layout = html.Div(
 
         # 自然语言输入区
         html.Div([
-            html.Label("💬 自然语言指令（示例：高光伏低负荷场景，阻塞严重）", style={'color': '#c9d1d9'}),
+            html.Label("💬 自然语言指令（示例：高光伏低负荷，阻塞严重）", style={'color': '#c9d1d9'}),
             dcc.Input(id='nl-input', type='text', placeholder='输入自然语言描述...',
                       value='', style={'width': '60%', 'marginRight': '10px', 'padding': '8px',
                                        'borderRadius': '6px', 'border': '1px solid #30363d',
@@ -345,6 +365,9 @@ app.layout = html.Div(
                                    'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
                 html.Button("纳什检验", id='nash-btn', n_clicks=0,
                             style={'backgroundColor': '#a371f7', 'color': 'white', 'border': 'none',
+                                   'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
+                html.Button("AI解释", id='ai-btn', n_clicks=0,
+                            style={'backgroundColor': '#58a6ff', 'color': 'white', 'border': 'none',
                                    'borderRadius': '6px', 'padding': '8px 20px'}),
             ], style={'display': 'flex', 'alignItems': 'center'}),
         ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'marginBottom': '20px', 'padding': '10px',
@@ -362,6 +385,9 @@ app.layout = html.Div(
         dcc.Graph(id='lmp-realtime', style={'width': '100%', 'marginBottom': '20px'}),
 
         html.Div(id='nash-output', style={'marginTop': '10px', 'color': '#c9d1d9'}),
+        html.Div(id='ai-output', style={'marginTop': '15px', 'color': '#c9d1d9',
+                                        'backgroundColor': '#161b22', 'padding': '12px',
+                                        'borderRadius': '8px'}),
 
         html.Div([html.H3("各智能体结算结果 (¥)", style={'color': '#c9d1d9'}),
                   html.Div(id='payment-table')],
@@ -372,7 +398,7 @@ app.layout = html.Div(
 )
 
 # ------------------------------
-# 统一主回调（集成策略）
+# 统一主回调
 # ------------------------------
 @app.callback(
     [Output('static-data-store', 'data'),
@@ -402,33 +428,43 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
         raise PreventUpdate
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    # 解析策略为英文
     strategy_en = STRATEGY_MAP.get(strategy_cn, "random")
 
-    # 默认返回项
     realtime_fig = go.Figure().update_layout(title="伪实时电价 (点击启动)", template="plotly_dark",
                                              paper_bgcolor='#161b22', plot_bgcolor='#161b22')
     nl_msg = ""
 
-    # 定时器刷新
+    # 定时器刷新伪实时
     if trigger_id == 'realtime-interval':
         with realtime_state.lock:
             if not realtime_state.running or len(realtime_state.lmp_history) == 0:
                 return (dash.no_update,) * 9 + (nl_msg,)
-            lmp_array = np.array(realtime_state.lmp_history)
-            T, n = lmp_array.shape
+            try:
+                lmp_array = np.array(realtime_state.lmp_history)
+                if lmp_array.ndim != 2:
+                    raise ValueError("数据形状异常")
+                T, n = lmp_array.shape
+            except Exception as e:
+                print(f"LMP数据转换错误: {e}")
+                return (dash.no_update,) * 9 + (nl_msg,)
+
             hours = np.arange(T) * 0.25
-            mean_lmp = lmp_array.mean(axis=1)
-            fig = go.Figure()
+            mean_lmp = lmp_array.mean(axis=1) if n > 0 else np.zeros(T)
+            realtime_fig = go.Figure()
             for b in range(n):
-                fig.add_trace(go.Scatter(x=hours, y=lmp_array[:, b], mode='lines',
-                                         line=dict(color='#30363d', width=0.6), showlegend=False, hoverinfo='skip'))
-            fig.add_trace(go.Scatter(x=hours, y=mean_lmp, mode='lines', name='节点均价',
-                                     line=dict(color='#f0883e', width=3)))
-            fig.update_layout(title=f"伪实时电价 (已仿真 {T}/{realtime_state.total_T} 时段)",
-                              template="plotly_dark", legend=dict(orientation='h', y=1.1),
-                              margin=dict(l=40, r=20, t=60, b=40),
-                              paper_bgcolor='#161b22', plot_bgcolor='#161b22')
+                realtime_fig.add_trace(go.Scatter(
+                    x=hours, y=lmp_array[:, b],
+                    mode='lines', line=dict(color='#30363d', width=0.6),
+                    showlegend=False, hoverinfo='skip'))
+            realtime_fig.add_trace(go.Scatter(
+                x=hours, y=mean_lmp, mode='lines', name='节点均价',
+                line=dict(color='#f0883e', width=3)))
+            realtime_fig.update_layout(
+                title=f"伪实时电价 (已仿真 {T}/{realtime_state.total_T} 时段)",
+                xaxis_title="时间 (h)", yaxis_title="电价 (¥/MWh)",
+                template="plotly_dark", legend=dict(orientation='h', y=1.1),
+                margin=dict(l=40, r=20, t=60, b=40),
+                paper_bgcolor='#161b22', plot_bgcolor='#161b22')
             return (dash.no_update,) * 9 + (nl_msg,)
 
     # 停止伪实时
@@ -449,12 +485,11 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                                                  paper_bgcolor='#161b22', plot_bgcolor='#161b22')
         return (dash.no_update,) * 9 + (nl_msg,)
 
-    # 静态分析或自然语言解析
+    # 静态分析 / 自然语言解析
     with realtime_state.lock:
         realtime_state.running = False
 
     if trigger_id in ['static-btn', 'parse-btn', 'scenario-dropdown']:
-        # 自然语言解析
         if trigger_id == 'parse-btn' and nl_text and nl_text.strip():
             advisor = LLMAdvisor()
             parsed = advisor.parse_natural_language_to_config(nl_text.strip())
@@ -464,13 +499,10 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
             scenario_type = parsed.get("scenario_type", "baseline")
             params = parsed.get("parameters", {})
             T = int(params.get("T", 96))
-            load_factor = params.get("load_factor", 1.0)
-            re_factor = params.get("re_factor", 1.0)
-            line_cap_factor = params.get("line_capacity_factor", 1.0)
+            load_factor = float(params.get("load_factor", 1.0))
+            re_factor = float(params.get("re_factor", 1.0))
+            line_cap_factor = float(params.get("line_capacity_factor", 1.0))
             strategy_nl = params.get("strategy", "random")
-            use_ac_opf = params.get("use_ac_opf", False)
-
-            # 策略有效性检查
             if strategy_nl not in ["random", "best_response"]:
                 strategy_nl = "random"
 
@@ -493,7 +525,6 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                     a.wind_forecast *= re_factor
                     a.wind_real *= re_factor
 
-            # 使用解析出的策略
             da_actions = adaptive_bidding(agents, config, strategy=strategy_nl)
             da_results = clear_market(agents, T, "DA", da_actions, config)
             rt_actions = adaptive_bidding(agents, config, strategy=strategy_nl)
@@ -504,14 +535,13 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
             for a in agents:
                 static_data['da_actions'][a.name] = {
                     'bid_mult': da_actions[a.name].get('bid_mult', np.ones(T)).tolist()
-                        if isinstance(da_actions[a.name].get('bid_mult'), np.ndarray)
-                        else da_actions[a.name].get('bid_mult', 1.0),
+                    if isinstance(da_actions[a.name].get('bid_mult'), np.ndarray)
+                    else da_actions[a.name].get('bid_mult', 1.0),
                     'offer_adder': da_actions[a.name].get('offer_adder', np.zeros(T)).tolist()
-                        if isinstance(da_actions[a.name].get('offer_adder'), np.ndarray)
-                        else da_actions[a.name].get('offer_adder', 0.0)
+                    if isinstance(da_actions[a.name].get('offer_adder'), np.ndarray)
+                    else da_actions[a.name].get('offer_adder', 0.0)
                 }
         else:
-            # 普通静态分析（使用下拉框选择的策略）
             scenario_en = CN_TO_EN.get(scenario_cn, "baseline")
             agents, config, da_results, rt_results, payment, da_actions = run_static_analysis(
                 scenario_en, strategy=strategy_en, opf_mode=opf_mode
@@ -520,11 +550,11 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
             for a in agents:
                 static_data['da_actions'][a.name] = {
                     'bid_mult': da_actions[a.name].get('bid_mult', np.ones(96)).tolist()
-                        if isinstance(da_actions[a.name].get('bid_mult'), np.ndarray)
-                        else da_actions[a.name].get('bid_mult', 1.0),
+                    if isinstance(da_actions[a.name].get('bid_mult'), np.ndarray)
+                    else da_actions[a.name].get('bid_mult', 1.0),
                     'offer_adder': da_actions[a.name].get('offer_adder', np.zeros(96)).tolist()
-                        if isinstance(da_actions[a.name].get('offer_adder'), np.ndarray)
-                        else da_actions[a.name].get('offer_adder', 0.0)
+                    if isinstance(da_actions[a.name].get('offer_adder'), np.ndarray)
+                    else da_actions[a.name].get('offer_adder', 0.0)
                 }
 
         net = build_base_network(config)
@@ -540,7 +570,7 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
     raise PreventUpdate
 
 # ------------------------------
-# 纳什检验回调（使用最新静态数据）
+# 纳什检验回调
 # ------------------------------
 @app.callback(
     Output('nash-output', 'children'),
@@ -578,6 +608,58 @@ def run_nash_check(n_clicks, static_data, scenario_cn, opf_mode):
                 return html.Span(f"⚠️ 未达均衡，策略已优化 (迭代 {iters} 次)", style={'color': '#f0883e'})
         except Exception as e:
             return html.Span(f"纳什检验异常: {e}", style={'color': '#f85149'})
+
+# ------------------------------
+# AI 解释回调（≤50字）
+# ------------------------------
+@app.callback(
+    Output('ai-output', 'children'),
+    Input('ai-btn', 'n_clicks'),
+    State('static-data-store', 'data'),
+    State('scenario-dropdown', 'value'),
+    State('opf-dropdown', 'value')
+)
+def ai_insight(n_clicks, static_data, scenario_cn, opf_mode):
+    if n_clicks is None or static_data is None:
+        return "请先运行静态分析"
+
+    scenario_en = CN_TO_EN.get(scenario_cn, "baseline")
+    config = MarketConfig(opf_mode=opf_mode, verbose=False)
+    agents, _ = get_scenario(scenario_en, T=96)
+    da_actions = adaptive_bidding(agents, config, strategy='random')
+    da_results = clear_market(agents, 96, "DA", da_actions, config)
+
+    load_total = sum(np.sum(a.load_forecast) for a in agents)
+    served = sum(np.sum(da_results['schedules'][a.name]['served']) for a in agents)
+    satisfaction = (served / load_total * 100) if load_total > 0 else 100.0
+    avg_lmp = da_results['price'].mean()
+
+    soc_list = []
+    active = False
+    for a in agents:
+        if a.storage:
+            soc_arr = da_results['schedules'][a.name]['soc']
+            soc_list.append(soc_arr.mean())
+            if np.any(da_results['schedules'][a.name]['p_ch'] > 0.01) or np.any(da_results['schedules'][a.name]['p_dis'] > 0.01):
+                active = True
+    avg_soc = np.mean(soc_list) * 100 if soc_list else 0.0
+
+    summary = {
+        'scenario': scenario_cn,
+        'welfare_da': f"{da_results['welfare']:.0f}",
+        're_rate': f"{da_results['re_consumption_rate']:.1f}",
+        'load_sat': f"{satisfaction:.1f}",
+        'avg_lmp': f"{avg_lmp:.1f}",
+        'avg_soc': f"{avg_soc:.1f}",
+        'storage_active': '是' if active else '否'
+    }
+
+    advisor = LLMAdvisor()
+    insight = advisor.get_insight(summary)
+    return html.Div([
+        html.H4("AI 解释与建议", style={'color': '#58a6ff'}),
+            html.P(insight[:50], style={'whiteSpace': 'pre-wrap'})
+        ], style={'margin': '10px'})
 
 # ------------------------------
 app.index_string = '''

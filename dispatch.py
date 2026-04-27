@@ -77,12 +77,12 @@ def determine_storage_mode(agent, wholesale_t, prev_soc, config,
     offer_adder = ap.get("offer_adder", 0.0)
 
     if prev_soc <= storage.soc_min + 0.02:
-        if wholesale_t < agent.bid_value * bid_mult * 0.9 and p_ch_max > 0:
+        if np.any(wholesale_t < agent.bid_value * bid_mult * 0.9) and p_ch_max > 0:
             mode, t_ch, t_dis = "charge", p_ch_max, 0.0
         else:
             return "idle", 0.0, 0.0
     elif prev_soc >= storage.soc_max - 0.02:
-        if wholesale_t > agent.offer_cost + offer_adder and p_dis_max > 0:
+        if np.any(wholesale_t > agent.offer_cost + offer_adder) and p_dis_max > 0:
             mode, t_ch, t_dis = "discharge", 0.0, p_dis_max
         else:
             return "idle", 0.0, 0.0
@@ -94,9 +94,9 @@ def determine_storage_mode(agent, wholesale_t, prev_soc, config,
         soc_ratio = (prev_soc - storage.soc_min) / soc_range if soc_range > 0 else 0.5
         charge_threshold *= (0.7 + 0.6 * soc_ratio)
         discharge_threshold *= (1.3 - 0.6 * soc_ratio)
-        if wholesale_t < charge_threshold and p_ch_max > 0:
+        if np.any(wholesale_t < charge_threshold) and p_ch_max > 0:
             mode, t_ch, t_dis = "charge", p_ch_max, 0.0
-        elif wholesale_t > discharge_threshold and p_dis_max > 0:
+        elif np.any(wholesale_t > discharge_threshold) and p_dis_max > 0:
             mode, t_ch, t_dis = "discharge", 0.0, p_dis_max
         else:
             return "idle", 0.0, 0.0
@@ -552,7 +552,7 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         for i, b in enumerate(buses):
             constr = m.getConstrByName(f"p_bal_{t}_{b}")
             if constr is not None:
-                lmp[t, i] = constr.Pi
+                lmp[t, i] = -constr.Pi
             else:
                 lmp[t, i] = wholesale[t]
 
