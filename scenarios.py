@@ -25,8 +25,8 @@ def scenario_high_re(T: int = 96, multiplier: float = 2.0) -> Tuple[List[Agent],
             a.pv_forecast *= multiplier
             a.pv_real *= multiplier
         if a.has_wind:
-            a.wind_forecast *= multiplier
-            a.wind_real *= multiplier
+            a.wind_forecast *= multiplier #type: ignore
+            a.wind_real *= multiplier   #type: ignore
     return agents, wholesale
 
 def scenario_peak_load(T: int = 96, multiplier: float = 1.8) -> Tuple[List[Agent], np.ndarray]:

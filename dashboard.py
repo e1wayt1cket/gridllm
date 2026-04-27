@@ -15,7 +15,7 @@ import numpy as np
 import time
 import threading
 from collections import deque
-
+from collections import deque
 # 导入项目模块
 from models import MarketConfig
 from grid import build_base_network, day_ahead_price_china
@@ -82,56 +82,217 @@ def run_static_analysis(scenario_en, strategy="random", opf_mode="lindistflow"):
 # ------------------------------
 # 绘图辅助函数
 # ------------------------------
-def create_topology_figure(net):
-    """绘制 IEEE 33 节点拓扑 (水平/竖直)"""
-    edges = [(int(r.from_bus), int(r.to_bus)) for _, r in net.line.iterrows()]
-    adj = {}
-    for f, t in edges:
-        adj.setdefault(f, []).append(t)
-        adj.setdefault(t, []).append(f)
-    coords = {}
-    for i in range(19):
-        coords[i] = (i, 0.0)
-    assigned = set(coords.keys())
-    q = deque(coords.keys())
-    while q:
-        u = q.popleft()
-        if u not in adj: continue
-        for v in adj[u]:
-            if v in assigned: continue
-            ux, uy = coords[u]
-            cand_y = uy + 1
-            if any(abs(coords[n][0] - ux) < 1e-9 and abs(coords[n][1] - cand_y) < 1e-9 for n in assigned):
-                cand_y = uy - 1
-            coords[v] = (ux, cand_y)
-            assigned.add(v)
-            q.append(v)
-    edge_x, edge_y = [], []
-    for f, t in edges:
-        xf, yf = coords[f]
-        xt, yt = coords[t]
-        edge_x += [xf, xt, None]
-        edge_y += [yf, yt, None]
-    node_x, node_y, node_text, node_color = [], [], [], []
-    for bus, (x, y) in coords.items():
-        node_x.append(x); node_y.append(y)
-        if bus == 0:
-            node_text.append("Grid"); node_color.append("white")
-        else:
-            node_text.append(str(bus)); node_color.append("#58a6ff")
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=edge_x, y=edge_y, mode='lines',
-                             line=dict(color='#8b949e', width=1.5), hoverinfo='none'))
-    fig.add_trace(go.Scatter(x=node_x, y=node_y, mode='markers+text',
-                             marker=dict(size=14, color=node_color, line=dict(width=1, color='#30363d')),
-                             text=node_text, textposition="top center", hoverinfo='text'))
-    fig.update_layout(title="IEEE 33 节点配电网拓扑", showlegend=False,
-                      xaxis=dict(showgrid=False, zeroline=False, visible=False),
-                      yaxis=dict(showgrid=False, zeroline=False, visible=False),
-                      plot_bgcolor='#161b22', paper_bgcolor='#161b22',
-                      margin=dict(l=20, r=20, t=40, b=20))
-    return fig
+from collections import deque
 
+def create_topology_figure(net, agents_info=None, lmp_arr=None):
+    """绘制 IEEE 33 节点拓扑 (严格水平/竖直，符合标准结构)"""
+    
+    # 标准IEEE 33节点坐标 (1-based → 0-based)
+    # 主馈线: 1-2-3-...-18 (水平)
+    # 分支1: 2-19-20-21-22 (从节点2向上)
+    # 分支2: 3-23-24-25 (从节点3向下)
+    # 分支3: 6-26-27-...-33 (从节点6向下)
+    NODE_COORDS = {
+        0: (0, 0),     # Bus 1 (根节点/Grid)
+        1: (2, 0),     # Bus 2
+        2: (4, 0),     # Bus 3
+        3: (6, 0),     # Bus 4
+        4: (8, 0),     # Bus 5
+        5: (10, 0),    # Bus 6
+        6: (12, 0),    # Bus 7
+        7: (14, 0),    # Bus 8
+        8: (16, 0),    # Bus 9
+        9: (18, 0),    # Bus 10
+        10: (20, 0),   # Bus 11
+        11: (22, 0),   # Bus 12
+        12: (24, 0),   # Bus 13
+        13: (26, 0),   # Bus 14
+        14: (28, 0),   # Bus 15
+        15: (30, 0),   # Bus 16
+        16: (32, 0),   # Bus 17
+        17: (34, 0),   # Bus 18
+        # 分支1: 从Bus 2向上 (y=3)
+        18: (2, 3),    # Bus 19
+        19: (4, 3),    # Bus 20
+        20: (6, 3),    # Bus 21
+        21: (8, 3),    # Bus 22
+        # 分支2: 从Bus 3向下 (y=-3)
+        22: (4, -3),   # Bus 23
+        23: (6, -3),   # Bus 24
+        24: (8, -3),   # Bus 25
+        # 分支3: 从Bus 6向下 (y=-3)
+        25: (10, -3),  # Bus 26
+        26: (12, -3),  # Bus 27
+        27: (14, -3),  # Bus 28
+        28: (16, -3),  # Bus 29
+        29: (18, -3),  # Bus 30
+        30: (20, -3),  # Bus 31
+        31: (22, -3),  # Bus 32
+        32: (24, -3),  # Bus 33
+    }
+    
+    # 标准连线 (0-based)
+    LINES = [
+        # 主馈线
+        (0,1), (1,2), (2,3), (3,4), (4,5), (5,6), (6,7), (7,8), (8,9), (9,10),
+        (10,11), (11,12), (12,13), (13,14), (14,15), (15,16), (16,17),
+        # 分支1 (从节点2=索引1)
+        (1,18), (18,19), (19,20), (20,21),
+        # 分支2 (从节点3=索引2)
+        (2,22), (22,23), (23,24),
+        # 分支3 (从节点6=索引5)
+        (5,25), (25,26), (26,27), (27,28), (28,29), (29,30), (30,31), (31,32),
+    ]
+    
+    # 配色
+    C_TEXT = "#c9d1d9"
+    C_CARD = "#161b22"
+    C_BORDER = "#30363d"
+    
+    # 计算LMP颜色 (如果提供)
+    bus_lmp = {}
+    if lmp_arr is not None and agents_info is not None:
+        for b in range(33):
+            bus_lmp[b] = float(np.mean(lmp_arr[:, b])) if b < lmp_arr.shape[1] else 0.0
+    
+    # 收集每个bus的agent
+    bus_agents = {b: [] for b in range(33)}
+    if agents_info:
+        for info in agents_info:
+            bus_agents[info["bus"]].append(info["name"])
+    
+    fig = go.Figure()
+    
+    # 绘制连线 (严格正交)
+    for i, j in LINES:
+        x0, y0 = NODE_COORDS[i]
+        x1, y1 = NODE_COORDS[j]
+        fig.add_trace(go.Scatter(
+            x=[x0, x1], y=[y0, y1], mode="lines",
+            line=dict(color=C_BORDER, width=2.5),
+            hoverinfo="skip", showlegend=False
+        ))
+    
+    # 绘制节点
+    node_x, node_y, node_color, node_size, hover_text, labels = [], [], [], [], [], []
+    for b in range(33):
+        x, y = NODE_COORDS[b]
+        node_x.append(x)
+        node_y.append(y)
+        labels.append(str(b + 1))
+        
+        # 节点颜色: 基于LMP或默认蓝色
+        if bus_lmp:
+            val = bus_lmp[b]
+            node_color.append(val)
+            node_size.append(18 + min(32, val / 15))
+        else:
+            node_color.append("#58a6ff")
+            node_size.append(16)
+        
+        # 悬停文本
+        agents_on = bus_agents[b]
+        txt = f"<b>节点 {b+1}</b>"
+        if bus_lmp:
+            txt += f"<br>LMP: {bus_lmp[b]:.2f} ¥/MWh"
+        if agents_on:
+            txt += f"<br>Agent: {', '.join(agents_on[:2])}"
+            if len(agents_on) > 2:
+                txt += f" 等{len(agents_on)}个"
+        hover_text.append(txt)
+    
+    # 节点散点
+    marker_dict = dict(
+        size=node_size,
+        line=dict(width=2, color=C_TEXT),
+    )
+    if bus_lmp:
+        marker_dict.update(dict( 
+            color=node_color,
+            colorscale="Plasma",
+            colorbar=dict(
+                title="LMP<br>(¥/MWh)",
+                x=1.02,
+                thickness=14,
+                titleside="right",
+                tickfont=dict(color=C_TEXT),
+                titlefont=dict(color=C_TEXT)
+            ),
+            cmin=200,   #type: ignore
+            cmax=800,
+        ))
+    else:
+        marker_dict["color"] = node_color
+    
+    fig.add_trace(go.Scatter(
+        x=node_x, y=node_y,
+        mode="markers+text",
+        marker=marker_dict,
+        text=labels,
+        textposition="top center",
+        textfont=dict(size=10, color=C_TEXT, family="Arial Black"),
+        hovertemplate="%{customdata}<extra></extra>",
+        customdata=hover_text,
+        showlegend=False,
+        name="节点"
+    ))
+    
+    # 产消者星标
+    if agents_info:
+        prosumer_buses = list({info["bus"] for info in agents_info if info.get("is_prosumer")})
+        if prosumer_buses:
+            px = [NODE_COORDS[b][0] for b in prosumer_buses]
+            py = [NODE_COORDS[b][1] for b in prosumer_buses]
+            fig.add_trace(go.Scatter(
+                x=px, y=py,
+                mode="markers",
+                marker=dict(
+                    symbol="star",
+                    size=14,
+                    color="#f1c40f",
+                    line=dict(width=2, color=C_TEXT)
+                ),
+                name="产消者",
+                text=[f"{b+1}" for b in prosumer_buses],
+                hovertemplate="产消者节点 %{text}<extra></extra>"
+            ))
+    
+    fig.update_layout(
+        title=dict(
+            text="IEEE 33 节点配电系统拓扑（颜色=节点边际电价，★=产消者）",
+            font=dict(size=15, color=C_TEXT)
+        ),
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False,
+            visible=False
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False,
+            visible=False,
+            scaleanchor="x",
+            scaleratio=1
+        ),
+        template="plotly_dark",
+        paper_bgcolor=C_CARD,
+        plot_bgcolor=C_CARD,
+        margin=dict(l=20, r=90, t=60, b=20),
+        height=400,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(22,27,34,0.9)",
+            font=dict(color=C_TEXT, size=12)
+        ),
+        font=dict(color=C_TEXT),
+    )
+    
+    return fig
 def create_lmp_figure(lmp_matrix, title="节点电价"):
     if lmp_matrix is None or np.all(lmp_matrix == 0):
         fig = go.Figure()
@@ -256,11 +417,11 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
         action_params = adaptive_bidding(agents, config, strategy=strategy)
 
         with realtime_state.lock:
-            realtime_state.agents = agents
-            realtime_state.config = config
-            realtime_state.net = net
-            realtime_state.wholesale = wholesale
-            realtime_state.action_params = action_params
+            realtime_state.agents = agents #type:ignore
+            realtime_state.config = config      #type:ignore
+            realtime_state.net = net        #type:ignore    
+            realtime_state.wholesale = wholesale                #type:ignore
+            realtime_state.action_params = action_params            #type:ignore
             realtime_state.total_T = 96
 
         fallback_lmp = np.zeros(len(net.bus))
@@ -278,7 +439,7 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
                     else:
                         lmp_t = fallback_lmp
                 else:
-                    fallback_lmp = lmp_t.copy()
+                    fallback_lmp = lmp_t.copy() # type:ignore
                     realtime_state.welfare_acc += welfare_t
                     for a in agents:
                         if a.storage is None: continue
@@ -576,8 +737,8 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                     a.pv_forecast *= re_factor
                     a.pv_real *= re_factor
                 if a.has_wind:
-                    a.wind_forecast *= re_factor
-                    a.wind_real *= re_factor
+                    a.wind_forecast *= re_factor #type: ignore
+                    a.wind_real *= re_factor   #type: ignore
 
             da_actions = adaptive_bidding(agents, config, strategy=strategy_nl)
             da_results = clear_market(agents, T, "DA", da_actions, config)
