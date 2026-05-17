@@ -145,9 +145,9 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
     ]
     
     # 配色
-    C_TEXT = "#c9d1d9"
-    C_CARD = "#161b22"
-    C_BORDER = "#30363d"
+    C_TEXT = "#2c3e50"
+    C_CARD = "#ffffff"
+    C_BORDER = "#d0d7e3"
     
     # 计算LMP颜色 (如果提供)
     bus_lmp = {}
@@ -187,7 +187,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
             node_color.append(val)
             node_size.append(18 + min(32, val / 15))
         else:
-            node_color.append("#58a6ff")
+            node_color.append("#3498db")
             node_size.append(16)
         
         # 悬停文本
@@ -204,13 +204,14 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
     # 节点散点
     marker_dict = dict(
         size=node_size,
-        line=dict(width=2, color=C_TEXT),
+        line=dict(width=2, color='#d0d7e3'),
     )
     if bus_lmp:
-        marker_dict.update(dict( 
-            color=node_color,
-            colorscale="Plasma",
-            colorbar=dict(
+        # 使用字典合并的方式替代update方法，避免类型检查错误
+        marker_dict = {**marker_dict, 
+            "color": node_color,
+            "colorscale": "Plasma",
+            "colorbar": dict(
                 title="LMP<br>(¥/MWh)",
                 x=1.02,
                 thickness=14,
@@ -218,9 +219,9 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
                 tickfont=dict(color=C_TEXT),
                 titlefont=dict(color=C_TEXT)
             ),
-            cmin=200,   #type: ignore
-            cmax=800,
-        ))
+            "cmin": 200,   #type: ignore
+            "cmax": 800,
+        }
     else:
         marker_dict["color"] = node_color
     
@@ -230,7 +231,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
         marker=marker_dict,
         text=labels,
         textposition="top center",
-        textfont=dict(size=10, color=C_TEXT, family="Arial Black"),
+        textfont=dict(size=10, color='#2c3e50', family='Arial Black'),
         hovertemplate="%{customdata}<extra></extra>",
         customdata=hover_text,
         showlegend=False,
@@ -249,8 +250,8 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
                 marker=dict(
                     symbol="star",
                     size=14,
-                    color="#f1c40f",
-                    line=dict(width=2, color=C_TEXT)
+                    color="#f39c12",
+                    line=dict(width=2, color='#d0d7e3')
                 ),
                 name="产消者",
                 text=[f"{b+1}" for b in prosumer_buses],
@@ -260,7 +261,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
     fig.update_layout(
         title=dict(
             text="IEEE 33 节点配电系统拓扑（颜色=节点边际电价，★=产消者）",
-            font=dict(size=15, color=C_TEXT)
+            font=dict(size=15, color='#2c3e50')
         ),
         xaxis=dict(
             showgrid=False,
@@ -276,7 +277,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
             scaleanchor="x",
             scaleratio=1
         ),
-        template="plotly_dark",
+        template="plotly_white",
         paper_bgcolor=C_CARD,
         plot_bgcolor=C_CARD,
         margin=dict(l=20, r=90, t=60, b=20),
@@ -286,7 +287,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
             y=0.99,
             xanchor="left",
             x=0.01,
-            bgcolor="rgba(22,27,34,0.9)",
+            bgcolor="rgba(255,255,255,0.9)",
             font=dict(color=C_TEXT, size=12)
         ),
         font=dict(color=C_TEXT),
@@ -297,9 +298,9 @@ def create_lmp_figure(lmp_matrix, title="节点电价"):
     if lmp_matrix is None or np.all(lmp_matrix == 0):
         fig = go.Figure()
         fig.add_annotation(text="求解失败或数据异常（LMP全零）", xref="paper", yref="paper",
-                           x=0.5, y=0.5, showarrow=False, font=dict(color="#f85149", size=16))
-        fig.update_layout(title=title, template="plotly_dark",
-                          paper_bgcolor='#161b22', plot_bgcolor='#161b22')
+                           x=0.5, y=0.5, showarrow=False, font=dict(color="#e74c3c", size=16))
+        fig.update_layout(title=title, template="plotly_white",
+                          paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
         return fig
     T, n = lmp_matrix.shape
     hours = np.arange(T) * 0.25
@@ -307,13 +308,13 @@ def create_lmp_figure(lmp_matrix, title="节点电价"):
     fig = go.Figure()
     for b in range(n):
         fig.add_trace(go.Scatter(x=hours, y=lmp_matrix[:, b], mode='lines',
-                                 line=dict(color='#30363d', width=0.6), showlegend=False, hoverinfo='skip'))
+                                 line=dict(color="#bdc3c7", width=0.6), showlegend=False, hoverinfo='skip'))
     fig.add_trace(go.Scatter(x=hours, y=mean_lmp, mode='lines', name='节点均价',
-                             line=dict(color='#f0883e', width=3)))
+                             line=dict(color='#e67e22', width=3)))
     fig.update_layout(title=title, xaxis_title="时间 (h)", yaxis_title="电价 (¥/MWh)",
-                      template="plotly_dark", legend=dict(orientation='h', y=1.1),
+                      template="plotly_white", legend=dict(orientation='h', y=1.1),
                       margin=dict(l=40, r=20, t=60, b=40),
-                      paper_bgcolor='#161b22', plot_bgcolor='#161b22')
+                      paper_bgcolor='#ffffff', plot_bgcolor="#fafbfc")
     return fig
 
 def create_trade_figure(da_results, agents):
@@ -325,19 +326,19 @@ def create_trade_figure(da_results, agents):
         buy += s["p_buy"]; sell += s["p_sell"]
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Scatter(x=hours, y=buy, mode='lines', name='总购电量 (MW)',
-                             line=dict(color='#f85149', width=2)), secondary_y=False)
+                             line=dict(color='#e74c3c', width=2)), secondary_y=False)
     fig.add_trace(go.Scatter(x=hours, y=sell, mode='lines', name='总售电量 (MW)',
-                             line=dict(color='#3fb950', width=2)), secondary_y=False)
+                             line=dict(color='#27ae60', width=2)), secondary_y=False)
     fig.update_layout(title="日前市场总买卖功率", xaxis_title="时间 (h)", yaxis_title="功率 (MW)",
-                      template="plotly_dark", hovermode="x unified", legend=dict(orientation='h', y=1.1),
+                      template="plotly_white", hovermode="x unified", legend=dict(orientation='h', y=1.1),
                       margin=dict(l=40, r=20, t=60, b=40),
-                      paper_bgcolor='#161b22', plot_bgcolor='#161b22')
+                      paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
     return fig
 
 def create_soc_figure(da_results, agents):
     storage_agents = [a for a in agents if a.storage is not None]
     if not storage_agents:
-        return go.Figure().update_layout(title="无储能设备", template="plotly_dark")
+        return go.Figure().update_layout(title="无储能设备", template="plotly_white")
     T = len(da_results["schedules"][storage_agents[0].name]["soc"])
     hours = np.arange(T) * 0.25
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
@@ -347,13 +348,13 @@ def create_soc_figure(da_results, agents):
         fig.add_trace(go.Scatter(x=hours, y=s["soc"]*100, mode='lines',
                                  name=f"{a.name} SOC", line=dict(width=2)), row=1, col=1)
         fig.add_trace(go.Bar(x=hours, y=s["p_ch"], name=f"{a.name} 充电",
-                             marker_color='#58a6ff', opacity=0.7), row=2, col=1)
+                             marker_color='#3498db', opacity=0.7), row=2, col=1)
         fig.add_trace(go.Bar(x=hours, y=-s["p_dis"], name=f"{a.name} 放电",
-                             marker_color='#f0883e', opacity=0.7), row=2, col=1)
-    fig.update_layout(barmode='overlay', template="plotly_dark", hovermode="x unified",
+                             marker_color='#e67e22', opacity=0.7), row=2, col=1)
+    fig.update_layout(barmode='overlay', template="plotly_white", hovermode="x unified",
                       legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
                       margin=dict(l=40, r=20, t=60, b=40),
-                      paper_bgcolor='#161b22', plot_bgcolor='#161b22')
+                      paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
     fig.update_yaxes(title_text="SOC (%)", row=1, col=1)
     fig.update_yaxes(title_text="功率 (MW)", row=2, col=1)
     return fig
@@ -366,8 +367,8 @@ def create_kpi_cards(da_results, rt_results, payment, agents):
 
     def card(title, value_main):
         return html.Div([
-            html.H3(title, style={'color': '#8b949e'}),
-            html.Div(value_main, style={'fontSize': '20px', 'color': '#c9d1d9'})
+            html.H3(title, style={'color': '#5a6c7d'}),
+            html.Div(value_main, style={'fontSize': '20px', 'color': '#2c3e50'})
         ], className='kpi-card')
 
     return html.Div([
@@ -383,7 +384,7 @@ def create_payment_table(payment, agents):
     for a in agents:
         val = payment[a.name]
         status = "成本" if val > 0 else "收益" if val < 0 else "平衡"
-        color = "#f85149" if val > 0 else "#3fb950" if val < 0 else "#8b949e"
+        color = "#e74c3c" if val > 0 else "#27ae60" if val < 0 else "#5a6c7d"
         rows.append(html.Tr([
             html.Td(a.name), html.Td(a.load_type),
             html.Td(f"{val:.2f}", style={'color': color, 'fontWeight': 'bold'}), html.Td(status)
@@ -392,7 +393,7 @@ def create_payment_table(payment, agents):
     rows.append(html.Tr([html.Td("总计", style={'fontWeight': 'bold'}), html.Td(""),
                          html.Td(f"{total_pay:.2f}", style={'fontWeight': 'bold'}), html.Td("")]))
     table = html.Table([html.Thead(html.Tr([html.Th("智能体"), html.Th("类型"), html.Th("结算金额 (¥)"), html.Th("状态")])),
-                        html.Tbody(rows)], style={'width': '100%', 'borderCollapse': 'collapse', 'color': '#c9d1d9'})
+                        html.Tbody(rows)], style={'width': '100%', 'borderCollapse': 'collapse', 'color': '#2c3e50'})
     return table
 
 # ------------------------------
@@ -525,62 +526,62 @@ def build_insight_summary(da_results, agents, scenario_cn):
 # ------------------------------
 app = dash.Dash(__name__, title="配电网电力市场仿真仪表板")
 app.layout = html.Div(
-    style={'backgroundColor': '#0d1117', 'padding': '20px', 'fontFamily': 'Arial, sans-serif', 'minHeight': '100vh'},
+    style={'backgroundColor': '#f5f7fa', 'padding': '20px', 'fontFamily': 'Arial, sans-serif', 'minHeight': '100vh'},
     children=[
-        html.H1("配电网电力市场实时仿真仪表盘", style={'textAlign': 'center', 'color': '#58a6ff'}),
+        html.H1("配电网电力市场实时仿真仪表盘", style={'textAlign': 'center', 'color': '#3498db'}),
 
         # 自然语言输入区
         html.Div([
-            html.Label("💬 自然语言指令（示例：高光伏低负荷，阻塞严重）", style={'color': '#c9d1d9'}),
+            html.Label("💬 自然语言指令（示例：高光伏低负荷，阻塞严重）", style={'color': '#2c3e50'}),
             dcc.Input(id='nl-input', type='text', placeholder='输入自然语言描述...',
                       value='', style={'width': '60%', 'marginRight': '10px', 'padding': '8px',
-                                       'borderRadius': '6px', 'border': '1px solid #30363d',
-                                       'backgroundColor': '#161b22', 'color': '#c9d1d9'}),
+                                       'borderRadius': '6px', 'border': '1px solid #d0d7e3',
+                                       'backgroundColor': '#ffffff', 'color': '#2c3e50'}),
             html.Button("解析并运行", id='parse-btn', n_clicks=0,
-                        style={'backgroundColor': '#a371f7', 'color': 'white', 'border': 'none',
+                        style={'backgroundColor': '#9b59b6', 'color': 'white', 'border': 'none',
                                'borderRadius': '6px', 'padding': '8px 20px'}),
-        ], style={'marginBottom': '15px', 'padding': '10px', 'backgroundColor': '#161b22', 'borderRadius': '8px'}),
+        ], style={'marginBottom': '15px', 'padding': '10px', 'backgroundColor': '#ffffff', 'borderRadius': '8px'}),
 
         # 控制面板
         html.Div([
             html.Div([
-                html.Label("场景选择", style={'color': '#c9d1d9'}),
+                html.Label("场景选择", style={'color': '#2c3e50'}),
                 dcc.Dropdown(id='scenario-dropdown',
                              options=[{'label': v, 'value': v} for v in SCENARIO_NAMES_CN.values()],
                              value="基准–风光储", clearable=False,
-                             style={'color': '#0d1117', 'width': '220px'})
+                             style={'color': '#2c3e50', 'width': '220px'})
             ], style={'marginRight': '20px'}),
             html.Div([
-                html.Label("OPF 模式", style={'color': '#c9d1d9'}),
+                html.Label("OPF 模式", style={'color': '#2c3e50'}),
                 dcc.Dropdown(id='opf-dropdown',
                              options=[{'label': 'DC-OPF', 'value': 'dc'}, {'label': 'LinDistFlow', 'value': 'lindistflow'}],
                              value='lindistflow', clearable=False,
-                             style={'color': '#0d1117', 'width': '140px'})
+                             style={'color': '#2c3e50', 'width': '140px'})
             ], style={'marginRight': '20px'}),
             html.Div([
-                html.Label("报价策略", style={'color': '#c9d1d9'}),
+                html.Label("报价策略", style={'color': '#2c3e50'}),
                 dcc.Dropdown(id='strategy-dropdown',
                              options=[{'label': '随机', 'value': '随机'},
                                       {'label': '最佳响应', 'value': '最佳响应'}],
                              value='随机', clearable=False,
-                             style={'color': '#0d1117', 'width': '140px'})
+                             style={'color': '#2c3e50', 'width': '140px'})
             ], style={'marginRight': '20px'}),
             html.Div([
                 html.Button("静态分析", id='static-btn', n_clicks=0,
-                            style={'backgroundColor': '#238636', 'color': 'white', 'border': 'none',
+                            style={'backgroundColor': '#27ae60', 'color': 'white', 'border': 'none',
                                    'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
                 html.Button("启动伪实时", id='realtime-btn', n_clicks=0,
-                            style={'backgroundColor': '#f0883e', 'color': 'white', 'border': 'none',
+                            style={'backgroundColor': '#e67e22', 'color': 'white', 'border': 'none',
                                    'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
                 html.Button("停止伪实时", id='stop-btn', n_clicks=0,
-                            style={'backgroundColor': '#f85149', 'color': 'white', 'border': 'none',
+                            style={'backgroundColor': '#e74c3c', 'color': 'white', 'border': 'none',
                                    'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
                 html.Button("纳什检验", id='nash-btn', n_clicks=0,
-                            style={'backgroundColor': '#a371f7', 'color': 'white', 'border': 'none',
+                            style={'backgroundColor': '#9b59b6', 'color': 'white', 'border': 'none',
                                    'borderRadius': '6px', 'padding': '8px 20px'}),
             ], style={'display': 'flex', 'alignItems': 'center'}),
         ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'marginBottom': '20px', 'padding': '10px',
-                  'backgroundColor': '#161b22', 'borderRadius': '8px'}),
+                  'backgroundColor': '#ffffff', 'borderRadius': '8px'}),
 
         dcc.Interval(id='realtime-interval', interval=500, disabled=True),
         dcc.Store(id='static-data-store'),
@@ -593,17 +594,17 @@ app.layout = html.Div(
         dcc.Graph(id='soc-graph', style={'width': '100%', 'marginBottom': '20px'}),
         dcc.Graph(id='lmp-realtime', style={'width': '100%', 'marginBottom': '20px'}),
 
-        html.Div(id='nash-output', style={'marginTop': '10px', 'color': '#c9d1d9'}),
+        html.Div(id='nash-output', style={'marginTop': '10px', 'color': '#2c3e50'}),
         # AI 自动分析（无需按钮）
-        html.Div(id='ai-output', style={'marginTop': '15px', 'color': '#c9d1d9',
-                                        'backgroundColor': '#161b22', 'padding': '12px',
+        html.Div(id='ai-output', style={'marginTop': '15px', 'color': '#2c3e50',
+                                        'backgroundColor': '#ffffff', 'padding': '12px',
                                         'borderRadius': '8px'}),
 
-        html.Div([html.H3("各智能体结算结果 (¥)", style={'color': '#c9d1d9'}),
+        html.Div([html.H3("各智能体结算结果 (¥)", style={'color': '#2c3e50'}),
                   html.Div(id='payment-table')],
-                 style={'backgroundColor': '#161b22', 'padding': '15px', 'borderRadius': '8px', 'marginTop': '20px'}),
+                 style={'backgroundColor': '#ffffff', 'padding': '15px', 'borderRadius': '8px', 'marginTop': '20px'}),
 
-        html.Div(id='nl-result', style={'marginTop': '10px', 'color': '#8b949e'})
+        html.Div(id='nl-result', style={'marginTop': '10px', 'color': '#5a6c7d'})
     ]
 )
 
@@ -641,8 +642,8 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
     strategy_en = STRATEGY_MAP.get(strategy_cn, "random")
 
-    realtime_fig = go.Figure().update_layout(title="伪实时电价 (点击启动)", template="plotly_dark",
-                                             paper_bgcolor='#161b22', plot_bgcolor='#161b22')
+    realtime_fig = go.Figure().update_layout(title="伪实时电价 (点击启动)", template="plotly_white",
+                                             paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
     nl_msg = ""
     ai_output = dash.no_update  # 默认不更新
 
@@ -666,24 +667,24 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
             for b in range(n):
                 realtime_fig.add_trace(go.Scatter(
                     x=hours, y=lmp_array[:, b],
-                    mode='lines', line=dict(color='#30363d', width=0.6),
+                    mode='lines', line=dict(color='#bdc3c7', width=0.6),
                     showlegend=False, hoverinfo='skip'))
             realtime_fig.add_trace(go.Scatter(
                 x=hours, y=mean_lmp, mode='lines', name='节点均价',
-                line=dict(color='#f0883e', width=3)))
+                line=dict(color='#e67e22', width=3)))
             realtime_fig.update_layout(
                 title=f"伪实时电价 (已仿真 {T}/{realtime_state.total_T} 时段)",
                 xaxis_title="时间 (h)", yaxis_title="电价 (¥/MWh)",
-                template="plotly_dark", legend=dict(orientation='h', y=1.1),
+                template="plotly_white", legend=dict(orientation='h', y=1.1),
                 margin=dict(l=40, r=20, t=60, b=40),
-                paper_bgcolor='#161b22', plot_bgcolor='#161b22')
-            return (dash.no_update,) * 10 + (dash.no_update,)  # 11个输出
+                paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
+            return (dash.no_update,) * 8 + (realtime_fig, dash.no_update, dash.no_update)
 
     # 停止伪实时
     if trigger_id == 'stop-btn':
         with realtime_state.lock:
             realtime_state.running = False
-        raise PreventUpdate
+        return (dash.no_update,) * 7 + (True, dash.no_update, dash.no_update, dash.no_update)
 
     # 启动伪实时
     if trigger_id == 'realtime-btn':
@@ -693,9 +694,9 @@ def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
                                           args=(CN_TO_EN.get(scenario_cn, "baseline"), opf_mode, strategy_en, 0.5))
                 thread.daemon = True
                 thread.start()
-        realtime_fig = go.Figure().update_layout(title="伪实时已启动，等待数据...", template="plotly_dark",
-                                                 paper_bgcolor='#161b22', plot_bgcolor='#161b22')
-        return (dash.no_update,) * 10 + (dash.no_update,)  # 11个输出
+        realtime_fig = go.Figure().update_layout(title="伪实时已启动，等待数据...", template="plotly_white",
+                                                 paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
+        return (dash.no_update,) * 7 + (False, realtime_fig, dash.no_update, dash.no_update)
 
     # 停止仿真（静态分析 / 自然语言解析）
     with realtime_state.lock:
@@ -821,17 +822,17 @@ def run_nash_check(n_clicks, static_data, scenario_cn, opf_mode):
     tester = NashEquilibriumTester(agents, config, T=96, stage="DA")
     is_nash, improvements = tester.test_nash_equilibrium(da_actions, threshold=30.0)
     if is_nash:
-        return html.Span("✅ 当前策略接近纳什均衡", style={'color': '#3fb950'})
+        return html.Span("✅ 当前策略接近纳什均衡", style={'color': '#27ae60'})
     else:
         try:
             nash_strat, iters = tester.iter_fictitious_play(da_actions, max_iter=5, num_variations=10, alpha=0.3)
             final_nash, _ = tester.test_nash_equilibrium(nash_strat, threshold=30.0)
             if final_nash:
-                return html.Span(f"✅ 找到近似纳什均衡 (迭代 {iters} 次)", style={'color': '#3fb950'})
+                return html.Span(f"✅ 找到近似纳什均衡 (迭代 {iters} 次)", style={'color': '#27ae60'})
             else:
-                return html.Span(f"⚠️ 未达均衡，策略已优化 (迭代 {iters} 次)", style={'color': '#f0883e'})
+                return html.Span(f"⚠️ 未达均衡，策略已优化 (迭代 {iters} 次)", style={'color': '#e67e22'})
         except Exception as e:
-            return html.Span(f"纳什检验异常: {e}", style={'color': '#f85149'})
+            return html.Span(f"纳什检验异常: {e}", style={'color': '#e74c3c'})
 
 # ------------------------------
 app.index_string = '''
@@ -839,13 +840,13 @@ app.index_string = '''
 <html>
     <head>{%metas%}<title>{%title%}</title>{%favicon%}{%css%}
         <style>
-            body { background-color: #0d1117; margin: 0; }
-            .kpi-card { background-color: #161b22; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: center; min-width: 140px; border-left: 6px solid #58a6ff; }
-            .kpi-card h3 { margin-top: 0; font-size: 14px; font-weight: 600; color: #8b949e; }
+            body { background-color: #f5f7fa; margin: 0; }
+            .kpi-card { background-color: #ffffff; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: center; min-width: 140px; border-left: 6px solid #3498db; }
+            .kpi-card h3 { margin-top: 0; font-size: 14px; font-weight: 600; color: #5a6c7d; }
             table { width: 100%; border-collapse: collapse; font-size: 14px; }
-            th { background-color: #21262d; color: #c9d1d9; padding: 12px; text-align: left; }
-            td { padding: 10px 12px; border-bottom: 1px solid #30363d; }
-            tr:hover { background-color: #1c2128; }
+            th { background-color: #ebf5fb; color: #2c3e50; padding: 12px; text-align: left; }
+            td { padding: 10px 12px; border-bottom: 1px solid #d0d7e3; }
+            tr:hover { background-color: #ebf5fb; }
         </style>
     </head>
     <body>{%app_entry%}<footer>{%config%}{%scripts%}{%renderer%}</footer></body>

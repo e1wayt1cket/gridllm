@@ -70,7 +70,7 @@ def create_agents_from_network(net: pp.pandapowerNet, T: int,
 
         if is_prosumer:
             if load_type == "residential":
-                pv_cap = base_load * 1.8
+                pv_cap = base_load * 3.8
                 pv_forecast = noisy(pv_base * pv_cap, 0.15)
                 pv_real = noisy(pv_base * pv_cap, 0.20)
                 
@@ -92,7 +92,7 @@ def create_agents_from_network(net: pp.pandapowerNet, T: int,
                 offer_cost = 180.0
                 
             else:
-                wind_cap = base_load * 2.5
+                wind_cap = base_load * 4.5
                 if wind_base is not None:
                     wind_forecast = noisy(wind_base * wind_cap, 0.12)
                     wind_real = noisy(wind_base * wind_cap, 0.18)
@@ -100,7 +100,7 @@ def create_agents_from_network(net: pp.pandapowerNet, T: int,
                     wind_forecast = np.zeros(T)
                     wind_real = np.zeros(T)
                 
-                storage_capacity = base_load * 2.0
+                storage_capacity = base_load * 4.0
                 storage_power = storage_capacity * 0.2
                 storage = StorageSpec(
                     e_max=storage_capacity,
