@@ -1,6 +1,9 @@
 """grid.py
 电网拓扑构建、智能体工厂、日前电价曲线生成
 """
+# Pre-load ortools to work around DLL load order issue in pandapower
+from ortools.linear_solver import pywraplp  # noqa: F401
+
 import numpy as np
 import pandapower as pp
 import pandapower.networks as pn
@@ -9,9 +12,18 @@ from typing import List
 from models import MarketConfig, StorageSpec, Agent
 
 
+_net_cache = None
+_net_cache_mult = None
+
 def build_base_network(config: MarketConfig) -> pp.pandapowerNet:
+    global _net_cache, _net_cache_mult
+    mult = config.line_capacity_multiplier
+    if _net_cache is not None and _net_cache_mult == mult:
+        return _net_cache
     net = pn.case33bw()
-    net.line['max_i_ka'] = net.line['max_i_ka'].fillna(1.0) * config.line_capacity_multiplier #type: ignore[union-attr]
+    net.line['max_i_ka'] = net.line['max_i_ka'].fillna(1.0) * mult #type: ignore[union-attr]
+    _net_cache = net
+    _net_cache_mult = mult
     return net #type: ignore
 
 

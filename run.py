@@ -45,7 +45,11 @@ def main():
 
     payment = two_settlement(agents, da_results, rt_results)
 
+    carbon_em = da_results.get('carbon_emissions', 0)
+    carbon_int = da_results.get('carbon_intensity', 0)
+    curtail = da_results.get('total_curtailment', 0)
     print(f"OPF模式: {config.opf_mode}, 日前社会福利: {da_results['welfare']:.2f}, 可再生消纳率: {da_results['re_consumption_rate']:.1f}%")
+    print(f"碳排放: {carbon_em:.1f} tCO2, 碳强度: {carbon_int:.3f} tCO2/MWh, 弃电量: {curtail:.1f} MWh")
 
     if run_nash:
         tester = NashEquilibriumTester(agents, config, T, stage="DA")

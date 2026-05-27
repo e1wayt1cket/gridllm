@@ -1,11 +1,21 @@
 # dispatch.py
 """储能约束 + Gurobi OPF：DC / LinDistFlow 双模式 + 多时段联合优化"""
 
+# Pre-load ortools to work around DLL load order issue in pandapower
+from ortools.linear_solver import pywraplp  # noqa: F401
+
 import numpy as np
 import pandapower as pp
 from typing import Dict, Tuple, List
-import gurobipy as gp
-from gurobipy import GRB
+try:
+    import gurobipy as gp
+    from gurobipy import GRB
+    _HAS_GUROBI = True
+except ImportError:
+    _HAS_GUROBI = False
+    gp = None  # type: ignore
+    GRB = None  # type: ignore
+
 from models import MarketConfig, Agent
 
 # ===========================================================================
@@ -76,20 +86,22 @@ def determine_storage_mode(agent, wholesale_t, prev_soc, config,
     bid_mult = ap.get("bid_mult", 1.0)
     offer_adder = ap.get("offer_adder", 0.0)
 
-    if prev_soc <= storage.soc_min + 0.02:
+    buf = config.storage_soc_buffer
+
+    if prev_soc <= storage.soc_min + buf:
         if np.any(wholesale_t < agent.bid_value * bid_mult * 0.9) and p_ch_max > 0:
             mode, t_ch, t_dis = "charge", p_ch_max, 0.0
         else:
             return "idle", 0.0, 0.0
-    elif prev_soc >= storage.soc_max - 0.02:
+    elif prev_soc >= storage.soc_max - buf:
         if np.any(wholesale_t > agent.offer_cost + offer_adder) and p_dis_max > 0:
             mode, t_ch, t_dis = "discharge", 0.0, p_dis_max
         else:
             return "idle", 0.0, 0.0
     else:
         round_trip_eff = storage.eta_ch * storage.eta_dis
-        charge_threshold = agent.bid_value * bid_mult * round_trip_eff * 0.85
-        discharge_threshold = (agent.offer_cost + offer_adder) / round_trip_eff * 1.15
+        charge_threshold = agent.bid_value * bid_mult * round_trip_eff * config.storage_charge_discount
+        discharge_threshold = (agent.offer_cost + offer_adder) / round_trip_eff * config.storage_discharge_premium
         soc_range = storage.soc_max - storage.soc_min
         soc_ratio = (prev_soc - storage.soc_min) / soc_range if soc_range > 0 else 0.5
         charge_threshold *= (0.7 + 0.6 * soc_ratio)
@@ -108,10 +120,74 @@ def determine_storage_mode(agent, wholesale_t, prev_soc, config,
 
 
 # ===========================================================================
+# Shared OPF helpers
+# ===========================================================================
+def _add_multi_objective_terms(obj, config, agents, pv_vars, wind_vars,
+                                pv_max_dict, wind_max_dict, p_grid_import):
+    """Add multi-objective terms to a Gurobi objective expression.
+
+    Used by all three OPF solvers (DC single, LinDistFlow single, LinDistFlow batch).
+    """
+    if not config.enable_multi_objective:
+        if config.lambda_re > 0:
+            for a in agents:
+                obj += config.lambda_re * (pv_vars[a.name] + wind_vars.get(a.name, 0))
+        return
+
+    if config.lambda_re > 0:
+        for a in agents:
+            obj += config.lambda_re * (pv_vars[a.name] + wind_vars.get(a.name, 0))
+    if config.lambda_curtail > 0:
+        for a in agents:
+            nm = a.name
+            pv_curtail = pv_max_dict[nm] - pv_vars[nm]
+            wind_curtail = wind_max_dict.get(nm, 0.0) - wind_vars.get(nm, 0)
+            obj -= config.lambda_curtail * (pv_curtail + wind_curtail)
+    if config.lambda_carbon > 0:
+        obj -= config.lambda_carbon * config.emission_factor_grid * p_grid_import
+
+
+def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, config, prev_power):
+    """Build per-agent info dict for single-period solvers.
+
+    Returns agent_info dict, with storage vars set up for MILP binary co-optimization
+    (both ch_max and dis_max available; binary prevents simultaneous charge/discharge).
+    """
+    agent_info = {}
+    for a in agents:
+        load_val = a.load_forecast[t] if stage == "DA" else a.load_real[t]
+        pv_max = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
+        wind_max = (a.get_wind_forecast()[t] if stage == "DA" else a.get_wind_real()[t]) if a.has_wind else 0.0
+
+        target_ch, target_dis = 0.0, 0.0
+        if a.storage is not None:
+            cur_soc = prev_soc.get(a.name, a.storage.soc0)
+            _, p_ch_max, _, p_dis_max = StorageConstraints.feasible_ranges(a.storage, cur_soc)
+            target_ch, target_dis = float(p_ch_max), float(p_dis_max)
+
+        bid = a.bid_value
+        offer = a.offer_cost
+        ap = action_params.get(a.name, {})
+        if ap:
+            bid *= ap["bid_mult"][t] if isinstance(ap.get("bid_mult"), np.ndarray) else ap.get("bid_mult", 1.0)
+            offer += ap["offer_adder"][t] if isinstance(ap.get("offer_adder"), np.ndarray) else ap.get("offer_adder", 0.0)
+
+        agent_info[a.name] = {
+            'bus': a.bus, 'load': load_val, 'pv_max': pv_max, 'wind_max': wind_max,
+            'ch_max': target_ch, 'dis_max': target_dis,
+            'bid': bid, 'offer': offer, 'has_storage': a.storage is not None,
+        }
+    return agent_info
+
+
+# ===========================================================================
 # DC-OPF 求解
 # ===========================================================================
 def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
                         action_params, config, prev_power):
+    if not _HAS_GUROBI:
+        return _solve_dc_opf_highs(net, agents, t, stage, prev_soc,
+                                    wholesale_t, action_params, config, prev_power)
     buses = list(net.bus.index)
     lines = list(net.line.index)
     slack_bus = net.ext_grid.at[0, 'bus']
@@ -127,27 +203,8 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         max_i_ka = net.line.at[l, 'max_i_ka']
         limit[l] = np.sqrt(3) * base_kv * max_i_ka * 1e3 / 1e6
 
-    agent_info = {}
-    for a in agents:
-        load_val = a.load_forecast[t] if stage == "DA" else a.load_real[t]
-        pv_max = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
-        wind_max = a.get_wind_forecast()[t] if a.has_wind else 0.0
-        mode, target_ch, target_dis = "idle", 0.0, 0.0
-        if a.storage:
-            cur_soc = prev_soc.get(a.name, a.storage.soc0)
-            pch, pdis = prev_power.get(a.name, (0.0, 0.0))
-            mode, target_ch, target_dis = determine_storage_mode(
-                a, wholesale_t, cur_soc, config, action_params.get(a.name), pch, pdis)
-        ap = action_params.get(a.name, {})
-        bid = a.bid_value * (ap["bid_mult"][t] if isinstance(ap.get("bid_mult"), np.ndarray)
-                             else ap.get("bid_mult", 1.0))
-        offer = a.offer_cost + (ap["offer_adder"][t] if isinstance(ap.get("offer_adder"), np.ndarray)
-                                else ap.get("offer_adder", 0.0))
-        agent_info[a.name] = {
-            'bus': a.bus, 'load': load_val, 'pv_max': pv_max, 'wind_max': wind_max,
-            'ch_max': target_ch, 'dis_max': target_dis, 'storage_mode': mode,
-            'bid': bid, 'offer': offer,
-        }
+    agent_info = _build_agent_info(agents, t, stage, prev_soc, wholesale_t,
+                                    action_params, config, prev_power)
 
     m = gp.Model("DC_OPF")
     m.setParam('OutputFlag', 0)
@@ -156,6 +213,7 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
     m.addConstr(theta[slack_bus] == 0, "ref_angle")
 
     served = {}; unserved = {}; pv = {}; wind = {}; ch = {}; dis = {}
+    is_ch_bin = {}; is_dis_bin = {}
     for a in agents:
         nm = a.name
         info = agent_info[nm]
@@ -164,16 +222,20 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         m.addConstr(served[nm] + unserved[nm] == info['load'], f"load_bal_{nm}")
         pv[nm] = m.addVar(lb=0, ub=info['pv_max'], name=f"pv_{nm}")
         wind[nm] = m.addVar(lb=0, ub=info['wind_max'], name=f"wind_{nm}")
-        if info['storage_mode'] == "charge":
+        if info['has_storage'] and (info['ch_max'] > 0 or info['dis_max'] > 0):
             ch[nm] = m.addVar(lb=0, ub=info['ch_max'], name=f"ch_{nm}")
-            dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
-        elif info['storage_mode'] == "discharge":
-            ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=info['dis_max'], name=f"dis_{nm}")
+            is_ch_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_ch_{nm}")
+            is_dis_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_dis_{nm}")
+            m.addConstr(is_ch_bin[nm] + is_dis_bin[nm] <= 1, f"ch_dis_excl_{nm}")
+            m.addConstr(ch[nm] <= info['ch_max'] * is_ch_bin[nm], f"ch_bin_{nm}")
+            m.addConstr(dis[nm] <= info['dis_max'] * is_dis_bin[nm], f"dis_bin_{nm}")
         else:
             ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
     p_grid = m.addVar(lb=-GRB.INFINITY, name="p_grid")
+    p_grid_import = m.addVar(lb=0, ub=GRB.INFINITY, name="p_grid_import")
+    m.addConstr(p_grid_import >= p_grid, "grid_import_def")
 
     net_inj = {b: gp.LinExpr() for b in buses}
     net_inj[slack_bus] += p_grid
@@ -203,9 +265,10 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         obj += agent_info[nm]['bid'] * served[nm]
         obj -= agent_info[nm]['offer'] * (pv[nm] + wind[nm] + dis[nm])
         obj -= config.penalty_unserved * unserved[nm]
-    if config.lambda_re > 0:
-        for a in agents:
-            obj += config.lambda_re * (pv[a.name] + wind[a.name])
+    pv_max_dict = {a.name: agent_info[a.name]['pv_max'] for a in agents}
+    wind_max_dict = {a.name: agent_info[a.name]['wind_max'] for a in agents}
+    _add_multi_objective_terms(obj, config, agents, pv, wind,
+                                pv_max_dict, wind_max_dict, p_grid_import)
     obj -= wholesale_t * p_grid
     m.setObjective(obj, GRB.MAXIMIZE)
     m.optimize()
@@ -237,6 +300,8 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 # ===========================================================================
 def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
                              action_params, config, prev_power):
+    if not _HAS_GUROBI:
+        raise RuntimeError("LinDistFlow requires Gurobi; only DC-OPF has HiGHS fallback")
     buses = list(net.bus.index)
     lines = list(net.line.index)
     slack_bus = net.ext_grid.at[0, 'bus']
@@ -254,27 +319,8 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         max_i_ka = net.line.at[l, 'max_i_ka']
         limit[l] = np.sqrt(3) * base_kv * max_i_ka * 1e3 / 1e6
 
-    agent_info = {}
-    for a in agents:
-        load_val = a.load_forecast[t] if stage == "DA" else a.load_real[t]
-        pv_max = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
-        wind_max = a.get_wind_forecast()[t] if a.has_wind else 0.0
-        mode, target_ch, target_dis = "idle", 0.0, 0.0
-        if a.storage:
-            cur_soc = prev_soc.get(a.name, a.storage.soc0)
-            pch, pdis = prev_power.get(a.name, (0.0, 0.0))
-            mode, target_ch, target_dis = determine_storage_mode(
-                a, wholesale_t, cur_soc, config, action_params.get(a.name), pch, pdis)
-        ap = action_params.get(a.name, {})
-        bid = a.bid_value * (ap["bid_mult"][t] if isinstance(ap.get("bid_mult"), np.ndarray)
-                             else ap.get("bid_mult", 1.0))
-        offer = a.offer_cost + (ap["offer_adder"][t] if isinstance(ap.get("offer_adder"), np.ndarray)
-                                else ap.get("offer_adder", 0.0))
-        agent_info[a.name] = {
-            'bus': a.bus, 'load': load_val, 'pv_max': pv_max, 'wind_max': wind_max,
-            'ch_max': target_ch, 'dis_max': target_dis, 'storage_mode': mode,
-            'bid': bid, 'offer': offer,
-        }
+    agent_info = _build_agent_info(agents, t, stage, prev_soc, wholesale_t,
+                                    action_params, config, prev_power)
 
     m = gp.Model("LinDistFlow")
     m.setParam('OutputFlag', 0)
@@ -284,6 +330,7 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
     m.addConstr(V[slack_bus] == 1.0, "ref_voltage")
 
     served = {}; unserved = {}; pv = {}; wind = {}; ch = {}; dis = {}
+    is_ch_bin = {}; is_dis_bin = {}
     for a in agents:
         nm = a.name
         info = agent_info[nm]
@@ -292,16 +339,20 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         m.addConstr(served[nm] + unserved[nm] == info['load'], f"load_bal_{nm}")
         pv[nm] = m.addVar(lb=0, ub=info['pv_max'], name=f"pv_{nm}")
         wind[nm] = m.addVar(lb=0, ub=info['wind_max'], name=f"wind_{nm}")
-        if info['storage_mode'] == "charge":
+        if info['has_storage'] and (info['ch_max'] > 0 or info['dis_max'] > 0):
             ch[nm] = m.addVar(lb=0, ub=info['ch_max'], name=f"ch_{nm}")
-            dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
-        elif info['storage_mode'] == "discharge":
-            ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=info['dis_max'], name=f"dis_{nm}")
+            is_ch_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_ch_{nm}")
+            is_dis_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_dis_{nm}")
+            m.addConstr(is_ch_bin[nm] + is_dis_bin[nm] <= 1, f"ch_dis_excl_{nm}")
+            m.addConstr(ch[nm] <= info['ch_max'] * is_ch_bin[nm], f"ch_bin_{nm}")
+            m.addConstr(dis[nm] <= info['dis_max'] * is_dis_bin[nm], f"dis_bin_{nm}")
         else:
             ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
     p_grid = m.addVar(lb=-GRB.INFINITY, name="p_grid")
+    p_grid_import = m.addVar(lb=0, ub=GRB.INFINITY, name="p_grid_import")
+    m.addConstr(p_grid_import >= p_grid, "grid_import_def")
 
     # 有功功率平衡
     inj_p = {b: gp.LinExpr() for b in buses}
@@ -336,9 +387,10 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         obj += agent_info[nm]['bid'] * served[nm]
         obj -= agent_info[nm]['offer'] * (pv[nm] + wind[nm] + dis[nm])
         obj -= config.penalty_unserved * unserved[nm]
-    if config.lambda_re > 0:
-        for a in agents:
-            obj += config.lambda_re * (pv[a.name] + wind[a.name])
+    pv_max_dict = {a.name: agent_info[a.name]['pv_max'] for a in agents}
+    wind_max_dict = {a.name: agent_info[a.name]['wind_max'] for a in agents}
+    _add_multi_objective_terms(obj, config, agents, pv, wind,
+                                pv_max_dict, wind_max_dict, p_grid_import)
     obj -= wholesale_t * p_grid
     m.setObjective(obj, GRB.MAXIMIZE)
     m.optimize()
@@ -370,6 +422,11 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 # ===========================================================================
 def solve_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
                      action_params, config, prev_power):
+    if not _HAS_GUROBI:
+        if config.opf_mode == "dc":
+            return _solve_dc_opf_highs(net, agents, t, stage, prev_soc,
+                                       wholesale_t, action_params, config, prev_power)
+        raise RuntimeError("Gurobi unavailable and no HiGHS fallback for LinDistFlow")
     if config.opf_mode == "dc":
         return solve_dc_opf_gurobi(net, agents, t, stage, prev_soc,
                                    wholesale_t, action_params, config, prev_power)
@@ -381,6 +438,156 @@ def solve_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 
 
 # ===========================================================================
+# HiGHS fallback solver (ortools, for when Gurobi is unavailable)
+# ===========================================================================
+def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
+                         action_params, config, prev_power):
+    """DC-OPF using ortools HiGHS (open-source fallback)."""
+    from ortools.linear_solver import pywraplp
+
+    buses = list(net.bus.index)
+    lines = list(net.line.index)
+    slack_bus = net.ext_grid.at[0, 'bus']
+    base_kv = config.base_kv
+    base_mva = 1.0
+    Z_base = (base_kv ** 2) / base_mva
+    x = {}; limit = {}
+    for l in lines:
+        length = net.line.at[l, 'length_km']
+        x_ohm_per_km = net.line.at[l, 'x_ohm_per_km']
+        X_ohm = x_ohm_per_km * length
+        x[l] = X_ohm / Z_base
+        max_i_ka = net.line.at[l, 'max_i_ka']
+        limit[l] = np.sqrt(3) * base_kv * max_i_ka * 1e3 / 1e6
+
+    agent_info = _build_agent_info(agents, t, stage, prev_soc, wholesale_t,
+                                    action_params, config, prev_power)
+
+    solver = pywraplp.Solver.CreateSolver("HIGHS")
+    if solver is None:
+        solver = pywraplp.Solver.CreateSolver("SCIP")
+    if solver is None:
+        return False, None, 0.0, {}, 0.0
+
+    INF = solver.infinity()
+
+    theta = {b: solver.NumVar(-INF, INF, f"theta_{b}") for b in buses}
+    solver.Add(theta[slack_bus] == 0)
+
+    p_flow = {}
+    for l in lines:
+        p_flow[l] = solver.NumVar(-limit[l], limit[l], f"p_{l}")
+        f = net.line.at[l, 'from_bus']
+        t_b = net.line.at[l, 'to_bus']
+        solver.Add(p_flow[l] == (theta[f] - theta[t_b]) / x[l])
+
+    p_grid = solver.NumVar(-INF, INF, "p_grid")
+    p_grid_import = solver.NumVar(0, INF, "p_grid_import")
+    solver.Add(p_grid_import >= p_grid)
+
+    served = {}; unserved = {}; pv_v = {}; wind_v = {}; ch_v = {}; dis_v = {}
+    for a in agents:
+        nm = a.name
+        info = agent_info[nm]
+        served[nm] = solver.NumVar(0, info['load'], f"s_{nm}")
+        unserved[nm] = solver.NumVar(0, info['load'], f"u_{nm}")
+        solver.Add(served[nm] + unserved[nm] == info['load'])
+        pv_v[nm] = solver.NumVar(0, info['pv_max'], f"pv_{nm}")
+        wind_v[nm] = solver.NumVar(0, info['wind_max'], f"w_{nm}")
+        if info['has_storage'] and (info['ch_max'] > 0 or info['dis_max'] > 0):
+            ch_v[nm] = solver.NumVar(0, info['ch_max'], f"ch_{nm}")
+            dis_v[nm] = solver.NumVar(0, info['dis_max'], f"dis_{nm}")
+            is_ch = solver.IntVar(0, 1, f"ich_{nm}")
+            is_dis = solver.IntVar(0, 1, f"idis_{nm}")
+            solver.Add(is_ch + is_dis <= 1)
+            solver.Add(ch_v[nm] <= info['ch_max'] * is_ch)
+            solver.Add(dis_v[nm] <= info['dis_max'] * is_dis)
+        else:
+            ch_v[nm] = solver.NumVar(0, 0, f"ch_{nm}")
+            dis_v[nm] = solver.NumVar(0, 0, f"dis_{nm}")
+
+    # Power balance
+    net_inj = {b: p_grid if b == slack_bus else solver.Sum() for b in buses}
+    for a in agents:
+        nm = a.name
+        bus = agent_info[nm]['bus']
+        net_inj[bus] += pv_v[nm] + wind_v[nm] + dis_v[nm] - served[nm] - ch_v[nm]
+
+    for b in buses:
+        flow_out = solver.Sum()
+        for l in lines:
+            if net.line.at[l, 'from_bus'] == b:
+                flow_out += p_flow[l]
+            elif net.line.at[l, 'to_bus'] == b:
+                flow_out -= p_flow[l]
+        solver.Add(net_inj[b] == flow_out)
+
+    # Objective: same structure as Gurobi version
+    obj = solver.Objective()
+    for a in agents:
+        nm = a.name
+        obj.SetCoefficient(served[nm], agent_info[nm]['bid'])
+        obj.SetCoefficient(pv_v[nm], -agent_info[nm]['offer'])
+        obj.SetCoefficient(wind_v[nm], -agent_info[nm]['offer'])
+        obj.SetCoefficient(dis_v[nm], -agent_info[nm]['offer'])
+        obj.SetCoefficient(unserved[nm], -config.penalty_unserved)
+
+    if config.enable_multi_objective:
+        if config.lambda_re > 0:
+            for a in agents:
+                obj.SetCoefficient(pv_v[a.name], obj.GetCoefficient(pv_v[a.name]) + config.lambda_re)
+                obj.SetCoefficient(wind_v[a.name], obj.GetCoefficient(wind_v[a.name]) + config.lambda_re)
+        if config.lambda_curtail > 0:
+            for a in agents:
+                nm = a.name
+                obj.SetCoefficient(pv_v[nm], obj.GetCoefficient(pv_v[nm]) + config.lambda_curtail)
+                obj.SetCoefficient(wind_v[nm], obj.GetCoefficient(wind_v[nm]) + config.lambda_curtail)
+        if config.lambda_carbon > 0:
+            obj.SetCoefficient(p_grid_import, -config.lambda_carbon * config.emission_factor_grid)
+    else:
+        if config.lambda_re > 0:
+            for a in agents:
+                obj.SetCoefficient(pv_v[a.name], obj.GetCoefficient(pv_v[a.name]) + config.lambda_re)
+                obj.SetCoefficient(wind_v[a.name], obj.GetCoefficient(wind_v[a.name]) + config.lambda_re)
+
+    obj.SetCoefficient(p_grid, -wholesale_t)
+    obj.SetMaximization()
+
+    status = solver.Solve()
+    if status not in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE):
+        return False, None, 0.0, {}, 0.0
+
+    lmp = np.zeros(len(buses))
+    for i, b in enumerate(buses):
+        c = solver.LookupConstraint(f"") or solver.Constraint(0, 0)
+        try:
+            lmp[i] = net_inj[b].DualValue() if hasattr(net_inj[b], 'DualValue') else wholesale_t
+        except Exception:
+            lmp[i] = wholesale_t
+
+    agent_res = {}
+    total_welfare = 0.0
+    for a in agents:
+        nm = a.name
+        info = agent_info[nm]
+        pv_val = pv_v[nm].SolutionValue()
+        w_val = wind_v[nm].SolutionValue()
+        s_val = served[nm].SolutionValue()
+        ch_val = ch_v[nm].SolutionValue() if nm in ch_v else 0.0
+        dis_val = dis_v[nm].SolutionValue() if nm in dis_v else 0.0
+        bus = info['bus']
+        node_lmp = lmp[bus] if bus < len(lmp) else wholesale_t
+        revenue = s_val * info['bid'] - (pv_val + w_val + dis_val) * info['offer']
+        total_welfare += revenue
+        agent_res[nm] = {
+            'served': s_val, 'pv_used': pv_val, 'wind_used': w_val,
+            'p_ch': ch_val, 'p_dis': dis_val,
+        }
+
+    return True, lmp, total_welfare, agent_res, p_grid.SolutionValue()
+
+
+# ===========================================================================
 # 多时段联合优化（核心修复）
 # ===========================================================================
 def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholesale):
@@ -388,6 +595,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
     批量求解 LinDistFlow，包含储能 SOC 转移约束和终端价值。
     返回与 clear_market 一致的字典。
     """
+    if not _HAS_GUROBI:
+        raise RuntimeError("Batch LinDistFlow requires Gurobi; only DC-OPF has HiGHS fallback")
     n_buses = len(net.bus.index)
     lmp = np.zeros((T, n_buses))
     buses = list(net.bus.index)
@@ -416,6 +625,9 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
     V   = m.addVars(T, buses, lb=0.85, ub=1.15, name="V")
     P   = m.addVars(T, lines, lb=-GRB.INFINITY, name="P")
     p_grid = m.addVars(T, lb=-GRB.INFINITY, name="p_grid")
+    p_grid_import = m.addVars(T, lb=0, ub=GRB.INFINITY, name="p_grid_import")
+    for t in range(T):
+        m.addConstr(p_grid_import[t] >= p_grid[t], f"grid_import_def_{t}")
 
     # 智能体变量
     served   = {}; unserved = {}; pv = {}; wind = {}; ch = {}; dis = {}
@@ -499,6 +711,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
     obj = gp.LinExpr()
     terminal_value = 300.0
     for t in range(T):
+        pv_dict_t = {}; wind_dict_t = {}
+        pv_max_dict_t = {}; wind_max_dict_t = {}
         for a in agents_list:
             nm = a.name
             ap = action_params.get(a.name, {})
@@ -514,9 +728,13 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
             obj += bid * served[nm][t]
             obj -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
             obj -= config.penalty_unserved * unserved[nm][t]
-            if config.lambda_re > 0:
-                obj += config.lambda_re * (pv[nm][t] + wind[nm][t])
+            pv_dict_t[nm] = pv[nm][t]
+            wind_dict_t[nm] = wind[nm][t]
+            pv_max_dict_t[nm] = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
+            wind_max_dict_t[nm] = (a.get_wind_forecast()[t] if stage == "DA" else a.get_wind_real()[t]) if a.has_wind else 0.0
         obj -= wholesale[t] * p_grid[t]
+        _add_multi_objective_terms(obj, config, agents_list, pv_dict_t, wind_dict_t,
+                                    pv_max_dict_t, wind_max_dict_t, p_grid_import[t])
 
     for a in storage_agents:
         obj += terminal_value * soc[a.name][T] * a.storage.e_max
@@ -547,6 +765,9 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         for a in agents_list
     )
     total_re_used = 0.0
+    total_curtailment = 0.0
+    carbon_emissions = 0.0
+    total_served_mwh = 0.0
 
     for t in range(T):
         for i, b in enumerate(buses):
@@ -555,6 +776,10 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                 lmp[t, i] = -constr.Pi
             else:
                 lmp[t, i] = wholesale[t]
+
+        pgi = p_grid_import[t].X
+        if pgi > 0:
+            carbon_emissions += config.emission_factor_grid * pgi
 
         schedules['GRID']['g_grid'][t] = p_grid[t].X
 
@@ -576,6 +801,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                 s['soc'][t] = 0.0
 
             load_val = a.load_forecast[t] if stage == "DA" else a.load_real[t]
+            pv_max = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
+            wind_max = (a.get_wind_forecast()[t] if stage == "DA" else a.get_wind_real()[t]) if a.has_wind else 0.0
             net_gen = s['pv_used'][t] + s['wind_used'][t] + s['p_dis'][t]
             net_con = s['served'][t] + s['p_ch'][t]
             if net_gen > net_con:
@@ -585,8 +812,11 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                 s['p_buy'][t] = net_con - net_gen
                 s['p_sell'][t] = 0.0
             total_re_used += s['pv_used'][t] + s['wind_used'][t]
+            total_curtailment += (pv_max - s['pv_used'][t]) + (wind_max - s['wind_used'][t])
+            total_served_mwh += s['served'][t]
 
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0
+    carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
     return {
         "price": lmp.mean(axis=1),
         "lmp": lmp,
@@ -594,4 +824,7 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         "welfare": total_welfare,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_avail,
+        "carbon_emissions": carbon_emissions,
+        "carbon_intensity": carbon_intensity,
+        "total_curtailment": total_curtailment,
     }

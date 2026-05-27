@@ -96,6 +96,9 @@ def clear_market(agents, T, stage, action_params, config):
 
     total_welfare = 0.0
     total_re_available = 0.0; total_re_used = 0.0
+    total_curtailment = 0.0
+    carbon_emissions = 0.0
+    total_served_mwh = 0.0
     for a in agents:
         if stage == "DA":
             total_re_available += np.sum(a.pv_forecast)
@@ -127,6 +130,8 @@ def clear_market(agents, T, stage, action_params, config):
         lmp[t] = lmp_t
         schedules['GRID']['g_grid'][t] = p_grid
         total_welfare += welfare_t
+        if p_grid > 0:
+            carbon_emissions += config.emission_factor_grid * p_grid
 
         for a in agents:
             sched = schedules[a.name]
@@ -150,6 +155,8 @@ def clear_market(agents, T, stage, action_params, config):
                 sched['p_dis'][t] = 0.0
 
             load_val = a.load_forecast[t] if stage == "DA" else a.load_real[t]
+            pv_max = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
+            wind_max = (a.get_wind_forecast()[t] if stage == "DA" else a.get_wind_real()[t]) if a.has_wind else 0.0
             net_gen = res['pv_used'] + res['wind_used'] + sched['p_dis'][t]
             net_con = res['served'] + sched['p_ch'][t]
             if net_gen > net_con:
@@ -160,8 +167,11 @@ def clear_market(agents, T, stage, action_params, config):
                 sched['p_sell'][t] = 0.0
             sched['unserved'][t] = load_val - res['served']
             total_re_used += res['pv_used'] + res['wind_used']
+            total_curtailment += (pv_max - res['pv_used']) + (wind_max - res['wind_used'])
+            total_served_mwh += res['served']
 
     re_rate = (total_re_used / total_re_available * 100) if total_re_available > 0 else 100.0
+    carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
     return {
         "price": lmp.mean(axis=1),
         "lmp": lmp,
@@ -169,6 +179,9 @@ def clear_market(agents, T, stage, action_params, config):
         "welfare": total_welfare,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_available,
+        "carbon_emissions": carbon_emissions,
+        "carbon_intensity": carbon_intensity,
+        "total_curtailment": total_curtailment,
     }
 
 def clear_rt_rolling(agents, T, action_params_base, config):
@@ -191,6 +204,11 @@ def clear_rt_rolling(agents, T, action_params_base, config):
     prev_soc = {}
     prev_power = {}
     total_welfare_rt = 0.0
+    carbon_emissions = 0.0
+    total_curtailment = 0.0
+    total_served_mwh = 0.0
+    total_re_available = 0.0
+    total_re_used = 0.0
     wholesale = day_ahead_price_china(T)
 
     idx = 0
@@ -207,12 +225,20 @@ def clear_rt_rolling(agents, T, action_params_base, config):
                 lmp_rt[t_abs] = lmp_t
                 total_welfare_rt += welfare_t
                 schedules_rt['GRID']['g_grid'][t_abs] = p_grid
+                if p_grid > 0:
+                    carbon_emissions += config.emission_factor_grid * p_grid
                 for a in agents:
                     s = schedules_rt[a.name]
                     res = agent_res[a.name]
                     s['served'][t_abs] = res['served']
                     s['pv_used'][t_abs] = res['pv_used']
                     s['wind_used'][t_abs] = res['wind_used']
+                    pv_max = a.pv_real[t_abs]
+                    wind_max = a.get_wind_real()[t_abs] if a.has_wind else 0.0
+                    total_curtailment += (pv_max - res['pv_used']) + (wind_max - res['wind_used'])
+                    total_re_available += pv_max + wind_max
+                    total_re_used += res['pv_used'] + res['wind_used']
+                    total_served_mwh += res['served']
                     if a.storage:
                         soc0 = prev_soc.get(a.name, a.storage.soc0)
                         ch_val, dis_val, new_soc = StorageConstraints.execute_dispatch(
@@ -236,11 +262,16 @@ def clear_rt_rolling(agents, T, action_params_base, config):
                 if t_abs > 0:
                     lmp_rt[t_abs] = lmp_rt[t_abs-1]
         idx += rt_step
-    re_rate = 100.0
+    re_rate = (total_re_used / total_re_available * 100) if total_re_available > 0 else 100.0
+    carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
     return {
         "price": lmp_rt.mean(axis=1),
         "lmp": lmp_rt,
         "schedules": schedules_rt,
         "welfare": total_welfare_rt,
         "re_consumption_rate": re_rate,
+        "total_re_available": total_re_available,
+        "carbon_emissions": carbon_emissions,
+        "carbon_intensity": carbon_intensity,
+        "total_curtailment": total_curtailment,
     }

@@ -15,11 +15,19 @@ class MarketConfig:
     default_bid_mult: float = 1.0
     default_offer_adder: float = 0.0
     line_capacity_multiplier: float = 3.0
-    w_re_consume: float = 0.0
     penalty_unserved: float = 800.0
     base_mva: float = 1.0
     base_kv: float = 12.66
-    lambda_re: float = 50.0
+    # Multi-objective optimization weights
+    lambda_re: float = 50.0           # RE incentive (CNY/MWh)
+    lambda_curtail: float = 15.0      # Curtailment penalty (CNY/MWh)
+    lambda_carbon: float = 50.0       # Carbon cost (CNY/tCO2)
+    emission_factor_grid: float = 0.58  # Grid emission factor (tCO2/MWh)
+    enable_multi_objective: bool = True
+    # Storage mode thresholds (per-unit, relative to bid/offer)
+    storage_charge_discount: float = 0.85   # bid * roundtrip_eff * this → charge trigger
+    storage_discharge_premium: float = 1.15  # offer / roundtrip_eff * this → discharge trigger
+    storage_soc_buffer: float = 0.02  # SOC buffer from min/max before forced charge/discharge
     rt_horizon: int = 4        # RT 每次优化的时段数
     rt_step: int = 1           # RT 步长（时段）
 
