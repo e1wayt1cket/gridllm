@@ -24,6 +24,10 @@ class MarketConfig:
     lambda_carbon: float = 50.0       # Carbon cost (CNY/tCO2)
     emission_factor_grid: float = 0.58  # Grid emission factor (tCO2/MWh)
     enable_multi_objective: bool = True
+    # Constraint-based multi-objective (hard constraints instead of weighted-sum)
+    use_constraint_multi_obj: bool = True
+    carbon_cap_tco2: Optional[float] = 200.0   # hard cap on total carbon
+    re_min_rate: Optional[float] = 95.0       # minimum RE consumption rate (0-100)
     # Storage mode thresholds (per-unit, relative to bid/offer)
     storage_charge_discount: float = 0.85   # bid * roundtrip_eff * this → charge trigger
     storage_discharge_premium: float = 1.15  # offer / roundtrip_eff * this → discharge trigger

@@ -83,9 +83,10 @@ def test_baseline_schedule_keys():
 
 
 def test_peak_load_higher_welfare():
-    """Peak load should have higher DA welfare than baseline."""
+    """Peak load should have higher DA welfare than baseline (weighted-sum mode)."""
     T = 96
-    config = MarketConfig(opf_mode="lindistflow", verbose=False)
+    config = MarketConfig(opf_mode="lindistflow", verbose=False,
+                          use_constraint_multi_obj=False)
     agents_b, _ = get_scenario("baseline", T=T)
     agents_p, _ = get_scenario("peak_load", T=T)
     r_b = clear_market(agents_b, T, "DA",
@@ -96,11 +97,28 @@ def test_peak_load_higher_welfare():
         f"peak_load welfare {r_p['welfare']:.0f} <= baseline {r_b['welfare']:.0f}"
 
 
-def test_congestion_lower_welfare():
-    """Congestion should have lower or equal welfare vs baseline."""
+def test_constraint_mode_feasible():
+    """Constraint mode with default caps should be feasible and meet targets."""
     T = 96
-    config_b = MarketConfig(opf_mode="lindistflow", verbose=False)
+    config = MarketConfig(opf_mode="lindistflow", verbose=False)
+    agents, _ = get_scenario("baseline", T=T)
+    actions = adaptive_bidding(agents, config, strategy="random")
+    results = clear_market(agents, T, "DA", actions, config)
+    assert results is not None, "constraint mode should not fail"
+    assert results["re_consumption_rate"] >= config.re_min_rate - 0.5, \
+        f"RE rate {results['re_consumption_rate']:.1f}% below min {config.re_min_rate}%"
+    assert results["carbon_emissions"] <= config.carbon_cap_tco2 + 1.0, \
+        f"carbon {results['carbon_emissions']:.1f} exceeds cap {config.carbon_cap_tco2}"
+    assert "shadow_prices" in results, "constraint mode should return shadow prices"
+
+
+def test_congestion_lower_welfare():
+    """Congestion should have lower or equal welfare vs baseline (weighted-sum mode)."""
+    T = 96
+    config_b = MarketConfig(opf_mode="lindistflow", verbose=False,
+                            use_constraint_multi_obj=False)
     config_c = MarketConfig(opf_mode="lindistflow", verbose=False,
+                            use_constraint_multi_obj=False,
                             line_capacity_multiplier=0.5)
     agents_b, _ = get_scenario("baseline", T=T)
     agents_c, _ = get_scenario("congestion", T=T)

@@ -357,7 +357,7 @@ def create_soc_figure(da_results, agents):
     fig.update_yaxes(title_text="功率 (MW)", row=2, col=1)
     return fig
 
-def create_kpi_cards(da_results, rt_results, payment, agents):
+def create_kpi_cards(da_results, rt_results, payment, agents, config=None):
     load_total = sum(np.sum(a.load_forecast) for a in agents)
     served = sum(np.sum(da_results["schedules"][a.name]["served"]) for a in agents)
     satisfaction = (served / load_total * 100) if load_total > 0 else 100.0
@@ -396,6 +396,35 @@ def create_kpi_cards(da_results, rt_results, payment, agents):
                 'transition': 'transform 0.15s ease, box-shadow 0.15s ease',
             })
         )
+
+    # Constraint info row
+    if config is not None and config.use_constraint_multi_obj:
+        sp = da_results.get('shadow_prices', {})
+        sc = sp.get('carbon_cap', None)
+        sr = sp.get('re_min_rate', None)
+        constraint_items = [
+            ("碳上限", f"≤ {config.carbon_cap_tco2:.0f} tCO₂", "#ef4444",
+             f"影子: {sc:.1f} CNY/tCO₂" if sc is not None and abs(sc) > 1e-6 else "未绑定"),
+            ("可再生下限", f"≥ {config.re_min_rate:.0f}%", "#10b981",
+             f"影子: {abs(sr):.1f} CNY/%" if sr is not None and abs(sr) > 1e-6 else "未绑定"),
+        ]
+        for label, value, accent, extra in constraint_items:
+            cards.append(
+                html.Div([
+                    html.Div("📐", style={'fontSize': '22px', 'marginBottom': '6px'}),
+                    html.Div(label, style={'fontSize': '12px', 'fontWeight': '600', 'color': '#64748b',
+                                           'textTransform': 'uppercase', 'letterSpacing': '0.5px',
+                                           'marginBottom': '6px'}),
+                    html.Div(value, style={'fontSize': '18px', 'fontWeight': '700', 'color': '#1e293b'}),
+                    html.Div(extra, style={'fontSize': '11px', 'color': '#94a3b8', 'marginTop': '4px'}),
+                ], style={
+                    'backgroundColor': '#f8fafc', 'padding': '18px 20px', 'borderRadius': '14px',
+                    'boxShadow': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+                    'textAlign': 'center', 'minWidth': '155px', 'flex': '1',
+                    'borderTop': f'3px solid {accent}',
+                    'border': '1px dashed #e2e8f0',
+                })
+            )
 
     return html.Div(cards, style={
         'display': 'grid',
@@ -753,7 +782,7 @@ def main_callback(parse_clicks, nl_text):
 
     # Build charts
     net = build_base_network(config)
-    kpi = create_kpi_cards(da_results, rt_results, payment, agents)
+    kpi = create_kpi_cards(da_results, rt_results, payment, agents, config)
     agents_info = [{"bus": a.bus, "name": a.name, "is_prosumer": a.is_prosumer} for a in agents]
     topo_fig = create_topology_figure(net, agents_info=agents_info, lmp_arr=da_results['lmp'])
     lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")

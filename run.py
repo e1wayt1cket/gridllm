@@ -48,8 +48,16 @@ def main():
     carbon_em = da_results.get('carbon_emissions', 0)
     carbon_int = da_results.get('carbon_intensity', 0)
     curtail = da_results.get('total_curtailment', 0)
-    print(f"OPF模式: {config.opf_mode}, 日前社会福利: {da_results['welfare']:.2f}, 可再生消纳率: {da_results['re_consumption_rate']:.1f}%")
+    mode_str = "约束法" if config.use_constraint_multi_obj else "加权求和"
+    print(f"多目标方法: {mode_str}, OPF模式: {config.opf_mode}")
+    print(f"日前社会福利: {da_results['welfare']:.2f}, 可再生消纳率: {da_results['re_consumption_rate']:.1f}%")
     print(f"碳排放: {carbon_em:.1f} tCO2, 碳强度: {carbon_int:.3f} tCO2/MWh, 弃电量: {curtail:.1f} MWh")
+    if config.use_constraint_multi_obj:
+        print(f"约束设定: 碳排放 <= {config.carbon_cap_tco2} tCO2, 可再生消纳率 >= {config.re_min_rate}%")
+        sp = da_results.get('shadow_prices', {})
+        if sp:
+            for k, v in sp.items():
+                print(f"  影子价格 {k}: {v:.2f}")
 
     if run_nash:
         tester = NashEquilibriumTester(agents, config, T, stage="DA")

@@ -147,6 +147,71 @@ def _add_multi_objective_terms(obj, config, agents, pv_vars, wind_vars,
         obj -= config.lambda_carbon * config.emission_factor_grid * p_grid_import
 
 
+def _add_multi_objective_constraints_batch(m, config, agents, pv, wind, p_grid_import,
+                                             T, stage, dt=0.25):
+    """Add global hard constraints for carbon and RE (batch solver only).
+
+    Returns a dict with constraint objects for shadow price extraction,
+    or None if constraint mode is not active.
+    """
+    if not (config.enable_multi_objective and config.use_constraint_multi_obj):
+        return None
+
+    constrs = {}
+    if config.carbon_cap_tco2 is not None:
+        carbon_expr = gp.quicksum(
+            config.emission_factor_grid * p_grid_import[t] for t in range(T)
+        )
+        constrs['carbon_cap'] = m.addConstr(carbon_expr <= config.carbon_cap_tco2, "carbon_cap")
+
+    if config.re_min_rate is not None:
+        re_used = gp.LinExpr()
+        re_avail = 0.0
+        for t in range(T):
+            for a in agents:
+                nm = a.name
+                re_used += (pv[nm][t] + wind[nm][t]) * dt
+                pv_max = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
+                wind_max = (a.get_wind_forecast()[t] if stage == "DA"
+                            else a.get_wind_real()[t]) if a.has_wind else 0.0
+                re_avail += (pv_max + wind_max) * dt
+        constrs['re_min_rate'] = m.addConstr(
+            re_used >= config.re_min_rate / 100.0 * re_avail, "re_min_rate"
+        )
+    return constrs
+
+
+def _add_multi_objective_constraints_single(m, config, agents, pv_vars, wind_vars,
+                                              pv_max_dict, wind_max_dict,
+                                              p_grid_import, dt=0.25):
+    """Add per-period hard constraints for single-period solvers.
+
+    Global caps are divided evenly across T=96 periods as an approximation.
+    """
+    if not (config.enable_multi_objective and config.use_constraint_multi_obj):
+        return None
+
+    constrs = {}
+    T_default = 96
+    if config.carbon_cap_tco2 is not None:
+        per_period_cap = config.carbon_cap_tco2 / T_default
+        carbon_period = config.emission_factor_grid * p_grid_import
+        constrs['carbon_cap'] = m.addConstr(carbon_period <= per_period_cap, "carbon_cap")
+
+    if config.re_min_rate is not None:
+        re_used = gp.LinExpr()
+        re_avail = 0.0
+        for a in agents:
+            nm = a.name
+            re_used += pv_vars[nm] + wind_vars.get(nm, 0)
+            re_avail += pv_max_dict[nm] + wind_max_dict.get(nm, 0.0)
+        if re_avail > 1e-6:
+            constrs['re_min_rate'] = m.addConstr(
+                re_used >= config.re_min_rate / 100.0 * re_avail, "re_min_rate"
+            )
+    return constrs
+
+
 def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, config, prev_power):
     """Build per-agent info dict for single-period solvers.
 
@@ -267,10 +332,14 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         obj -= config.penalty_unserved * unserved[nm]
     pv_max_dict = {a.name: agent_info[a.name]['pv_max'] for a in agents}
     wind_max_dict = {a.name: agent_info[a.name]['wind_max'] for a in agents}
-    _add_multi_objective_terms(obj, config, agents, pv, wind,
-                                pv_max_dict, wind_max_dict, p_grid_import)
+    if not (config.enable_multi_objective and config.use_constraint_multi_obj):
+        _add_multi_objective_terms(obj, config, agents, pv, wind,
+                                    pv_max_dict, wind_max_dict, p_grid_import)
     obj -= wholesale_t * p_grid
     m.setObjective(obj, GRB.MAXIMIZE)
+
+    _add_multi_objective_constraints_single(m, config, agents, pv, wind,
+                                              pv_max_dict, wind_max_dict, p_grid_import)
     m.optimize()
 
     if m.status != GRB.OPTIMAL:
@@ -389,10 +458,14 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         obj -= config.penalty_unserved * unserved[nm]
     pv_max_dict = {a.name: agent_info[a.name]['pv_max'] for a in agents}
     wind_max_dict = {a.name: agent_info[a.name]['wind_max'] for a in agents}
-    _add_multi_objective_terms(obj, config, agents, pv, wind,
-                                pv_max_dict, wind_max_dict, p_grid_import)
+    if not (config.enable_multi_objective and config.use_constraint_multi_obj):
+        _add_multi_objective_terms(obj, config, agents, pv, wind,
+                                    pv_max_dict, wind_max_dict, p_grid_import)
     obj -= wholesale_t * p_grid
     m.setObjective(obj, GRB.MAXIMIZE)
+
+    _add_multi_objective_constraints_single(m, config, agents, pv, wind,
+                                              pv_max_dict, wind_max_dict, p_grid_import)
     m.optimize()
 
     if m.status != GRB.OPTIMAL:
@@ -532,26 +605,43 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         obj.SetCoefficient(dis_v[nm], -agent_info[nm]['offer'])
         obj.SetCoefficient(unserved[nm], -config.penalty_unserved)
 
-    if config.enable_multi_objective:
-        if config.lambda_re > 0:
-            for a in agents:
-                obj.SetCoefficient(pv_v[a.name], obj.GetCoefficient(pv_v[a.name]) + config.lambda_re)
-                obj.SetCoefficient(wind_v[a.name], obj.GetCoefficient(wind_v[a.name]) + config.lambda_re)
-        if config.lambda_curtail > 0:
-            for a in agents:
-                nm = a.name
-                obj.SetCoefficient(pv_v[nm], obj.GetCoefficient(pv_v[nm]) + config.lambda_curtail)
-                obj.SetCoefficient(wind_v[nm], obj.GetCoefficient(wind_v[nm]) + config.lambda_curtail)
-        if config.lambda_carbon > 0:
-            obj.SetCoefficient(p_grid_import, -config.lambda_carbon * config.emission_factor_grid)
-    else:
-        if config.lambda_re > 0:
-            for a in agents:
-                obj.SetCoefficient(pv_v[a.name], obj.GetCoefficient(pv_v[a.name]) + config.lambda_re)
-                obj.SetCoefficient(wind_v[a.name], obj.GetCoefficient(wind_v[a.name]) + config.lambda_re)
+    use_constraint = config.enable_multi_objective and config.use_constraint_multi_obj
+    if not use_constraint:
+        if config.enable_multi_objective:
+            if config.lambda_re > 0:
+                for a in agents:
+                    obj.SetCoefficient(pv_v[a.name], obj.GetCoefficient(pv_v[a.name]) + config.lambda_re)
+                    obj.SetCoefficient(wind_v[a.name], obj.GetCoefficient(wind_v[a.name]) + config.lambda_re)
+            if config.lambda_curtail > 0:
+                for a in agents:
+                    nm = a.name
+                    obj.SetCoefficient(pv_v[nm], obj.GetCoefficient(pv_v[nm]) + config.lambda_curtail)
+                    obj.SetCoefficient(wind_v[nm], obj.GetCoefficient(wind_v[nm]) + config.lambda_curtail)
+            if config.lambda_carbon > 0:
+                obj.SetCoefficient(p_grid_import, -config.lambda_carbon * config.emission_factor_grid)
+        else:
+            if config.lambda_re > 0:
+                for a in agents:
+                    obj.SetCoefficient(pv_v[a.name], obj.GetCoefficient(pv_v[a.name]) + config.lambda_re)
+                    obj.SetCoefficient(wind_v[a.name], obj.GetCoefficient(wind_v[a.name]) + config.lambda_re)
 
     obj.SetCoefficient(p_grid, -wholesale_t)
     obj.SetMaximization()
+
+    if use_constraint:
+        dt = 0.25
+        T_default = 96
+        if config.carbon_cap_tco2 is not None:
+            per_period_cap = config.carbon_cap_tco2 / T_default
+            solver.Add(config.emission_factor_grid * p_grid_import <= per_period_cap)
+        if config.re_min_rate is not None:
+            re_used = solver.Sum()
+            re_avail = 0.0
+            for a in agents:
+                re_used += pv_v[a.name] + wind_v[a.name]
+                re_avail += agent_info[a.name]['pv_max'] + agent_info[a.name]['wind_max']
+            if re_avail > 1e-6:
+                solver.Add(re_used >= config.re_min_rate / 100.0 * re_avail)
 
     status = solver.Solve()
     if status not in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE):
@@ -733,8 +823,12 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
             pv_max_dict_t[nm] = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
             wind_max_dict_t[nm] = (a.get_wind_forecast()[t] if stage == "DA" else a.get_wind_real()[t]) if a.has_wind else 0.0
         obj -= wholesale[t] * p_grid[t]
-        _add_multi_objective_terms(obj, config, agents_list, pv_dict_t, wind_dict_t,
-                                    pv_max_dict_t, wind_max_dict_t, p_grid_import[t])
+        if not (config.enable_multi_objective and config.use_constraint_multi_obj):
+            _add_multi_objective_terms(obj, config, agents_list, pv_dict_t, wind_dict_t,
+                                        pv_max_dict_t, wind_max_dict_t, p_grid_import[t])
+
+    constraint_objs = _add_multi_objective_constraints_batch(m, config, agents_list, pv, wind,
+                                             p_grid_import, T, stage)
 
     for a in storage_agents:
         obj += terminal_value * soc[a.name][T] * a.storage.e_max
@@ -817,7 +911,14 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
 
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
-    return {
+    shadow_prices = {}
+    if constraint_objs:
+        for key, constr in constraint_objs.items():
+            try:
+                shadow_prices[key] = constr.Pi
+            except Exception:
+                shadow_prices[key] = None
+    result = {
         "price": lmp.mean(axis=1),
         "lmp": lmp,
         "schedules": schedules,
@@ -828,3 +929,6 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
     }
+    if shadow_prices:
+        result["shadow_prices"] = shadow_prices
+    return result
