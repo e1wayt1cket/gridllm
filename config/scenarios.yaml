@@ -1,0 +1,29 @@
+# Scenario definitions with multipliers and overrides.
+
+scenarios:
+  baseline:
+    description: "Baseline: wind+solar+storage"
+
+  high_re:
+    description: "High renewable: 2x PV and wind capacity"
+    multipliers:
+      pv: 2.0
+      wind: 2.0
+
+  peak_load:
+    description: "Peak load: 1.8x all loads"
+    multipliers:
+      load: 1.8
+
+  congestion:
+    description: "Network congestion: line capacity halved"
+    line_capacity_multiplier: 0.5
+
+  re_ramp_drop:
+    description: "RE sudden drop: output falls to 10% at midpoint"
+    ramp_type: sudden_drop
+    ramp_multiplier: 0.1
+
+  re_ramp_surge:
+    description: "RE sudden surge: output surges from 10% to full at midpoint"
+    ramp_type: sudden_surge

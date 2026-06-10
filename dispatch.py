@@ -160,7 +160,7 @@ def _add_multi_objective_constraints_batch(m, config, agents, pv, wind, p_grid_i
     constrs = {}
     if config.carbon_cap_tco2 is not None:
         carbon_expr = gp.quicksum(
-            config.emission_factor_grid * p_grid_import[t] for t in range(T)
+            config.emission_factor_grid * p_grid_import[t] * dt for t in range(T)
         )
         constrs['carbon_cap'] = m.addConstr(carbon_expr <= config.carbon_cap_tco2, "carbon_cap")
 
@@ -195,7 +195,7 @@ def _add_multi_objective_constraints_single(m, config, agents, pv_vars, wind_var
     T_default = 96
     if config.carbon_cap_tco2 is not None:
         per_period_cap = config.carbon_cap_tco2 / T_default
-        carbon_period = config.emission_factor_grid * p_grid_import
+        carbon_period = config.emission_factor_grid * p_grid_import * dt
         constrs['carbon_cap'] = m.addConstr(carbon_period <= per_period_cap, "carbon_cap")
 
     if config.re_min_rate is not None:
@@ -241,6 +241,7 @@ def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, co
             'bus': a.bus, 'load': load_val, 'pv_max': pv_max, 'wind_max': wind_max,
             'ch_max': target_ch, 'dis_max': target_dis,
             'bid': bid, 'offer': offer, 'has_storage': a.storage is not None,
+            'storage_mode': 'idle',
         }
     return agent_info
 
@@ -586,6 +587,7 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         bus = agent_info[nm]['bus']
         net_inj[bus] += pv_v[nm] + wind_v[nm] + dis_v[nm] - served[nm] - ch_v[nm]
 
+    pbal = {}
     for b in buses:
         flow_out = solver.Sum()
         for l in lines:
@@ -593,7 +595,7 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
                 flow_out += p_flow[l]
             elif net.line.at[l, 'to_bus'] == b:
                 flow_out -= p_flow[l]
-        solver.Add(net_inj[b] == flow_out)
+        pbal[b] = solver.Add(net_inj[b] == flow_out)
 
     # Objective: same structure as Gurobi version
     obj = solver.Objective()
@@ -633,7 +635,7 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         T_default = 96
         if config.carbon_cap_tco2 is not None:
             per_period_cap = config.carbon_cap_tco2 / T_default
-            solver.Add(config.emission_factor_grid * p_grid_import <= per_period_cap)
+            solver.Add(config.emission_factor_grid * p_grid_import * dt <= per_period_cap)
         if config.re_min_rate is not None:
             re_used = solver.Sum()
             re_avail = 0.0
@@ -649,10 +651,9 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
 
     lmp = np.zeros(len(buses))
     for i, b in enumerate(buses):
-        c = solver.LookupConstraint(f"") or solver.Constraint(0, 0)
         try:
-            lmp[i] = net_inj[b].DualValue() if hasattr(net_inj[b], 'DualValue') else wholesale_t
-        except Exception:
+            lmp[i] = pbal[b].DualValue()
+        except AttributeError:
             lmp[i] = wholesale_t
 
     agent_res = {}
@@ -797,7 +798,23 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                 f"soctrans_{nm}_{t}"
             )
 
-    # 目标函数
+    # 目标函数 — 预计算每个 agent 的 bid/offer 数组
+    bid_arr = {}
+    offer_arr = {}
+    for a in agents_list:
+        nm = a.name
+        ap = action_params.get(a.name, {})
+        bm = ap.get("bid_mult", 1.0)
+        oa = ap.get("offer_adder", 0.0)
+        if isinstance(bm, np.ndarray):
+            bid_arr[nm] = a.bid_value * bm
+        else:
+            bid_arr[nm] = np.full(T, a.bid_value * bm)
+        if isinstance(oa, np.ndarray):
+            offer_arr[nm] = a.offer_cost + oa
+        else:
+            offer_arr[nm] = np.full(T, a.offer_cost + oa)
+
     obj = gp.LinExpr()
     terminal_value = 300.0
     for t in range(T):
@@ -805,15 +822,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         pv_max_dict_t = {}; wind_max_dict_t = {}
         for a in agents_list:
             nm = a.name
-            ap = action_params.get(a.name, {})
-            bid_mult = ap.get("bid_mult", 1.0)
-            offer_adder = ap.get("offer_adder", 0.0)
-            if isinstance(bid_mult, np.ndarray):
-                bid_mult = bid_mult[t]
-            if isinstance(offer_adder, np.ndarray):
-                offer_adder = offer_adder[t]
-            bid = a.bid_value * bid_mult
-            offer = a.offer_cost + offer_adder
+            bid = bid_arr[nm][t]
+            offer = offer_arr[nm][t]
 
             obj += bid * served[nm][t]
             obj -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
@@ -841,21 +851,15 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         return None
 
     # 提取结果
-    schedules = {}
-    for a in agents_list:
-        schedules[a.name] = {
-            'p_buy': np.zeros(T), 'p_sell': np.zeros(T),
-            'served': np.zeros(T), 'unserved': np.zeros(T),
-            'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
-            'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
-            'storage_mode': ['idle'] * T,
-        }
-    schedules['GRID'] = {'g_grid': np.zeros(T)}
+    from market import empty_schedules as _empty_schedules
+    schedules = _empty_schedules(agents_list, T)
+    dt = 0.25
 
     total_welfare = m.ObjVal
     total_re_avail = sum(
-        np.sum(a.pv_forecast if stage == "DA" else a.pv_real) +
-        (np.sum(a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else 0)
+        (np.sum(a.pv_forecast if stage == "DA" else a.pv_real) +
+         (np.sum(a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else 0))
+        * dt
         for a in agents_list
     )
     total_re_used = 0.0
@@ -873,7 +877,7 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
 
         pgi = p_grid_import[t].X
         if pgi > 0:
-            carbon_emissions += config.emission_factor_grid * pgi
+            carbon_emissions += config.emission_factor_grid * pgi * dt
 
         schedules['GRID']['g_grid'][t] = p_grid[t].X
 
@@ -899,15 +903,11 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
             wind_max = (a.get_wind_forecast()[t] if stage == "DA" else a.get_wind_real()[t]) if a.has_wind else 0.0
             net_gen = s['pv_used'][t] + s['wind_used'][t] + s['p_dis'][t]
             net_con = s['served'][t] + s['p_ch'][t]
-            if net_gen > net_con:
-                s['p_sell'][t] = net_gen - net_con
-                s['p_buy'][t] = 0.0
-            else:
-                s['p_buy'][t] = net_con - net_gen
-                s['p_sell'][t] = 0.0
-            total_re_used += s['pv_used'][t] + s['wind_used'][t]
-            total_curtailment += (pv_max - s['pv_used'][t]) + (wind_max - s['wind_used'][t])
-            total_served_mwh += s['served'][t]
+            from market import split_power as _split_power
+            s['p_buy'][t], s['p_sell'][t] = _split_power(net_gen, net_con)
+            total_re_used += (s['pv_used'][t] + s['wind_used'][t]) * dt
+            total_curtailment += ((pv_max - s['pv_used'][t]) + (wind_max - s['wind_used'][t])) * dt
+            total_served_mwh += s['served'][t] * dt
 
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
@@ -916,7 +916,7 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         for key, constr in constraint_objs.items():
             try:
                 shadow_prices[key] = constr.Pi
-            except Exception:
+            except AttributeError:
                 shadow_prices[key] = None
     result = {
         "price": lmp.mean(axis=1),

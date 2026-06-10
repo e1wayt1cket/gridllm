@@ -5,6 +5,33 @@ from models import Agent, MarketConfig
 from grid import build_base_network, day_ahead_price_china
 from dispatch import solve_opf_gurobi, StorageConstraints, solve_lindist_opf_batch
 
+# ---------------------------------------------------------------------------
+# Shared utilities (used by dispatch.py and market.py)
+# ---------------------------------------------------------------------------
+
+def empty_schedules(agents, T):
+    """Create a zero-filled schedules dict for the given agents and periods."""
+    schedules = {}
+    for a in agents:
+        schedules[a.name] = {
+            'p_buy': np.zeros(T), 'p_sell': np.zeros(T),
+            'served': np.zeros(T), 'unserved': np.zeros(T),
+            'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
+            'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
+            'storage_mode': ['idle'] * T,
+        }
+    schedules['GRID'] = {'g_grid': np.zeros(T)}
+    return schedules
+
+
+def split_power(net_gen, net_con):
+    """Return (p_buy, p_sell) given net generation and consumption."""
+    if net_gen > net_con:
+        return 0.0, net_gen - net_con
+    else:
+        return net_con - net_gen, 0.0
+
+
 def random_actions(agents, config, T=96):
     actions = {}
     for a in agents:
@@ -53,6 +80,29 @@ def adaptive_bidding(agents, config, strategy="best_response", market_history=No
         return random_actions(agents, config, T)
     elif strategy == "best_response":
         return best_response_bidding(agents, config, market_history, T)
+    elif strategy.startswith("stackelberg"):
+        # stackelberg[:leader_name] or stackelberg (first storage agent)
+        parts = strategy.split(":", 1)
+        if len(parts) > 1:
+            leader_name = parts[1]
+        else:
+            storage_agents = [a for a in agents if a.storage is not None]
+            if not storage_agents:
+                raise ValueError("No storage agent for Stackelberg leader")
+            leader_name = storage_agents[0].name
+        from stackelberg import stackelberg_bidding
+        actions, info = stackelberg_bidding(agents, config, leader_name, T=T)
+        if config.verbose:
+            print(f"Stackelberg leader={info['leader']} "
+                  f"payoff={info['optimal_payoff']:.1f}")
+        return actions
+    elif strategy == "stackelberg_nash":
+        from stackelberg import stackelberg_nash
+        actions, history = stackelberg_nash(agents, config, T=T)
+        return actions
+    elif strategy == "mpc":
+        from mpc_storage import mpc_storage_bidding
+        return mpc_storage_bidding(agents, config, market_history, T)
     else:
         raise ValueError(f"未知策略: {strategy}")
 
@@ -82,17 +132,7 @@ def clear_market(agents, T, stage, action_params, config):
     # ---- 原有的逐时段求解（DC-OPF 或 LinDistFlow 回退）----
     n_buses = len(base_net.bus)
     lmp = np.zeros((T, n_buses))
-
-    schedules = {}
-    for a in agents:
-        schedules[a.name] = {
-            'p_buy': np.zeros(T), 'p_sell': np.zeros(T),
-            'served': np.zeros(T), 'unserved': np.zeros(T),
-            'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
-            'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
-            'storage_mode': ['idle'] * T,
-        }
-    schedules['GRID'] = {'g_grid': np.zeros(T)}
+    schedules = empty_schedules(agents, T)
 
     total_welfare = 0.0
     total_re_available = 0.0; total_re_used = 0.0
@@ -131,7 +171,7 @@ def clear_market(agents, T, stage, action_params, config):
         schedules['GRID']['g_grid'][t] = p_grid
         total_welfare += welfare_t
         if p_grid > 0:
-            carbon_emissions += config.emission_factor_grid * p_grid
+            carbon_emissions += config.emission_factor_grid * p_grid * 0.25
 
         for a in agents:
             sched = schedules[a.name]
@@ -159,12 +199,7 @@ def clear_market(agents, T, stage, action_params, config):
             wind_max = (a.get_wind_forecast()[t] if stage == "DA" else a.get_wind_real()[t]) if a.has_wind else 0.0
             net_gen = res['pv_used'] + res['wind_used'] + sched['p_dis'][t]
             net_con = res['served'] + sched['p_ch'][t]
-            if net_gen > net_con:
-                sched['p_sell'][t] = net_gen - net_con
-                sched['p_buy'][t] = 0.0
-            else:
-                sched['p_buy'][t] = net_con - net_gen
-                sched['p_sell'][t] = 0.0
+            sched['p_buy'][t], sched['p_sell'][t] = split_power(net_gen, net_con)
             sched['unserved'][t] = load_val - res['served']
             total_re_used += res['pv_used'] + res['wind_used']
             total_curtailment += (pv_max - res['pv_used']) + (wind_max - res['wind_used'])
@@ -186,21 +221,12 @@ def clear_market(agents, T, stage, action_params, config):
 
 def clear_rt_rolling(agents, T, action_params_base, config):
     """滚动实时市场 (MPC) – 可按需启用"""
-    from grid import build_base_network, day_ahead_price_china
-    from dispatch import solve_opf_gurobi, StorageConstraints
-
     rt_horizon = config.rt_horizon
     rt_step = config.rt_step
     base_net = build_base_network(config)
     n_buses = len(base_net.bus)
     lmp_rt = np.zeros((T, n_buses))
-    schedules_rt = {a.name: {
-        'served': np.zeros(T), 'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
-        'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
-        'p_buy': np.zeros(T), 'p_sell': np.zeros(T), 'unserved': np.zeros(T),
-        'storage_mode': ['idle'] * T,
-    } for a in agents}
-    schedules_rt['GRID'] = {'g_grid': np.zeros(T)}
+    schedules_rt = empty_schedules(agents, T)
     prev_soc = {}
     prev_power = {}
     total_welfare_rt = 0.0
@@ -226,7 +252,7 @@ def clear_rt_rolling(agents, T, action_params_base, config):
                 total_welfare_rt += welfare_t
                 schedules_rt['GRID']['g_grid'][t_abs] = p_grid
                 if p_grid > 0:
-                    carbon_emissions += config.emission_factor_grid * p_grid
+                    carbon_emissions += config.emission_factor_grid * p_grid * 0.25
                 for a in agents:
                     s = schedules_rt[a.name]
                     res = agent_res[a.name]
@@ -251,12 +277,7 @@ def clear_rt_rolling(agents, T, action_params_base, config):
                     load_val = a.load_real[t_abs]
                     net_gen = res['pv_used'] + res['wind_used'] + s['p_dis'][t_abs]
                     net_con = res['served'] + s['p_ch'][t_abs]
-                    if net_gen > net_con:
-                        s['p_sell'][t_abs] = net_gen - net_con
-                        s['p_buy'][t_abs] = 0.0
-                    else:
-                        s['p_buy'][t_abs] = net_con - net_gen
-                        s['p_sell'][t_abs] = 0.0
+                    s['p_buy'][t_abs], s['p_sell'][t_abs] = split_power(net_gen, net_con)
                     s['unserved'][t_abs] = load_val - res['served']
             else:
                 if t_abs > 0:
