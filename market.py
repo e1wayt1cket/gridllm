@@ -75,14 +75,25 @@ def best_response_bidding(agents, config, market_history=None, T=96):
             actions[a.name] = {"bid_mult": bid_mult}
     return actions
 
+_STRATEGIES = {
+    "random": (lambda agents, config, T, _: random_actions(agents, config, T)),
+    "best_response": (lambda agents, config, T, mh: best_response_bidding(agents, config, mh, T)),
+    "mpc": (lambda agents, config, T, mh: _mpc_bidding(agents, config, mh, T)),
+}
+
+
+def _mpc_bidding(agents, config, market_history, T):
+    from mpc_storage import mpc_storage_bidding
+    return mpc_storage_bidding(agents, config, market_history, T)
+
+
 def adaptive_bidding(agents, config, strategy="best_response", market_history=None, T=96):
-    if strategy == "random":
-        return random_actions(agents, config, T)
-    elif strategy == "best_response":
-        return best_response_bidding(agents, config, market_history, T)
-    elif strategy.startswith("stackelberg"):
-        # stackelberg[:leader_name] or stackelberg (first storage agent)
+    if strategy.startswith("stackelberg"):
+        from stackelberg import stackelberg_bidding, stackelberg_nash
         parts = strategy.split(":", 1)
+        if strategy.startswith("stackelberg_nash"):
+            actions, history = stackelberg_nash(agents, config, T=T)
+            return actions
         if len(parts) > 1:
             leader_name = parts[1]
         else:
@@ -90,21 +101,15 @@ def adaptive_bidding(agents, config, strategy="best_response", market_history=No
             if not storage_agents:
                 raise ValueError("No storage agent for Stackelberg leader")
             leader_name = storage_agents[0].name
-        from stackelberg import stackelberg_bidding
         actions, info = stackelberg_bidding(agents, config, leader_name, T=T)
         if config.verbose:
             print(f"Stackelberg leader={info['leader']} "
                   f"payoff={info['optimal_payoff']:.1f}")
         return actions
-    elif strategy == "stackelberg_nash":
-        from stackelberg import stackelberg_nash
-        actions, history = stackelberg_nash(agents, config, T=T)
-        return actions
-    elif strategy == "mpc":
-        from mpc_storage import mpc_storage_bidding
-        return mpc_storage_bidding(agents, config, market_history, T)
-    else:
-        raise ValueError(f"未知策略: {strategy}")
+
+    if strategy in _STRATEGIES:
+        return _STRATEGIES[strategy](agents, config, T, market_history)
+    raise ValueError(f"unknown strategy: {strategy}")
 
 def two_settlement(agents, da, rt):
     T = len(da["price"])
@@ -117,13 +122,14 @@ def two_settlement(agents, da, rt):
         payments[a.name] = float(da_cost + rt_cost)
     return payments
 
-def clear_market(agents, T, stage, action_params, config):
+def clear_market(agents, T, stage, action_params, config, storage_units=None):
     base_net = build_base_network(config)
     wholesale = day_ahead_price_china(T)
 
     # ---- 多时段联合优化（仅 LinDistFlow）----
     if config.opf_mode == "lindistflow":
-        result = solve_lindist_opf_batch(base_net, agents, T, stage, config, action_params, wholesale)
+        result = solve_lindist_opf_batch(base_net, agents, T, stage, config,
+                                         action_params, wholesale, storage_units)
         if result is not None:
             return result
         else:
@@ -219,6 +225,176 @@ def clear_market(agents, T, stage, action_params, config):
         "total_curtailment": total_curtailment,
     }
 
+
+def _make_window_agents(agents, t_start, t_end, prev_soc, action_params):
+    """Create copies of agents with sliced data arrays and updated storage SOC for
+    a rolling-horizon window [t_start, t_end)."""
+    from copy import deepcopy
+    from models import Agent as AgentCls
+    window_agents = []
+    for a in agents:
+        wa = AgentCls(
+            name=a.name, bus=a.bus, is_prosumer=a.is_prosumer,
+            load_forecast=a.load_forecast[t_start:t_end].copy(),
+            pv_forecast=a.pv_forecast[t_start:t_end].copy(),
+            load_real=a.load_real[t_start:t_end].copy() if a.load_real is not None else None,
+            pv_real=a.pv_real[t_start:t_end].copy() if a.pv_real is not None else None,
+            bid_value=a.bid_value, offer_cost=a.offer_cost,
+            wind_forecast=a.wind_forecast[t_start:t_end].copy() if a.has_wind else None,
+            wind_real=a.wind_real[t_start:t_end].copy() if a.has_wind else None,
+            storage=deepcopy(a.storage) if a.storage else None,
+            load_type=a.load_type,
+        )
+        if wa.storage is not None and wa.name in prev_soc:
+            wa.storage.soc0 = prev_soc[wa.name]
+        window_agents.append(wa)
+    return window_agents
+
+
+def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=None):
+    """Rolling real-time market with multi-period MPC and price forecasting.
+
+    At each step, forecasts prices for the look-ahead window, solves a joint
+    multi-period OPF, and commits only the first step's dispatch.
+    """
+    from price_forecaster import PriceForecaster
+
+    rt_horizon = config.rt_horizon
+    rt_step = config.rt_step
+    base_net = build_base_network(config)
+    n_buses = len(base_net.bus)
+    wholesale = day_ahead_price_china(T)
+    forecaster = PriceForecaster(wholesale, mode=config.rt_forecast_mode,
+                                  noise_pct=config.rt_forecast_noise_pct)
+
+    lmp_rt = np.zeros((T, n_buses))
+    schedules_rt = empty_schedules(agents, T)
+    for su in (storage_units or []):
+        schedules_rt[su.name] = {
+            'p_buy': np.zeros(T), 'p_sell': np.zeros(T),
+            'served': np.zeros(T), 'unserved': np.zeros(T),
+            'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
+            'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
+            'storage_mode': ['idle'] * T,
+        }
+
+    prev_soc = {}
+    prev_power = {}
+    total_welfare_rt = 0.0
+    carbon_emissions = 0.0
+    total_curtailment = 0.0
+    total_served_mwh = 0.0
+    total_re_available = 0.0
+    total_re_used = 0.0
+
+    window_config = MarketConfig(
+        opf_mode=config.opf_mode, verbose=config.verbose,
+        lambda_cycle=config.lambda_cycle,
+        penalty_unserved=config.penalty_unserved,
+        line_capacity_multiplier=config.line_capacity_multiplier,
+        emission_factor_grid=config.emission_factor_grid,
+        enable_multi_objective=False,
+        use_constraint_multi_obj=False,
+        storage_terminal_value=config.storage_terminal_value,
+        rt_horizon=config.rt_horizon, rt_step=config.rt_step,
+    )
+    idx = 0
+    while idx < T:
+        window_end = min(idx + rt_horizon, T)
+        window_T = window_end - idx
+        forecast = forecaster.forecast(idx, window_T)
+
+        window_agents = _make_window_agents(agents, idx, window_end,
+                                            prev_soc, action_params_base)
+        window_storage_units = None
+        if storage_units:
+            from copy import deepcopy
+            window_storage_units = []
+            for su in storage_units:
+                su_copy = deepcopy(su)
+                if su.name in prev_soc:
+                    su_copy.storage.soc0 = prev_soc[su.name]
+                window_storage_units.append(su_copy)
+
+        result = solve_lindist_opf_batch(
+            base_net, window_agents, window_T, "RT", window_config,
+            action_params_base, forecast, window_storage_units
+        )
+
+        n_commit = min(rt_step, window_T)
+        if result is not None:
+            for d in range(n_commit):
+                t_abs = idx + d
+                dt = 0.25
+                lmp_rt[t_abs] = result["lmp"][d]
+                schedules_rt['GRID']['g_grid'][t_abs] = result['schedules']['GRID']['g_grid'][d]
+
+                for a in window_agents:
+                    nm = a.name
+                    s = schedules_rt[nm]
+                    ws = result["schedules"][nm]
+                    s['served'][t_abs] = ws['served'][d]
+                    s['unserved'][t_abs] = ws['unserved'][d]
+                    s['pv_used'][t_abs] = ws['pv_used'][d]
+                    s['wind_used'][t_abs] = ws['wind_used'][d]
+                    s['p_ch'][t_abs] = ws['p_ch'][d]
+                    s['p_dis'][t_abs] = ws['p_dis'][d]
+                    s['p_buy'][t_abs] = ws['p_buy'][d]
+                    s['p_sell'][t_abs] = ws['p_sell'][d]
+                    if a.storage:
+                        s['soc'][t_abs] = ws['soc'][d]
+                        next_soc = ws.get('soc_final', ws['soc'][d])
+                        if d + 1 < window_T:
+                            next_soc = ws['soc'][d + 1]
+                        prev_soc[nm] = next_soc
+                        prev_power[nm] = (ws['p_ch'][d], ws['p_dis'][d])
+
+                    pv_max = a.pv_real[d] if a.pv_real is not None else 0.0
+                    wind_max = a.wind_real[d] if a.has_wind else 0.0
+                    total_re_available += pv_max + wind_max
+                    total_re_used += ws['pv_used'][d] + ws['wind_used'][d]
+                    total_curtailment += (pv_max - ws['pv_used'][d]) + (wind_max - ws['wind_used'][d])
+                    total_served_mwh += ws['served'][d]
+
+                for su in (window_storage_units or []):
+                    nm = su.name
+                    ws = result["schedules"][nm]
+                    s = schedules_rt[nm]
+                    s['p_ch'][t_abs] = ws['p_ch'][d]
+                    s['p_dis'][t_abs] = ws['p_dis'][d]
+                    s['soc'][t_abs] = ws['soc'][d]
+                    s['p_buy'][t_abs] = ws['p_buy'][d]
+                    s['p_sell'][t_abs] = ws['p_sell'][d]
+                    next_soc = ws.get('soc_final', ws['soc'][d])
+                    if d + 1 < window_T:
+                        next_soc = ws['soc'][d + 1]
+                    prev_soc[nm] = next_soc
+                    prev_power[nm] = (ws['p_ch'][d], ws['p_dis'][d])
+
+                pgi = schedules_rt['GRID']['g_grid'][t_abs]
+                if pgi > 0:
+                    carbon_emissions += config.emission_factor_grid * pgi * dt
+
+            total_welfare_rt += result["welfare"] * (n_commit / window_T)
+        else:
+            if idx > 0:
+                lmp_rt[idx] = lmp_rt[idx - 1]
+
+        idx += rt_step
+
+    re_rate = (total_re_used / total_re_available * 100) if total_re_available > 0 else 100.0
+    carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
+    return {
+        "price": lmp_rt.mean(axis=1),
+        "lmp": lmp_rt,
+        "schedules": schedules_rt,
+        "welfare": total_welfare_rt,
+        "re_consumption_rate": re_rate,
+        "total_re_available": total_re_available,
+        "carbon_emissions": carbon_emissions,
+        "carbon_intensity": carbon_intensity,
+        "total_curtailment": total_curtailment,
+    }
 def clear_rt_rolling(agents, T, action_params_base, config):
     """滚动实时市场 (MPC) – 可按需启用"""
     rt_horizon = config.rt_horizon

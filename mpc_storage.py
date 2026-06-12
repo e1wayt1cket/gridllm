@@ -38,7 +38,6 @@ def solve_storage_mpc(storage, soc0, price_forecast, dt=0.25):
         m.addConstr(
             soc[t + 1] == soc[t]
             + (storage.eta_ch * ch[t] - dis[t] / storage.eta_dis) * dt / storage.e_max
-            - storage.self_discharge_rate * soc[t] * dt
         )
 
     # Maximize arbitrage revenue + terminal value

@@ -7,7 +7,7 @@
 """
 
 import dash
-from dash import dcc, html, Input, Output, State
+from dash import dcc, html, Input, Output, State, ctx
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
@@ -23,6 +23,7 @@ from dispatch import solve_opf_gurobi, StorageConstraints
 from market import adaptive_bidding, two_settlement, clear_market
 from scenarios import get_scenario
 from llm import LLMAdvisor
+from nash import NashEquilibriumTester
 
 # ------------------------------
 # 场景名映射
@@ -57,12 +58,16 @@ class RealtimeState:
         self.total_T = 96
 
 realtime_state = RealtimeState()
+last_simulation = {}
 
 # ------------------------------
 # 静态分析函数
 # ------------------------------
 def run_static_analysis(scenario_en, strategy="random", opf_mode="lindistflow"):
-    config = MarketConfig(opf_mode=opf_mode, verbose=False)
+    from config_loader import get_scenario_cfg
+    sc_cfg = get_scenario_cfg(scenario_en) or {}
+    override = sc_cfg.get("override_config", {})
+    config = MarketConfig(opf_mode=opf_mode, verbose=False, **override)
     T = 96
     agents, _ = get_scenario(scenario_en, T=T)
     da_actions = adaptive_bidding(agents, config, strategy=strategy)
@@ -101,11 +106,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
     C_TEXT = "#1e293b"
     C_CARD = "#ffffff"
     C_BORDER = "#e2e8f0"
-
-    bus_lmp = {}
-    if lmp_arr is not None and agents_info is not None:
-        for b in range(33):
-            bus_lmp[b] = float(np.mean(lmp_arr[:, b])) if b < lmp_arr.shape[1] else 0.0
+    C_NODE = "#4f46e5"
 
     bus_agents = {b: [] for b in range(33)}
     if agents_info:
@@ -123,55 +124,29 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
             hoverinfo="skip", showlegend=False
         ))
 
-    node_x, node_y, node_color, node_size, hover_text, labels = [], [], [], [], [], []
+    node_x, node_y, hover_text, labels = [], [], [], []
     for b in range(33):
         x, y = NODE_COORDS[b]
         node_x.append(x)
         node_y.append(y)
         labels.append(str(b + 1))
 
-        if bus_lmp:
-            val = bus_lmp[b]
-            node_color.append(val)
-            node_size.append(18 + min(32, val / 15))
-        else:
-            node_color.append("#6366f1")
-            node_size.append(16)
-
-        agents_on = bus_agents[b]
         txt = f"<b>节点 {b+1}</b>"
-        if bus_lmp:
-            txt += f"<br>LMP: {bus_lmp[b]:.2f} CNY/MWh"
+        agents_on = bus_agents[b]
         if agents_on:
             txt += f"<br>Agent: {', '.join(agents_on[:2])}"
             if len(agents_on) > 2:
                 txt += f" +{len(agents_on)}"
         hover_text.append(txt)
 
-    marker_dict = dict(
-        size=node_size,
-        line=dict(width=2, color='#d0d7e3'),
-    )
-    if bus_lmp:
-        marker_dict = {**marker_dict,
-            "color": node_color,
-            "colorscale": "Plasma",
-            "colorbar": dict(
-                title=dict(text="LMP<br>(CNY/MWh)", side="right"),
-                x=1.02,
-                thickness=14,
-                tickfont=dict(color=C_TEXT),
-            ),
-            "cmin": 200,
-            "cmax": 800,
-        }
-    else:
-        marker_dict["color"] = node_color
-
     fig.add_trace(go.Scatter(
         x=node_x, y=node_y,
         mode="markers+text",
-        marker=marker_dict,
+        marker=dict(
+            size=16,
+            color=C_NODE,
+            line=dict(width=2, color='#d0d7e3'),
+        ),
         text=labels,
         textposition="top center",
         textfont=dict(size=10, color='#1e293b', family='Arial Black'),
@@ -202,7 +177,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
 
     fig.update_layout(
         title=dict(
-            text="IEEE 33 节点配电系统拓扑 (颜色 = LMP, 星标 = 产消者)",
+            text="IEEE 33 节点配电系统拓扑 (星标 = 产消者)",
             font=dict(size=15, color='#2c3e50')
         ),
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
@@ -211,7 +186,7 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
         template="plotly_white",
         paper_bgcolor=C_CARD,
         plot_bgcolor=C_CARD,
-        margin=dict(l=20, r=90, t=60, b=20),
+        margin=dict(l=20, r=20, t=60, b=20),
         height=400,
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01,
                     bgcolor="rgba(255,255,255,0.9)", font=dict(color=C_TEXT, size=12)),
@@ -472,6 +447,51 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
 # ------------------------------
 # AI 分析曲线特征提取
 # ------------------------------
+def build_simulation_outputs(scenario_en, strategy="mpc", opf_mode="lindistflow", nl_msg_prefix=""):
+    """Run simulation for a scenario and build all chart/KPI/table outputs.
+
+    Returns the 8-tuple expected by the Dash output callbacks:
+    (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+    """
+    from config_loader import get_scenario_cfg
+    sc_cfg = get_scenario_cfg(scenario_en) or {}
+    override = sc_cfg.get("override_config", {})
+    config = MarketConfig(opf_mode=opf_mode, verbose=False, **override)
+    T = 96
+    agents, _ = get_scenario(scenario_en, T=T)
+    da_actions = adaptive_bidding(agents, config, strategy=strategy, T=T)
+    da_results = clear_market(agents, T, "DA", da_actions, config)
+    rt_actions = adaptive_bidding(agents, config, strategy=strategy, T=T)
+    rt_results = clear_market(agents, T, "RT", rt_actions, config)
+    payment = two_settlement(agents, da_results, rt_results)
+
+    net = build_base_network(config)
+    kpi = create_kpi_cards(da_results, rt_results, payment, agents, config)
+    agents_info = [{"bus": a.bus, "name": a.name, "is_prosumer": a.is_prosumer} for a in agents]
+    topo_fig = create_topology_figure(net, agents_info=agents_info, lmp_arr=da_results['lmp'])
+    lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")
+    trade_fig = create_trade_figure(da_results, agents)
+    soc_fig = create_soc_figure(da_results, agents)
+    pay_tab = create_payment_table(payment, agents)
+
+    scenario_cn = SCENARIO_NAMES_CN.get(scenario_en, scenario_en)
+    advisor = LLMAdvisor()
+    summary = build_insight_summary(da_results, agents, scenario_cn)
+    ai_output = advisor.get_insight(summary)
+
+    nl_msg = (f"{nl_msg_prefix}场景: {scenario_cn} | "
+              f"策略: {strategy} | OPF: {opf_mode}") if nl_msg_prefix else \
+             (f"场景: {scenario_cn} | 策略: {strategy} | OPF: {opf_mode}")
+
+    # Store for Nash test
+    last_simulation.update({
+        "agents": agents, "config": config, "actions": da_actions,
+        "T": T, "scenario": scenario_en, "strategy": strategy,
+    })
+
+    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+
+
 def build_insight_summary(da_results, agents, scenario_cn):
     lmp_matrix = da_results['lmp']
     avg_lmp = lmp_matrix.mean()
@@ -573,6 +593,37 @@ app.layout = dbc.Container([
         className='text-center py-3'
     )),
 
+    # -- 场景快速选择 --
+    dbc.Row([
+        dbc.Col([
+            html.Label("场景快速选择", style={
+                'fontSize': '13px', 'fontWeight': '600', 'color': C_MUTED,
+                'marginBottom': '10px', 'display': 'block'
+            }),
+            dbc.ButtonGroup([
+                dbc.Button("基准", id='scenario-btn-baseline', n_clicks=0,
+                           color='primary', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 18px', 'borderRadius': '10px 0 0 10px',
+                                  'borderRight': '1px solid #c7d2fe'}),
+                dbc.Button("高可再生", id='scenario-btn-high_re', n_clicks=0,
+                           color='success', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 16px', 'borderRadius': '0',
+                                  'borderRight': '1px solid #a7f3d0'}),
+                dbc.Button("高峰负荷", id='scenario-btn-peak_load', n_clicks=0,
+                           color='warning', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 16px', 'borderRadius': '0',
+                                  'borderRight': '1px solid #fde68a'}),
+                dbc.Button("线路阻塞", id='scenario-btn-congestion', n_clicks=0,
+                           color='danger', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 18px', 'borderRadius': '0 10px 10px 0'}),
+            ], style={'boxShadow': '0 1px 3px rgba(0,0,0,0.06)'}),
+        ], md=12, className='text-center'),
+    ], className='mb-4'),
+
     # -- NL 输入卡片 --
     dbc.Card([
         dbc.CardBody([
@@ -595,6 +646,9 @@ app.layout = dbc.Container([
                     html.Label(" ", style={'display': 'block', 'marginBottom': '8px'}),
                     dbc.Button("运行仿真", id='parse-btn', n_clicks=0, color='primary',
                                style={'width': '100%', 'height': '38px', 'fontWeight': '600'}),
+                    dbc.Button("纳什检验", id='nash-btn', n_clicks=0, color='warning',
+                               style={'width': '100%', 'height': '38px', 'fontWeight': '600',
+                                      'marginTop': '8px'}),
                 ], md=2),
             ]),
         ]),
@@ -643,6 +697,16 @@ app.layout = dbc.Container([
         html.Div(id='ai-output', children=_placeholder_text("仿真完成后自动生成分析")),
     ]), className='mb-4 chart-card'),
 
+    # -- 纳什均衡检验卡片 --
+    dbc.Card(dbc.CardBody([
+        html.H6("纳什均衡检验", className='fw-bold mb-2', style={'color': C_WARNING}),
+        dcc.Loading(
+            id="loading-nash",
+            type="default",
+            children=html.Div(id='nash-output', children=_placeholder_text("运行仿真后可点击「纳什检验」")),
+        ),
+    ]), className='mb-4 chart-card'),
+
     # -- 结算表格卡片 --
     dbc.Card(dbc.CardBody([
         html.H6("各节点结算结果 (CNY)", className='fw-bold text-secondary mb-3'),
@@ -656,50 +720,79 @@ app.layout = dbc.Container([
                        'fontFamily': '"Inter", "Segoe UI", "PingFang SC", Arial, sans-serif'})
 
 # ------------------------------
-# 主回调
+# 场景快速选择回调
+# ------------------------------
+SCENARIO_BUTTON_MAP = {
+    'scenario-btn-baseline': 'baseline',
+    'scenario-btn-high_re': 'high_re',
+    'scenario-btn-peak_load': 'peak_load',
+    'scenario-btn-congestion': 'congestion',
+}
+
+@app.callback(
+    [Output('kpi-cards', 'children', allow_duplicate=True),
+     Output('topology-graph', 'figure', allow_duplicate=True),
+     Output('lmp-graph', 'figure', allow_duplicate=True),
+     Output('trade-graph', 'figure', allow_duplicate=True),
+     Output('soc-graph', 'figure', allow_duplicate=True),
+     Output('payment-table', 'children', allow_duplicate=True),
+     Output('nl-result', 'children', allow_duplicate=True),
+     Output('ai-output', 'children', allow_duplicate=True)],
+    [Input('scenario-btn-baseline', 'n_clicks'),
+     Input('scenario-btn-high_re', 'n_clicks'),
+     Input('scenario-btn-peak_load', 'n_clicks'),
+     Input('scenario-btn-congestion', 'n_clicks')],
+    prevent_initial_call=True
+)
+def scenario_quick_select_callback(b_n, hr_n, pl_n, cg_n):
+    triggered = ctx.triggered_id
+    if triggered is None or triggered not in SCENARIO_BUTTON_MAP:
+        raise PreventUpdate
+    scenario_en = SCENARIO_BUTTON_MAP[triggered]
+    print(f"快速选择场景: {scenario_en}")
+    return build_simulation_outputs(scenario_en, strategy="mpc", opf_mode="lindistflow")
+
+
+# ------------------------------
+# 主回调 (NL 输入)
 # ------------------------------
 @app.callback(
-    [Output('kpi-cards', 'children'),
-     Output('topology-graph', 'figure'),
-     Output('lmp-graph', 'figure'),
-     Output('trade-graph', 'figure'),
-     Output('soc-graph', 'figure'),
-     Output('payment-table', 'children'),
-     Output('nl-result', 'children'),
-     Output('ai-output', 'children')],
+    [Output('kpi-cards', 'children', allow_duplicate=True),
+     Output('topology-graph', 'figure', allow_duplicate=True),
+     Output('lmp-graph', 'figure', allow_duplicate=True),
+     Output('trade-graph', 'figure', allow_duplicate=True),
+     Output('soc-graph', 'figure', allow_duplicate=True),
+     Output('payment-table', 'children', allow_duplicate=True),
+     Output('nl-result', 'children', allow_duplicate=True),
+     Output('ai-output', 'children', allow_duplicate=True)],
     [Input('parse-btn', 'n_clicks')],
-    [State('nl-input', 'value')]
+    [State('nl-input', 'value')],
+    prevent_initial_call=True
 )
 def main_callback(parse_clicks, nl_text):
-    if parse_clicks is None or parse_clicks == 0:
-        raise PreventUpdate
-
-    nl_msg = ""
-    ai_output = ""
+    empty_fig = go.Figure()
+    empty_fig.update_layout(
+        template="plotly_white", paper_bgcolor='#ffffff',
+        plot_bgcolor='#f8fafc', height=200,
+    )
+    empty_fig.add_annotation(text="等待输入场景描述...", xref="paper", yref="paper",
+                              x=0.5, y=0.5, showarrow=False,
+                              font=dict(color="#94a3b8", size=16))
+    empty_table = html.Div("暂无结算数据", style={'color': '#94a3b8', 'textAlign': 'center',
+                                                   'padding': '32px', 'fontSize': '14px'})
+    empty_kpi = dbc.Alert(
+        "输入自然语言描述的场景并点击「运行仿真」",
+        color='light', className='text-center',
+        style={'color': '#94a3b8', 'borderRadius': '14px'}
+    )
 
     if not nl_text or not nl_text.strip():
-        nl_msg = "请输入场景描述后点击运行仿真"
-        empty_fig = go.Figure()
-        empty_fig.update_layout(
-            template="plotly_white", paper_bgcolor='#ffffff',
-            plot_bgcolor='#f8fafc', height=200,
-        )
-        empty_fig.add_annotation(text="等待输入场景描述...", xref="paper", yref="paper",
-                                  x=0.5, y=0.5, showarrow=False,
-                                  font=dict(color="#94a3b8", size=16))
-        empty_table = html.Div("暂无结算数据", style={'color': '#94a3b8', 'textAlign': 'center',
-                                                       'padding': '32px', 'fontSize': '14px'})
-        empty_kpi = dbc.Alert(
-            "输入自然语言描述的场景并点击「运行仿真」",
-            color='light', className='text-center',
-            style={'color': '#94a3b8', 'borderRadius': '14px'}
-        )
-        return (empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, empty_table, nl_msg, "")
+        return (empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, empty_table,
+                "请输入场景描述后点击运行仿真", "")
 
     advisor = LLMAdvisor()
     parsed = advisor.parse_natural_language_to_config(nl_text.strip())
     base_scenario = parsed.get("base_scenario", "baseline")
-    description = parsed.get("description", "")
     gp = parsed.get("global_params", {})
     T = int(gp.get("T", 96))
     strategy_nl = "mpc"
@@ -707,15 +800,13 @@ def main_callback(parse_clicks, nl_text):
     agent_mod_count = len(parsed.get("agent_modifications", []))
     defaults_ov_count = len(parsed.get("defaults_overrides", {}))
     scenario_ov_count = len(parsed.get("scenario_overrides", {}))
-    # Count non-default global_params
     default_gp = {"T": 96, "load_factor": 1.0, "line_capacity_factor": 1.0,
                   "penalty_unserved": 800.0, "carbon_cap_tco2": 200.0,
                   "re_min_rate": 95.0, "lambda_carbon": 50.0, "lambda_re": 50.0,
                   "lambda_curtail": 15.0, "pv_factor": 1.0, "wind_factor": 1.0}
     param_changes = sum(1 for k, v in gp.items() if k in default_gp and v != default_gp[k])
     total_changes = param_changes + agent_mod_count + defaults_ov_count + scenario_ov_count
-    scenario_label = base_scenario if base_scenario != "baseline" else "基线"
-    nl_msg = (f"场景: {scenario_label} | "
+    nl_msg = (f"场景: {base_scenario} | "
               f"参数变更: {param_changes}项 | "
               f"Agent修改: {agent_mod_count}项 | "
               f"合计: {total_changes}项变更")
@@ -729,13 +820,12 @@ def main_callback(parse_clicks, nl_text):
 
     agents, config = advisor.apply_llm_config_to_agents(parsed, base_agents, T)
 
-    da_actions = adaptive_bidding(agents, config, strategy=strategy_nl)
+    da_actions = adaptive_bidding(agents, config, strategy=strategy_nl, T=T)
     da_results = clear_market(agents, T, "DA", da_actions, config)
-    rt_actions = adaptive_bidding(agents, config, strategy=strategy_nl)
+    rt_actions = adaptive_bidding(agents, config, strategy=strategy_nl, T=T)
     rt_results = clear_market(agents, T, "RT", rt_actions, config)
     payment = two_settlement(agents, da_results, rt_results)
 
-    # 构建图表
     net = build_base_network(config)
     kpi = create_kpi_cards(da_results, rt_results, payment, agents, config)
     agents_info = [{"bus": a.bus, "name": a.name, "is_prosumer": a.is_prosumer} for a in agents]
@@ -745,12 +835,100 @@ def main_callback(parse_clicks, nl_text):
     soc_fig = create_soc_figure(da_results, agents)
     pay_tab = create_payment_table(payment, agents)
 
-    # AI 分析
     advisor2 = LLMAdvisor()
     summary = build_insight_summary(da_results, agents, base_scenario)
     ai_output = advisor2.get_insight(summary)
 
+    last_simulation.update({
+        "agents": agents,
+        "config": config,
+        "actions": da_actions,
+        "T": T,
+        "scenario": base_scenario,
+        "strategy": strategy_nl,
+    })
+
     return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+
+
+# ------------------------------
+# Nash equilibrium test callback
+# ------------------------------
+@app.callback(
+    Output('nash-output', 'children'),
+    Input('nash-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def nash_callback(n_clicks):
+    if not n_clicks:
+        raise PreventUpdate
+
+    if not last_simulation or "agents" not in last_simulation:
+        return dbc.Alert("请先运行仿真，然后再点击纳什检验", color='warning',
+                         style={'borderRadius': '12px'})
+
+    agents = last_simulation["agents"]
+    config = last_simulation["config"]
+    actions = last_simulation["actions"]
+    T = last_simulation.get("T", 96)
+    strategy = last_simulation.get("strategy", "mpc")
+
+    tester = NashEquilibriumTester(agents, config, T=T, parallel=False,
+                                   use_optimization=False)
+    is_nash, improvements = tester.test_nash_equilibrium(actions)
+
+    rows = []
+    for name, imp in improvements.items():
+        gain = imp["gain"]
+        profitable = imp["profitable"]
+        badge_color = "danger" if profitable else "success"
+        status_text = "可获利" if profitable else "均衡"
+        status_color = "#ef4444" if profitable else "#10b981"
+
+        rows.append(html.Tr([
+            html.Td(name, style={'fontWeight': '600', 'color': '#1e293b'}),
+            html.Td(f"{imp['base_payoff']:,.0f}", style={
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(f"{imp['best_payoff']:,.0f}", style={
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(dbc.Badge(
+                f"{gain:+,.0f} ({imp['rel_gain']:+.3f})",
+                color=badge_color,
+                className='border',
+                style={'fontSize': '12px', 'fontFamily': '"JetBrains Mono", monospace'}
+            )),
+            html.Td(status_text, style={'color': status_color, 'fontWeight': '600'}),
+        ]))
+
+    # Summary bar
+    n_total = len(improvements)
+    n_profitable = sum(1 for imp in improvements.values() if imp["profitable"])
+    status_color = "#10b981" if is_nash else "#ef4444"
+    status_text = "纳什均衡已达成" if is_nash else f"未达均衡（{n_profitable}/{n_total} Agent 存在获利偏离）"
+    status_icon = "✔" if is_nash else "✖"
+
+    result = html.Div([
+        html.Div([
+            html.Span(status_icon, style={
+                'fontSize': '22px', 'marginRight': '10px',
+                'color': status_color, 'fontWeight': '700'
+            }),
+            html.Span(status_text, style={
+                'color': status_color, 'fontWeight': '600', 'fontSize': '15px'
+            }),
+        ], style={'marginBottom': '16px'}),
+        dbc.Table([
+            html.Thead(html.Tr([
+                html.Th("Agent"), html.Th("当前收益", style={'textAlign': 'right'}),
+                html.Th("最优收益", style={'textAlign': 'right'}),
+                html.Th("偏离增益 (相对)"), html.Th("判定"),
+            ])),
+            html.Tbody(rows),
+        ], bordered=True, hover=True, responsive=True, size='sm',
+           style={'fontSize': '13px'}),
+    ])
+
+    return result
 
 
 app.index_string = '''
@@ -813,4 +991,4 @@ app.index_string = '''
 '''
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8050)
+    app.run(debug=True, port=8056)

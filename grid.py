@@ -137,7 +137,6 @@ def create_agents_from_network(
                 soc0=st_cfg.get("soc0", 0.5),
                 soc_min=st_cfg.get("soc_min", 0.0),
                 soc_max=st_cfg.get("soc_max", 1.0),
-                self_discharge_rate=st_cfg.get("self_discharge_rate", 0.001),
             )
 
             bid_val = ps_cfg.get("bid_value", 350.0)
@@ -147,7 +146,7 @@ def create_agents_from_network(
             offer_cost = 999.0
 
         agent = Agent(
-            name=f"L{bus}_{load_type[:3]}{idx}",
+            name=f"bus{bus}{load_type.capitalize()[:3]}{idx}",
             bus=bus,
             is_prosumer=is_prosumer,
             load_forecast=load_forecast,

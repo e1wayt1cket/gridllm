@@ -165,7 +165,6 @@ def test_soc_transition_formula():
         e_max = stor.e_max
         eta_ch = stor.eta_ch
         eta_dis = stor.eta_dis
-        sigma = stor.self_discharge_rate
         soc0 = stor.soc0
         # sched["soc"][t] is SOC at START of period t; transition links t -> t+1
         assert abs(sched["soc"][0] - soc0) < 1e-3, \
@@ -173,8 +172,7 @@ def test_soc_transition_formula():
         for t in range(T - 1):
             soc_t = sched["soc"][t]
             expected_next = (soc_t
-                             + (eta_ch * sched["p_ch"][t] - sched["p_dis"][t] / eta_dis) * dt / e_max
-                             - sigma * soc_t * dt)
+                             + (eta_ch * sched["p_ch"][t] - sched["p_dis"][t] / eta_dis) * dt / e_max)
             actual_next = sched["soc"][t + 1]
             assert abs(actual_next - expected_next) < 1e-5, \
                 f"SOC mismatch t={t}: {actual_next:.6f} vs {expected_next:.6f}"

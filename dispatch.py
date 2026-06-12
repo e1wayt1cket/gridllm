@@ -58,9 +58,8 @@ class StorageConstraints:
         if 0 < p_dis < p_dis_min: p_dis = 0.0
         energy_in = p_ch * storage.eta_ch * dt if p_ch > 0 else 0.0
         energy_out = p_dis / storage.eta_dis * dt if p_dis > 0 else 0.0
-        self_loss = soc * storage.self_discharge_rate * dt
         soc_change = (energy_in - energy_out) / storage.e_max
-        new_soc = soc + soc_change - self_loss
+        new_soc = soc + soc_change
         new_soc = max(storage.soc_min, min(storage.soc_max, new_soc))
         return p_ch, p_dis, new_soc
 
@@ -291,11 +290,12 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         if info['has_storage'] and (info['ch_max'] > 0 or info['dis_max'] > 0):
             ch[nm] = m.addVar(lb=0, ub=info['ch_max'], name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=info['dis_max'], name=f"dis_{nm}")
-            is_ch_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_ch_{nm}")
-            is_dis_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_dis_{nm}")
-            m.addConstr(is_ch_bin[nm] + is_dis_bin[nm] <= 1, f"ch_dis_excl_{nm}")
-            m.addConstr(ch[nm] <= info['ch_max'] * is_ch_bin[nm], f"ch_bin_{nm}")
-            m.addConstr(dis[nm] <= info['dis_max'] * is_dis_bin[nm], f"dis_bin_{nm}")
+            if config.use_storage_binaries:
+                is_ch_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_ch_{nm}")
+                is_dis_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_dis_{nm}")
+                m.addConstr(is_ch_bin[nm] + is_dis_bin[nm] <= 1, f"ch_dis_excl_{nm}")
+                m.addConstr(ch[nm] <= info['ch_max'] * is_ch_bin[nm], f"ch_bin_{nm}")
+                m.addConstr(dis[nm] <= info['dis_max'] * is_dis_bin[nm], f"dis_bin_{nm}")
         else:
             ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
@@ -330,6 +330,8 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         nm = a.name
         obj += agent_info[nm]['bid'] * served[nm]
         obj -= agent_info[nm]['offer'] * (pv[nm] + wind[nm] + dis[nm])
+        if a.storage is not None:
+            obj += agent_info[nm]['bid'] * ch[nm]
         obj -= config.penalty_unserved * unserved[nm]
     pv_max_dict = {a.name: agent_info[a.name]['pv_max'] for a in agents}
     wind_max_dict = {a.name: agent_info[a.name]['wind_max'] for a in agents}
@@ -345,6 +347,17 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 
     if m.status != GRB.OPTIMAL:
         return False, None, 0.0, {}, 0.0
+
+    # Fix binaries and re-solve as LP to get duals
+    if config.use_storage_binaries and is_ch_bin:
+        for nm in is_ch_bin:
+            is_ch_bin[nm].VType = GRB.CONTINUOUS
+            is_ch_bin[nm].LB = is_ch_bin[nm].X
+            is_ch_bin[nm].UB = is_ch_bin[nm].X
+            is_dis_bin[nm].VType = GRB.CONTINUOUS
+            is_dis_bin[nm].LB = is_dis_bin[nm].X
+            is_dis_bin[nm].UB = is_dis_bin[nm].X
+        m.optimize()
 
     lmp = np.zeros(len(buses))
     for i, b in enumerate(buses):
@@ -412,11 +425,12 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         if info['has_storage'] and (info['ch_max'] > 0 or info['dis_max'] > 0):
             ch[nm] = m.addVar(lb=0, ub=info['ch_max'], name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=info['dis_max'], name=f"dis_{nm}")
-            is_ch_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_ch_{nm}")
-            is_dis_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_dis_{nm}")
-            m.addConstr(is_ch_bin[nm] + is_dis_bin[nm] <= 1, f"ch_dis_excl_{nm}")
-            m.addConstr(ch[nm] <= info['ch_max'] * is_ch_bin[nm], f"ch_bin_{nm}")
-            m.addConstr(dis[nm] <= info['dis_max'] * is_dis_bin[nm], f"dis_bin_{nm}")
+            if config.use_storage_binaries:
+                is_ch_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_ch_{nm}")
+                is_dis_bin[nm] = m.addVar(vtype=GRB.BINARY, name=f"is_dis_{nm}")
+                m.addConstr(is_ch_bin[nm] + is_dis_bin[nm] <= 1, f"ch_dis_excl_{nm}")
+                m.addConstr(ch[nm] <= info['ch_max'] * is_ch_bin[nm], f"ch_bin_{nm}")
+                m.addConstr(dis[nm] <= info['dis_max'] * is_dis_bin[nm], f"dis_bin_{nm}")
         else:
             ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
@@ -456,6 +470,8 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         nm = a.name
         obj += agent_info[nm]['bid'] * served[nm]
         obj -= agent_info[nm]['offer'] * (pv[nm] + wind[nm] + dis[nm])
+        if a.storage is not None:
+            obj += agent_info[nm]['bid'] * ch[nm]
         obj -= config.penalty_unserved * unserved[nm]
     pv_max_dict = {a.name: agent_info[a.name]['pv_max'] for a in agents}
     wind_max_dict = {a.name: agent_info[a.name]['wind_max'] for a in agents}
@@ -471,6 +487,17 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 
     if m.status != GRB.OPTIMAL:
         return False, None, 0.0, {}, 0.0
+
+    # Fix binaries and re-solve as LP to get duals
+    if config.use_storage_binaries and is_ch_bin:
+        for nm in is_ch_bin:
+            is_ch_bin[nm].VType = GRB.CONTINUOUS
+            is_ch_bin[nm].LB = is_ch_bin[nm].X
+            is_ch_bin[nm].UB = is_ch_bin[nm].X
+            is_dis_bin[nm].VType = GRB.CONTINUOUS
+            is_dis_bin[nm].LB = is_dis_bin[nm].X
+            is_dis_bin[nm].UB = is_dis_bin[nm].X
+        m.optimize()
 
     lmp = np.zeros(len(buses))
     for i, b in enumerate(buses):
@@ -681,7 +708,8 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
 # ===========================================================================
 # 多时段联合优化（核心修复）
 # ===========================================================================
-def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholesale):
+def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholesale,
+                            storage_units=None):
     """
     批量求解 LinDistFlow，包含储能 SOC 转移约束和终端价值。
     返回与 clear_market 一致的字典。
@@ -724,6 +752,7 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
     served   = {}; unserved = {}; pv = {}; wind = {}; ch = {}; dis = {}
     soc      = {}
     agents_list = list(agents)
+    storage_units = storage_units or []
     storage_agents = [a for a in agents_list if a.storage is not None]
 
     for a in agents_list:
@@ -735,10 +764,27 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         ch[nm]       = m.addVars(T, lb=0, ub=GRB.INFINITY, name=f"ch_{nm}")
         dis[nm]      = m.addVars(T, lb=0, ub=GRB.INFINITY, name=f"dis_{nm}")
 
+    is_ch_bin = {}; is_dis_bin = {}
+    use_binary = config.use_storage_binaries
     for a in storage_agents:
-        soc[a.name] = m.addVars(T+1, lb=a.storage.soc_min, ub=a.storage.soc_max,
-                                name=f"soc_{a.name}")
-        m.addConstr(soc[a.name][0] == a.storage.soc0, f"init_soc_{a.name}")
+        nm = a.name
+        soc[nm] = m.addVars(T+1, lb=a.storage.soc_min, ub=a.storage.soc_max,
+                                name=f"soc_{nm}")
+        m.addConstr(soc[nm][0] == a.storage.soc0, f"init_soc_{nm}")
+        if use_binary:
+            is_ch_bin[nm] = m.addVars(T, vtype=GRB.BINARY, name=f"is_ch_{nm}")
+            is_dis_bin[nm] = m.addVars(T, vtype=GRB.BINARY, name=f"is_dis_{nm}")
+
+    for su in storage_units:
+        nm = su.name
+        ch[nm] = m.addVars(T, lb=0, ub=GRB.INFINITY, name=f"ch_{nm}")
+        dis[nm] = m.addVars(T, lb=0, ub=GRB.INFINITY, name=f"dis_{nm}")
+        soc[nm] = m.addVars(T+1, lb=su.storage.soc_min, ub=su.storage.soc_max,
+                            name=f"soc_{nm}")
+        m.addConstr(soc[nm][0] == su.storage.soc0, f"init_soc_{nm}")
+        if use_binary:
+            is_ch_bin[nm] = m.addVars(T, vtype=GRB.BINARY, name=f"is_ch_{nm}")
+            is_dis_bin[nm] = m.addVars(T, vtype=GRB.BINARY, name=f"is_dis_{nm}")
 
     # 逐时段约束
     for t in range(T):
@@ -752,6 +798,10 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                 if a.bus == b:
                     nm = a.name
                     inj += pv[nm][t] + wind[nm][t] + dis[nm][t] - served[nm][t] - ch[nm][t]
+            for su in storage_units:
+                if su.bus == b:
+                    nm = su.name
+                    inj += dis[nm][t] - ch[nm][t]
             flow = gp.LinExpr()
             for l in lines:
                 if net.line.at[l, 'from_bus'] == b:
@@ -777,7 +827,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         for a in agents_list:
             nm = a.name
             pv_max = a.pv_forecast[t] if stage == "DA" else a.pv_real[t]
-            wind_max = a.get_wind_forecast()[t] if a.has_wind else 0.0
+            wind_max = (a.get_wind_forecast()[t] if stage == "DA"
+                        else a.get_wind_real()[t]) if a.has_wind else 0.0
             pv[nm][t].UB = pv_max
             wind[nm][t].UB = wind_max
 
@@ -786,17 +837,70 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
             stor = a.storage
             ch[nm][t].UB = stor.p_ch_max
             dis[nm][t].UB = stor.p_dis_max
+            if use_binary:
+                m.addConstr(is_ch_bin[nm][t] + is_dis_bin[nm][t] <= 1, f"ch_dis_excl_{nm}_{t}")
+                m.addConstr(ch[nm][t] <= stor.p_ch_max * is_ch_bin[nm][t], f"ch_bin_{nm}_{t}")
+                m.addConstr(dis[nm][t] <= stor.p_dis_max * is_dis_bin[nm][t], f"dis_bin_{nm}_{t}")
 
             dt = 0.25
             eta_ch = stor.eta_ch; eta_dis = stor.eta_dis
-            e_max = stor.e_max; sigma = stor.self_discharge_rate
+            e_max = stor.e_max
             soc_t = soc[nm][t]
             soc_next = soc[nm][t+1]
             m.addConstr(
-                soc_next == soc_t + (eta_ch * ch[nm][t] - dis[nm][t] / eta_dis) * dt / e_max
-                           - sigma * soc_t * dt,
+                soc_next == soc_t + (eta_ch * ch[nm][t] - dis[nm][t] / eta_dis) * dt / e_max,
                 f"soctrans_{nm}_{t}"
             )
+
+            # Ramp constraints (inter-period, t >= 1)
+            if t > 0:
+                if stor.ramp_up_ch is not None:
+                    m.addConstr(ch[nm][t] - ch[nm][t-1] <= stor.ramp_up_ch,
+                                f"ramp_up_ch_{nm}_{t}")
+                if stor.ramp_down_ch is not None:
+                    m.addConstr(ch[nm][t-1] - ch[nm][t] <= stor.ramp_down_ch,
+                                f"ramp_down_ch_{nm}_{t}")
+                if stor.ramp_up_dis is not None:
+                    m.addConstr(dis[nm][t] - dis[nm][t-1] <= stor.ramp_up_dis,
+                                f"ramp_up_dis_{nm}_{t}")
+                if stor.ramp_down_dis is not None:
+                    m.addConstr(dis[nm][t-1] - dis[nm][t] <= stor.ramp_down_dis,
+                                f"ramp_down_dis_{nm}_{t}")
+
+        # SOC transition + ramp for standalone storage units
+        for su in storage_units:
+            nm = su.name
+            stor = su.storage
+            ch[nm][t].UB = stor.p_ch_max
+            dis[nm][t].UB = stor.p_dis_max
+            if use_binary:
+                m.addConstr(is_ch_bin[nm][t] + is_dis_bin[nm][t] <= 1, f"ch_dis_excl_{nm}_{t}")
+                m.addConstr(ch[nm][t] <= stor.p_ch_max * is_ch_bin[nm][t], f"ch_bin_{nm}_{t}")
+                m.addConstr(dis[nm][t] <= stor.p_dis_max * is_dis_bin[nm][t], f"dis_bin_{nm}_{t}")
+
+            dt = 0.25
+            eta_ch = stor.eta_ch; eta_dis = stor.eta_dis
+            e_max = stor.e_max
+            soc_t = soc[nm][t]
+            soc_next = soc[nm][t+1]
+            m.addConstr(
+                soc_next == soc_t + (eta_ch * ch[nm][t] - dis[nm][t] / eta_dis) * dt / e_max,
+                f"soctrans_{nm}_{t}"
+            )
+
+            if t > 0:
+                if stor.ramp_up_ch is not None:
+                    m.addConstr(ch[nm][t] - ch[nm][t-1] <= stor.ramp_up_ch,
+                                f"ramp_up_ch_{nm}_{t}")
+                if stor.ramp_down_ch is not None:
+                    m.addConstr(ch[nm][t-1] - ch[nm][t] <= stor.ramp_down_ch,
+                                f"ramp_down_ch_{nm}_{t}")
+                if stor.ramp_up_dis is not None:
+                    m.addConstr(dis[nm][t] - dis[nm][t-1] <= stor.ramp_up_dis,
+                                f"ramp_up_dis_{nm}_{t}")
+                if stor.ramp_down_dis is not None:
+                    m.addConstr(dis[nm][t-1] - dis[nm][t] <= stor.ramp_down_dis,
+                                f"ramp_down_dis_{nm}_{t}")
 
     # 目标函数 — 预计算每个 agent 的 bid/offer 数组
     bid_arr = {}
@@ -816,7 +920,10 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
             offer_arr[nm] = np.full(T, a.offer_cost + oa)
 
     obj = gp.LinExpr()
-    terminal_value = 300.0
+    if config.storage_terminal_value is not None:
+        terminal_value = config.storage_terminal_value
+    else:
+        terminal_value = float(np.mean(wholesale))
     for t in range(T):
         pv_dict_t = {}; wind_dict_t = {}
         pv_max_dict_t = {}; wind_max_dict_t = {}
@@ -827,6 +934,10 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
 
             obj += bid * served[nm][t]
             obj -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
+            if a.storage is not None:
+                obj += bid * ch[nm][t]
+                if config.lambda_cycle > 0:
+                    obj -= config.lambda_cycle * (ch[nm][t] + dis[nm][t])
             obj -= config.penalty_unserved * unserved[nm][t]
             pv_dict_t[nm] = pv[nm][t]
             wind_dict_t[nm] = wind[nm][t]
@@ -843,6 +954,19 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
     for a in storage_agents:
         obj += terminal_value * soc[a.name][T] * a.storage.e_max
 
+    # -- standalone storage units: objective + terminal SOC
+    su_bid = {}; su_offer = {}
+    for su in storage_units:
+        nm = su.name
+        su_bid[nm] = np.full(T, su.bid_value)
+        su_offer[nm] = np.full(T, su.offer_cost)
+        for t in range(T):
+            obj += su_bid[nm][t] * ch[nm][t]
+            obj -= su_offer[nm][t] * dis[nm][t]
+            if config.lambda_cycle > 0:
+                obj -= config.lambda_cycle * (ch[nm][t] + dis[nm][t])
+        obj += terminal_value * soc[nm][T] * su.storage.e_max
+
     m.setObjective(obj, GRB.MAXIMIZE)
     m.optimize()
 
@@ -850,9 +974,29 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         print("批量模型求解失败，状态：", m.status)
         return None
 
+    # Fix binary variables and re-solve as LP to get duals (LMP)
+    if use_binary:
+        for nm in is_ch_bin:
+            for t in range(T):
+                is_ch_bin[nm][t].VType = GRB.CONTINUOUS
+                is_ch_bin[nm][t].LB = is_ch_bin[nm][t].X
+                is_ch_bin[nm][t].UB = is_ch_bin[nm][t].X
+                is_dis_bin[nm][t].VType = GRB.CONTINUOUS
+                is_dis_bin[nm][t].LB = is_dis_bin[nm][t].X
+                is_dis_bin[nm][t].UB = is_dis_bin[nm][t].X
+        m.optimize()
+
     # 提取结果
     from market import empty_schedules as _empty_schedules
     schedules = _empty_schedules(agents_list, T)
+    for su in storage_units:
+        schedules[su.name] = {
+            'p_buy': np.zeros(T), 'p_sell': np.zeros(T),
+            'served': np.zeros(T), 'unserved': np.zeros(T),
+            'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
+            'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
+            'storage_mode': ['idle'] * T,
+        }
     dt = 0.25
 
     total_welfare = m.ObjVal
@@ -907,6 +1051,17 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
             s['p_buy'][t], s['p_sell'][t] = _split_power(net_gen, net_con)
             total_re_used += (s['pv_used'][t] + s['wind_used'][t]) * dt
             total_curtailment += ((pv_max - s['pv_used'][t]) + (wind_max - s['wind_used'][t])) * dt
+            total_served_mwh += s['served'][t] * dt
+
+        for su in storage_units:
+            nm = su.name
+            s = schedules[nm]
+            s['p_ch'][t]  = ch[nm][t].X
+            s['p_dis'][t] = dis[nm][t].X
+            s['soc'][t]   = soc[nm][t].X
+            if t == T-1:
+                s['soc_final'] = soc[nm][T].X
+            s['p_buy'][t], s['p_sell'][t] = _split_power(s['p_dis'][t], s['p_ch'][t])
             total_served_mwh += s['served'][t] * dt
 
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0

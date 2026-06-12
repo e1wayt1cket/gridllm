@@ -32,6 +32,16 @@ class MarketConfig:
     storage_charge_discount: float = 0.85   # bid * roundtrip_eff * this → charge trigger
     storage_discharge_premium: float = 1.15  # offer / roundtrip_eff * this → discharge trigger
     storage_soc_buffer: float = 0.02  # SOC buffer from min/max before forced charge/discharge
+    storage_terminal_value: Optional[float] = None  # None = use day-ahead mean price
+    lambda_cycle: float = 0.0      # Cycling degradation cost (CNY/MWh per ch+dis)
+    rt_forecast_mode: str = "perfect"  # perfect | da_as_forecast | noisy_da
+
+    @property
+    def use_storage_binaries(self) -> bool:
+        """Enable binary ch/dis exclusion only when cycling cost or imperfect
+        forecasts make simultaneous charge/discharge potentially attractive."""
+        return self.lambda_cycle > 0 or self.rt_forecast_mode != "perfect"
+    rt_forecast_noise_pct: float = 10.0  # noise std as % of DA price (noisy_da)
     rt_horizon: int = 4        # RT 每次优化的时段数
     rt_step: int = 1           # RT 步长（时段）
 
@@ -45,7 +55,6 @@ class StorageSpec:
     soc0: float
     soc_min: float
     soc_max: float
-    self_discharge_rate: float = 0.001
     p_ch_min: float = 0.0
     p_dis_min: float = 0.0
     ramp_up_ch: Optional[float] = None
@@ -99,3 +108,13 @@ class Agent:
 
     def get_wind_real(self):
         return self.wind_real if self.has_wind else np.array([])
+
+
+@dataclass
+class StorageUnit:
+    """Standalone grid-connected storage, independent of load/PV/wind agents."""
+    name: str
+    bus: int
+    storage: 'StorageSpec'
+    bid_value: float = 350.0    # willingness-to-pay for charging (CNY/MWh)
+    offer_cost: float = 350.0   # marginal cost for discharging (CNY/MWh)
