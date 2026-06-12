@@ -1,35 +1,35 @@
 # dashboard.py
 """
-配电网电力市场仿真仪表板 (深色主题 · 每个图单占一行)
+配电网电力市场仿真仪表板
 集成：场景切换 / OPF模式 / 策略切换 / 纳什检验 / 伪实时仿真 /
-       自然语言解析 / 自动 AI 分析（曲线原因与建议 ≤200字）
+      自然语言解析 / 自动 AI 分析
 运行: python dashboard.py
 """
 
 import dash
-from dash import dcc, html, Input, Output, State, callback_context
+from dash import dcc, html, Input, Output, State, ctx
 from dash.exceptions import PreventUpdate
+import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import numpy as np
 import time
 import threading
 from collections import deque
-from collections import deque
-# 导入项目模块
+
 from models import MarketConfig
 from grid import build_base_network, day_ahead_price_china
 from dispatch import solve_opf_gurobi, StorageConstraints
-from market import random_actions, adaptive_bidding, two_settlement, clear_market
-from nash import NashEquilibriumTester
+from market import adaptive_bidding, two_settlement, clear_market
 from scenarios import get_scenario
 from llm import LLMAdvisor
+from nash import NashEquilibriumTester
 
 # ------------------------------
-# 中文场景名映射（精简版）
+# 场景名映射
 # ------------------------------
 SCENARIO_NAMES_CN = {
-    "baseline":        "基准–风光储",
+    "baseline":        "基准--风光储",
     "high_re":         "高可再生渗透",
     "peak_load":       "高峰负荷",
     "congestion":      "线路阻塞",
@@ -37,12 +37,6 @@ SCENARIO_NAMES_CN = {
     "re_ramp_surge":   "新能源骤升",
 }
 CN_TO_EN = {v: k for k, v in SCENARIO_NAMES_CN.items()}
-
-# 策略名称映射
-STRATEGY_MAP = {
-    "随机": "random",
-    "最佳响应": "best_response",
-}
 
 # ------------------------------
 # 全局伪实时状态
@@ -64,12 +58,16 @@ class RealtimeState:
         self.total_T = 96
 
 realtime_state = RealtimeState()
+last_simulation = {}
 
 # ------------------------------
-# 静态分析函数（使用指定策略）
+# 静态分析函数
 # ------------------------------
 def run_static_analysis(scenario_en, strategy="random", opf_mode="lindistflow"):
-    config = MarketConfig(opf_mode=opf_mode, verbose=False)
+    from config_loader import get_scenario_cfg
+    sc_cfg = get_scenario_cfg(scenario_en) or {}
+    override = sc_cfg.get("override_config", {})
+    config = MarketConfig(opf_mode=opf_mode, verbose=False, **override)
     T = 96
     agents, _ = get_scenario(scenario_en, T=T)
     da_actions = adaptive_bidding(agents, config, strategy=strategy)
@@ -80,90 +78,43 @@ def run_static_analysis(scenario_en, strategy="random", opf_mode="lindistflow"):
     return agents, config, da_results, rt_results, payment, da_actions
 
 # ------------------------------
-# 绘图辅助函数
+# 图表构建函数
 # ------------------------------
-from collections import deque
 
 def create_topology_figure(net, agents_info=None, lmp_arr=None):
-    """绘制 IEEE 33 节点拓扑 (严格水平/竖直，符合标准结构)"""
-    
-    # 标准IEEE 33节点坐标 (1-based → 0-based)
-    # 主馈线: 1-2-3-...-18 (水平)
-    # 分支1: 2-19-20-21-22 (从节点2向上)
-    # 分支2: 3-23-24-25 (从节点3向下)
-    # 分支3: 6-26-27-...-33 (从节点6向下)
+    """IEEE 33 节点拓扑图 (正交布局)"""
+
     NODE_COORDS = {
-        0: (0, 0),     # Bus 1 (根节点/Grid)
-        1: (2, 0),     # Bus 2
-        2: (4, 0),     # Bus 3
-        3: (6, 0),     # Bus 4
-        4: (8, 0),     # Bus 5
-        5: (10, 0),    # Bus 6
-        6: (12, 0),    # Bus 7
-        7: (14, 0),    # Bus 8
-        8: (16, 0),    # Bus 9
-        9: (18, 0),    # Bus 10
-        10: (20, 0),   # Bus 11
-        11: (22, 0),   # Bus 12
-        12: (24, 0),   # Bus 13
-        13: (26, 0),   # Bus 14
-        14: (28, 0),   # Bus 15
-        15: (30, 0),   # Bus 16
-        16: (32, 0),   # Bus 17
-        17: (34, 0),   # Bus 18
-        # 分支1: 从Bus 2向上 (y=3)
-        18: (2, 3),    # Bus 19
-        19: (4, 3),    # Bus 20
-        20: (6, 3),    # Bus 21
-        21: (8, 3),    # Bus 22
-        # 分支2: 从Bus 3向下 (y=-3)
-        22: (4, -3),   # Bus 23
-        23: (6, -3),   # Bus 24
-        24: (8, -3),   # Bus 25
-        # 分支3: 从Bus 6向下 (y=-3)
-        25: (10, -3),  # Bus 26
-        26: (12, -3),  # Bus 27
-        27: (14, -3),  # Bus 28
-        28: (16, -3),  # Bus 29
-        29: (18, -3),  # Bus 30
-        30: (20, -3),  # Bus 31
-        31: (22, -3),  # Bus 32
-        32: (24, -3),  # Bus 33
+        0: (0, 0), 1: (2, 0), 2: (4, 0), 3: (6, 0), 4: (8, 0),
+        5: (10, 0), 6: (12, 0), 7: (14, 0), 8: (16, 0), 9: (18, 0),
+        10: (20, 0), 11: (22, 0), 12: (24, 0), 13: (26, 0), 14: (28, 0),
+        15: (30, 0), 16: (32, 0), 17: (34, 0),
+        18: (2, 3), 19: (4, 3), 20: (6, 3), 21: (8, 3),
+        22: (4, -3), 23: (6, -3), 24: (8, -3),
+        25: (10, -3), 26: (12, -3), 27: (14, -3), 28: (16, -3),
+        29: (18, -3), 30: (20, -3), 31: (22, -3), 32: (24, -3),
     }
-    
-    # 标准连线 (0-based)
+
     LINES = [
-        # 主馈线
         (0,1), (1,2), (2,3), (3,4), (4,5), (5,6), (6,7), (7,8), (8,9), (9,10),
         (10,11), (11,12), (12,13), (13,14), (14,15), (15,16), (16,17),
-        # 分支1 (从节点2=索引1)
         (1,18), (18,19), (19,20), (20,21),
-        # 分支2 (从节点3=索引2)
         (2,22), (22,23), (23,24),
-        # 分支3 (从节点6=索引5)
         (5,25), (25,26), (26,27), (27,28), (28,29), (29,30), (30,31), (31,32),
     ]
-    
-    # 配色
-    C_TEXT = "#2c3e50"
+
+    C_TEXT = "#1e293b"
     C_CARD = "#ffffff"
-    C_BORDER = "#d0d7e3"
-    
-    # 计算LMP颜色 (如果提供)
-    bus_lmp = {}
-    if lmp_arr is not None and agents_info is not None:
-        for b in range(33):
-            bus_lmp[b] = float(np.mean(lmp_arr[:, b])) if b < lmp_arr.shape[1] else 0.0
-    
-    # 收集每个bus的agent
+    C_BORDER = "#e2e8f0"
+    C_NODE = "#4f46e5"
+
     bus_agents = {b: [] for b in range(33)}
     if agents_info:
         for info in agents_info:
             bus_agents[info["bus"]].append(info["name"])
-    
+
     fig = go.Figure()
-    
-    # 绘制连线 (严格正交)
+
     for i, j in LINES:
         x0, y0 = NODE_COORDS[i]
         x1, y1 = NODE_COORDS[j]
@@ -172,73 +123,39 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
             line=dict(color=C_BORDER, width=2.5),
             hoverinfo="skip", showlegend=False
         ))
-    
-    # 绘制节点
-    node_x, node_y, node_color, node_size, hover_text, labels = [], [], [], [], [], []
+
+    node_x, node_y, hover_text, labels = [], [], [], []
     for b in range(33):
         x, y = NODE_COORDS[b]
         node_x.append(x)
         node_y.append(y)
         labels.append(str(b + 1))
-        
-        # 节点颜色: 基于LMP或默认蓝色
-        if bus_lmp:
-            val = bus_lmp[b]
-            node_color.append(val)
-            node_size.append(18 + min(32, val / 15))
-        else:
-            node_color.append("#3498db")
-            node_size.append(16)
-        
-        # 悬停文本
-        agents_on = bus_agents[b]
+
         txt = f"<b>节点 {b+1}</b>"
-        if bus_lmp:
-            txt += f"<br>LMP: {bus_lmp[b]:.2f} ¥/MWh"
+        agents_on = bus_agents[b]
         if agents_on:
             txt += f"<br>Agent: {', '.join(agents_on[:2])}"
             if len(agents_on) > 2:
-                txt += f" 等{len(agents_on)}个"
+                txt += f" +{len(agents_on)}"
         hover_text.append(txt)
-    
-    # 节点散点
-    marker_dict = dict(
-        size=node_size,
-        line=dict(width=2, color='#d0d7e3'),
-    )
-    if bus_lmp:
-        # 使用字典合并的方式替代update方法，避免类型检查错误
-        marker_dict = {**marker_dict, 
-            "color": node_color,
-            "colorscale": "Plasma",
-            "colorbar": dict(
-                title="LMP<br>(¥/MWh)",
-                x=1.02,
-                thickness=14,
-                titleside="right",
-                tickfont=dict(color=C_TEXT),
-                titlefont=dict(color=C_TEXT)
-            ),
-            "cmin": 200,   #type: ignore
-            "cmax": 800,
-        }
-    else:
-        marker_dict["color"] = node_color
-    
+
     fig.add_trace(go.Scatter(
         x=node_x, y=node_y,
         mode="markers+text",
-        marker=marker_dict,
+        marker=dict(
+            size=16,
+            color=C_NODE,
+            line=dict(width=2, color='#d0d7e3'),
+        ),
         text=labels,
         textposition="top center",
-        textfont=dict(size=10, color='#2c3e50', family='Arial Black'),
+        textfont=dict(size=10, color='#1e293b', family='Arial Black'),
         hovertemplate="%{customdata}<extra></extra>",
         customdata=hover_text,
         showlegend=False,
-        name="节点"
+        name="bus"
     ))
-    
-    # 产消者星标
+
     if agents_info:
         prosumer_buses = list({info["bus"] for info in agents_info if info.get("is_prosumer")})
         if prosumer_buses:
@@ -250,57 +167,41 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
                 marker=dict(
                     symbol="star",
                     size=14,
-                    color="#f39c12",
+                    color="#f59e0b",
                     line=dict(width=2, color='#d0d7e3')
                 ),
                 name="产消者",
                 text=[f"{b+1}" for b in prosumer_buses],
                 hovertemplate="产消者节点 %{text}<extra></extra>"
             ))
-    
+
     fig.update_layout(
         title=dict(
-            text="IEEE 33 节点配电系统拓扑（颜色=节点边际电价，★=产消者）",
+            text="IEEE 33 节点配电系统拓扑 (星标 = 产消者)",
             font=dict(size=15, color='#2c3e50')
         ),
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            showticklabels=False,
-            visible=False
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            showticklabels=False,
-            visible=False,
-            scaleanchor="x",
-            scaleratio=1
-        ),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False,
+                   scaleanchor="x", scaleratio=1),
         template="plotly_white",
         paper_bgcolor=C_CARD,
         plot_bgcolor=C_CARD,
-        margin=dict(l=20, r=90, t=60, b=20),
+        margin=dict(l=20, r=20, t=60, b=20),
         height=400,
-        legend=dict(
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=0.01,
-            bgcolor="rgba(255,255,255,0.9)",
-            font=dict(color=C_TEXT, size=12)
-        ),
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01,
+                    bgcolor="rgba(255,255,255,0.9)", font=dict(color=C_TEXT, size=12)),
         font=dict(color=C_TEXT),
     )
-    
+
     return fig
-def create_lmp_figure(lmp_matrix, title="节点电价"):
+
+def create_lmp_figure(lmp_matrix, title="节点边际电价"):
     if lmp_matrix is None or np.all(lmp_matrix == 0):
         fig = go.Figure()
-        fig.add_annotation(text="求解失败或数据异常（LMP全零）", xref="paper", yref="paper",
+        fig.add_annotation(text="求解失败或数据异常 (LMP全为零)", xref="paper", yref="paper",
                            x=0.5, y=0.5, showarrow=False, font=dict(color="#e74c3c", size=16))
         fig.update_layout(title=title, template="plotly_white",
-                          paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
+                          paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
         return fig
     T, n = lmp_matrix.shape
     hours = np.arange(T) * 0.25
@@ -308,10 +209,10 @@ def create_lmp_figure(lmp_matrix, title="节点电价"):
     fig = go.Figure()
     for b in range(n):
         fig.add_trace(go.Scatter(x=hours, y=lmp_matrix[:, b], mode='lines',
-                                 line=dict(color="#bdc3c7", width=0.6), showlegend=False, hoverinfo='skip'))
+                                 line=dict(color="#e2e8f0", width=0.5), showlegend=False, hoverinfo='skip'))
     fig.add_trace(go.Scatter(x=hours, y=mean_lmp, mode='lines', name='节点均价',
-                             line=dict(color='#e67e22', width=3)))
-    fig.update_layout(title=title, xaxis_title="时间 (h)", yaxis_title="电价 (¥/MWh)",
+                             line=dict(color='#4f46e5', width=2.5)))
+    fig.update_layout(title=title, xaxis_title="时间 (h)", yaxis_title="LMP (CNY/MWh)",
                       template="plotly_white", legend=dict(orientation='h', y=1.1),
                       margin=dict(l=40, r=20, t=60, b=40),
                       paper_bgcolor='#ffffff', plot_bgcolor="#fafbfc")
@@ -326,13 +227,13 @@ def create_trade_figure(da_results, agents):
         buy += s["p_buy"]; sell += s["p_sell"]
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Scatter(x=hours, y=buy, mode='lines', name='总购电量 (MW)',
-                             line=dict(color='#e74c3c', width=2)), secondary_y=False)
+                             line=dict(color='#ef4444', width=2)), secondary_y=False)
     fig.add_trace(go.Scatter(x=hours, y=sell, mode='lines', name='总售电量 (MW)',
-                             line=dict(color='#27ae60', width=2)), secondary_y=False)
-    fig.update_layout(title="日前市场总买卖功率", xaxis_title="时间 (h)", yaxis_title="功率 (MW)",
+                             line=dict(color='#10b981', width=2)), secondary_y=False)
+    fig.update_layout(title="日前市场总购售电功率", xaxis_title="时间 (h)", yaxis_title="功率 (MW)",
                       template="plotly_white", hovermode="x unified", legend=dict(orientation='h', y=1.1),
                       margin=dict(l=40, r=20, t=60, b=40),
-                      paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
+                      paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
     return fig
 
 def create_soc_figure(da_results, agents):
@@ -342,62 +243,134 @@ def create_soc_figure(da_results, agents):
     T = len(da_results["schedules"][storage_agents[0].name]["soc"])
     hours = np.arange(T) * 0.25
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("储能SOC", "充放电功率"))
+                        subplot_titles=("储能 SOC", "充放电功率"))
     for a in storage_agents:
         s = da_results["schedules"][a.name]
         fig.add_trace(go.Scatter(x=hours, y=s["soc"]*100, mode='lines',
                                  name=f"{a.name} SOC", line=dict(width=2)), row=1, col=1)
         fig.add_trace(go.Bar(x=hours, y=s["p_ch"], name=f"{a.name} 充电",
-                             marker_color='#3498db', opacity=0.7), row=2, col=1)
+                             marker_color='#3b82f6', opacity=0.75), row=2, col=1)
         fig.add_trace(go.Bar(x=hours, y=-s["p_dis"], name=f"{a.name} 放电",
-                             marker_color='#e67e22', opacity=0.7), row=2, col=1)
+                             marker_color='#f59e0b', opacity=0.75), row=2, col=1)
     fig.update_layout(barmode='overlay', template="plotly_white", hovermode="x unified",
                       legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
                       margin=dict(l=40, r=20, t=60, b=40),
-                      paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
+                      paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
     fig.update_yaxes(title_text="SOC (%)", row=1, col=1)
     fig.update_yaxes(title_text="功率 (MW)", row=2, col=1)
     return fig
 
-def create_kpi_cards(da_results, rt_results, payment, agents):
+def create_kpi_cards(da_results, rt_results, payment, agents, config=None):
     load_total = sum(np.sum(a.load_forecast) for a in agents)
     served = sum(np.sum(da_results["schedules"][a.name]["served"]) for a in agents)
     satisfaction = (served / load_total * 100) if load_total > 0 else 100.0
     total_cost = sum(payment.values())
 
-    def card(title, value_main):
-        return html.Div([
-            html.H3(title, style={'color': '#5a6c7d'}),
-            html.Div(value_main, style={'fontSize': '20px', 'color': '#2c3e50'})
-        ], className='kpi-card')
+    carbon_emissions = da_results.get('carbon_emissions', 0)
+    carbon_intensity = da_results.get('carbon_intensity', 0)
+    curtailment = da_results.get('total_curtailment', 0)
 
-    return html.Div([
-        card("日前社会福利", f"{da_results['welfare']:,.0f} ¥"),
-        card("实时社会福利", f"{rt_results['welfare']:,.0f} ¥"),
-        card("可再生消纳率", f"{da_results['re_consumption_rate']:.1f}%"),
-        card("负荷满足率", f"{satisfaction:.1f}%"),
-        card("总市场成本", f"{total_cost:,.0f} ¥"),
-    ], style={'display': 'flex', 'justifyContent': 'space-around', 'marginBottom': '30px'})
+    items = [
+        ("日前社会福利", f"{da_results['welfare']:,.0f} CNY",   "#4f46e5"),
+        ("实时社会福利", f"{rt_results['welfare']:,.0f} CNY",   "#6366f1"),
+        ("可再生消纳率", f"{da_results['re_consumption_rate']:.1f}%", "#10b981"),
+        ("负荷满足率",   f"{satisfaction:.1f}%",                "#3b82f6"),
+        ("总市场成本",   f"{total_cost:,.0f} CNY",              "#f59e0b"),
+        ("碳排放总量",   f"{carbon_emissions:.1f} tCO2",        "#ef4444"),
+        ("碳强度",       f"{carbon_intensity:.3f} tCO2/MWh",    "#f97316"),
+        ("弃电量",       f"{curtailment:.1f} MWh",              "#8b5cf6"),
+    ]
+
+    cards = []
+    for label, value, accent in items:
+        cards.append(
+            dbc.Col(
+                dbc.Card([
+                    html.Div(label, style={
+                        'fontSize': '12px', 'fontWeight': '600', 'color': '#64748b',
+                        'letterSpacing': '0.5px', 'marginBottom': '6px'
+                    }),
+                    html.Div(value, style={
+                        'fontSize': '17px', 'fontWeight': '700', 'color': '#1e293b'
+                    }),
+                ], body=True, style={
+                    'borderTop': f'3px solid {accent}',
+                    'borderRadius': '14px',
+                    'boxShadow': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+                    'height': '100%',
+                }), xs=6, sm=4, md=3,
+            )
+        )
+
+    if config is not None and config.use_constraint_multi_obj:
+        sp = da_results.get('shadow_prices', {})
+        sc = sp.get('carbon_cap', None)
+        sr = sp.get('re_min_rate', None)
+        constraint_items = [
+            ("碳上限", f"<= {config.carbon_cap_tco2:.0f} tCO2", "#ef4444",
+             f"影子价格: {sc:.1f} CNY/tCO2" if sc is not None and abs(sc) > 1e-6 else "未绑定"),
+            ("可再生下限", f">= {config.re_min_rate:.0f}%", "#10b981",
+             f"影子价格: {abs(sr):.1f} CNY/%" if sr is not None and abs(sr) > 1e-6 else "未绑定"),
+        ]
+        for label, value, accent, extra in constraint_items:
+            cards.append(
+                dbc.Col(
+                    dbc.Card([
+                        html.Div(label, style={
+                            'fontSize': '12px', 'fontWeight': '600', 'color': '#64748b',
+                            'letterSpacing': '0.5px', 'marginBottom': '6px'
+                        }),
+                        html.Div(value, style={
+                            'fontSize': '17px', 'fontWeight': '700', 'color': '#1e293b'
+                        }),
+                        html.Div(extra, style={
+                            'fontSize': '11px', 'color': '#94a3b8', 'marginTop': '4px'
+                        }),
+                    ], body=True, style={
+                        'backgroundColor': '#f8fafc', 'borderRadius': '14px',
+                        'boxShadow': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+                        'borderTop': f'3px solid {accent}',
+                        'border': '1px dashed #e2e8f0',
+                        'height': '100%',
+                    }), xs=6, sm=4, md=3,
+                )
+            )
+
+    return dbc.Row(cards, className='g-3')
 
 def create_payment_table(payment, agents):
     rows = []
     for a in agents:
         val = payment[a.name]
-        status = "成本" if val > 0 else "收益" if val < 0 else "平衡"
-        color = "#e74c3c" if val > 0 else "#27ae60" if val < 0 else "#5a6c7d"
+        color = "#ef4444" if val > 0 else "#10b981" if val < 0 else "#64748b"
         rows.append(html.Tr([
-            html.Td(a.name), html.Td(a.load_type),
-            html.Td(f"{val:.2f}", style={'color': color, 'fontWeight': 'bold'}), html.Td(status)
+            html.Td(a.name, style={'fontWeight': '600', 'color': '#1e293b'}),
+            html.Td(dbc.Badge(a.load_type, color='light', text_color='#475569',
+                              className='border', style={'fontSize': '11px'})),
+            html.Td(f"{val:,.2f}", style={
+                'color': color, 'fontWeight': '700',
+                'fontFamily': '"JetBrains Mono", monospace'
+            }),
         ]))
     total_pay = sum(payment.values())
-    rows.append(html.Tr([html.Td("总计", style={'fontWeight': 'bold'}), html.Td(""),
-                         html.Td(f"{total_pay:.2f}", style={'fontWeight': 'bold'}), html.Td("")]))
-    table = html.Table([html.Thead(html.Tr([html.Th("智能体"), html.Th("类型"), html.Th("结算金额 (¥)"), html.Th("状态")])),
-                        html.Tbody(rows)], style={'width': '100%', 'borderCollapse': 'collapse', 'color': '#2c3e50'})
-    return table
+    rows.append(html.Tr([
+        html.Td("总计", style={'fontWeight': '700', 'color': '#1e293b'}),
+        html.Td(""),
+        html.Td(f"{total_pay:,.2f}", style={
+            'fontWeight': '700', 'fontFamily': '"JetBrains Mono", monospace',
+            'color': '#1e293b'
+        }),
+    ], style={'background': '#fafbfc'}))
+    return dbc.Table([
+        html.Thead(html.Tr([
+            html.Th("智能体"), html.Th("类型"), html.Th("结算金额 (CNY)")
+        ])),
+        html.Tbody(rows),
+    ], bordered=True, hover=True, responsive=True, size='sm',
+       style={'fontSize': '13px'})
 
 # ------------------------------
-# 伪实时线程（增强鲁棒性）
+# 伪实时线程
 # ------------------------------
 def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
     global realtime_state
@@ -418,11 +391,11 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
         action_params = adaptive_bidding(agents, config, strategy=strategy)
 
         with realtime_state.lock:
-            realtime_state.agents = agents #type:ignore
-            realtime_state.config = config      #type:ignore
-            realtime_state.net = net        #type:ignore    
-            realtime_state.wholesale = wholesale                #type:ignore
-            realtime_state.action_params = action_params            #type:ignore
+            realtime_state.agents = agents
+            realtime_state.config = config
+            realtime_state.net = net
+            realtime_state.wholesale = wholesale
+            realtime_state.action_params = action_params
             realtime_state.total_T = 96
 
         fallback_lmp = np.zeros(len(net.bus))
@@ -440,7 +413,7 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
                     else:
                         lmp_t = fallback_lmp
                 else:
-                    fallback_lmp = lmp_t.copy() # type:ignore
+                    fallback_lmp = lmp_t.copy()
                     realtime_state.welfare_acc += welfare_t
                     for a in agents:
                         if a.storage is None: continue
@@ -472,8 +445,53 @@ def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
             realtime_state.running = False
 
 # ------------------------------
-# 曲线特征提取（供 AI 分析使用）
+# AI 分析曲线特征提取
 # ------------------------------
+def build_simulation_outputs(scenario_en, strategy="mpc", opf_mode="lindistflow", nl_msg_prefix=""):
+    """Run simulation for a scenario and build all chart/KPI/table outputs.
+
+    Returns the 8-tuple expected by the Dash output callbacks:
+    (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+    """
+    from config_loader import get_scenario_cfg
+    sc_cfg = get_scenario_cfg(scenario_en) or {}
+    override = sc_cfg.get("override_config", {})
+    config = MarketConfig(opf_mode=opf_mode, verbose=False, **override)
+    T = 96
+    agents, _ = get_scenario(scenario_en, T=T)
+    da_actions = adaptive_bidding(agents, config, strategy=strategy, T=T)
+    da_results = clear_market(agents, T, "DA", da_actions, config)
+    rt_actions = adaptive_bidding(agents, config, strategy=strategy, T=T)
+    rt_results = clear_market(agents, T, "RT", rt_actions, config)
+    payment = two_settlement(agents, da_results, rt_results)
+
+    net = build_base_network(config)
+    kpi = create_kpi_cards(da_results, rt_results, payment, agents, config)
+    agents_info = [{"bus": a.bus, "name": a.name, "is_prosumer": a.is_prosumer} for a in agents]
+    topo_fig = create_topology_figure(net, agents_info=agents_info, lmp_arr=da_results['lmp'])
+    lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")
+    trade_fig = create_trade_figure(da_results, agents)
+    soc_fig = create_soc_figure(da_results, agents)
+    pay_tab = create_payment_table(payment, agents)
+
+    scenario_cn = SCENARIO_NAMES_CN.get(scenario_en, scenario_en)
+    advisor = LLMAdvisor()
+    summary = build_insight_summary(da_results, agents, scenario_cn)
+    ai_output = advisor.get_insight(summary)
+
+    nl_msg = (f"{nl_msg_prefix}场景: {scenario_cn} | "
+              f"策略: {strategy} | OPF: {opf_mode}") if nl_msg_prefix else \
+             (f"场景: {scenario_cn} | 策略: {strategy} | OPF: {opf_mode}")
+
+    # Store for Nash test
+    last_simulation.update({
+        "agents": agents, "config": config, "actions": da_actions,
+        "T": T, "scenario": scenario_en, "strategy": strategy,
+    })
+
+    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+
+
 def build_insight_summary(da_results, agents, scenario_cn):
     lmp_matrix = da_results['lmp']
     avg_lmp = lmp_matrix.mean()
@@ -518,335 +536,454 @@ def build_insight_summary(da_results, agents, scenario_cn):
         'total_dis': f"{total_dis:.2f}",
         'total_buy': f"{total_buy:.2f}",
         'total_sell': f"{total_sell:.2f}",
-        'storage_active': '是' if active else '否'
+        'storage_active': '是' if active else '否',
+        'carbon_emissions': f"{da_results.get('carbon_emissions', 0):.1f}",
+        'carbon_intensity': f"{da_results.get('carbon_intensity', 0):.3f}",
+        'curtailment': f"{da_results.get('total_curtailment', 0):.1f}",
     }
 
 # ------------------------------
 # Dash 应用
 # ------------------------------
-app = dash.Dash(__name__, title="配电网电力市场仿真仪表板")
-app.layout = html.Div(
-    style={'backgroundColor': '#f5f7fa', 'padding': '20px', 'fontFamily': 'Arial, sans-serif', 'minHeight': '100vh'},
-    children=[
-        html.H1("配电网电力市场实时仿真仪表盘", style={'textAlign': 'center', 'color': '#3498db'}),
+app = dash.Dash(__name__, title="配电网电力市场仿真仪表板",
+                external_stylesheets=[dbc.themes.FLATLY])
 
-        # 自然语言输入区
-        html.Div([
-            html.Label("💬 自然语言指令（示例：高光伏低负荷，阻塞严重）", style={'color': '#2c3e50'}),
-            dcc.Input(id='nl-input', type='text', placeholder='输入自然语言描述...',
-                      value='', style={'width': '60%', 'marginRight': '10px', 'padding': '8px',
-                                       'borderRadius': '6px', 'border': '1px solid #d0d7e3',
-                                       'backgroundColor': '#ffffff', 'color': '#2c3e50'}),
-            html.Button("解析并运行", id='parse-btn', n_clicks=0,
-                        style={'backgroundColor': '#9b59b6', 'color': 'white', 'border': 'none',
-                               'borderRadius': '6px', 'padding': '8px 20px'}),
-        ], style={'marginBottom': '15px', 'padding': '10px', 'backgroundColor': '#ffffff', 'borderRadius': '8px'}),
+# -- 颜色面板 (保留原有设计) --
+C_BG       = "#f0f2f5"
+C_SURFACE  = "#ffffff"
+C_PRIMARY  = "#4f46e5"
+C_ACCENT   = "#7c3aed"
+C_TEXT     = "#1e293b"
+C_MUTED    = "#64748b"
+C_BORDER   = "#e2e8f0"
+C_SUCCESS  = "#10b981"
+C_WARNING  = "#f59e0b"
+C_DANGER   = "#ef4444"
+C_INFO     = "#3b82f6"
 
-        # 控制面板
-        html.Div([
-            html.Div([
-                html.Label("场景选择", style={'color': '#2c3e50'}),
-                dcc.Dropdown(id='scenario-dropdown',
-                             options=[{'label': v, 'value': v} for v in SCENARIO_NAMES_CN.values()],
-                             value="基准–风光储", clearable=False,
-                             style={'color': '#2c3e50', 'width': '220px'})
-            ], style={'marginRight': '20px'}),
-            html.Div([
-                html.Label("OPF 模式", style={'color': '#2c3e50'}),
-                dcc.Dropdown(id='opf-dropdown',
-                             options=[{'label': 'DC-OPF', 'value': 'dc'}, {'label': 'LinDistFlow', 'value': 'lindistflow'}],
-                             value='lindistflow', clearable=False,
-                             style={'color': '#2c3e50', 'width': '140px'})
-            ], style={'marginRight': '20px'}),
-            html.Div([
-                html.Label("报价策略", style={'color': '#2c3e50'}),
-                dcc.Dropdown(id='strategy-dropdown',
-                             options=[{'label': '随机', 'value': '随机'},
-                                      {'label': '最佳响应', 'value': '最佳响应'}],
-                             value='随机', clearable=False,
-                             style={'color': '#2c3e50', 'width': '140px'})
-            ], style={'marginRight': '20px'}),
-            html.Div([
-                html.Button("静态分析", id='static-btn', n_clicks=0,
-                            style={'backgroundColor': '#27ae60', 'color': 'white', 'border': 'none',
-                                   'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
-                html.Button("启动伪实时", id='realtime-btn', n_clicks=0,
-                            style={'backgroundColor': '#e67e22', 'color': 'white', 'border': 'none',
-                                   'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
-                html.Button("停止伪实时", id='stop-btn', n_clicks=0,
-                            style={'backgroundColor': '#e74c3c', 'color': 'white', 'border': 'none',
-                                   'borderRadius': '6px', 'padding': '8px 20px', 'marginRight': '10px'}),
-                html.Button("纳什检验", id='nash-btn', n_clicks=0,
-                            style={'backgroundColor': '#9b59b6', 'color': 'white', 'border': 'none',
-                                   'borderRadius': '6px', 'padding': '8px 20px'}),
-            ], style={'display': 'flex', 'alignItems': 'center'}),
-        ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'marginBottom': '20px', 'padding': '10px',
-                  'backgroundColor': '#ffffff', 'borderRadius': '8px'}),
+# -- 占位辅助函数 --
+def _placeholder_fig(text="等待仿真结果..."):
+    fig = go.Figure()
+    fig.update_layout(
+        template="plotly_white", paper_bgcolor=C_SURFACE,
+        plot_bgcolor='#f8fafc', height=280,
+        margin=dict(l=20, r=20, t=40, b=20),
+    )
+    fig.add_annotation(text=text, xref="paper", yref="paper",
+                       x=0.5, y=0.5, showarrow=False,
+                       font=dict(color=C_MUTED, size=15))
+    return fig
 
-        dcc.Interval(id='realtime-interval', interval=500, disabled=True),
-        dcc.Store(id='static-data-store'),
+def _placeholder_kpi():
+    return dbc.Alert(
+        "输入场景描述并点击「运行仿真」查看结果",
+        color='light', className='text-center',
+        style={'color': C_MUTED, 'borderRadius': '14px'}
+    )
 
-        html.Div(id='kpi-cards'),
+def _placeholder_text(text="暂无数据"):
+    return html.Div(text, style={'color': C_MUTED, 'textAlign': 'center',
+                                  'padding': '24px', 'fontSize': '14px'})
 
-        dcc.Graph(id='topology-graph', style={'width': '100%', 'marginBottom': '20px'}),
-        dcc.Graph(id='lmp-graph', style={'width': '100%', 'marginBottom': '20px'}),
-        dcc.Graph(id='trade-graph', style={'width': '100%', 'marginBottom': '20px'}),
-        dcc.Graph(id='soc-graph', style={'width': '100%', 'marginBottom': '20px'}),
-        dcc.Graph(id='lmp-realtime', style={'width': '100%', 'marginBottom': '20px'}),
+app.layout = dbc.Container([
+    # -- header --
+    dbc.Row(dbc.Col(
+        html.H1("配电网电力市场仿真仪表板",
+                style={'fontSize': '26px', 'fontWeight': '700', 'color': C_TEXT}),
+        className='text-center py-3'
+    )),
 
-        html.Div(id='nash-output', style={'marginTop': '10px', 'color': '#2c3e50'}),
-        # AI 自动分析（无需按钮）
-        html.Div(id='ai-output', style={'marginTop': '15px', 'color': '#2c3e50',
-                                        'backgroundColor': '#ffffff', 'padding': '12px',
-                                        'borderRadius': '8px'}),
+    # -- 场景快速选择 --
+    dbc.Row([
+        dbc.Col([
+            html.Label("场景快速选择", style={
+                'fontSize': '13px', 'fontWeight': '600', 'color': C_MUTED,
+                'marginBottom': '10px', 'display': 'block'
+            }),
+            dbc.ButtonGroup([
+                dbc.Button("基准", id='scenario-btn-baseline', n_clicks=0,
+                           color='primary', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 18px', 'borderRadius': '10px 0 0 10px',
+                                  'borderRight': '1px solid #c7d2fe'}),
+                dbc.Button("高可再生", id='scenario-btn-high_re', n_clicks=0,
+                           color='success', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 16px', 'borderRadius': '0',
+                                  'borderRight': '1px solid #a7f3d0'}),
+                dbc.Button("高峰负荷", id='scenario-btn-peak_load', n_clicks=0,
+                           color='warning', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 16px', 'borderRadius': '0',
+                                  'borderRight': '1px solid #fde68a'}),
+                dbc.Button("线路阻塞", id='scenario-btn-congestion', n_clicks=0,
+                           color='danger', outline=True, className='scenario-chip',
+                           style={'fontWeight': '600', 'fontSize': '14px',
+                                  'padding': '8px 18px', 'borderRadius': '0 10px 10px 0'}),
+            ], style={'boxShadow': '0 1px 3px rgba(0,0,0,0.06)'}),
+        ], md=12, className='text-center'),
+    ], className='mb-4'),
 
-        html.Div([html.H3("各智能体结算结果 (¥)", style={'color': '#2c3e50'}),
-                  html.Div(id='payment-table')],
-                 style={'backgroundColor': '#ffffff', 'padding': '15px', 'borderRadius': '8px', 'marginTop': '20px'}),
+    # -- NL 输入卡片 --
+    dbc.Card([
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col([
+                    html.Label("场景描述", style={
+                        'fontSize': '13px', 'fontWeight': '600', 'color': C_MUTED,
+                        'marginBottom': '8px'
+                    }),
+                    dcc.Textarea(id='nl-input',
+                        placeholder='用自然语言描述你想仿真的场景，例如：在bus 20新增5MW光伏，bus 10-15负荷翻倍...',
+                        value='',
+                        style={'width': '100%', 'height': '80px', 'padding': '14px 18px',
+                               'borderRadius': '10px', 'border': f'1px solid {C_BORDER}',
+                               'backgroundColor': C_BG, 'color': C_TEXT, 'fontSize': '14px',
+                               'boxSizing': 'border-box', 'outline': 'none',
+                               'resize': 'vertical', 'fontFamily': 'inherit'}),
+                ], md=10, className='pe-md-3'),
+                dbc.Col([
+                    html.Label(" ", style={'display': 'block', 'marginBottom': '8px'}),
+                    dbc.Button("运行仿真", id='parse-btn', n_clicks=0, color='primary',
+                               style={'width': '100%', 'height': '38px', 'fontWeight': '600'}),
+                    dbc.Button("纳什检验", id='nash-btn', n_clicks=0, color='warning',
+                               style={'width': '100%', 'height': '38px', 'fontWeight': '600',
+                                      'marginTop': '8px'}),
+                ], md=2),
+            ]),
+        ]),
+    ], className='mb-4', style={'borderRadius': '16px', 'border': 'none',
+                                'boxShadow': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)'}),
 
-        html.Div(id='nl-result', style={'marginTop': '10px', 'color': '#5a6c7d'})
-    ]
-)
+    html.Div(id='nl-result', children="就绪",
+             style={'marginBottom': '18px', 'color': C_MUTED, 'textAlign': 'center',
+                    'fontSize': '13px', 'fontWeight': '500'}),
+
+    # -- KPI --
+    dcc.Loading(
+        id="loading-kpi",
+        type="default",
+        children=html.Div(id='kpi-cards', children=_placeholder_kpi(), className='mb-4'),
+    ),
+
+    # -- 图表区 --
+    dbc.Card(dbc.CardBody([
+        html.H6("网络拓扑", className='fw-bold text-secondary mb-2'),
+        dcc.Graph(id='topology-graph', figure=_placeholder_fig("拓扑图 -- 等待仿真"),
+                  config={'displayModeBar': 'hover'}),
+    ]), className='mb-4 chart-card'),
+
+    dbc.Card(dbc.CardBody([
+        html.H6("节点边际电价 (LMP)", className='fw-bold text-secondary mb-2'),
+        dcc.Graph(id='lmp-graph', figure=_placeholder_fig("节点电价曲线 -- 等待仿真"),
+                  config={'displayModeBar': 'hover'}),
+    ]), className='mb-4 chart-card'),
+
+    dbc.Card(dbc.CardBody([
+        html.H6("购售电功率", className='fw-bold text-secondary mb-2'),
+        dcc.Graph(id='trade-graph', figure=_placeholder_fig("购售电曲线 -- 等待仿真"),
+                  config={'displayModeBar': 'hover'}),
+    ]), className='mb-4 chart-card'),
+
+    dbc.Card(dbc.CardBody([
+        html.H6("储能 SOC", className='fw-bold text-secondary mb-2'),
+        dcc.Graph(id='soc-graph', figure=_placeholder_fig("储能 SOC -- 等待仿真"),
+                  config={'displayModeBar': 'hover'}),
+    ]), className='mb-4 chart-card'),
+
+    # -- AI 分析卡片 --
+    dbc.Card(dbc.CardBody([
+        html.H6("AI 分析", className='fw-bold mb-2', style={'color': C_PRIMARY}),
+        html.Div(id='ai-output', children=_placeholder_text("仿真完成后自动生成分析")),
+    ]), className='mb-4 chart-card'),
+
+    # -- 纳什均衡检验卡片 --
+    dbc.Card(dbc.CardBody([
+        html.H6("纳什均衡检验", className='fw-bold mb-2', style={'color': C_WARNING}),
+        dcc.Loading(
+            id="loading-nash",
+            type="default",
+            children=html.Div(id='nash-output', children=_placeholder_text("运行仿真后可点击「纳什检验」")),
+        ),
+    ]), className='mb-4 chart-card'),
+
+    # -- 结算表格卡片 --
+    dbc.Card(dbc.CardBody([
+        html.H6("各节点结算结果 (CNY)", className='fw-bold text-secondary mb-3'),
+        html.Div(id='payment-table', children=_placeholder_text("暂无结算数据")),
+    ]), className='mb-4 chart-card'),
+
+    # -- 结果区 --
+
+
+], fluid=True, style={'backgroundColor': C_BG, 'minHeight': '100vh', 'padding': '24px',
+                       'fontFamily': '"Inter", "Segoe UI", "PingFang SC", Arial, sans-serif'})
 
 # ------------------------------
-# 统一主回调（含自动 AI 分析）
+# 场景快速选择回调
+# ------------------------------
+SCENARIO_BUTTON_MAP = {
+    'scenario-btn-baseline': 'baseline',
+    'scenario-btn-high_re': 'high_re',
+    'scenario-btn-peak_load': 'peak_load',
+    'scenario-btn-congestion': 'congestion',
+}
+
+@app.callback(
+    [Output('kpi-cards', 'children', allow_duplicate=True),
+     Output('topology-graph', 'figure', allow_duplicate=True),
+     Output('lmp-graph', 'figure', allow_duplicate=True),
+     Output('trade-graph', 'figure', allow_duplicate=True),
+     Output('soc-graph', 'figure', allow_duplicate=True),
+     Output('payment-table', 'children', allow_duplicate=True),
+     Output('nl-result', 'children', allow_duplicate=True),
+     Output('ai-output', 'children', allow_duplicate=True)],
+    [Input('scenario-btn-baseline', 'n_clicks'),
+     Input('scenario-btn-high_re', 'n_clicks'),
+     Input('scenario-btn-peak_load', 'n_clicks'),
+     Input('scenario-btn-congestion', 'n_clicks')],
+    prevent_initial_call=True
+)
+def scenario_quick_select_callback(b_n, hr_n, pl_n, cg_n):
+    triggered = ctx.triggered_id
+    if triggered is None or triggered not in SCENARIO_BUTTON_MAP:
+        raise PreventUpdate
+    scenario_en = SCENARIO_BUTTON_MAP[triggered]
+    print(f"快速选择场景: {scenario_en}")
+    return build_simulation_outputs(scenario_en, strategy="mpc", opf_mode="lindistflow")
+
+
+# ------------------------------
+# 主回调 (NL 输入)
 # ------------------------------
 @app.callback(
-    [Output('static-data-store', 'data'),
-     Output('kpi-cards', 'children'),
-     Output('topology-graph', 'figure'),
-     Output('lmp-graph', 'figure'),
-     Output('trade-graph', 'figure'),
-     Output('soc-graph', 'figure'),
-     Output('payment-table', 'children'),
-     Output('realtime-interval', 'disabled'),
-     Output('lmp-realtime', 'figure'),
-     Output('nl-result', 'children'),
-     Output('ai-output', 'children')],   # 新增 AI 输出
-    [Input('static-btn', 'n_clicks'),
-     Input('realtime-btn', 'n_clicks'),
-     Input('stop-btn', 'n_clicks'),
-     Input('realtime-interval', 'n_intervals'),
-     Input('parse-btn', 'n_clicks')],
-    [State('scenario-dropdown', 'value'),
-     State('opf-dropdown', 'value'),
-     State('strategy-dropdown', 'value'),
-     State('nl-input', 'value')]
+    [Output('kpi-cards', 'children', allow_duplicate=True),
+     Output('topology-graph', 'figure', allow_duplicate=True),
+     Output('lmp-graph', 'figure', allow_duplicate=True),
+     Output('trade-graph', 'figure', allow_duplicate=True),
+     Output('soc-graph', 'figure', allow_duplicate=True),
+     Output('payment-table', 'children', allow_duplicate=True),
+     Output('nl-result', 'children', allow_duplicate=True),
+     Output('ai-output', 'children', allow_duplicate=True)],
+    [Input('parse-btn', 'n_clicks')],
+    [State('nl-input', 'value')],
+    prevent_initial_call=True
 )
-def main_callback(static_clicks, realtime_clicks, stop_clicks, n_intervals,
-                  parse_clicks, scenario_cn, opf_mode, strategy_cn, nl_text):
-    ctx = callback_context
-    if not ctx.triggered:
-        raise PreventUpdate
+def main_callback(parse_clicks, nl_text):
+    empty_fig = go.Figure()
+    empty_fig.update_layout(
+        template="plotly_white", paper_bgcolor='#ffffff',
+        plot_bgcolor='#f8fafc', height=200,
+    )
+    empty_fig.add_annotation(text="等待输入场景描述...", xref="paper", yref="paper",
+                              x=0.5, y=0.5, showarrow=False,
+                              font=dict(color="#94a3b8", size=16))
+    empty_table = html.Div("暂无结算数据", style={'color': '#94a3b8', 'textAlign': 'center',
+                                                   'padding': '32px', 'fontSize': '14px'})
+    empty_kpi = dbc.Alert(
+        "输入自然语言描述的场景并点击「运行仿真」",
+        color='light', className='text-center',
+        style={'color': '#94a3b8', 'borderRadius': '14px'}
+    )
 
-    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    strategy_en = STRATEGY_MAP.get(strategy_cn, "random")
+    if not nl_text or not nl_text.strip():
+        return (empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, empty_table,
+                "请输入场景描述后点击运行仿真", "")
 
-    realtime_fig = go.Figure().update_layout(title="伪实时电价 (点击启动)", template="plotly_white",
-                                             paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
-    nl_msg = ""
-    ai_output = dash.no_update  # 默认不更新
+    advisor = LLMAdvisor()
+    parsed = advisor.parse_natural_language_to_config(nl_text.strip())
+    base_scenario = parsed.get("base_scenario", "baseline")
+    gp = parsed.get("global_params", {})
+    T = int(gp.get("T", 96))
+    strategy_nl = "mpc"
+    # Count all changes from user input
+    agent_mod_count = len(parsed.get("agent_modifications", []))
+    defaults_ov_count = len(parsed.get("defaults_overrides", {}))
+    scenario_ov_count = len(parsed.get("scenario_overrides", {}))
+    default_gp = {"T": 96, "load_factor": 1.0, "line_capacity_factor": 1.0,
+                  "penalty_unserved": 800.0, "carbon_cap_tco2": 200.0,
+                  "re_min_rate": 95.0, "lambda_carbon": 50.0, "lambda_re": 50.0,
+                  "lambda_curtail": 15.0, "pv_factor": 1.0, "wind_factor": 1.0}
+    param_changes = sum(1 for k, v in gp.items() if k in default_gp and v != default_gp[k])
+    total_changes = param_changes + agent_mod_count + defaults_ov_count + scenario_ov_count
+    nl_msg = (f"场景: {base_scenario} | "
+              f"参数变更: {param_changes}项 | "
+              f"Agent修改: {agent_mod_count}项 | "
+              f"合计: {total_changes}项变更")
+    print(nl_msg)
 
-    # 定时器刷新伪实时
-    if trigger_id == 'realtime-interval':
-        with realtime_state.lock:
-            if not realtime_state.running or len(realtime_state.lmp_history) == 0:
-                return (dash.no_update,) * 10 + (dash.no_update,)  # 11个输出
-            try:
-                lmp_array = np.array(realtime_state.lmp_history)
-                if lmp_array.ndim != 2:
-                    raise ValueError("数据形状异常")
-                T, n = lmp_array.shape
-            except Exception as e:
-                print(f"LMP数据转换错误: {e}")
-                return (dash.no_update,) * 10 + (dash.no_update,)
+    try:
+        base_agents, _ = get_scenario(base_scenario, T=T)
+    except ValueError:
+        base_agents, _ = get_scenario("baseline", T=T)
+        nl_msg += " (未知场景，回退到基线)"
 
-            hours = np.arange(T) * 0.25
-            mean_lmp = lmp_array.mean(axis=1) if n > 0 else np.zeros(T)
-            realtime_fig = go.Figure()
-            for b in range(n):
-                realtime_fig.add_trace(go.Scatter(
-                    x=hours, y=lmp_array[:, b],
-                    mode='lines', line=dict(color='#bdc3c7', width=0.6),
-                    showlegend=False, hoverinfo='skip'))
-            realtime_fig.add_trace(go.Scatter(
-                x=hours, y=mean_lmp, mode='lines', name='节点均价',
-                line=dict(color='#e67e22', width=3)))
-            realtime_fig.update_layout(
-                title=f"伪实时电价 (已仿真 {T}/{realtime_state.total_T} 时段)",
-                xaxis_title="时间 (h)", yaxis_title="电价 (¥/MWh)",
-                template="plotly_white", legend=dict(orientation='h', y=1.1),
-                margin=dict(l=40, r=20, t=60, b=40),
-                paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
-            return (dash.no_update,) * 8 + (realtime_fig, dash.no_update, dash.no_update)
+    agents, config = advisor.apply_llm_config_to_agents(parsed, base_agents, T)
 
-    # 停止伪实时
-    if trigger_id == 'stop-btn':
-        with realtime_state.lock:
-            realtime_state.running = False
-        return (dash.no_update,) * 7 + (True, dash.no_update, dash.no_update, dash.no_update)
+    da_actions = adaptive_bidding(agents, config, strategy=strategy_nl, T=T)
+    da_results = clear_market(agents, T, "DA", da_actions, config)
+    rt_actions = adaptive_bidding(agents, config, strategy=strategy_nl, T=T)
+    rt_results = clear_market(agents, T, "RT", rt_actions, config)
+    payment = two_settlement(agents, da_results, rt_results)
 
-    # 启动伪实时
-    if trigger_id == 'realtime-btn':
-        with realtime_state.lock:
-            if not realtime_state.running:
-                thread = threading.Thread(target=run_realtime_thread,
-                                          args=(CN_TO_EN.get(scenario_cn, "baseline"), opf_mode, strategy_en, 0.5))
-                thread.daemon = True
-                thread.start()
-        realtime_fig = go.Figure().update_layout(title="伪实时已启动，等待数据...", template="plotly_white",
-                                                 paper_bgcolor='#ffffff', plot_bgcolor='#fafbfc')
-        return (dash.no_update,) * 7 + (False, realtime_fig, dash.no_update, dash.no_update)
+    net = build_base_network(config)
+    kpi = create_kpi_cards(da_results, rt_results, payment, agents, config)
+    agents_info = [{"bus": a.bus, "name": a.name, "is_prosumer": a.is_prosumer} for a in agents]
+    topo_fig = create_topology_figure(net, agents_info=agents_info, lmp_arr=da_results['lmp'])
+    lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")
+    trade_fig = create_trade_figure(da_results, agents)
+    soc_fig = create_soc_figure(da_results, agents)
+    pay_tab = create_payment_table(payment, agents)
 
-    # 停止仿真（静态分析 / 自然语言解析）
-    with realtime_state.lock:
-        realtime_state.running = False
+    advisor2 = LLMAdvisor()
+    summary = build_insight_summary(da_results, agents, base_scenario)
+    ai_output = advisor2.get_insight(summary)
 
-    # 准备静态分析
-    if trigger_id in ['static-btn', 'parse-btn', 'scenario-dropdown']:
-        if trigger_id == 'parse-btn' and nl_text and nl_text.strip():
-            advisor = LLMAdvisor()
-            parsed = advisor.parse_natural_language_to_config(nl_text.strip())
-            nl_msg = f"✅ 解析结果: 场景={parsed['scenario_type']}, 参数={parsed['parameters']}"
-            print(nl_msg)
+    last_simulation.update({
+        "agents": agents,
+        "config": config,
+        "actions": da_actions,
+        "T": T,
+        "scenario": base_scenario,
+        "strategy": strategy_nl,
+    })
 
-            # 提取参数
-            scenario_type = parsed.get("scenario_type", "baseline")
-            params = parsed.get("parameters", {})
-            T = int(params.get("T", 96))
-            load_factor = float(params.get("load_factor", 1.0))
-            re_factor = float(params.get("re_factor", 1.0))
-            line_cap_factor = float(params.get("line_capacity_factor", 1.0))
-            strategy_nl = params.get("strategy", "random")
-            if strategy_nl not in ["random", "best_response"]:
-                strategy_nl = "random"
+    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
 
-            config = MarketConfig(opf_mode='lindistflow', verbose=False)
-            config.line_capacity_multiplier = 3.0 * line_cap_factor
-
-            try:
-                agents, _ = get_scenario(scenario_type, T=T)
-            except ValueError:
-                agents, _ = get_scenario("baseline", T=T)
-                nl_msg += " (警告: 未知场景，已替换为基准)"
-
-            # 缩放可再生和负荷
-            for a in agents:
-                a.load_forecast *= load_factor
-                a.load_real *= load_factor
-                if a.is_prosumer:
-                    a.pv_forecast *= re_factor
-                    a.pv_real *= re_factor
-                if a.has_wind:
-                    a.wind_forecast *= re_factor #type: ignore
-                    a.wind_real *= re_factor   #type: ignore
-
-            da_actions = adaptive_bidding(agents, config, strategy=strategy_nl)
-            da_results = clear_market(agents, T, "DA", da_actions, config)
-            rt_actions = adaptive_bidding(agents, config, strategy=strategy_nl)
-            rt_results = clear_market(agents, T, "RT", rt_actions, config)
-            payment = two_settlement(agents, da_results, rt_results)
-
-            # 静态数据
-            static_data = {'agents_names': [a.name for a in agents], 'da_actions': {}}
-            for a in agents:
-                static_data['da_actions'][a.name] = {
-                    'bid_mult': da_actions[a.name].get('bid_mult', np.ones(T)).tolist()
-                    if isinstance(da_actions[a.name].get('bid_mult'), np.ndarray)
-                    else da_actions[a.name].get('bid_mult', 1.0),
-                    'offer_adder': da_actions[a.name].get('offer_adder', np.zeros(T)).tolist()
-                    if isinstance(da_actions[a.name].get('offer_adder'), np.ndarray)
-                    else da_actions[a.name].get('offer_adder', 0.0)
-                }
-        else:
-            # 普通静态分析
-            scenario_en = CN_TO_EN.get(scenario_cn, "baseline")
-            agents, config, da_results, rt_results, payment, da_actions = run_static_analysis(
-                scenario_en, strategy=strategy_en, opf_mode=opf_mode
-            )
-            static_data = {'agents_names': [a.name for a in agents], 'da_actions': {}}
-            for a in agents:
-                static_data['da_actions'][a.name] = {
-                    'bid_mult': da_actions[a.name].get('bid_mult', np.ones(96)).tolist()
-                    if isinstance(da_actions[a.name].get('bid_mult'), np.ndarray)
-                    else da_actions[a.name].get('bid_mult', 1.0),
-                    'offer_adder': da_actions[a.name].get('offer_adder', np.zeros(96)).tolist()
-                    if isinstance(da_actions[a.name].get('offer_adder'), np.ndarray)
-                    else da_actions[a.name].get('offer_adder', 0.0)
-                }
-
-        # 构建图表
-        net = build_base_network(config)
-        kpi = create_kpi_cards(da_results, rt_results, payment, agents)
-        topo_fig = create_topology_figure(net)
-        lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价")
-        trade_fig = create_trade_figure(da_results, agents)
-        soc_fig = create_soc_figure(da_results, agents)
-        pay_tab = create_payment_table(payment, agents)
-
-        # 自动 AI 分析（≤200字）
-        advisor = LLMAdvisor()
-        summary = build_insight_summary(da_results, agents, scenario_cn)
-        ai_output = advisor.get_insight(summary)
-
-        return (static_data, kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab,
-                True, realtime_fig, nl_msg, ai_output)
-
-    raise PreventUpdate
 
 # ------------------------------
-# 纳什检验回调（保持不变）
+# Nash equilibrium test callback
 # ------------------------------
 @app.callback(
     Output('nash-output', 'children'),
     Input('nash-btn', 'n_clicks'),
-    State('static-data-store', 'data'),
-    State('scenario-dropdown', 'value'),
-    State('opf-dropdown', 'value')
+    prevent_initial_call=True
 )
-def run_nash_check(n_clicks, static_data, scenario_cn, opf_mode):
-    if n_clicks is None or static_data is None:
-        return "请先运行静态分析"
-    scenario_en = CN_TO_EN.get(scenario_cn, "baseline")
-    config = MarketConfig(opf_mode=opf_mode, verbose=False)
-    agents, _ = get_scenario(scenario_en, T=96)
-    da_actions = {}
-    for a in agents:
-        if a.name in static_data['agents_names']:
-            da_actions[a.name] = {
-                'bid_mult': np.array(static_data['da_actions'][a.name]['bid_mult']),
-                'offer_adder': np.array(static_data['da_actions'][a.name]['offer_adder'])
-            }
-        else:
-            da_actions[a.name] = {'bid_mult': np.ones(96), 'offer_adder': np.zeros(96)}
-    tester = NashEquilibriumTester(agents, config, T=96, stage="DA")
-    is_nash, improvements = tester.test_nash_equilibrium(da_actions, threshold=30.0)
-    if is_nash:
-        return html.Span("✅ 当前策略接近纳什均衡", style={'color': '#27ae60'})
-    else:
-        try:
-            nash_strat, iters = tester.iter_fictitious_play(da_actions, max_iter=5, num_variations=10, alpha=0.3)
-            final_nash, _ = tester.test_nash_equilibrium(nash_strat, threshold=30.0)
-            if final_nash:
-                return html.Span(f"✅ 找到近似纳什均衡 (迭代 {iters} 次)", style={'color': '#27ae60'})
-            else:
-                return html.Span(f"⚠️ 未达均衡，策略已优化 (迭代 {iters} 次)", style={'color': '#e67e22'})
-        except Exception as e:
-            return html.Span(f"纳什检验异常: {e}", style={'color': '#e74c3c'})
+def nash_callback(n_clicks):
+    if not n_clicks:
+        raise PreventUpdate
 
-# ------------------------------
+    if not last_simulation or "agents" not in last_simulation:
+        return dbc.Alert("请先运行仿真，然后再点击纳什检验", color='warning',
+                         style={'borderRadius': '12px'})
+
+    agents = last_simulation["agents"]
+    config = last_simulation["config"]
+    actions = last_simulation["actions"]
+    T = last_simulation.get("T", 96)
+    strategy = last_simulation.get("strategy", "mpc")
+
+    tester = NashEquilibriumTester(agents, config, T=T, parallel=False,
+                                   use_optimization=False)
+    is_nash, improvements = tester.test_nash_equilibrium(actions)
+
+    rows = []
+    for name, imp in improvements.items():
+        gain = imp["gain"]
+        profitable = imp["profitable"]
+        badge_color = "danger" if profitable else "success"
+        status_text = "可获利" if profitable else "均衡"
+        status_color = "#ef4444" if profitable else "#10b981"
+
+        rows.append(html.Tr([
+            html.Td(name, style={'fontWeight': '600', 'color': '#1e293b'}),
+            html.Td(f"{imp['base_payoff']:,.0f}", style={
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(f"{imp['best_payoff']:,.0f}", style={
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(dbc.Badge(
+                f"{gain:+,.0f} ({imp['rel_gain']:+.3f})",
+                color=badge_color,
+                className='border',
+                style={'fontSize': '12px', 'fontFamily': '"JetBrains Mono", monospace'}
+            )),
+            html.Td(status_text, style={'color': status_color, 'fontWeight': '600'}),
+        ]))
+
+    # Summary bar
+    n_total = len(improvements)
+    n_profitable = sum(1 for imp in improvements.values() if imp["profitable"])
+    status_color = "#10b981" if is_nash else "#ef4444"
+    status_text = "纳什均衡已达成" if is_nash else f"未达均衡（{n_profitable}/{n_total} Agent 存在获利偏离）"
+    status_icon = "✔" if is_nash else "✖"
+
+    result = html.Div([
+        html.Div([
+            html.Span(status_icon, style={
+                'fontSize': '22px', 'marginRight': '10px',
+                'color': status_color, 'fontWeight': '700'
+            }),
+            html.Span(status_text, style={
+                'color': status_color, 'fontWeight': '600', 'fontSize': '15px'
+            }),
+        ], style={'marginBottom': '16px'}),
+        dbc.Table([
+            html.Thead(html.Tr([
+                html.Th("Agent"), html.Th("当前收益", style={'textAlign': 'right'}),
+                html.Th("最优收益", style={'textAlign': 'right'}),
+                html.Th("偏离增益 (相对)"), html.Th("判定"),
+            ])),
+            html.Tbody(rows),
+        ], bordered=True, hover=True, responsive=True, size='sm',
+           style={'fontSize': '13px'}),
+    ])
+
+    return result
+
+
 app.index_string = '''
 <!DOCTYPE html>
 <html>
     <head>{%metas%}<title>{%title%}</title>{%favicon%}{%css%}
         <style>
-            body { background-color: #f5f7fa; margin: 0; }
-            .kpi-card { background-color: #ffffff; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: center; min-width: 140px; border-left: 6px solid #3498db; }
-            .kpi-card h3 { margin-top: 0; font-size: 14px; font-weight: 600; color: #5a6c7d; }
-            table { width: 100%; border-collapse: collapse; font-size: 14px; }
-            th { background-color: #ebf5fb; color: #2c3e50; padding: 12px; text-align: left; }
-            td { padding: 10px 12px; border-bottom: 1px solid #d0d7e3; }
-            tr:hover { background-color: #ebf5fb; }
+            *, *::before, *::after { box-sizing: border-box; }
+            body {
+                background-color: #f0f2f5; margin: 0;
+                font-family: "Inter", "Segoe UI", "PingFang SC", Arial, sans-serif;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            .chart-card {
+                transition: box-shadow 0.2s ease;
+            }
+            .chart-card:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04) !important;
+            }
+
+            .kpi-card {
+                background: #ffffff;
+                padding: 18px 20px;
+                border-radius: 14px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+                text-align: center;
+                min-width: 140px;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+            .kpi-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+            }
+
+            #nl-input:focus, #nl-input:focus-within {
+                border-color: #4f46e5 !important;
+                box-shadow: 0 0 0 3px rgba(79,70,229,0.12) !important;
+            }
+
+            #parse-btn:hover {
+                background-color: #4338ca !important;
+                box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+            }
+            #parse-btn:active {
+                transform: scale(0.97);
+            }
+
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+            ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+            .modebar { opacity: 0.3; transition: opacity 0.2s; }
+            .chart-card:hover .modebar { opacity: 1; }
         </style>
     </head>
     <body>{%app_entry%}<footer>{%config%}{%scripts%}{%renderer%}</footer></body>
@@ -854,4 +991,4 @@ app.index_string = '''
 '''
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8050)
+    app.run(debug=True, port=8056)

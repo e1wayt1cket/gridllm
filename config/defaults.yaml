@@ -1,0 +1,77 @@
+# Default configuration for agent and network parameters.
+# All values previously hardcoded in grid.py are externalized here.
+
+network:
+  name: case33bw
+
+profiles:
+  pv:
+    amplitude: 1.0
+    period_hours: 24
+    phase_shift_hours: -6
+  wind:
+    seed: 42
+  load:
+    forecast_noise_sigma: 0.06
+    real_noise_sigma: 0.12
+
+load_types:
+  residential:
+    buses: [0, 1, 2, 3, 4, 5, 6, 18, 19, 20, 21]
+    load_multiplier: 0.9
+    bid_value: 580.0
+  commercial:
+    buses: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    load_multiplier: 1.0
+    bid_value: 750.0
+  industrial:
+    buses: [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+    load_multiplier: 1.1
+    bid_value: 680.0
+
+prosumers:
+  residential:
+    prosumer_buses: [5, 12]
+    pv_capacity_factor: 3.8
+    pv_forecast_noise: 0.15
+    pv_real_noise: 0.20
+    storage:
+      capacity_factor: 2.0
+      power_ratio: 0.2
+      eta_ch: 0.93
+      eta_dis: 0.93
+      soc0: 0.5
+      soc_min: 0.0
+      soc_max: 1.0
+    bid_value: 350.0
+    offer_cost: 180.0
+  industrial:
+    prosumer_buses: [22, 25]
+    wind_capacity_factor: 4.5
+    wind_forecast_noise: 0.12
+    wind_real_noise: 0.18
+    storage:
+      capacity_factor: 4.0
+      power_ratio: 0.2
+      eta_ch: 0.94
+      eta_dis: 0.94
+      soc0: 0.5
+      soc_min: 0.0
+      soc_max: 0.95
+    bid_value: 720.0
+    offer_cost: 300.0
+
+price_curve:
+  base: 420.0
+  amplitude_1: 300.0
+  phase_1_hours: -9
+  amplitude_2: 150.0
+  phase_2_hours: -20
+  noon_dip_amplitude: -80.0
+  noon_dip_center: 13
+  noon_dip_width: 8
+  min_price: 150.0
+  max_price: 800.0
+  noise_sigma: 30.0
+  hard_min: -50.0
+  hard_max: 1200.0

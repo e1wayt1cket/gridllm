@@ -3,114 +3,114 @@ import numpy as np
 from typing import List, Tuple
 from models import MarketConfig, Agent
 from grid import build_base_network, create_agents_from_network, day_ahead_price_china
+from config_loader import get_scenario_cfg
 
-def _build_base(config: MarketConfig, T: int, with_wind: bool) -> Tuple[List[Agent], np.ndarray]:
+
+def _build_scenario(name: str, T: int) -> Tuple[List[Agent], np.ndarray]:
+    """Generic scenario builder driven by config/scenarios.yaml.
+
+    Supported YAML keys per scenario:
+      - with_wind: bool (default True)
+      - multipliers: {pv, wind, load} -> float factor applied to agent forecasts
+      - override_config: dict of MarketConfig field overrides
+      - re_ramp: {type: sudden_drop|sudden_surge, multiplier: float}
+        Transforms PV/wind forecasts at midpoint by the given multiplier.
+    """
+    cfg = get_scenario_cfg(name)
+    if not cfg:
+        raise ValueError(f"Unknown scenario '{name}'")
+
+    with_wind = cfg.get("with_wind", True)
+    multipliers = cfg.get("multipliers", {})
+    override = cfg.get("override_config", {})
+    re_ramp = cfg.get("re_ramp", None)
+
+    config = MarketConfig(use_ac_opf=False, **override)
     net = build_base_network(config)
     agents = create_agents_from_network(net, T, with_wind=with_wind)
     wholesale = day_ahead_price_china(T)
-    return agents, wholesale
 
-# ======================== 核心场景函数 ========================
-def scenario_baseline(T: int = 96) -> Tuple[List[Agent], np.ndarray]:
-    """基准-风光储"""
-    config = MarketConfig(use_ac_opf=False)
-    return _build_base(config, T, with_wind=True)
+    # --- apply multipliers ---
+    pv_mult = multipliers.get("pv", 1.0)
+    wind_mult = multipliers.get("wind", 1.0)
+    load_mult = multipliers.get("load", 1.0)
 
-def scenario_high_re(T: int = 96, multiplier: float = 2.0) -> Tuple[List[Agent], np.ndarray]:
-    """高可再生：光伏、风电容量翻倍"""
-    config = MarketConfig(use_ac_opf=False)
-    agents, wholesale = _build_base(config, T, with_wind=True)
     for a in agents:
+        a.load_forecast = a.load_forecast * load_mult
+        a.load_real = a.load_real * load_mult
         if a.is_prosumer:
-            a.pv_forecast *= multiplier
-            a.pv_real *= multiplier
+            a.pv_forecast = a.pv_forecast * pv_mult
+            a.pv_real = a.pv_real * pv_mult
         if a.has_wind:
-            a.wind_forecast *= multiplier #type: ignore
-            a.wind_real *= multiplier   #type: ignore
-    return agents, wholesale
+            a.wind_forecast = a.wind_forecast * wind_mult  # type: ignore[operator]
+            a.wind_real = a.wind_real * wind_mult  # type: ignore[operator]
 
-def scenario_peak_load(T: int = 96, multiplier: float = 1.8) -> Tuple[List[Agent], np.ndarray]:
-    """高峰负荷：所有负荷×1.8"""
-    config = MarketConfig(use_ac_opf=False)
-    agents, wholesale = _build_base(config, T, with_wind=True)
-    for a in agents:
-        a.load_forecast *= multiplier
-        a.load_real *= multiplier
-    return agents, wholesale
-
-def scenario_congestion(T: int = 96, capacity_mult: float = 0.5) -> Tuple[List[Agent], np.ndarray]:
-    """网络阻塞：线路容量降至50%"""
-    config = MarketConfig(use_ac_opf=False, line_capacity_multiplier=capacity_mult)
-    return _build_base(config, T, with_wind=True)
-
-def scenario_re_ramp_drop(T: int = 96) -> Tuple[List[Agent], np.ndarray]:
-    """新能源骤降：中期突降至10%"""
-    return _scenario_re_ramp_event(T, "sudden_drop")
-
-def scenario_re_ramp_surge(T: int = 96) -> Tuple[List[Agent], np.ndarray]:
-    """新能源骤升：中期突增至正常"""
-    return _scenario_re_ramp_event(T, "sudden_surge")
-
-def _scenario_re_ramp_event(T: int, ramp_type: str) -> Tuple[List[Agent], np.ndarray]:
-    config = MarketConfig(use_ac_opf=False)
-    agents, wholesale = _build_base(config, T, with_wind=True)
-    for a in agents:
-        if not (a.is_prosumer or a.has_wind):
-            continue
-        pv_orig = a.pv_forecast.copy()
-        wind_orig = a.wind_forecast.copy() if a.has_wind and a.wind_forecast is not None else np.zeros(T)
-        pv_new = np.zeros(T)
-        wind_new = np.zeros(T)
+    # --- apply RE ramp event ---
+    if re_ramp is not None:
+        ramp_type = re_ramp.get("type", "sudden_drop")
+        ramp_mult = re_ramp.get("multiplier", 0.1)
         mid = T // 2
-        if ramp_type == "sudden_drop":
-            pv_new[:mid] = pv_orig[:mid]
-            pv_new[mid:] = pv_orig[mid:] * 0.1
+        for a in agents:
+            if not (a.is_prosumer or a.has_wind):
+                continue
+            pv_orig = a.pv_forecast.copy()
+            wind_orig = a.wind_forecast.copy() if a.has_wind and a.wind_forecast is not None else np.zeros(T)
+            pv_new = np.zeros(T)
+            wind_new = np.zeros(T)
+            if ramp_type == "sudden_drop":
+                pv_new[:mid] = pv_orig[:mid]
+                pv_new[mid:] = pv_orig[mid:] * ramp_mult
+                if a.has_wind:
+                    wind_new[:mid] = wind_orig[:mid]
+                    wind_new[mid:] = wind_orig[mid:] * ramp_mult
+            else:  # sudden_surge
+                pv_new[:mid] = pv_orig[:mid] * ramp_mult
+                pv_new[mid:] = pv_orig[mid:]
+                if a.has_wind:
+                    wind_new[:mid] = wind_orig[:mid] * ramp_mult
+                    wind_new[mid:] = wind_orig[mid:]
+            a.pv_forecast = pv_new
+            a.pv_real = pv_new * 0.95
             if a.has_wind:
-                wind_new[:mid] = wind_orig[:mid]
-                wind_new[mid:] = wind_orig[mid:] * 0.1
-        else:  # sudden_surge
-            pv_new[:mid] = pv_orig[:mid] * 0.1
-            pv_new[mid:] = pv_orig[mid:]
-            if a.has_wind:
-                wind_new[:mid] = wind_orig[:mid] * 0.1
-                wind_new[mid:] = wind_orig[mid:]
-        a.pv_forecast = pv_new
-        a.pv_real = pv_new * 0.95
-        if a.has_wind:
-            a.wind_forecast = wind_new
-            a.wind_real = wind_new * 0.95
+                a.wind_forecast = wind_new
+                a.wind_real = wind_new * 0.95
+
     return agents, wholesale
 
-# ======================== 场景注册表 ========================
-SCENARIO_REGISTRY = {
-    "baseline":        scenario_baseline,
-    "high_re":         scenario_high_re,
-    "peak_load":       scenario_peak_load,
-    "congestion":      scenario_congestion,
-    "re_ramp_drop":    scenario_re_ramp_drop,
-    "re_ramp_surge":   scenario_re_ramp_surge,
-}
+
+# ---- registry ----
+SCENARIO_REGISTRY: dict = {}  # populated lazily from scenarios.yaml
+
+
+def _load_registry():
+    """Lazy-load scenario names from YAML config."""
+    from config_loader import load_scenarios
+    if SCENARIO_REGISTRY:
+        return
+    scenarios_dict = load_scenarios().get("scenarios", {})
+    for name in scenarios_dict:
+        SCENARIO_REGISTRY[name] = None  # value unused; name is the key
+
 
 def get_scenario(name: str, T: int = 96) -> Tuple[List[Agent], np.ndarray]:
+    _load_registry()
     if name not in SCENARIO_REGISTRY:
-        raise ValueError(f"未知场景 '{name}'，可选：{list(SCENARIO_REGISTRY.keys())}")
-    return SCENARIO_REGISTRY[name](T=T)
+        raise ValueError(f"Unknown scenario '{name}'. Available: {list(SCENARIO_REGISTRY.keys())}")
+    return _build_scenario(name, T)
+
 
 def list_scenarios() -> List[str]:
+    _load_registry()
     return list(SCENARIO_REGISTRY.keys())
 
+
 def print_scenario_info():
-    desc = {
-        "baseline":      "基准-风光储：居民/商业/工业，光伏、风电、储能",
-        "high_re":       "高可再生：光伏、风电容量翻倍",
-        "peak_load":     "高峰负荷：负荷×1.8",
-        "congestion":    "网络阻塞：线路容量50%",
-        "re_ramp_drop":  "新能源骤降：中期突降至10%",
-        "re_ramp_surge": "新能源骤升：中期突增至正常",
-    }
+    """Print all available scenarios with descriptions from config."""
     print("=" * 60)
-    print("可用场景")
+    print("Available scenarios")
     print("=" * 60)
-    for key in SCENARIO_REGISTRY:
-        print(f"  {key:<20s}: {desc.get(key, '')}")
+    for key in list_scenarios():
+        cfg = get_scenario_cfg(key)
+        desc = cfg.get("description", "") if cfg else ""
+        print(f"  {key:<20s}: {desc}")
     print("=" * 60)
