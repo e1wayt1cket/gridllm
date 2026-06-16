@@ -6,7 +6,7 @@ Methods:
   - Jacobi (parallel diagonalization): simultaneous updates from shared snapshot.
   - Fictitious play: each agent best-responds to average of opponents' history.
 
-Best response: COBYLA over strategy blocks (default 8 blocks, ~3h each).
+Best response: COBYLA over strategy blocks (default 24 blocks, hourly for T=96).
 Fallback: random sampling when scipy is unavailable or use_optimization=False.
 """
 
@@ -51,20 +51,33 @@ def _blocks_to_strategy(blocks: np.ndarray, T: int = 96) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def _evaluate_payoffs(args):
-    """Evaluate payoff for a single strategy variant (multiprocessing target)."""
+    """Evaluate economic surplus for a single agent under a strategy profile.
+
+    Returns the agent's full individual surplus:
+      bid_value * served  — consumption value
+      - p_buy * price     — grid import cost
+      + p_sell * price    — grid export revenue
+      - offer_cost * gen  — generation cost (PV + wind)
+      - penalty * unserved
+
+    This captures self-consumption value (PV serving own load with zero
+    market transaction) that the naive sell*price - buy*price misses.
+    """
     agents, config, T, stage, action_variant, target_name = args
     try:
         result = clear_market(agents, T, stage, action_variant, config)
     except Exception:
-        return target_name, -1e12, None
+        return target_name, float('-inf'), None
     sched = result["schedules"][target_name]
     lmp = result["lmp"]
-    bus = next(a.bus for a in agents if a.name == target_name)
+    agent = next(a for a in agents if a.name == target_name)
+    bus = agent.bus
     node_price = lmp[:, bus]
-    sell = np.sum(sched["p_sell"] * node_price)
-    buy = np.sum(sched["p_buy"] * node_price)
-    penalty = np.sum(sched["unserved"] * config.penalty_unserved)
-    payoff = sell - buy - penalty
+    consumption_value = agent.bid_value * np.sum(sched["served"])
+    generation_cost = agent.offer_cost * np.sum(sched["pv_used"] + sched["wind_used"])
+    market_payment = np.sum(sched["p_sell"] * node_price) - np.sum(sched["p_buy"] * node_price)
+    penalty = config.penalty_unserved * np.sum(sched["unserved"])
+    payoff = consumption_value - generation_cost + market_payment - penalty
     return target_name, float(payoff), action_variant.get(target_name)
 
 
@@ -73,10 +86,10 @@ def _evaluate_payoffs(args):
 # ---------------------------------------------------------------------------
 
 def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
-                            block_count=8, maxiter=50):
+                            block_count=24, maxiter=500):
     """Find best response via COBYLA over block-level strategy parameters.
 
-    Reduces 96-dim strategy to block_count dims (e.g. 8 blocks of 12 periods).
+    Reduces 96-dim strategy to block_count dims (e.g. 24 blocks of 4 periods).
     COBYLA handles the black-box OPF objective without derivatives.
     """
     name = agent.name
@@ -110,7 +123,7 @@ def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
 
         r_name, payoff, _ = _evaluate_payoffs(
             (agents, config, T, stage, trial, name))
-        return -payoff if r_name == name else 1e12
+        return -payoff if r_name == name else float('inf')
 
     try:
         res = _scipy_minimize(_objective, x0, method='COBYLA',
@@ -137,14 +150,14 @@ def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
     trial_final[name] = best_strat
     r_name, payoff, _ = _evaluate_payoffs(
         (agents, config, T, stage, trial_final, name))
-    return name, payoff if r_name == name else -1e12, best_strat
+    return name, payoff if r_name == name else float('-inf'), best_strat
 
 
 # ---------------------------------------------------------------------------
 # Random-sampling best response (fallback)
 # ---------------------------------------------------------------------------
 
-def _generate_variations(base_strategy, agent, config, num_variations=5,
+def _generate_variations(base_strategy, agent, config, num_variations=50,
                          exploration_scale=None):
     """Generate perturbed strategy variants via random normal sampling."""
     variants = []
@@ -181,7 +194,7 @@ def _evaluate_best_response(args):
     variants = _generate_variations(base_strategy, agent, config,
                                     num_variations, exploration_scale)
 
-    best_pay = -1e12
+    best_pay = float('-inf')
     best_strat = copy.deepcopy(base_strategy[name])
     for var in variants:
         r_name, payoff, _ = _evaluate_payoffs(
@@ -251,12 +264,12 @@ class NashEquilibriumTester:
     use_optimization : bool or None
         Whether to use COBYLA block optimization for best response.
         None auto-detects: True if scipy is available.
-    block_count : int, default 8
-        Number of strategy blocks (each ~3h for T=96). Fewer = faster but coarser.
+    block_count : int, default 24
+        Number of strategy blocks (hourly for T=96). Fewer = faster but coarser.
     """
 
     def __init__(self, agents, config, T=96, stage="DA", parallel=None,
-                 use_optimization=None, block_count=8):
+                 use_optimization=None, block_count=24):
         self.agents = agents
         self.config = config
         self.T = T
@@ -270,7 +283,7 @@ class NashEquilibriumTester:
 
     # -- best response dispatch ---------------------------------------------
 
-    def _best_response(self, agent, base_strategy, num_variations=5):
+    def _best_response(self, agent, base_strategy, num_variations=50):
         """Dispatch: COBYLA optimization or random sampling."""
         cache_key = self._make_cache_key(agent.name, base_strategy)
         if cache_key in self._payoff_cache:
@@ -289,11 +302,20 @@ class NashEquilibriumTester:
         return result
 
     def _make_cache_key(self, target_name, strategy):
-        """Hash a strategy dict for payoff cache lookup."""
-        s = strategy.get(target_name, {})
-        bid = tuple(np.round(s.get("bid_mult", []), 3))
-        offer = tuple(np.round(s.get("offer_adder", []), 3))
-        return (target_name, bid, offer)
+        """Hash the full strategy profile for payoff cache lookup.
+
+        Includes ALL agents' strategies, not just the target's own. Otherwise,
+        in diagonalization, when Agent A updates and Agent B re-computes BR
+        with unchanged bid_mult/offer_adder, the cache returns a stale payoff
+        computed against Agent A's old strategy.
+        """
+        parts = [target_name]
+        for a in sorted(self.agents, key=lambda x: x.name):
+            s = strategy.get(a.name, {})
+            parts.append(tuple(np.round(s.get("bid_mult", []), 3)))
+            if a.is_prosumer:
+                parts.append(tuple(np.round(s.get("offer_adder", []), 3)))
+        return tuple(parts)
 
     def _clear_cache(self):
         self._payoff_cache.clear()
@@ -334,7 +356,7 @@ class NashEquilibriumTester:
     # Diagonalization (Gauss-Seidel sequential best response)
     # ------------------------------------------------------------------
 
-    def diagonalization(self, init_strategy, max_iter=8, num_variations=5,
+    def diagonalization(self, init_strategy, max_iter=8, num_variations=50,
                         alpha=1.0, tol_distance=0.01, history=None):
         """Gauss-Seidel diagonalization.
 
@@ -380,7 +402,7 @@ class NashEquilibriumTester:
     # Jacobi (parallel diagonalization)
     # ------------------------------------------------------------------
 
-    def jacobi(self, init_strategy, max_iter=10, num_variations=5,
+    def jacobi(self, init_strategy, max_iter=10, num_variations=50,
                alpha=0.6, tol_distance=0.01, history=None):
         """Jacobi parallel best response.
 
@@ -445,7 +467,7 @@ class NashEquilibriumTester:
     # ------------------------------------------------------------------
 
     def iter_fictitious_play(self, init_strategy, max_iter=10,
-                             num_variations=5, alpha=0.3,
+                             num_variations=50, alpha=0.3,
                              tol_relative=0.001, adaptive_alpha=True,
                              history=None):
         """Fictitious play: each agent best-responds to average of opponents' history.
@@ -527,7 +549,7 @@ class NashEquilibriumTester:
     # Nash equilibrium test
     # ------------------------------------------------------------------
 
-    def test_nash_equilibrium(self, base_strategy, num_variations=5,
+    def test_nash_equilibrium(self, base_strategy, num_variations=50,
                               threshold_rel=0.01, threshold_abs=30.0):
         """Test whether current strategy profile is a Nash equilibrium.
 
@@ -568,7 +590,7 @@ class NashEquilibriumTester:
         is_nash = True
         improvements = {}
         for name, best_pay, _ in br_results:
-            base_pay = base_payoffs.get(name, -1e12)
+            base_pay = base_payoffs.get(name, float('-inf'))
             agent = next(a for a in self.agents if a.name == name)
             gain = best_pay - base_pay
             rel_gain = gain / max(abs(base_pay), 1.0)

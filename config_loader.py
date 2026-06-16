@@ -61,6 +61,7 @@ def get_load_type_cfg(load_type: str) -> dict:
     return get_default(f"load_types.{load_type}", {})
 
 
+
 # ---------------------------------------------------------------------------
 # Write / persist methods
 # ---------------------------------------------------------------------------

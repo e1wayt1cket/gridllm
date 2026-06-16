@@ -1,7 +1,7 @@
 # pseudo_realtime.py
 """
-伪实时仿真：按时间步长逐步求解 RT 市场，储能状态滚动更新。
-每个仿真时段可映射为任意真实秒数（默认 1 秒），支持墙钟同步。
+Pseudo-real-time simulation: solves RT market step by step with rolling storage SOC.
+Each simulation period maps to configurable real seconds (default 1s), with wall-clock sync.
 """
 import sys
 import time

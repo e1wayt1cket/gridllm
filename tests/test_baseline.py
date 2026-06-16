@@ -4,6 +4,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
+import pytest
 from models import MarketConfig
 from market import clear_market, adaptive_bidding, two_settlement
 from scenarios import get_scenario
@@ -97,10 +98,13 @@ def test_peak_load_higher_welfare():
         f"peak_load welfare {r_p['welfare']:.0f} <= baseline {r_b['welfare']:.0f}"
 
 
+@pytest.mark.skip(reason="constraint-based multi-objective system removed from dispatch")
 def test_constraint_mode_feasible():
     """Constraint mode with default caps should be feasible and meet targets."""
     T = 96
-    config = MarketConfig(opf_mode="lindistflow", verbose=False)
+    config = MarketConfig(opf_mode="lindistflow", verbose=False,
+                          use_constraint_multi_obj=True,
+                          carbon_cap_tco2=200.0, re_min_rate=90.0)
     agents, _ = get_scenario("baseline", T=T)
     actions = adaptive_bidding(agents, config, strategy="random")
     results = clear_market(agents, T, "DA", actions, config)
@@ -189,15 +193,17 @@ def test_two_settlement_flow():
     rt = clear_market(agents, T, "RT", rt_actions, config)
     payment = two_settlement(agents, da, rt)
 
+    da_lmp = da.get("lmp")
+    rt_lmp = rt.get("lmp")
     for a in agents:
         p = payment[a.name]
+        lmp_da = da_lmp[:, a.bus] if da_lmp is not None else da["price"]
+        lmp_rt = rt_lmp[:, a.bus] if rt_lmp is not None else rt["price"]
         da_net = (da["schedules"][a.name]["p_buy"]
                   - da["schedules"][a.name]["p_sell"])
         rt_net = (rt["schedules"][a.name]["p_buy"]
                   - rt["schedules"][a.name]["p_sell"])
-        da_expected = np.sum(da["price"] * da_net)
-        rt_expected = np.sum(rt["price"] * (rt_net - da_net))
-        expected_p = da_expected + rt_expected
+        expected_p = np.sum(lmp_da * da_net) + np.sum(lmp_rt * (rt_net - da_net))
         assert abs(p - expected_p) < 1e-4, \
             f"{a.name}: payment {p:.2f} vs expected {expected_p:.2f}"
 

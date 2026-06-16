@@ -5,8 +5,8 @@ from typing import Optional, Tuple
 
 @dataclass
 class MarketConfig:
-    opf_mode: str = "lindistflow"      # "dc" 或 "lindistflow"
-    use_ac_opf: bool = False           # 保留兼容
+    opf_mode: str = "lindistflow"      # "dc" or "lindistflow"
+    use_ac_opf: bool = False           # retained for compatibility
     opf_tolerance: float = 1e-6
     opf_max_iter: int = 100
     verbose: bool = False
@@ -14,36 +14,36 @@ class MarketConfig:
     offer_adder_range: Tuple[float, float] = (0.0, 50.0)
     default_bid_mult: float = 1.0
     default_offer_adder: float = 0.0
-    line_capacity_multiplier: float = 3.0
-    penalty_unserved: float = 800.0
+    line_capacity_multiplier: float = 1.0
+    penalty_unserved: float = 5000.0
     base_mva: float = 1.0
     base_kv: float = 12.66
+    v_min_pu: float = 0.78      # min voltage in LinDistFlow (accounts for linearization error vs AC PF)
+    v_max_pu: float = 1.05      # max voltage
     # Multi-objective optimization weights
     lambda_re: float = 50.0           # RE incentive (CNY/MWh)
-    lambda_curtail: float = 15.0      # Curtailment penalty (CNY/MWh)
+    lambda_curtail: float = 200.0     # Curtailment penalty (CNY/MWh), comparable to avg LMP
     lambda_carbon: float = 50.0       # Carbon cost (CNY/tCO2)
     emission_factor_grid: float = 0.58  # Grid emission factor (tCO2/MWh)
-    enable_multi_objective: bool = True
-    # Constraint-based multi-objective (hard constraints instead of weighted-sum)
-    use_constraint_multi_obj: bool = True
-    carbon_cap_tco2: Optional[float] = 200.0   # hard cap on total carbon
-    re_min_rate: Optional[float] = 95.0       # minimum RE consumption rate (0-100)
+    enable_multi_objective: bool = False
+    # Constraint-based multi-objective (hard constraints) — disabled
+    use_constraint_multi_obj: bool = False
+    carbon_cap_tco2: Optional[float] = None
+    re_min_rate: Optional[float] = None
     # Storage mode thresholds (per-unit, relative to bid/offer)
     storage_charge_discount: float = 0.85   # bid * roundtrip_eff * this → charge trigger
     storage_discharge_premium: float = 1.15  # offer / roundtrip_eff * this → discharge trigger
-    storage_soc_buffer: float = 0.02  # SOC buffer from min/max before forced charge/discharge
+    storage_soc_buffer: float = 0.05  # SOC buffer from min/max before forced charge/discharge
     storage_terminal_value: Optional[float] = None  # None = use day-ahead mean price
-    lambda_cycle: float = 0.0      # Cycling degradation cost (CNY/MWh per ch+dis)
+    lambda_cycle: float = 50.0     # Cycling degradation cost (CNY/MWh per ch+dis)
+    load_power_factor: float = 0.9  # Load power factor (lagging) for reactive power
+    n_loss_iters: int = 2          # Iterations for I²R loss linearization (0=no losses)
+    use_nodal_storage_price: bool = True  # Two-pass: re-solve with storage at nodal LMP
     rt_forecast_mode: str = "perfect"  # perfect | da_as_forecast | noisy_da
-
-    @property
-    def use_storage_binaries(self) -> bool:
-        """Enable binary ch/dis exclusion only when cycling cost or imperfect
-        forecasts make simultaneous charge/discharge potentially attractive."""
-        return self.lambda_cycle > 0 or self.rt_forecast_mode != "perfect"
     rt_forecast_noise_pct: float = 10.0  # noise std as % of DA price (noisy_da)
-    rt_horizon: int = 4        # RT 每次优化的时段数
-    rt_step: int = 1           # RT 步长（时段）
+    rt_horizon: int = 8        # periods per RT optimization window
+    rt_step: int = 1           # RT step size (periods)
+    reactive_support: bool = True  # PV/storage inverters provide reactive power
 
 @dataclass
 class StorageSpec:
@@ -61,15 +61,6 @@ class StorageSpec:
     ramp_down_ch: Optional[float] = None
     ramp_up_dis: Optional[float] = None
     ramp_down_dis: Optional[float] = None
-    cost_ch: float = 0.0
-    cost_dis: float = 0.0
-    hot_start_cost: float = 0.0
-    warm_start_cost: float = 0.0
-    cold_start_cost: float = 0.0
-    downtime_hot: float = 8.0
-    downtime_warm: float = 48.0
-    min_operating_time: float = 0.0
-    min_down_time: float = 0.0
 
     def max_discharge_feasible(self, soc, dt=0.25):
         if soc <= self.soc_min + 1e-6:
@@ -98,6 +89,8 @@ class Agent:
     wind_real: Optional[np.ndarray] = None
     storage: Optional[StorageSpec] = None
     load_type: str = "unknown"
+    pv_capacity: float = 0.0
+    wind_capacity: float = 0.0
 
     @property
     def has_wind(self) -> bool:
@@ -109,12 +102,3 @@ class Agent:
     def get_wind_real(self):
         return self.wind_real if self.has_wind else np.array([])
 
-
-@dataclass
-class StorageUnit:
-    """Standalone grid-connected storage, independent of load/PV/wind agents."""
-    name: str
-    bus: int
-    storage: 'StorageSpec'
-    bid_value: float = 350.0    # willingness-to-pay for charging (CNY/MWh)
-    offer_cost: float = 350.0   # marginal cost for discharging (CNY/MWh)
