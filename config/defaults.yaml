@@ -3,63 +3,133 @@
 
 network:
   name: case33bw
+  base_ampacity_ka: 0.65
+  min_line_ka: 0.25
+  max_line_ka: 0.80
 
 profiles:
   pv:
     amplitude: 1.0
-    period_hours: 24
-    phase_shift_hours: -6
+    cloud_prob: 0.15
+    cloud_attenuation_min: 0.55
+    cloud_attenuation_max: 0.85
+    cloud_persistence: 0.85
+    cloud_seed: 42
   wind:
     seed: 42
+    ar_coef: 0.90
+    noise_std: 0.15
+    peak_hour: 3.0
   load:
     forecast_noise_sigma: 0.06
     real_noise_sigma: 0.12
+    # Dual-Gaussian base template (normalized to mean≈1.0)
+    morning_peak_hour: 8.0
+    morning_peak_amplitude: 0.30
+    morning_peak_width: 2.0
+    evening_peak_hour: 19.0
+    evening_peak_amplitude: 0.50
+    evening_peak_width: 2.5
+    night_base: 0.60
+    # Per-type phase shift (hours) and amplitude scale
+    type_overrides:
+      residential:
+        phase_shift_hours: 1.0
+        amplitude_scale: 1.15
+      commercial:
+        phase_shift_hours: -2.0
+        amplitude_scale: 0.95
+      industrial:
+        phase_shift_hours: 0.0
+        amplitude_scale: 0.55
 
 load_types:
   residential:
     buses: [0, 1, 2, 3, 4, 5, 6, 18, 19, 20, 21]
     load_multiplier: 0.9
-    bid_value: 580.0
+    bid_value: 480.0
   commercial:
     buses: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
     load_multiplier: 1.0
-    bid_value: 750.0
+    bid_value: 650.0
   industrial:
     buses: [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
     load_multiplier: 1.1
-    bid_value: 680.0
+    bid_value: 850.0
 
 prosumers:
   residential:
-    prosumer_buses: [5, 12]
-    pv_capacity_factor: 3.8
-    pv_forecast_noise: 0.15
-    pv_real_noise: 0.20
+    prosumer_buses: [5, 21]
+    pv_capacity_factor: 11.5
+    pv_forecast_noise: 0.25
+    pv_real_noise: 0.35
     storage:
-      capacity_factor: 2.0
-      power_ratio: 0.2
+      capacity_factor: 5.0
+      power_ratio: 0.35
       eta_ch: 0.93
       eta_dis: 0.93
       soc0: 0.5
-      soc_min: 0.0
+      soc_min: 0.10
       soc_max: 1.0
     bid_value: 350.0
     offer_cost: 180.0
+    bus_overrides:
+      5:
+        storage:
+          soc0: 0.3
+          soc_min: 0.05
+          soc_max: 0.95
+          power_ratio_mult: 1.5
+      21:
+        storage:
+          soc0: 0.75
+          eta_ch: 0.90
+          eta_dis: 0.90
+          power_ratio_mult: 1.8
   industrial:
-    prosumer_buses: [22, 25]
-    wind_capacity_factor: 4.5
+    prosumer_buses: [23, 25, 30]
+    wind_capacity_factor: 5.5
     wind_forecast_noise: 0.12
     wind_real_noise: 0.18
+    pv_capacity_factor: 3.5
+    pv_forecast_noise: 0.25
+    pv_real_noise: 0.35
     storage:
-      capacity_factor: 4.0
-      power_ratio: 0.2
+      capacity_factor: 5.0
+      power_ratio: 0.35
       eta_ch: 0.94
       eta_dis: 0.94
       soc0: 0.5
-      soc_min: 0.0
+      soc_min: 0.10
       soc_max: 0.95
     bid_value: 720.0
     offer_cost: 300.0
+    bus_overrides:
+      23:
+        storage:
+          eta_ch: 0.96
+          eta_dis: 0.96
+          soc_max: 0.98
+        pv: true
+        pv_capacity_scale: 0.35
+        wind_capacity_scale: 0.45
+      25:
+        storage:
+          eta_ch: 0.78
+          eta_dis: 0.78
+          soc0: 0.35
+          soc_max: 0.85
+          power_ratio_mult: 1.5
+        pv: true
+      30:
+        storage:
+          eta_ch: 0.85
+          eta_dis: 0.85
+          soc0: 0.25
+          soc_max: 0.88
+          power_ratio_mult: 0.7
+        pv: true
+        pv_capacity_scale: 1.3
 
 price_curve:
   base: 420.0
@@ -75,3 +145,5 @@ price_curve:
   noise_sigma: 30.0
   hard_min: -50.0
   hard_max: 1200.0
+  spike_probability: 0.0
+  spike_magnitude: 300.0

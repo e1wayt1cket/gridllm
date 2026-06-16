@@ -1,7 +1,10 @@
 # market.py
+import dataclasses
+from copy import deepcopy
+
 import numpy as np
-from typing import Dict, List, Tuple
-from models import Agent, MarketConfig
+
+from models import Agent
 from grid import build_base_network, day_ahead_price_china
 from dispatch import solve_opf_gurobi, StorageConstraints, solve_lindist_opf_batch
 
@@ -18,6 +21,7 @@ def empty_schedules(agents, T):
             'served': np.zeros(T), 'unserved': np.zeros(T),
             'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
             'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
+            'q_re': np.zeros(T),
             'storage_mode': ['idle'] * T,
         }
     schedules['GRID'] = {'g_grid': np.zeros(T)}
@@ -75,10 +79,61 @@ def best_response_bidding(agents, config, market_history=None, T=96):
             actions[a.name] = {"bid_mult": bid_mult}
     return actions
 
+def learning_bidding(agents, config, market_history=None, T=96):
+    """LMP-aware bidding with exponential moving average of historical prices.
+
+    Each agent tracks the LMP at its own bus and adjusts bid/offer
+    based on whether its local price is above or below its valuation.
+    """
+    base_price = day_ahead_price_china(T)
+    actions = {}
+    for a in agents:
+        if market_history and 'lmp_per_agent' in market_history and a.name in market_history['lmp_per_agent']:
+            hist_lmp = market_history['lmp_per_agent'][a.name]
+            # EMA-smoothed LMP signal
+            alpha = 0.3
+            lmp_signal = np.zeros(T)
+            lmp_signal[0] = hist_lmp[0] if len(hist_lmp) > 0 else base_price[0]
+            for t in range(1, T):
+                lmp_signal[t] = alpha * hist_lmp[t] + (1 - alpha) * lmp_signal[t - 1]
+        else:
+            lmp_signal = base_price
+
+        if a.is_prosumer:
+            bid_mult = np.full(T, config.default_bid_mult)
+            offer_adder = np.full(T, config.default_offer_adder)
+            for t in range(T):
+                # If local LMP >> offer_cost, lower offer to sell more
+                margin = lmp_signal[t] - a.offer_cost
+                if margin > 100:
+                    offer_adder[t] = max(0, offer_adder[t] - 20)
+                elif margin > 0:
+                    offer_adder[t] = max(0, offer_adder[t] - 5)
+                elif margin < -50:
+                    offer_adder[t] = min(50, offer_adder[t] + 15)
+                # If local LMP >> bid_value, bid higher to ensure load is served
+                if lmp_signal[t] > a.bid_value * 1.1:
+                    bid_mult[t] = min(config.bid_mult_range[1], bid_mult[t] + 0.1)
+                elif lmp_signal[t] < a.bid_value * 0.8:
+                    bid_mult[t] = max(config.bid_mult_range[0], bid_mult[t] - 0.1)
+            actions[a.name] = {"bid_mult": bid_mult, "offer_adder": offer_adder}
+        else:
+            bid_mult = np.full(T, config.default_bid_mult)
+            for t in range(T):
+                # Consumer: bid higher when local LMP exceeds willingness-to-pay
+                if lmp_signal[t] > a.bid_value:
+                    bid_mult[t] = min(config.bid_mult_range[1], bid_mult[t] + 0.15)
+                elif lmp_signal[t] < a.bid_value * 0.6:
+                    bid_mult[t] = max(config.bid_mult_range[0], bid_mult[t] - 0.1)
+            actions[a.name] = {"bid_mult": bid_mult}
+    return actions
+
+
 _STRATEGIES = {
     "random": (lambda agents, config, T, _: random_actions(agents, config, T)),
     "best_response": (lambda agents, config, T, mh: best_response_bidding(agents, config, mh, T)),
     "mpc": (lambda agents, config, T, mh: _mpc_bidding(agents, config, mh, T)),
+    "learning": (lambda agents, config, T, mh: learning_bidding(agents, config, mh, T)),
 }
 
 
@@ -113,12 +168,24 @@ def adaptive_bidding(agents, config, strategy="best_response", market_history=No
 
 def two_settlement(agents, da, rt):
     T = len(da["price"])
+    # Build bus→position map for nodal LMP lookup
+    da_lmp = da.get("lmp", None)
+    rt_lmp = rt.get("lmp", None) if rt else None
+    if da_lmp is not None and da_lmp.shape[1] >= max(a.bus for a in agents) + 1:
+        bus_to_idx = {b: b for b in range(da_lmp.shape[1])}
+    else:
+        bus_to_idx = {}
+
     payments = {}
     for a in agents:
+        bus = a.bus
+        lmp_da = da_lmp[:, bus_to_idx.get(bus, 0)] if da_lmp is not None else da["price"]
+        lmp_rt = rt_lmp[:, bus_to_idx.get(bus, 0)] if rt_lmp is not None and rt is not None else rt["price"] if rt else np.zeros(1)
+
         da_import = da["schedules"][a.name]["p_buy"] - da["schedules"][a.name]["p_sell"]
         rt_import = rt["schedules"][a.name]["p_buy"] - rt["schedules"][a.name]["p_sell"]
-        da_cost = np.sum(da["price"] * da_import)
-        rt_cost = np.sum(rt["price"] * (rt_import - da_import))
+        da_cost = np.sum(lmp_da * da_import)
+        rt_cost = np.sum(lmp_rt * (rt_import - da_import))
         payments[a.name] = float(da_cost + rt_cost)
     return payments
 
@@ -126,16 +193,16 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
     base_net = build_base_network(config)
     wholesale = day_ahead_price_china(T)
 
-    # ---- 多时段联合优化（仅 LinDistFlow）----
+    # ---- Multi-period joint optimization (LinDistFlow only) ----
     if config.opf_mode == "lindistflow":
         result = solve_lindist_opf_batch(base_net, agents, T, stage, config,
                                          action_params, wholesale, storage_units)
         if result is not None:
             return result
         else:
-            print("批量模型失败，回退至逐时段求解...")
+            print("Batch solve failed, falling back to single-period solver...")
 
-    # ---- 原有的逐时段求解（DC-OPF 或 LinDistFlow 回退）----
+    # ---- Per-period fallback (DC-OPF or LinDistFlow single-period) ----
     n_buses = len(base_net.bus)
     lmp = np.zeros((T, n_buses))
     schedules = empty_schedules(agents, T)
@@ -147,21 +214,20 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
     total_served_mwh = 0.0
     for a in agents:
         if stage == "DA":
-            total_re_available += np.sum(a.pv_forecast)
+            total_re_available += np.sum(a.pv_forecast) * 0.25
             if a.has_wind and a.wind_forecast is not None:
-                total_re_available += np.sum(a.wind_forecast)
+                total_re_available += np.sum(a.wind_forecast) * 0.25
         else:
-            total_re_available += np.sum(a.pv_real)
+            total_re_available += np.sum(a.pv_real) * 0.25
             if a.has_wind and a.wind_real is not None:
-                total_re_available += np.sum(a.wind_real)
+                total_re_available += np.sum(a.wind_real) * 0.25
 
-    prev_soc: Dict[str, float] = {}
-    prev_power: Dict[str, Tuple[float, float]] = {}
+    prev_soc: dict[str, float] = {}
 
     for t in range(T):
         success, lmp_t, welfare_t, agent_res, p_grid = solve_opf_gurobi(
             base_net, agents, t, stage, prev_soc, wholesale[t],
-            action_params, config, prev_power
+            action_params, config
         )
         if not success:
             if t > 0:
@@ -195,7 +261,6 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
                 sched['p_dis'][t] = dis_val
                 sched['soc'][t] = new_soc
                 prev_soc[a.name] = new_soc
-                prev_power[a.name] = (ch_val, dis_val)
             else:
                 sched['p_ch'][t] = 0.0
                 sched['p_dis'][t] = 0.0
@@ -207,9 +272,9 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
             net_con = res['served'] + sched['p_ch'][t]
             sched['p_buy'][t], sched['p_sell'][t] = split_power(net_gen, net_con)
             sched['unserved'][t] = load_val - res['served']
-            total_re_used += res['pv_used'] + res['wind_used']
-            total_curtailment += (pv_max - res['pv_used']) + (wind_max - res['wind_used'])
-            total_served_mwh += res['served']
+            total_re_used += (res['pv_used'] + res['wind_used']) * 0.25
+            total_curtailment += ((pv_max - res['pv_used']) + (wind_max - res['wind_used'])) * 0.25
+            total_served_mwh += res['served'] * 0.25
 
     re_rate = (total_re_used / total_re_available * 100) if total_re_available > 0 else 100.0
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
@@ -229,7 +294,6 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
 def _make_window_agents(agents, t_start, t_end, prev_soc, action_params):
     """Create copies of agents with sliced data arrays and updated storage SOC for
     a rolling-horizon window [t_start, t_end)."""
-    from copy import deepcopy
     from models import Agent as AgentCls
     window_agents = []
     for a in agents:
@@ -279,7 +343,6 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
         }
 
     prev_soc = {}
-    prev_power = {}
     total_welfare_rt = 0.0
     carbon_emissions = 0.0
     total_curtailment = 0.0
@@ -287,17 +350,9 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
     total_re_available = 0.0
     total_re_used = 0.0
 
-    window_config = MarketConfig(
-        opf_mode=config.opf_mode, verbose=config.verbose,
-        lambda_cycle=config.lambda_cycle,
-        penalty_unserved=config.penalty_unserved,
-        line_capacity_multiplier=config.line_capacity_multiplier,
-        emission_factor_grid=config.emission_factor_grid,
-        enable_multi_objective=False,
-        use_constraint_multi_obj=False,
-        storage_terminal_value=config.storage_terminal_value,
-        rt_horizon=config.rt_horizon, rt_step=config.rt_step,
-    )
+    window_config = dataclasses.replace(config, verbose=False,
+                                        enable_multi_objective=False,
+                                        use_constraint_multi_obj=False)
     idx = 0
     while idx < T:
         window_end = min(idx + rt_horizon, T)
@@ -308,7 +363,6 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
                                             prev_soc, action_params_base)
         window_storage_units = None
         if storage_units:
-            from copy import deepcopy
             window_storage_units = []
             for su in storage_units:
                 su_copy = deepcopy(su)
@@ -347,14 +401,13 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
                         if d + 1 < window_T:
                             next_soc = ws['soc'][d + 1]
                         prev_soc[nm] = next_soc
-                        prev_power[nm] = (ws['p_ch'][d], ws['p_dis'][d])
 
                     pv_max = a.pv_real[d] if a.pv_real is not None else 0.0
                     wind_max = a.wind_real[d] if a.has_wind else 0.0
-                    total_re_available += pv_max + wind_max
-                    total_re_used += ws['pv_used'][d] + ws['wind_used'][d]
-                    total_curtailment += (pv_max - ws['pv_used'][d]) + (wind_max - ws['wind_used'][d])
-                    total_served_mwh += ws['served'][d]
+                    total_re_available += (pv_max + wind_max) * dt
+                    total_re_used += (ws['pv_used'][d] + ws['wind_used'][d]) * 0.25
+                    total_curtailment += ((pv_max - ws['pv_used'][d]) + (wind_max - ws['wind_used'][d])) * 0.25
+                    total_served_mwh += ws['served'][d] * 0.25
 
                 for su in (window_storage_units or []):
                     nm = su.name
@@ -369,7 +422,6 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
                     if d + 1 < window_T:
                         next_soc = ws['soc'][d + 1]
                     prev_soc[nm] = next_soc
-                    prev_power[nm] = (ws['p_ch'][d], ws['p_dis'][d])
 
                 pgi = schedules_rt['GRID']['g_grid'][t_abs]
                 if pgi > 0:
@@ -396,7 +448,7 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
         "total_curtailment": total_curtailment,
     }
 def clear_rt_rolling(agents, T, action_params_base, config):
-    """滚动实时市场 (MPC) – 可按需启用"""
+    """Rolling real-time market (MPC) — enable on demand."""
     rt_horizon = config.rt_horizon
     rt_step = config.rt_step
     base_net = build_base_network(config)
@@ -404,7 +456,6 @@ def clear_rt_rolling(agents, T, action_params_base, config):
     lmp_rt = np.zeros((T, n_buses))
     schedules_rt = empty_schedules(agents, T)
     prev_soc = {}
-    prev_power = {}
     total_welfare_rt = 0.0
     carbon_emissions = 0.0
     total_curtailment = 0.0
@@ -421,7 +472,7 @@ def clear_rt_rolling(agents, T, action_params_base, config):
             t_abs = idx + t_rel
             success, lmp_t, welfare_t, agent_res, p_grid = solve_opf_gurobi(
                 base_net, agents, t_abs, "RT", prev_soc, wholesale[t_abs],
-                action_params_base, config, prev_power
+                action_params_base, config
             )
             if success:
                 lmp_rt[t_abs] = lmp_t
@@ -432,15 +483,16 @@ def clear_rt_rolling(agents, T, action_params_base, config):
                 for a in agents:
                     s = schedules_rt[a.name]
                     res = agent_res[a.name]
+                    load_val = a.load_real[t_abs]
                     s['served'][t_abs] = res['served']
                     s['pv_used'][t_abs] = res['pv_used']
                     s['wind_used'][t_abs] = res['wind_used']
-                    pv_max = a.pv_real[t_abs]
+                    pv_max = a.pv_real[t_abs] if a.pv_real is not None else 0.0
                     wind_max = a.get_wind_real()[t_abs] if a.has_wind else 0.0
-                    total_curtailment += (pv_max - res['pv_used']) + (wind_max - res['wind_used'])
-                    total_re_available += pv_max + wind_max
-                    total_re_used += res['pv_used'] + res['wind_used']
-                    total_served_mwh += res['served']
+                    total_curtailment += ((pv_max - res['pv_used']) + (wind_max - res['wind_used'])) * 0.25
+                    total_re_available += (pv_max + wind_max) * 0.25
+                    total_re_used += (res['pv_used'] + res['wind_used']) * 0.25
+                    total_served_mwh += res['served'] * 0.25
                     if a.storage:
                         soc0 = prev_soc.get(a.name, a.storage.soc0)
                         ch_val, dis_val, new_soc = StorageConstraints.execute_dispatch(
@@ -449,8 +501,6 @@ def clear_rt_rolling(agents, T, action_params_base, config):
                         s['p_dis'][t_abs] = dis_val
                         s['soc'][t_abs] = new_soc
                         prev_soc[a.name] = new_soc
-                        prev_power[a.name] = (ch_val, dis_val)
-                    load_val = a.load_real[t_abs]
                     net_gen = res['pv_used'] + res['wind_used'] + s['p_dis'][t_abs]
                     net_con = res['served'] + s['p_ch'][t_abs]
                     s['p_buy'][t_abs], s['p_sell'][t_abs] = split_power(net_gen, net_con)

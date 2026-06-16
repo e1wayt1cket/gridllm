@@ -14,10 +14,10 @@ scenarios:
       wind: 2.0
 
   peak_load:
-    description: "Peak load: 1.8x all loads"
+    description: "Peak load: 1.5x all loads"
     with_wind: true
     multipliers:
-      load: 1.8
+      load: 1.5
 
   congestion:
     description: "Network congestion: line capacity halved"

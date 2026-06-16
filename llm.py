@@ -50,64 +50,6 @@ class LLMAdvisor:
             print(f"Ollama call failed: {e}")
             return ""
 
-    # ------------------------------------------------------------------
-    # Current values catalog for prompt injection
-    # ------------------------------------------------------------------
-    def _collect_current_values(self) -> str:
-        """Walk config_loader defaults + MarketConfig fields to build a
-        compact reference block of all tunable parameters."""
-        from config_loader import load_defaults, load_scenarios
-
-        lines = ["CURRENT CONFIGURATION VALUES"]
-
-        # defaults.yaml
-        defaults = load_defaults()
-        for top_key in ["network", "profiles", "price_curve"]:
-            if top_key in defaults:
-                self._flatten_dict(defaults[top_key], top_key, lines)
-
-        for lt_name in sorted(defaults.get("load_types", {}).keys()):
-            lt = defaults["load_types"][lt_name]
-            for k, v in lt.items():
-                if isinstance(v, list) and len(v) > 6:
-                    v = f"[{v[0]},{v[1]},...,{v[-1]}]"
-                lines.append(f"  load_types.{lt_name}.{k} = {v}")
-
-        for ps_name in sorted(defaults.get("prosumers", {}).keys()):
-            ps = defaults["prosumers"][ps_name]
-            for k, v in ps.items():
-                if k == "storage":
-                    self._flatten_dict(v, f"prosumers.{ps_name}.storage", lines)
-                elif isinstance(v, list):
-                    lines.append(f"  prosumers.{ps_name}.{k} = {v}")
-                else:
-                    lines.append(f"  prosumers.{ps_name}.{k} = {v}")
-
-        # scenarios
-        scenarios = load_scenarios()
-        for s_name in sorted(scenarios.get("scenarios", {}).keys()):
-            sc = scenarios["scenarios"][s_name]
-            items = []
-            for k, v in sc.items():
-                if k == "description":
-                    continue
-                items.append(f"{k}={v}")
-            if items:
-                lines.append(f"  SCENARIO: {s_name}  {', '.join(items)}")
-
-        # MarketConfig defaults
-        lines.append("  --- MARKET CONFIG FIELDS ---")
-        for f in dataclasses.fields(MarketConfig):
-            if f.name in ("verbose", "use_ac_opf", "opf_tolerance",
-                          "opf_max_iter", "base_mva", "base_kv"):
-                continue  # debug/internal fields
-            val = f.default if f.default is not dataclasses.MISSING else "?"
-            if f.name in ("bid_mult_range", "offer_adder_range"):
-                val = list(val)
-            lines.append(f"  {f.name} = {val}")
-
-        return "\n".join(lines)
-
     @staticmethod
     def _flatten_dict(d: dict, prefix: str, lines: list) -> None:
         for k, v in d.items():
@@ -140,7 +82,7 @@ baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge
   lambda_curtail — 弃电惩罚权重(15)
   load_factor — 全局负荷系数(1.0)
   line_capacity_factor — 线路容量系数(1.0)
-  penalty_unserved — 未供应惩罚(800)
+  penalty_unserved — 未供应惩罚(5000)
   opf_mode — OPF模式: lindistflow或dc
   pv_factor — 光伏出力系数(1.0)
   wind_factor — 风电出力系数(1.0)
@@ -495,7 +437,7 @@ baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge
             carbon_cap_tco2=max(0.0, float(gp.get("carbon_cap_tco2", 200.0))),
             re_min_rate=max(0.0, min(100.0, float(gp.get("re_min_rate", 95.0)))),
             line_capacity_multiplier=3.0 * _float("line_capacity_factor", 1.0, min_val=0.1, max_val=100),
-            penalty_unserved=_float("penalty_unserved", 800.0, min_val=0, max_val=1e6),
+            penalty_unserved=_float("penalty_unserved", 5000.0, min_val=0, max_val=1e6),
             emission_factor_grid=_float("emission_factor_grid", 0.58, min_val=0, max_val=100),
             storage_charge_discount=_float("storage_charge_discount", 0.85, min_val=0, max_val=1),
             storage_discharge_premium=_float("storage_discharge_premium", 1.15, min_val=1, max_val=100),

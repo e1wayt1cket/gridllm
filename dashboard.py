@@ -13,9 +13,6 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import numpy as np
-import time
-import threading
-from collections import deque
 
 from models import MarketConfig
 from grid import build_base_network, day_ahead_price_china
@@ -38,44 +35,51 @@ SCENARIO_NAMES_CN = {
 }
 CN_TO_EN = {v: k for k, v in SCENARIO_NAMES_CN.items()}
 
+# Representative nodes for LMP display: (bus_index, label, color)
+REPRESENTATIVE_BUSES = [
+    (0,  "Bus1 (主网)",     "#e74c3c"),
+    (5,  "Bus6 (居民产消)", "#3b82f6"),
+    (12, "Bus13 (商业负荷)", "#10b981"),
+    (17, "Bus18 (商业末端)", "#f59e0b"),
+    (21, "Bus22 (居民产消)", "#8b5cf6"),
+    (24, "Bus25 (工业产消)", "#ec4899"),
+    (32, "Bus33 (工业末端)", "#6366f1"),
+]
+
+# High-contrast palette for SOC curves — maximum visual distinction
+SOC_COLORS = [
+    '#e74c3c',  # red
+    '#3b82f6',  # blue
+    '#10b981',  # green
+    '#f59e0b',  # amber
+    '#8b5cf6',  # violet
+    '#ec4899',  # pink
+    '#6366f1',  # indigo
+    '#14b8a6',  # teal
+    '#f97316',  # orange
+    '#06b6d4',  # cyan
+]
+
 # ------------------------------
 # 全局伪实时状态
 # ------------------------------
-class RealtimeState:
-    def __init__(self):
-        self.running = False
-        self.t = 0
-        self.agents = None
-        self.config = None
-        self.net = None
-        self.wholesale = None
-        self.action_params = None
-        self.prev_soc = {}
-        self.prev_power = {}
-        self.lmp_history = []
-        self.welfare_acc = 0.0
-        self.lock = threading.Lock()
-        self.total_T = 96
-
-realtime_state = RealtimeState()
-last_simulation = {}
-
 # ------------------------------
-# 静态分析函数
+# 时间轴格式化
 # ------------------------------
-def run_static_analysis(scenario_en, strategy="random", opf_mode="lindistflow"):
-    from config_loader import get_scenario_cfg
-    sc_cfg = get_scenario_cfg(scenario_en) or {}
-    override = sc_cfg.get("override_config", {})
-    config = MarketConfig(opf_mode=opf_mode, verbose=False, **override)
-    T = 96
-    agents, _ = get_scenario(scenario_en, T=T)
-    da_actions = adaptive_bidding(agents, config, strategy=strategy)
-    da_results = clear_market(agents, T, "DA", da_actions, config)
-    rt_actions = adaptive_bidding(agents, config, strategy=strategy)
-    rt_results = clear_market(agents, T, "RT", rt_actions, config)
-    payment = two_settlement(agents, da_results, rt_results)
-    return agents, config, da_results, rt_results, payment, da_actions
+
+def _make_time_labels(T):
+    """Generate HH:MM labels for 15-min periods: 0:00, 0:15, ..., 23:45."""
+    hours = np.arange(T) * 0.25
+    return [f"{int(h):02d}:{int((h % 1) * 60):02d}" for h in hours]
+
+def _time_axis_config(T, step=16):
+    """Return tickvals/ticktext dict for x-axis time display (every `step` periods)."""
+    labels = _make_time_labels(T)
+    indices = list(range(0, T, step))
+    return dict(
+        tickvals=[i * 0.25 for i in indices],
+        ticktext=[labels[i] for i in indices],
+    )
 
 # ------------------------------
 # 图表构建函数
@@ -129,9 +133,9 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
         x, y = NODE_COORDS[b]
         node_x.append(x)
         node_y.append(y)
-        labels.append(str(b + 1))
+        labels.append(f"Bus{b+1}")
 
-        txt = f"<b>节点 {b+1}</b>"
+        txt = f"<b>Bus{b+1}</b>"
         agents_on = bus_agents[b]
         if agents_on:
             txt += f"<br>Agent: {', '.join(agents_on[:2])}"
@@ -139,13 +143,35 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
                 txt += f" +{len(agents_on)}"
         hover_text.append(txt)
 
+    # LMP-based node coloring — use numeric values so colorscale + colorbar work
+    lmp_values = None
+    lmp_cmin, lmp_cmax = 0.0, 1.0
+    if lmp_arr is not None and not np.all(lmp_arr == 0):
+        lmp_avg = lmp_arr.mean(axis=0)
+        # Clip color range at 5th/95th percentile so outliers don't wash out contrast
+        lmp_cmin = float(np.percentile(lmp_avg, 5))
+        lmp_cmax = float(np.percentile(lmp_avg, 95))
+        if lmp_cmax - lmp_cmin < 1.0:
+            lmp_cmax = lmp_cmin + 1.0
+        lmp_values = lmp_avg.tolist()
+        for i, b in enumerate(range(33)):
+            hover_text[i] += f"<br>LMP avg: {lmp_avg[b]:.1f} CNY/MWh"
+
     fig.add_trace(go.Scatter(
         x=node_x, y=node_y,
         mode="markers+text",
         marker=dict(
-            size=16,
-            color=C_NODE,
-            line=dict(width=2, color='#d0d7e3'),
+            size=18,
+            color=lmp_values if lmp_values is not None else [C_NODE] * 33,
+            cmin=lmp_cmin if lmp_values is not None else None,
+            cmax=lmp_cmax if lmp_values is not None else None,
+            colorscale='RdYlBu_r',
+            line=dict(width=2, color='#334155'),
+            showscale=lmp_values is not None,
+            colorbar=dict(
+                title="Avg LMP (CNY/MWh)", x=1.02, len=0.8,
+                tickformat='.0f',
+            ) if lmp_values is not None else None,
         ),
         text=labels,
         textposition="top center",
@@ -171,13 +197,13 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
                     line=dict(width=2, color='#d0d7e3')
                 ),
                 name="产消者",
-                text=[f"{b+1}" for b in prosumer_buses],
-                hovertemplate="产消者节点 %{text}<extra></extra>"
+                text=[f"Bus{b+1}" for b in prosumer_buses],
+                hovertemplate="产消者 Bus %{text}<extra></extra>"
             ))
 
     fig.update_layout(
         title=dict(
-            text="IEEE 33 节点配电系统拓扑 (星标 = 产消者)",
+            text="IEEE 33 Bus 配电系统拓扑 (星标 = 产消者)",
             font=dict(size=15, color='#2c3e50')
         ),
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
@@ -187,13 +213,14 @@ def create_topology_figure(net, agents_info=None, lmp_arr=None):
         paper_bgcolor=C_CARD,
         plot_bgcolor=C_CARD,
         margin=dict(l=20, r=20, t=60, b=20),
-        height=400,
+        height=600,
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01,
                     bgcolor="rgba(255,255,255,0.9)", font=dict(color=C_TEXT, size=12)),
         font=dict(color=C_TEXT),
     )
 
     return fig
+
 
 def create_lmp_figure(lmp_matrix, title="节点边际电价"):
     if lmp_matrix is None or np.all(lmp_matrix == 0):
@@ -205,15 +232,55 @@ def create_lmp_figure(lmp_matrix, title="节点边际电价"):
         return fig
     T, n = lmp_matrix.shape
     hours = np.arange(T) * 0.25
-    mean_lmp = lmp_matrix.mean(axis=1)
+    time_labels = _make_time_labels(T)
+
+    # IQR envelope (25th-75th percentile) — robust against outlier buses
+    p25 = np.percentile(lmp_matrix, 25, axis=1)
+    p75 = np.percentile(lmp_matrix, 75, axis=1)
+    p_min = lmp_matrix.min(axis=1)
+    p_max = lmp_matrix.max(axis=1)
+    p_mean = lmp_matrix.mean(axis=1)
+
     fig = go.Figure()
-    for b in range(n):
-        fig.add_trace(go.Scatter(x=hours, y=lmp_matrix[:, b], mode='lines',
-                                 line=dict(color="#e2e8f0", width=0.5), showlegend=False, hoverinfo='skip'))
-    fig.add_trace(go.Scatter(x=hours, y=mean_lmp, mode='lines', name='节点均价',
-                             line=dict(color='#4f46e5', width=2.5)))
-    fig.update_layout(title=title, xaxis_title="时间 (h)", yaxis_title="LMP (CNY/MWh)",
-                      template="plotly_white", legend=dict(orientation='h', y=1.1),
+    # Full range as thin reference lines
+    fig.add_trace(go.Scatter(x=hours, y=p_max, mode='lines',
+                             line=dict(color="#cbd5e1", width=0.5, dash='dot'),
+                             showlegend=False, hoverinfo='skip'))
+    fig.add_trace(go.Scatter(x=hours, y=p_min, mode='lines',
+                             line=dict(color="#cbd5e1", width=0.5, dash='dot'),
+                             showlegend=False, hoverinfo='skip',
+                             fill='tonexty', fillcolor='rgba(203,213,225,0.15)',
+                             name='全节点范围'))
+    # IQR envelope as main shaded band
+    fig.add_trace(go.Scatter(x=hours, y=p75, mode='lines',
+                             line=dict(color="#94a3b8", width=0.5),
+                             showlegend=False, hoverinfo='skip'))
+    fig.add_trace(go.Scatter(x=hours, y=p25, mode='lines',
+                             line=dict(color="#94a3b8", width=0.5),
+                             fill='tonexty', fillcolor='rgba(148,163,184,0.25)',
+                             name='IQR (25%-75%)', hoverinfo='skip'))
+    # Mean reference line
+    fig.add_trace(go.Scatter(
+        x=hours, y=p_mean, mode='lines',
+        name='全网均值', line=dict(color='#1e293b', width=2.2, dash='dash'),
+        customdata=time_labels,
+        hovertemplate='%{customdata}<br>LMP=%{y:.1f} CNY/MWh<extra>全网均值</extra>',
+    ))
+
+    # Representative node curves
+    for bus_idx, label, color in REPRESENTATIVE_BUSES:
+        if bus_idx < n:
+            fig.add_trace(go.Scatter(
+                x=hours, y=lmp_matrix[:, bus_idx], mode='lines',
+                name=label, line=dict(color=color, width=1.8),
+                customdata=time_labels,
+                hovertemplate='%{customdata}<br>LMP=%{y:.1f} CNY/MWh<extra>%{fullData.name}</extra>',
+            ))
+
+    fig.update_layout(height=630, title=title,
+                      xaxis=dict(title="时间", **_time_axis_config(T)),
+                      yaxis_title="LMP (CNY/MWh)",
+                      template="plotly_white", legend=dict(orientation='h', y=1.12),
                       margin=dict(l=40, r=20, t=60, b=40),
                       paper_bgcolor='#ffffff', plot_bgcolor="#fafbfc")
     return fig
@@ -221,17 +288,27 @@ def create_lmp_figure(lmp_matrix, title="节点边际电价"):
 def create_trade_figure(da_results, agents):
     T = len(next(iter(da_results["schedules"].values()))["p_buy"])
     hours = np.arange(T) * 0.25
+    time_labels = _make_time_labels(T)
     buy = np.zeros(T); sell = np.zeros(T)
     for a in agents:
         s = da_results["schedules"][a.name]
         buy += s["p_buy"]; sell += s["p_sell"]
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Scatter(x=hours, y=buy, mode='lines', name='总购电量 (MW)',
-                             line=dict(color='#ef4444', width=2)), secondary_y=False)
+                             line=dict(color='#ef4444', width=2),
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>购电=%{y:.2f} MW<extra></extra>'),
+                  secondary_y=False)
     fig.add_trace(go.Scatter(x=hours, y=sell, mode='lines', name='总售电量 (MW)',
-                             line=dict(color='#10b981', width=2)), secondary_y=False)
-    fig.update_layout(title="日前市场总购售电功率", xaxis_title="时间 (h)", yaxis_title="功率 (MW)",
-                      template="plotly_white", hovermode="x unified", legend=dict(orientation='h', y=1.1),
+                             line=dict(color='#10b981', width=2),
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>售电=%{y:.2f} MW<extra></extra>'),
+                  secondary_y=False)
+    fig.update_layout(height=525, title="日前市场总购售电功率",
+                      xaxis=dict(title="时间", **_time_axis_config(T)),
+                      yaxis_title="功率 (MW)",
+                      template="plotly_white", hovermode="x unified",
+                      legend=dict(orientation='h', y=1.1),
                       margin=dict(l=40, r=20, t=60, b=40),
                       paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
     return fig
@@ -242,22 +319,138 @@ def create_soc_figure(da_results, agents):
         return go.Figure().update_layout(title="无储能设备", template="plotly_white")
     T = len(da_results["schedules"][storage_agents[0].name]["soc"])
     hours = np.arange(T) * 0.25
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
-                        subplot_titles=("储能 SOC", "充放电功率"))
-    for a in storage_agents:
+    time_labels = _make_time_labels(T)
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+                        subplot_titles=("储能 SOC", "充放电功率"),
+                        row_heights=[0.52, 0.48])
+    for i, a in enumerate(storage_agents):
+        color = SOC_COLORS[i % len(SOC_COLORS)]
         s = da_results["schedules"][a.name]
         fig.add_trace(go.Scatter(x=hours, y=s["soc"]*100, mode='lines',
-                                 name=f"{a.name} SOC", line=dict(width=2)), row=1, col=1)
+                                 name=a.name, line=dict(width=2.5, color=color),
+                                 legendgroup=f'g{i}',
+                                 customdata=time_labels,
+                                 hovertemplate='%{customdata}<br>SOC=%{y:.1f}%<extra></extra>'),
+                      row=1, col=1)
         fig.add_trace(go.Bar(x=hours, y=s["p_ch"], name=f"{a.name} 充电",
-                             marker_color='#3b82f6', opacity=0.75), row=2, col=1)
+                             marker_color=color, opacity=0.65,
+                             legendgroup=f'g{i}', showlegend=False,
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>充电=%{y:.3f} MW<extra></extra>'),
+                      row=2, col=1)
         fig.add_trace(go.Bar(x=hours, y=-s["p_dis"], name=f"{a.name} 放电",
-                             marker_color='#f59e0b', opacity=0.75), row=2, col=1)
-    fig.update_layout(barmode='overlay', template="plotly_white", hovermode="x unified",
-                      legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                             marker_color=color, opacity=0.35,
+                             marker_pattern_shape='/',
+                             legendgroup=f'g{i}', showlegend=False,
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>放电=%{y:.3f} MW<extra></extra>'),
+                      row=2, col=1)
+    fig.update_layout(height=1050, barmode='overlay', template="plotly_white",
+                      hovermode="x unified",
+                      legend=dict(orientation='v', yanchor='top', y=0.99,
+                                  xanchor='left', x=1.01, bgcolor='rgba(255,255,255,0.9)'),
                       margin=dict(l=40, r=20, t=60, b=40),
                       paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
+    fig.update_xaxes(**_time_axis_config(T), row=2, col=1)
+    fig.update_xaxes(title_text="时间", row=2, col=1)
     fig.update_yaxes(title_text="SOC (%)", row=1, col=1)
     fig.update_yaxes(title_text="功率 (MW)", row=2, col=1)
+    return fig
+
+def create_re_gen_figure(da_results, agents):
+    """Renewable generation: PV and wind actual output over time."""
+    T = len(next(iter(da_results["schedules"].values()))["served"])
+    hours = np.arange(T) * 0.25
+    time_labels = _make_time_labels(T)
+    pv_total = np.zeros(T)
+    wind_total = np.zeros(T)
+    for a in agents:
+        s = da_results["schedules"][a.name]
+        pv_total += s.get("pv_used", np.zeros(T))
+        wind_total += s.get("wind_used", np.zeros(T))
+
+    has_pv = pv_total.max() > 0.001
+    has_wind = wind_total.max() > 0.001
+
+    fig = go.Figure()
+    if has_pv:
+        fig.add_trace(go.Scatter(
+            x=hours, y=pv_total, mode='lines', name='光伏 (PV)',
+            line=dict(color='#f59e0b', width=2.5),
+            fill='tozeroy', fillcolor='rgba(245,158,11,0.25)',
+            customdata=time_labels,
+            hovertemplate='%{customdata}<br>PV=%{y:.3f} MW<extra></extra>',
+        ))
+    if has_wind:
+        fig.add_trace(go.Scatter(
+            x=hours, y=wind_total, mode='lines', name='风电 (Wind)',
+            line=dict(color='#3b82f6', width=2.5),
+            fill='tozeroy', fillcolor='rgba(59,130,246,0.25)',
+            customdata=time_labels,
+            hovertemplate='%{customdata}<br>Wind=%{y:.3f} MW<extra></extra>',
+        ))
+    fig.add_trace(go.Scatter(
+        x=hours, y=pv_total + wind_total, mode='lines',
+        name='可再生总计', line=dict(color='#10b981', width=2, dash='dot'),
+        customdata=time_labels,
+        hovertemplate='%{customdata}<br>RE=%{y:.3f} MW<extra></extra>',
+    ))
+    fig.update_layout(height=480, title="可再生能源实际出力",
+                      xaxis=dict(title="时间", **_time_axis_config(T)),
+                      yaxis_title="功率 (MW)",
+                      template="plotly_white", hovermode="x unified",
+                      legend=dict(orientation='h', y=1.12),
+                      margin=dict(l=40, r=20, t=60, b=40),
+                      paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
+    return fig
+
+def create_load_figure(da_results, agents):
+    """Total load profile: served, unserved, and total forecast."""
+    T = len(next(iter(da_results["schedules"].values()))["served"])
+    hours = np.arange(T) * 0.25
+    time_labels = _make_time_labels(T)
+    served = np.zeros(T)
+    unserved = np.zeros(T)
+    forecast = np.zeros(T)
+    for a in agents:
+        s = da_results["schedules"][a.name]
+        served += s.get("served", np.zeros(T))
+        unserved += s.get("unserved", np.zeros(T))
+        forecast += a.load_forecast
+
+    total_load = served + unserved
+    has_unserved = unserved.max() > 0.01
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=hours, y=forecast, mode='lines', name='负荷预测',
+        line=dict(color='#94a3b8', width=1.5, dash='dash'),
+        customdata=time_labels,
+        hovertemplate='%{customdata}<br>预测=%{y:.2f} MW<extra></extra>',
+    ))
+    fig.add_trace(go.Scatter(
+        x=hours, y=served, mode='lines', name='已满足负荷',
+        line=dict(color='#3b82f6', width=2.5),
+        fill='tozeroy', fillcolor='rgba(59,130,246,0.15)',
+        customdata=time_labels,
+        hovertemplate='%{customdata}<br>已满足=%{y:.2f} MW<extra></extra>',
+    ))
+    if has_unserved:
+        fig.add_trace(go.Scatter(
+            x=hours, y=total_load, mode='lines', name='总负荷',
+            line=dict(color='#ef4444', width=2.5),
+            fill='tonexty', fillcolor='rgba(239,68,68,0.2)',
+            customdata=time_labels,
+            hovertemplate='%{customdata}<br>总负荷=%{y:.2f} MW<extra></extra>',
+        ))
+
+    fig.update_layout(height=480, title="负荷曲线",
+                      xaxis=dict(title="时间", **_time_axis_config(T)),
+                      yaxis_title="功率 (MW)",
+                      template="plotly_white", hovermode="x unified",
+                      legend=dict(orientation='h', y=1.12),
+                      margin=dict(l=40, r=20, t=60, b=40),
+                      paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
     return fig
 
 def create_kpi_cards(da_results, rt_results, payment, agents, config=None):
@@ -302,40 +495,6 @@ def create_kpi_cards(da_results, rt_results, payment, agents, config=None):
             )
         )
 
-    if config is not None and config.use_constraint_multi_obj:
-        sp = da_results.get('shadow_prices', {})
-        sc = sp.get('carbon_cap', None)
-        sr = sp.get('re_min_rate', None)
-        constraint_items = [
-            ("碳上限", f"<= {config.carbon_cap_tco2:.0f} tCO2", "#ef4444",
-             f"影子价格: {sc:.1f} CNY/tCO2" if sc is not None and abs(sc) > 1e-6 else "未绑定"),
-            ("可再生下限", f">= {config.re_min_rate:.0f}%", "#10b981",
-             f"影子价格: {abs(sr):.1f} CNY/%" if sr is not None and abs(sr) > 1e-6 else "未绑定"),
-        ]
-        for label, value, accent, extra in constraint_items:
-            cards.append(
-                dbc.Col(
-                    dbc.Card([
-                        html.Div(label, style={
-                            'fontSize': '12px', 'fontWeight': '600', 'color': '#64748b',
-                            'letterSpacing': '0.5px', 'marginBottom': '6px'
-                        }),
-                        html.Div(value, style={
-                            'fontSize': '17px', 'fontWeight': '700', 'color': '#1e293b'
-                        }),
-                        html.Div(extra, style={
-                            'fontSize': '11px', 'color': '#94a3b8', 'marginTop': '4px'
-                        }),
-                    ], body=True, style={
-                        'backgroundColor': '#f8fafc', 'borderRadius': '14px',
-                        'boxShadow': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-                        'borderTop': f'3px solid {accent}',
-                        'border': '1px dashed #e2e8f0',
-                        'height': '100%',
-                    }), xs=6, sm=4, md=3,
-                )
-            )
-
     return dbc.Row(cards, className='g-3')
 
 def create_payment_table(payment, agents):
@@ -370,84 +529,9 @@ def create_payment_table(payment, agents):
        style={'fontSize': '13px'})
 
 # ------------------------------
-# 伪实时线程
-# ------------------------------
-def run_realtime_thread(scenario_en, opf_mode, strategy, step_sec=0.5):
-    global realtime_state
-    with realtime_state.lock:
-        if realtime_state.running: return
-        realtime_state.running = True
-        realtime_state.t = 0
-        realtime_state.lmp_history = []
-        realtime_state.welfare_acc = 0.0
-        realtime_state.prev_soc = {}
-        realtime_state.prev_power = {}
-
-    try:
-        config = MarketConfig(opf_mode=opf_mode, verbose=False)
-        agents, _ = get_scenario(scenario_en, T=96)
-        net = build_base_network(config)
-        wholesale = day_ahead_price_china(96)
-        action_params = adaptive_bidding(agents, config, strategy=strategy)
-
-        with realtime_state.lock:
-            realtime_state.agents = agents
-            realtime_state.config = config
-            realtime_state.net = net
-            realtime_state.wholesale = wholesale
-            realtime_state.action_params = action_params
-            realtime_state.total_T = 96
-
-        fallback_lmp = np.zeros(len(net.bus))
-        for t in range(96):
-            with realtime_state.lock:
-                if not realtime_state.running: break
-
-            try:
-                success, lmp_t, welfare_t, agent_res, p_grid = solve_opf_gurobi(
-                    net, agents, t, "RT", realtime_state.prev_soc,
-                    wholesale[t], action_params, config, realtime_state.prev_power)
-                if not success:
-                    if realtime_state.lmp_history:
-                        lmp_t = realtime_state.lmp_history[-1]
-                    else:
-                        lmp_t = fallback_lmp
-                else:
-                    fallback_lmp = lmp_t.copy()
-                    realtime_state.welfare_acc += welfare_t
-                    for a in agents:
-                        if a.storage is None: continue
-                        name = a.name
-                        res = agent_res[name]
-                        soc0 = realtime_state.prev_soc.get(name, a.storage.soc0)
-                        ch, dis, new_soc = StorageConstraints.execute_dispatch(a.storage, soc0, res['p_ch'], res['p_dis'])
-                        realtime_state.prev_soc[name] = new_soc
-                        realtime_state.prev_power[name] = (ch, dis)
-
-                if not isinstance(lmp_t, np.ndarray) or lmp_t.ndim != 1 or len(lmp_t) != len(net.bus):
-                    if realtime_state.lmp_history:
-                        lmp_t = realtime_state.lmp_history[-1]
-                    else:
-                        lmp_t = fallback_lmp
-                realtime_state.lmp_history.append(lmp_t.copy())
-            except Exception as e:
-                print(f"伪实时时段 {t} 出错: {e}")
-                if realtime_state.lmp_history:
-                    lmp_t = realtime_state.lmp_history[-1]
-                else:
-                    lmp_t = fallback_lmp
-                realtime_state.lmp_history.append(lmp_t.copy())
-            time.sleep(step_sec)
-    except Exception as e:
-        print(f"伪实时线程严重错误: {e}")
-    finally:
-        with realtime_state.lock:
-            realtime_state.running = False
-
-# ------------------------------
 # AI 分析曲线特征提取
 # ------------------------------
-def build_simulation_outputs(scenario_en, strategy="mpc", opf_mode="lindistflow", nl_msg_prefix=""):
+def build_simulation_outputs(scenario_en, strategy="learning", opf_mode="lindistflow", nl_msg_prefix=""):
     """Run simulation for a scenario and build all chart/KPI/table outputs.
 
     Returns the 8-tuple expected by the Dash output callbacks:
@@ -472,24 +556,25 @@ def build_simulation_outputs(scenario_en, strategy="mpc", opf_mode="lindistflow"
     lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")
     trade_fig = create_trade_figure(da_results, agents)
     soc_fig = create_soc_figure(da_results, agents)
+    re_gen_fig = create_re_gen_figure(da_results, agents)
+    load_fig = create_load_figure(da_results, agents)
     pay_tab = create_payment_table(payment, agents)
 
     scenario_cn = SCENARIO_NAMES_CN.get(scenario_en, scenario_en)
     advisor = LLMAdvisor()
     summary = build_insight_summary(da_results, agents, scenario_cn)
-    ai_output = advisor.get_insight(summary)
+    ai_output = _render_ai_sections(advisor.get_insight(summary))
 
     nl_msg = (f"{nl_msg_prefix}场景: {scenario_cn} | "
               f"策略: {strategy} | OPF: {opf_mode}") if nl_msg_prefix else \
              (f"场景: {scenario_cn} | 策略: {strategy} | OPF: {opf_mode}")
 
-    # Store for Nash test
-    last_simulation.update({
-        "agents": agents, "config": config, "actions": da_actions,
-        "T": T, "scenario": scenario_en, "strategy": strategy,
-    })
+    sim_state = {
+        "scenario": scenario_en, "strategy": strategy,
+        "opf_mode": opf_mode, "T": T,
+    }
 
-    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, re_gen_fig, load_fig, pay_tab, nl_msg, ai_output, sim_state)
 
 
 def build_insight_summary(da_results, agents, scenario_cn):
@@ -566,7 +651,7 @@ def _placeholder_fig(text="等待仿真结果..."):
     fig = go.Figure()
     fig.update_layout(
         template="plotly_white", paper_bgcolor=C_SURFACE,
-        plot_bgcolor='#f8fafc', height=280,
+        plot_bgcolor='#f8fafc', height=420,
         margin=dict(l=20, r=20, t=40, b=20),
     )
     fig.add_annotation(text=text, xref="paper", yref="paper",
@@ -584,6 +669,56 @@ def _placeholder_kpi():
 def _placeholder_text(text="暂无数据"):
     return html.Div(text, style={'color': C_MUTED, 'textAlign': 'center',
                                   'padding': '24px', 'fontSize': '14px'})
+
+def _render_ai_sections(ai_text: str):
+    """Split LLM output into numbered sections and render as styled cards."""
+    if not ai_text or not ai_text.strip():
+        return _placeholder_text("AI 分析暂不可用")
+
+    import re
+    # Split on numbered section headers: "1. xxx", "2. xxx", etc.
+    parts = re.split(r'\n(?=\d+\.\s)', ai_text.strip())
+    if len(parts) <= 1:
+        # Fallback: try splitting on double newlines
+        parts = [p.strip() for p in ai_text.strip().split('\n\n') if p.strip()]
+        if len(parts) <= 1:
+            return html.Div(ai_text, style={'whiteSpace': 'pre-wrap', 'lineHeight': '1.8',
+                                            'color': C_TEXT, 'fontSize': '14px'})
+
+    section_colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444']
+    section_icons = ['📊', '👥', '⚠️', '💡']
+    cards = []
+    for i, part in enumerate(parts):
+        part = part.strip()
+        if not part:
+            continue
+        lines = part.split('\n', 1)
+        header = lines[0].strip()
+        body = lines[1].strip() if len(lines) > 1 else ''
+        accent = section_colors[min(i, len(section_colors) - 1)]
+        icon = section_icons[min(i, len(section_icons) - 1)]
+        cards.append(
+            dbc.Card(
+                dbc.CardBody([
+                    html.Div(f"{icon} {header}", style={
+                        'fontSize': '14px', 'fontWeight': '700', 'color': accent,
+                        'marginBottom': '10px', 'letterSpacing': '0.3px',
+                    }),
+                    html.Div(body, style={
+                        'whiteSpace': 'pre-wrap', 'lineHeight': '1.7',
+                        'color': '#334155', 'fontSize': '13px',
+                    }),
+                ]),
+                style={
+                    'borderLeft': f'4px solid {accent}',
+                    'borderRadius': '10px',
+                    'marginBottom': '12px',
+                    'boxShadow': '0 1px 2px rgba(0,0,0,0.04)',
+                    'backgroundColor': '#ffffff',
+                }
+            )
+        )
+    return html.Div(cards)
 
 app.layout = dbc.Container([
     # -- header --
@@ -680,6 +815,18 @@ app.layout = dbc.Container([
     ]), className='mb-4 chart-card'),
 
     dbc.Card(dbc.CardBody([
+        html.H6("可再生能源出力", className='fw-bold text-secondary mb-2'),
+        dcc.Graph(id='re-gen-graph', figure=_placeholder_fig("可再生出力 -- 等待仿真"),
+                  config={'displayModeBar': 'hover'}),
+    ]), className='mb-4 chart-card'),
+
+    dbc.Card(dbc.CardBody([
+        html.H6("负荷曲线", className='fw-bold text-secondary mb-2'),
+        dcc.Graph(id='load-graph', figure=_placeholder_fig("负荷曲线 -- 等待仿真"),
+                  config={'displayModeBar': 'hover'}),
+    ]), className='mb-4 chart-card'),
+
+    dbc.Card(dbc.CardBody([
         html.H6("购售电功率", className='fw-bold text-secondary mb-2'),
         dcc.Graph(id='trade-graph', figure=_placeholder_fig("购售电曲线 -- 等待仿真"),
                   config={'displayModeBar': 'hover'}),
@@ -714,6 +861,7 @@ app.layout = dbc.Container([
     ]), className='mb-4 chart-card'),
 
     # -- 结果区 --
+    dcc.Store(id='sim-state', storage_type='memory'),
 
 
 ], fluid=True, style={'backgroundColor': C_BG, 'minHeight': '100vh', 'padding': '24px',
@@ -735,9 +883,12 @@ SCENARIO_BUTTON_MAP = {
      Output('lmp-graph', 'figure', allow_duplicate=True),
      Output('trade-graph', 'figure', allow_duplicate=True),
      Output('soc-graph', 'figure', allow_duplicate=True),
+     Output('re-gen-graph', 'figure', allow_duplicate=True),
+     Output('load-graph', 'figure', allow_duplicate=True),
      Output('payment-table', 'children', allow_duplicate=True),
      Output('nl-result', 'children', allow_duplicate=True),
-     Output('ai-output', 'children', allow_duplicate=True)],
+     Output('ai-output', 'children', allow_duplicate=True),
+     Output('sim-state', 'data', allow_duplicate=True)],
     [Input('scenario-btn-baseline', 'n_clicks'),
      Input('scenario-btn-high_re', 'n_clicks'),
      Input('scenario-btn-peak_load', 'n_clicks'),
@@ -750,7 +901,7 @@ def scenario_quick_select_callback(b_n, hr_n, pl_n, cg_n):
         raise PreventUpdate
     scenario_en = SCENARIO_BUTTON_MAP[triggered]
     print(f"快速选择场景: {scenario_en}")
-    return build_simulation_outputs(scenario_en, strategy="mpc", opf_mode="lindistflow")
+    return build_simulation_outputs(scenario_en, opf_mode="lindistflow")
 
 
 # ------------------------------
@@ -762,9 +913,12 @@ def scenario_quick_select_callback(b_n, hr_n, pl_n, cg_n):
      Output('lmp-graph', 'figure', allow_duplicate=True),
      Output('trade-graph', 'figure', allow_duplicate=True),
      Output('soc-graph', 'figure', allow_duplicate=True),
+     Output('re-gen-graph', 'figure', allow_duplicate=True),
+     Output('load-graph', 'figure', allow_duplicate=True),
      Output('payment-table', 'children', allow_duplicate=True),
      Output('nl-result', 'children', allow_duplicate=True),
-     Output('ai-output', 'children', allow_duplicate=True)],
+     Output('ai-output', 'children', allow_duplicate=True),
+     Output('sim-state', 'data', allow_duplicate=True)],
     [Input('parse-btn', 'n_clicks')],
     [State('nl-input', 'value')],
     prevent_initial_call=True
@@ -787,23 +941,22 @@ def main_callback(parse_clicks, nl_text):
     )
 
     if not nl_text or not nl_text.strip():
-        return (empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, empty_table,
-                "请输入场景描述后点击运行仿真", "")
+        return (empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_table,
+                "请输入场景描述后点击运行仿真", "", None)
 
     advisor = LLMAdvisor()
     parsed = advisor.parse_natural_language_to_config(nl_text.strip())
     base_scenario = parsed.get("base_scenario", "baseline")
     gp = parsed.get("global_params", {})
     T = int(gp.get("T", 96))
-    strategy_nl = "mpc"
+    strategy_nl = "learning"
     # Count all changes from user input
     agent_mod_count = len(parsed.get("agent_modifications", []))
     defaults_ov_count = len(parsed.get("defaults_overrides", {}))
     scenario_ov_count = len(parsed.get("scenario_overrides", {}))
     default_gp = {"T": 96, "load_factor": 1.0, "line_capacity_factor": 1.0,
-                  "penalty_unserved": 800.0, "carbon_cap_tco2": 200.0,
-                  "re_min_rate": 95.0, "lambda_carbon": 50.0, "lambda_re": 50.0,
-                  "lambda_curtail": 15.0, "pv_factor": 1.0, "wind_factor": 1.0}
+                  "penalty_unserved": 5000.0,
+                  "pv_factor": 1.0, "wind_factor": 1.0}
     param_changes = sum(1 for k, v in gp.items() if k in default_gp and v != default_gp[k])
     total_changes = param_changes + agent_mod_count + defaults_ov_count + scenario_ov_count
     nl_msg = (f"场景: {base_scenario} | "
@@ -833,22 +986,21 @@ def main_callback(parse_clicks, nl_text):
     lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")
     trade_fig = create_trade_figure(da_results, agents)
     soc_fig = create_soc_figure(da_results, agents)
+    re_gen_fig = create_re_gen_figure(da_results, agents)
+    load_fig = create_load_figure(da_results, agents)
     pay_tab = create_payment_table(payment, agents)
 
-    advisor2 = LLMAdvisor()
     summary = build_insight_summary(da_results, agents, base_scenario)
-    ai_output = advisor2.get_insight(summary)
+    ai_output = _render_ai_sections(advisor.get_insight(summary))
 
-    last_simulation.update({
-        "agents": agents,
-        "config": config,
-        "actions": da_actions,
-        "T": T,
+    sim_state = {
         "scenario": base_scenario,
         "strategy": strategy_nl,
-    })
+        "opf_mode": config.opf_mode,
+        "T": T,
+    }
 
-    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, re_gen_fig, load_fig, pay_tab, nl_msg, ai_output, sim_state)
 
 
 # ------------------------------
@@ -857,21 +1009,26 @@ def main_callback(parse_clicks, nl_text):
 @app.callback(
     Output('nash-output', 'children'),
     Input('nash-btn', 'n_clicks'),
+    State('sim-state', 'data'),
     prevent_initial_call=True
 )
-def nash_callback(n_clicks):
+def nash_callback(n_clicks, sim_state):
     if not n_clicks:
         raise PreventUpdate
 
-    if not last_simulation or "agents" not in last_simulation:
+    if not sim_state:
         return dbc.Alert("请先运行仿真，然后再点击纳什检验", color='warning',
                          style={'borderRadius': '12px'})
 
-    agents = last_simulation["agents"]
-    config = last_simulation["config"]
-    actions = last_simulation["actions"]
-    T = last_simulation.get("T", 96)
-    strategy = last_simulation.get("strategy", "mpc")
+    scenario_en = sim_state["scenario"]
+    strategy = sim_state["strategy"]
+    opf_mode = sim_state["opf_mode"]
+    T = sim_state.get("T", 96)
+
+    from models import MarketConfig
+    config = MarketConfig(opf_mode=opf_mode, verbose=False)
+    agents, _ = get_scenario(scenario_en, T=T)
+    actions = adaptive_bidding(agents, config, strategy=strategy)
 
     tester = NashEquilibriumTester(agents, config, T=T, parallel=False,
                                    use_optimization=False)
