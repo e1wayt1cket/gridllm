@@ -5,25 +5,29 @@ Agent-based simulation of day-ahead (DA) and real-time (RT) electricity markets 
 ## Architecture
 
 ```
-run.py / dashboard.py
-  ├─ scenarios.py → grid.py → models.py    (config → network → agents)
-  ├─ market.py → dispatch.py → models.py   (clearing → OPF → constraints)
-  ├─ nash.py → market.py → dispatch.py     (game theory → clearing)
-  └─ llm.py → Ollama API                   (AI advisor)
+run.py / dashboard.py / batch_export.py
+  ├─ config/defaults.yaml + config/scenarios.yaml  (externalized config)
+  ├─ config_loader.py                              (YAML → typed access)
+  ├─ scenarios.py → grid.py → models.py            (config → network → agents)
+  ├─ market.py → dispatch.py → models.py           (clearing → OPF → constraints)
+  ├─ nash.py → market.py → dispatch.py             (game theory → clearing)
+  ├─ outputs.py                                     (CSV + PNG chart export)
+  └─ llm.py → Ollama API                           (AI advisor)
 ```
 
 ## Features
 
 - **Two OPF modes**: DC-OPF (lossless linear) and LinDistFlow (branch-flow model for radial distribution networks), both solved via Gurobi MILP
-- **Multi-period joint optimization**: storage constraints including SOC transition, charge/discharge efficiency, ramp limits, and minimum run durations — solved across coupled time periods
+- **Multi-objective optimization**: weighted-sum and constraint-based methods for carbon emissions, renewable consumption rate, and curtailment
 - **Bidding strategies**: random exploration and adaptive best-response bidding based on locational marginal price (LMP) signals
-- **Two-settlement system**: day-ahead financial settlement + real-time imbalance settlement
-- **Rolling real-time market**: MPC-style rolling horizon clearing with incremental storage state updates
+- **Two-settlement system**: day-ahead financial settlement + real-time imbalance settlement, settled at nodal LMP per agent
+- **Rolling real-time market**: MPC-style rolling horizon clearing with configurable forecast modes (perfect, DA-as-forecast, noisy-DA)
 - **Six built-in scenarios**: baseline, high renewable (2x), peak load (1.8x), network congestion (line capacity halved), renewable sudden drop (to 10%), renewable surge (10% to full)
-- **Nash equilibrium analysis**: fictitious play with parallel multi-processing to test unilateral deviation incentives
-- **LLM advisor**: natural language scenario configuration and <200-word simulation insights via Ollama (local `gemma4:e2b`), with rule-based fallback when unavailable
-- **Interactive dashboard**: Plotly Dash on port 8050 with IEEE 33-bus topology visualization, LMP heatmap, generation/consumption power curves, storage SOC and charge/discharge plots, KPI cards, and settlement tables
-- **Pseudo-real-time simulation**: 96-period step-by-step execution with configurable wall-clock speed
+- **Nash equilibrium analysis**: diagonalization (Gauss-Seidel), Jacobi, and fictitious play with configurable block-level strategy parameters
+- **Batch export**: `--export-all` mode runs all 4 default scenarios with Nash testing and outputs per-scenario CSV + PNG chart files
+- **LLM advisor**: natural language scenario configuration and <200-word simulation insights via Ollama, with rule-based fallback when unavailable
+- **Interactive dashboard**: Plotly Dash on port 8050 with IEEE 33-bus topology visualization, LMP heatmap, time-series curves, storage SOC, KPI cards, settlement tables, and LLM insight panel
+- **Pseudo-real-time simulation**: 96-period step-by-step execution with incremental storage state and configurable wall-clock speed
 
 ## Quick Start
 
@@ -32,10 +36,16 @@ run.py / dashboard.py
 pip install -r requirements.txt
 
 # CLI: run a single scenario
-python run.py --scenario baseline --strategy adaptive --opf-mode lindistflow
+python run.py --scenario baseline --strategy best_response --opf-mode lindistflow
 
 # CLI: run with Nash equilibrium test
-python run.py --scenario high_re --nash --nash-iters 10
+python run.py --scenario high_re --nash --nash-method diagonalization --nash-iters 5
+
+# CLI: batch export all scenarios (CSV + PNG charts + Nash)
+python run.py --export-all
+
+# Or use the standalone batch exporter
+python batch_export.py
 
 # Launch interactive dashboard
 python dashboard.py
@@ -47,22 +57,26 @@ python dashboard.py
 - Gurobi (license required for the optimization solver)
 - Ollama (optional, for LLM advisor features)
 
-Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, `pandas`
+Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, `pandas`, `matplotlib`
 
 ## Module Overview
 
 | Module | Purpose |
 |--------|---------|
-| `models.py` | Data classes: `MarketConfig`, `StorageSpec`, `Agent` (load/PV/wind forecasts, bids, storage state) |
-| `grid.py` | IEEE 33-bus network builder using pandapower; agent placement (residential/commercial/industrial prosumers) |
-| `dispatch.py` | Core OPF engines: DC-OPF and LinDistFlow via Gurobi MILP; storage constraint formulation |
-| `market.py` | Market clearing orchestration; bidding strategies (`random_actions`, `best_response_bidding`); rolling RT market |
-| `nash.py` | Nash equilibrium solver with fictitious play and parallel multi-processing |
-| `scenarios.py` | Scenario registry: `baseline`, `high_re`, `peak_load`, `congestion`, `re_ramp_drop`, `re_ramp_surge` |
-| `llm.py` | Ollama LLM integration for natural language → config parsing and simulation insight generation |
+| `models.py` | Data classes: `MarketConfig` (all market/OPF/multi-objective params), `StorageSpec`, `Agent` |
+| `grid.py` | IEEE 33-bus network builder; agent population with synthetic load/PV/wind/storage profiles |
+| `config_loader.py` | YAML config loader for `defaults.yaml` and `scenarios.yaml` with dotted-key access |
+| `dispatch.py` | OPF engines via Gurobi MILP: DC-OPF and LinDistFlow with storage constraints |
+| `market.py` | Market clearing, bidding strategies, two-settlement, MPC rolling RT |
+| `nash.py` | Nash equilibrium tester: block-parameterized best response via random sampling or COBYLA |
+| `scenarios.py` | Scenario registry with YAML-driven multipliers |
+| `outputs.py` | CSV + PNG chart export: 10 curve CSVs, 6 chart types matching dashboard visual style |
+| `llm.py` | Ollama LLM integration for NL scenario config and simulation insight generation |
 | `pseudo_realtime.py` | Step-by-step pseudo-real-time simulator with incremental storage updates |
 | `dashboard.py` | Interactive Plotly Dash dashboard (port 8050) |
-| `run.py` | CLI entry point with argparse |
+| `run.py` | CLI entry point with `--export-all`, `--nash`, `--multi-scale`, and other flags |
+| `batch_export.py` | Standalone batch runner: 4 scenarios with fast Nash testing |
+| `export_analysis.py` | Data quality analysis: agent energy balance, SOC boundaries, anomaly detection |
 
 ## Scenarios
 
@@ -79,14 +93,28 @@ Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, 
 
 Launch with `python dashboard.py` and open `http://localhost:8050`. Features:
 
-- Scenario and OPF mode dropdown selectors
-- Bidding strategy selection
-- Static analysis and pseudo-real-time simulation controls
-- Nash equilibrium test trigger
+- Scenario quick-select with Chinese labels and OPF mode toggle
+- Bidding strategy selection (random / learning / best_response)
+- Static market clearing and pseudo-real-time simulation controls
+- Nash equilibrium test trigger with configurable method and iterations
 - Natural language input for LLM-driven configuration
-- Node LMP heatmap on IEEE 33-bus topology
-- Time-series LMP curves
-- Generation and consumption power breakdown
-- Storage SOC and charge/discharge profiles
-- KPI summary cards and settlement tables
-- Auto-generated AI insights after each static run
+- IEEE 33-bus topology with LMP-based node coloring and prosumer star markers
+- LMP time-series curves with IQR envelope and representative bus traces
+- Aggregate trade (buy/sell), RE generation (PV/wind), and load (served/unserved) curves
+- Storage SOC and charge/discharge dual-panel profiles
+- KPI summary cards (welfare, RE rate, carbon, curtailment) with settlement table
+- Auto-generated AI insights after each simulation run
+
+## Batch Export
+
+Run `python run.py --export-all` or `python batch_export.py` to produce per-scenario output:
+
+```
+exports/<timestamp>/
+  baseline/      (7 PNG charts + 11 CSV files)
+  high_re/
+  peak_load/
+  congestion/
+```
+
+PNG charts replicate dashboard visuals: LMP curves, trade curves, storage SOC, RE generation, load profile, IEEE 33-bus topology, and Nash test summary. Nash equilibrium testing uses random-sampling best response for practical speed.
