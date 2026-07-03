@@ -38,6 +38,10 @@ Thumbs.db
 *.swp
 *.swo
 
+# 输出目录
+exports/
+raw/
+
 # 其他
 *.deb
 plots/

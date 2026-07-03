@@ -15,7 +15,7 @@ T = 96
 
 def run_one(config, label):
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     t0 = time.perf_counter()
     try:
         results = clear_market(agents, T, "DA", actions, config)

@@ -6,15 +6,18 @@ from grid import build_base_network, create_agents_from_network, day_ahead_price
 from config_loader import get_scenario_cfg
 
 
-def _build_scenario(name: str, T: int) -> Tuple[List[Agent], np.ndarray]:
+def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[List[Agent], np.ndarray]:
     """Generic scenario builder driven by config/scenarios.yaml.
 
     Supported YAML keys per scenario:
       - with_wind: bool (default True)
-      - multipliers: {pv, wind, load} -> float factor applied to agent forecasts
+      - multipliers: {pv, wind, load, storage} -> float factor applied to agent forecasts
       - override_config: dict of MarketConfig field overrides
       - re_ramp: {type: sudden_drop|sudden_surge, multiplier: float}
         Transforms PV/wind forecasts at midpoint by the given multiplier.
+
+    If *config* is provided, scenario override_config is applied to it in-place
+    so callers (clear_market, Nash, etc.) use the same parameters as the network.
     """
     cfg = get_scenario_cfg(name)
     if not cfg:
@@ -25,7 +28,12 @@ def _build_scenario(name: str, T: int) -> Tuple[List[Agent], np.ndarray]:
     override = cfg.get("override_config", {})
     re_ramp = cfg.get("re_ramp", None)
 
-    config = MarketConfig(use_ac_opf=False, **override)
+    if config is not None:
+        for k, v in override.items():
+            setattr(config, k, v)
+    else:
+        config = MarketConfig(use_ac_opf=False, **override)
+
     net = build_base_network(config)
     agents = create_agents_from_network(net, T, with_wind=with_wind)
     wholesale = day_ahead_price_china(T)
@@ -34,6 +42,7 @@ def _build_scenario(name: str, T: int) -> Tuple[List[Agent], np.ndarray]:
     pv_mult = multipliers.get("pv", 1.0)
     wind_mult = multipliers.get("wind", 1.0)
     load_mult = multipliers.get("load", 1.0)
+    storage_mult = multipliers.get("storage", 1.0)
 
     for a in agents:
         a.load_forecast = a.load_forecast * load_mult
@@ -44,6 +53,10 @@ def _build_scenario(name: str, T: int) -> Tuple[List[Agent], np.ndarray]:
         if a.has_wind:
             a.wind_forecast = a.wind_forecast * wind_mult  # type: ignore[operator]
             a.wind_real = a.wind_real * wind_mult  # type: ignore[operator]
+        if a.storage is not None and storage_mult != 1.0:
+            a.storage.e_max *= storage_mult
+            a.storage.p_ch_max *= storage_mult
+            a.storage.p_dis_max *= storage_mult
 
     # --- apply RE ramp event ---
     if re_ramp is not None:
@@ -92,11 +105,11 @@ def _load_registry():
         SCENARIO_REGISTRY[name] = None  # value unused; name is the key
 
 
-def get_scenario(name: str, T: int = 96) -> Tuple[List[Agent], np.ndarray]:
+def get_scenario(name: str, T: int = 96, config: MarketConfig = None) -> Tuple[List[Agent], np.ndarray]:
     _load_registry()
     if name not in SCENARIO_REGISTRY:
         raise ValueError(f"Unknown scenario '{name}'. Available: {list(SCENARIO_REGISTRY.keys())}")
-    return _build_scenario(name, T)
+    return _build_scenario(name, T, config)
 
 
 def list_scenarios() -> List[str]:

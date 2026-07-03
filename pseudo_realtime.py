@@ -12,7 +12,7 @@ from typing import Dict
 from models import MarketConfig, Agent
 from grid import build_base_network, day_ahead_price_china
 from dispatch import solve_opf_gurobi, StorageConstraints
-from market import random_actions   # 用于生成初始动作
+from market import _bootstrap_actions
 from scenarios import get_scenario
 
 warnings.filterwarnings("ignore")
@@ -27,10 +27,10 @@ class PseudoRealTimeSimulator:
         self.config = config
         self.step_sec = step_sec
         self.T = 96                      # 总时段数
-        self.agents, _ = get_scenario(scenario_name, T=self.T)
+        self.agents, _ = get_scenario(scenario_name, T=self.T, config=config)
         self.net = build_base_network(config)
         self.wholesale = day_ahead_price_china(self.T)   # 全时段日前电价（用作参考）
-        self.action_params = random_actions(self.agents, config, T=self.T)  # 全时段报价策略
+        self.action_params = _bootstrap_actions(self.agents, config, T=self.T)  # 全时段报价策略
 
         # 储能状态容器
         self.prev_soc: Dict[str, float] = {}

@@ -11,7 +11,7 @@ os.makedirs("output_csv", exist_ok=True)
 
 config = MarketConfig(opf_mode="lindistflow", verbose=False)
 agents, _ = get_scenario("baseline", T=96)
-actions = adaptive_bidding(agents, config, strategy="random")
+actions = adaptive_bidding(agents, config, strategy="rl")
 result = clear_market(agents, 96, "DA", actions, config)
 
 T = 96
@@ -64,8 +64,8 @@ summary = {
     "carbon_emissions_tCO2": result["carbon_emissions"],
     "carbon_intensity_tCO2_per_MWh": result["carbon_intensity"],
     "total_curtailment_MWh": result["total_curtailment"],
-    "shadow_carbon_cap_CNY": result["shadow_prices"].get("carbon_cap", np.nan),
-    "shadow_re_min_rate_CNY": result["shadow_prices"].get("re_min_rate", np.nan),
+    "shadow_carbon_cap_CNY": result.get("shadow_prices", {}).get("carbon_cap", np.nan),
+    "shadow_re_min_rate_CNY": result.get("shadow_prices", {}).get("re_min_rate", np.nan),
     "carbon_cap_tCO2": config.carbon_cap_tco2,
     "re_min_rate_pct": config.re_min_rate,
 }

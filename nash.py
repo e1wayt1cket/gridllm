@@ -157,7 +157,7 @@ def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
 # Random-sampling best response (fallback)
 # ---------------------------------------------------------------------------
 
-def _generate_variations(base_strategy, agent, config, num_variations=50,
+def _generate_variations(base_strategy, agent, config, num_variations=150,
                          exploration_scale=None):
     """Generate perturbed strategy variants via random normal sampling."""
     variants = []
@@ -166,8 +166,8 @@ def _generate_variations(base_strategy, agent, config, num_variations=50,
     if is_prosumer:
         base_offer = np.array(base_strategy[agent.name]["offer_adder"])
 
-    bid_sigma = 0.03 * (exploration_scale or 1.0)
-    offer_sigma = 2.0 * (exploration_scale or 1.0)
+    bid_sigma = 0.08 * (exploration_scale or 1.0)
+    offer_sigma = 3.0 * (exploration_scale or 1.0)
 
     for _ in range(num_variations):
         new_strat = copy.deepcopy(base_strategy)
@@ -217,7 +217,7 @@ def _strategy_distance(s1, s2, agent):
     Dividing by range makes the metric comparable across parameter types.
     """
     name = agent.name
-    bid_range = 0.4
+    bid_range = 1.5
     bid_diff = (np.abs(np.array(s1[name]["bid_mult"])
                        - np.array(s2[name]["bid_mult"])).mean()
                 / bid_range)
@@ -252,6 +252,12 @@ def _blend_strategy(current, name, br_strat, is_prosumer, alpha):
 class NashEquilibriumTester:
     """Nash equilibrium solver with block-parameterized best response.
 
+    Important: electricity markets with storage are NOT zero-sum — the
+    payoff landscape has local plateaus. Fictitious play convergence proofs
+    do not apply; the fixed point found is only guaranteed to be a
+    correlated equilibrium. Always run test_nash_equilibrium() after
+    convergence to verify the result.
+
     Parameters
     ----------
     agents : list of Agent
@@ -263,13 +269,14 @@ class NashEquilibriumTester:
         False on Windows (spawn forks require serial guard).
     use_optimization : bool or None
         Whether to use COBYLA block optimization for best response.
-        None auto-detects: True if scipy is available.
-    block_count : int, default 24
-        Number of strategy blocks (hourly for T=96). Fewer = faster but coarser.
+        None auto-detects: True if scipy is available. Strongly recommended
+        — random sampling is too weak for 48-dim strategy space.
+    block_count : int, default 48
+        Number of strategy blocks (30-min for T=96). Higher = finer granularity.
     """
 
     def __init__(self, agents, config, T=96, stage="DA", parallel=None,
-                 use_optimization=None, block_count=24):
+                 use_optimization=None, block_count=48):
         self.agents = agents
         self.config = config
         self.T = T
@@ -283,7 +290,7 @@ class NashEquilibriumTester:
 
     # -- best response dispatch ---------------------------------------------
 
-    def _best_response(self, agent, base_strategy, num_variations=50):
+    def _best_response(self, agent, base_strategy, num_variations=150):
         """Dispatch: COBYLA optimization or random sampling."""
         cache_key = self._make_cache_key(agent.name, base_strategy)
         if cache_key in self._payoff_cache:
@@ -312,9 +319,9 @@ class NashEquilibriumTester:
         parts = [target_name]
         for a in sorted(self.agents, key=lambda x: x.name):
             s = strategy.get(a.name, {})
-            parts.append(tuple(np.round(s.get("bid_mult", []), 3)))
+            parts.append(tuple(np.round(s.get("bid_mult", []), 5)))
             if a.is_prosumer:
-                parts.append(tuple(np.round(s.get("offer_adder", []), 3)))
+                parts.append(tuple(np.round(s.get("offer_adder", []), 5)))
         return tuple(parts)
 
     def _clear_cache(self):
@@ -356,8 +363,8 @@ class NashEquilibriumTester:
     # Diagonalization (Gauss-Seidel sequential best response)
     # ------------------------------------------------------------------
 
-    def diagonalization(self, init_strategy, max_iter=8, num_variations=50,
-                        alpha=1.0, tol_distance=0.01, history=None):
+    def diagonalization(self, init_strategy, max_iter=25, num_variations=150,
+                        alpha=0.7, tol_distance=0.01, patience=5, history=None):
         """Gauss-Seidel diagonalization.
 
         Iterates through agents sequentially. Each agent finds its best response
@@ -365,14 +372,22 @@ class NashEquilibriumTester:
 
         alpha=1.0: pure Gauss-Seidel (full best-response adoption).
         alpha<1.0: damped (safer but slower).
+
+        Converges when strategy distance < tol_distance AND no payoff
+        improvement for patience consecutive iterations.
         """
         current = copy.deepcopy(init_strategy)
+        best_avg_pay = float('-inf')
+        stagnation = 0
 
         for it in range(max_iter):
             prev_round = copy.deepcopy(current)
             total_pay = 0.0
 
             for a in self.agents:
+                # Clear cache per-agent: later agents' BR depends on just-updated
+                # strategies of earlier agents in this round.
+                self._clear_cache()
                 br = self._best_response(a, current, num_variations)
                 name, payoff, strat = br
                 total_pay += payoff
@@ -390,10 +405,21 @@ class NashEquilibriumTester:
                 history.append({"iter": it + 1, "avg_payoff": avg_pay,
                                 "max_distance": max_dist})
 
+            # Patience-based convergence: distance below threshold AND payoff stalled
             if max_dist < tol_distance:
-                print(f"  converged (strategy distance < {tol_distance})")
-                self._clear_cache()
-                return current, it + 1
+                if avg_pay > best_avg_pay + 1.0:  # 1 CNY improvement floor
+                    best_avg_pay = avg_pay
+                    stagnation = 0
+                else:
+                    stagnation += 1
+                    if stagnation >= patience:
+                        print(f"  converged (distance < {tol_distance}, "
+                              f"payoff stalled {patience} rounds)")
+                        self._clear_cache()
+                        return current, it + 1
+            else:
+                best_avg_pay = max(best_avg_pay, avg_pay)
+                stagnation = 0
 
         self._clear_cache()
         return current, max_iter
@@ -402,14 +428,19 @@ class NashEquilibriumTester:
     # Jacobi (parallel diagonalization)
     # ------------------------------------------------------------------
 
-    def jacobi(self, init_strategy, max_iter=10, num_variations=50,
-               alpha=0.6, tol_distance=0.01, history=None):
+    def jacobi(self, init_strategy, max_iter=25, num_variations=150,
+               alpha=0.6, tol_distance=0.01, patience=5, history=None):
         """Jacobi parallel best response.
 
         All agents find best responses simultaneously from a shared snapshot,
         then all update at once. Faster per iteration than GS but can oscillate.
+
+        Converges when strategy distance < tol_distance AND no payoff
+        improvement for patience consecutive iterations.
         """
         current = copy.deepcopy(init_strategy)
+        best_avg_pay = float('-inf')
+        stagnation = 0
 
         for it in range(max_iter):
             prev_snapshot = copy.deepcopy(current)
@@ -455,9 +486,19 @@ class NashEquilibriumTester:
                                 "max_distance": max_dist})
 
             if max_dist < tol_distance:
-                print(f"  converged (strategy distance < {tol_distance})")
-                self._clear_cache()
-                return current, it + 1
+                if avg_pay > best_avg_pay + 1.0:
+                    best_avg_pay = avg_pay
+                    stagnation = 0
+                else:
+                    stagnation += 1
+                    if stagnation >= patience:
+                        print(f"  converged (distance < {tol_distance}, "
+                              f"payoff stalled {patience} rounds)")
+                        self._clear_cache()
+                        return current, it + 1
+            else:
+                best_avg_pay = max(best_avg_pay, avg_pay)
+                stagnation = 0
 
         self._clear_cache()
         return current, max_iter
@@ -466,10 +507,10 @@ class NashEquilibriumTester:
     # Fictitious play (true average-history formulation)
     # ------------------------------------------------------------------
 
-    def iter_fictitious_play(self, init_strategy, max_iter=10,
-                             num_variations=50, alpha=0.3,
-                             tol_relative=0.001, adaptive_alpha=True,
-                             history=None):
+    def iter_fictitious_play(self, init_strategy, max_iter=25,
+                             num_variations=150, alpha=0.3,
+                             tol_relative=0.005, tol_distance=0.01,
+                             adaptive_alpha=True, history=None):
         """Fictitious play: each agent best-responds to average of opponents' history.
 
         Each iteration:
@@ -479,10 +520,18 @@ class NashEquilibriumTester:
 
         When adaptive_alpha=True, alpha starts at 0.7 and decays linearly to
         the final alpha value over max_iter rounds.
+
+        WARNING: convergence proofs for fictitious play only hold for zero-sum
+        and potential games. Electricity markets with storage are positive-sum.
+        The fixed point here is only guaranteed to be a correlated equilibrium.
+        Run test_nash_equilibrium() afterward to verify.
         """
         current = copy.deepcopy(init_strategy)
         strategy_history = [copy.deepcopy(init_strategy)]
         prev_avg_pay = None
+        best_avg_pay = float('-inf')
+        stagnation = 0
+        patience = 5
 
         for it in range(max_iter):
             if adaptive_alpha:
@@ -520,6 +569,7 @@ class NashEquilibriumTester:
                 best_strategies[name] = strat
 
             # Blend toward best response
+            prev_strategy = copy.deepcopy(current)
             for a in self.agents:
                 _blend_strategy(current, a.name, best_strategies[a.name],
                                 a.is_prosumer, alpha_t)
@@ -527,20 +577,36 @@ class NashEquilibriumTester:
             strategy_history.append(copy.deepcopy(current))
 
             avg_pay = np.mean(list(payoffs.values()))
-            print(f"  avg payoff: {avg_pay:.2f}")
+            max_dist = max(
+                _strategy_distance(prev_strategy, current, a)
+                for a in self.agents)
+            print(f"  avg payoff: {avg_pay:.2f}  max_dist: {max_dist:.4f}")
 
             if history is not None:
                 history.append({"iter": it + 1, "avg_payoff": avg_pay,
-                                "max_distance": 0.0})
+                                "max_distance": max_dist})
 
+            # Dual convergence: payoff relative change AND strategy distance
+            payoff_converged = False
             if prev_avg_pay is not None:
                 rel_change = (abs(avg_pay - prev_avg_pay)
                               / (abs(prev_avg_pay) + 1e-6))
-                if rel_change < tol_relative:
-                    print("  converged (payoff)")
-                    self._clear_cache()
-                    return current, it + 1
+                payoff_converged = rel_change < tol_relative
             prev_avg_pay = avg_pay
+
+            if max_dist < tol_distance and payoff_converged:
+                if avg_pay > best_avg_pay + 1.0:
+                    best_avg_pay = avg_pay
+                    stagnation = 0
+                else:
+                    stagnation += 1
+                    if stagnation >= patience:
+                        print("  converged (payoff + distance + patience)")
+                        self._clear_cache()
+                        return current, it + 1
+            else:
+                best_avg_pay = max(best_avg_pay, avg_pay)
+                stagnation = 0
 
         self._clear_cache()
         return current, max_iter
@@ -549,13 +615,12 @@ class NashEquilibriumTester:
     # Nash equilibrium test
     # ------------------------------------------------------------------
 
-    def test_nash_equilibrium(self, base_strategy, num_variations=50,
-                              threshold_rel=0.01, threshold_abs=30.0):
+    def test_nash_equilibrium(self, base_strategy, num_variations=150,
+                              threshold_rel=0.01):
         """Test whether current strategy profile is a Nash equilibrium.
 
         Each agent's best-response payoff is compared to its base payoff.
-        An agent has a profitable deviation if:
-          - relative gain > threshold_rel AND absolute gain > threshold_abs.
+        An agent has a profitable deviation if relative gain > threshold_rel.
 
         Returns
         -------
@@ -594,7 +659,7 @@ class NashEquilibriumTester:
             agent = next(a for a in self.agents if a.name == name)
             gain = best_pay - base_pay
             rel_gain = gain / max(abs(base_pay), 1.0)
-            profitable = (rel_gain > threshold_rel and gain > threshold_abs)
+            profitable = rel_gain > threshold_rel
             improvements[name] = {
                 "gain": gain,
                 "rel_gain": rel_gain,
@@ -610,12 +675,12 @@ class NashEquilibriumTester:
                 print(f"  {name}: gain={gain:+.1f} (rel={rel_gain:.4f})")
 
         # -- print statistical summary
-        self._print_nash_summary(improvements, is_nash, threshold_rel, threshold_abs)
+        self._print_nash_summary(improvements, is_nash, threshold_rel)
 
         self._clear_cache()
         return is_nash, improvements
 
-    def _print_nash_summary(self, improvements, is_nash, threshold_rel, threshold_abs):
+    def _print_nash_summary(self, improvements, is_nash, threshold_rel):
         """Print statistical summary of Nash equilibrium test results."""
         n_total = len(improvements)
         n_profitable = sum(1 for v in improvements.values() if v["profitable"])
@@ -631,10 +696,10 @@ class NashEquilibriumTester:
         print(f"\n{'='*60}")
         print(f"  Nash Equilibrium Test — Statistical Summary")
         print(f"{'='*60}")
-        print(f"  Thresholds:  relative > {threshold_rel:.3f}  AND  absolute > {threshold_abs:,.0f} CNY")
-        print(f"  Result:      {'NASH' if is_nash else 'NOT NASH'}  ({n_profitable}/{n_total} agents with profitable deviation)")
-        print(f"  Prosumers:   {n_prosumer_prof}/{n_prosumer} profitable")
-        print(f"  Consumers:   {n_profitable - n_prosumer_prof}/{n_total - n_prosumer} profitable")
+        print(f"  Threshold:  relative > {threshold_rel:.3f}")
+        print(f"  Result:     {'NASH' if is_nash else 'NOT NASH'}  ({n_profitable}/{n_total} agents with profitable deviation)")
+        print(f"  Prosumers:  {n_prosumer_prof}/{n_prosumer} profitable")
+        print(f"  Consumers:  {n_profitable - n_prosumer_prof}/{n_total - n_prosumer} profitable")
         print(f"{'='*60}")
         print(f"  Gain (absolute, CNY):")
         print(f"    mean={gains.mean():+.1f}  median={np.median(gains):+.1f}  "
@@ -664,7 +729,7 @@ class NashEquilibriumTester:
 # Visualization
 # ---------------------------------------------------------------------------
 
-def plot_nash_results(improvements, is_nash, threshold_rel=0.01, threshold_abs=30.0,
+def plot_nash_results(improvements, is_nash, threshold_rel=0.01,
                       save_path=None, title="Nash Equilibrium Test"):
     """Generate statistical charts for Nash equilibrium test results.
 
@@ -678,8 +743,8 @@ def plot_nash_results(improvements, is_nash, threshold_rel=0.01, threshold_abs=3
     improvements : dict
         Output from NashEquilibriumTester.test_nash_equilibrium().
     is_nash : bool
-    threshold_rel, threshold_abs : float
-        Thresholds used in the test.
+    threshold_rel : float
+        Relative gain threshold used in the test.
     save_path : str or None
         Path to save the figure. If None, defaults to "nash_test_results.png".
     title : str
@@ -730,8 +795,6 @@ def plot_nash_results(improvements, is_nash, threshold_rel=0.01, threshold_abs=3
             bar.set_linewidth(2.5)
             bar.set_edgecolor('#f59e0b')  # amber edge for prosumers
 
-    ax_bar.axvline(x=threshold_abs, color='#6b7280', linestyle='--', linewidth=1.2,
-                   alpha=0.8, label=f'threshold_abs={threshold_abs:,.0f}')
     ax_bar.axvline(x=0, color='#d1d5db', linewidth=0.8)
     ax_bar.set_yticks(y_pos)
     ax_bar.set_yticklabels(names, fontsize=8, fontfamily='monospace')
@@ -746,8 +809,6 @@ def plot_nash_results(improvements, is_nash, threshold_rel=0.01, threshold_abs=3
         Patch(facecolor='#ef4444', edgecolor='#b91c1c', label='Profitable deviation'),
         Patch(facecolor='#10b981', edgecolor='#047857', label='No deviation'),
         Patch(facecolor='white', edgecolor='#f59e0b', linewidth=2.5, label='Prosumer'),
-        plt.Line2D([0], [0], color='#6b7280', linestyle='--', linewidth=1.2,
-                   label=f'Threshold ({threshold_abs:,.0f} CNY)'),
     ]
     ax_bar.legend(handles=legend_elements, loc='lower right', fontsize=8,
                   framealpha=0.9, ncol=2)
@@ -764,8 +825,6 @@ def plot_nash_results(improvements, is_nash, threshold_rel=0.01, threshold_abs=3
     bins = max(10, min(30, n_total // 2))
     ax_dist.hist(gains, bins=bins, color='#6366f1', edgecolor='#4338ca',
                  alpha=0.75, linewidth=0.8, label='Gain distribution')
-    ax_dist.axvline(x=threshold_abs, color='#6b7280', linestyle='--', linewidth=1.2,
-                    label=f'threshold_abs={threshold_abs:,.0f}')
     ax_dist.axvline(x=0, color='#d1d5db', linewidth=0.8)
 
     # KDE overlay

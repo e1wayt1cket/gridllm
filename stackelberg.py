@@ -66,7 +66,7 @@ def _coarse_grid_search(objective, bounds, n_pts=5):
 
 
 def stackelberg_bidding(agents, config, leader_name,
-                        follower_strategy="best_response",
+                        follower_strategy="rl",
                         T=96, n_blocks=1):
     """Stackelberg leader bidding: optimize one agent's bids via direct search.
 
@@ -153,7 +153,7 @@ def stackelberg_bidding(agents, config, leader_name,
 
 
 def stackelberg_nash(agents, config, leader_names=None,
-                     follower_strategy="best_response",
+                     follower_strategy="rl",
                      T=96, max_rounds=5):
     """Multi-leader Stackelberg-Nash: each storage agent acts as leader in turn.
 

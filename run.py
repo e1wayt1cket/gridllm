@@ -30,7 +30,7 @@ def _run_single_scenario(scenario_name, strategy_name, config, run_nash=False,
     """Run one scenario end-to-end. Returns (agents, da_results, rt_results,
     da_actions, is_nash, improvements)."""
     T = 96
-    agents, _ = get_scenario(scenario_name, T=T)
+    agents, _ = get_scenario(scenario_name, T=T, config=config)
 
     da_actions = adaptive_bidding(agents, config, strategy=strategy_name)
     da_results = clear_market(agents, T, "DA", da_actions, config)
@@ -56,13 +56,13 @@ def _run_single_scenario(scenario_name, strategy_name, config, run_nash=False,
         tester = NashEquilibriumTester(agents, config, T, stage="DA",
                                          use_optimization=False)
         is_nash, improvements = tester.test_nash_equilibrium(
-            da_actions, threshold_abs=30.0, num_variations=nash_variations)
+            da_actions, num_variations=nash_variations)
 
         if not is_nash:
             solver = getattr(tester, method_func)
             nash_strat, iters = solver(da_actions, max_iter=nash_iters, num_variations=nash_variations)
             final_nash, final_improvements = tester.test_nash_equilibrium(
-                nash_strat, threshold_abs=30.0, num_variations=nash_variations)
+                nash_strat, num_variations=nash_variations)
             is_nash = final_nash
             improvements = final_improvements
 
@@ -85,12 +85,12 @@ def main():
     np.random.seed(1)
     args = sys.argv[1:]
     scenario_name = "baseline"
-    strategy_name = "best_response"
-    config = MarketConfig(opf_mode="lindistflow", verbose=False)
+    strategy_name = "rl"
+    config = MarketConfig(opf_mode="socp", verbose=False)
     run_nash = False
     nash_iters = 5
     nash_method = "diagonalization"
-    nash_variations = 8
+    nash_variations = 150
     multi_scale = False
     export_all = False
 
@@ -99,7 +99,7 @@ def main():
             print(__doc__)
             print("Options:")
             print("  --scenario <name>        baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge")
-            print("  --strategy <name>        random | learning | best_response (default: best_response)")
+            print("  --strategy <name>        rl | stackelberg (default: rl)")
             print("  --opf-mode <mode>        dc | lindistflow")
             print("  --nash                   enable Nash equilibrium search")
             print("  --nash-method <name>     diagonalization | jacobi | fictitious_play")
@@ -108,6 +108,12 @@ def main():
             print("  --multi-scale            use MPC rolling RT with multi-period OPF")
             print("  --rt-forecast-mode <m>   perfect | da_as_forecast | noisy_da")
             print("  --rt-forecast-noise <p>  noise std as %% of DA price (default 10)")
+            print("  --da-rolling             enable rolling-horizon DA (limits storage foresight)")
+            print("  --da-window-len <N>      DA window length in periods (default 24)")
+            print("  --da-window-step <N>     DA window step in periods (default 8)")
+            print("  --da-forecast-noise <p>  noise std as % of DA price (default 0)")
+            print("  --storage-self-schedule   enable MPC self-scheduling (default: on)")
+            print("  --no-storage-self-schedule  disable, use batch OPF for storage")
             print("  --export-all             batch export 4 scenarios + Nash + curve CSVs")
             return
         elif arg == "--scenario" and i+1 < len(args):
@@ -130,6 +136,18 @@ def main():
             config.rt_forecast_mode = args[i+1]
         elif arg == "--rt-forecast-noise" and i+1 < len(args):
             config.rt_forecast_noise_pct = float(args[i+1])
+        elif arg == "--da-rolling":
+            config.da_rolling_enabled = True
+        elif arg == "--da-window-len" and i+1 < len(args):
+            config.da_window_length = int(args[i+1])
+        elif arg == "--da-window-step" and i+1 < len(args):
+            config.da_window_step = int(args[i+1])
+        elif arg == "--da-forecast-noise" and i+1 < len(args):
+            config.da_forecast_noise_pct = float(args[i+1])
+        elif arg == "--storage-self-schedule":
+            config.storage_self_schedule = True
+        elif arg == "--no-storage-self-schedule":
+            config.storage_self_schedule = False
         elif arg == "--export-all":
             export_all = True
 
@@ -188,7 +206,7 @@ def main():
 
     # ---- single-scenario mode ----
     T = 96
-    agents, _ = get_scenario(scenario_name, T=T)
+    agents, _ = get_scenario(scenario_name, T=T, config=config)
 
     da_actions = adaptive_bidding(agents, config, strategy=strategy_name)
     da_results = clear_market(agents, T, "DA", da_actions, config)
@@ -205,6 +223,10 @@ def main():
     carbon_int = da_results.get('carbon_intensity', 0)
     curtail = da_results.get('total_curtailment', 0)
     print(f"OPF mode: {config.opf_mode}")
+    if config.da_rolling_enabled:
+        print(f"DA rolling: window={config.da_window_length}, step={config.da_window_step}, noise={config.da_forecast_noise_pct}%")
+    if config.storage_self_schedule:
+        print(f"Storage: self-scheduled via MPC (horizon={config.storage_mpc_horizon})")
     if multi_scale:
         print(f"RT forecast mode: {config.rt_forecast_mode}, noise: {config.rt_forecast_noise_pct}%")
     print(f"DA welfare: {da_results['welfare']:.2f}, RE rate: {da_results['re_consumption_rate']:.1f}%")
@@ -229,14 +251,14 @@ def main():
         tester = NashEquilibriumTester(agents, config, T, stage="DA",
                                          use_optimization=False)
         is_nash, improvements = tester.test_nash_equilibrium(
-            da_actions, threshold_abs=30.0, num_variations=nash_variations)
+            da_actions, num_variations=nash_variations)
         plot_nash_results(improvements, is_nash, save_path="nash_test_initial.png",
                           title=f"Nash Eq. Test — Initial ({strategy_name})")
         if not is_nash:
             solver = getattr(tester, method_func)
             nash_strat, iters = solver(da_actions, max_iter=nash_iters, num_variations=nash_variations)
             final_nash, final_improvements = tester.test_nash_equilibrium(
-                nash_strat, threshold_abs=30.0, num_variations=nash_variations)
+                nash_strat, num_variations=nash_variations)
             plot_nash_results(final_improvements, final_nash,
                               save_path="nash_test_final.png",
                               title=f"Nash Eq. Test — After {nash_method} ({iters} iters)")

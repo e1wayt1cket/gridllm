@@ -89,7 +89,8 @@ def create_agents_from_network(
                           cloud_attenuation_min=pv_cfg.get("cloud_attenuation_min", 0.2),
                           cloud_attenuation_max=pv_cfg.get("cloud_attenuation_max", 0.6),
                           cloud_persistence=pv_cfg.get("cloud_persistence", 0.70),
-                          cloud_seed=pv_cfg.get("cloud_seed", 99))
+                          cloud_seed=pv_cfg.get("cloud_seed", 99),
+                          dt_h=1.0)
 
     wind_cfg = cfg["profiles"]["wind"]
     wind_base_seed = wind_cfg.get("seed", 42)
@@ -111,6 +112,10 @@ def create_agents_from_network(
     prosumer_buses: Dict[str, set] = {}
     for lt_name, ps_cfg in cfg.get("prosumers", {}).items():
         prosumer_buses[lt_name] = set(ps_cfg.get("prosumer_buses", []))
+
+    # Non-prosumer standalone storage config
+    nps_cfg = cfg.get("non_prosumer_storage", {})
+    nps_buses = set(nps_cfg.get("buses", []))
 
     agents: List[Agent] = []
 
@@ -163,7 +168,7 @@ def create_agents_from_network(
                 # Per-bus wind profile for spatial diversity
                 bus_wind = wind_profile(hours, seed=wind_base_seed + bus,
                                         ar_coef=ar_coef, noise_std=noise_std,
-                                        peak_hour=wind_peak_hour)
+                                        peak_hour=wind_peak_hour, dt_h=1.0)
                 wind_forecast = _noisy_load(bus_wind * wind_cap, wind_fcast_noise)
                 wind_real = _noisy_load(bus_wind * wind_cap, wind_real_noise)
 
@@ -208,6 +213,21 @@ def create_agents_from_network(
         else:
             bid_val = lt_cfg.get("bid_value", 580.0)
             offer_cost = 999.0
+            # Attach standalone storage to selected non-prosumer nodes
+            if bus in nps_buses and nps_cfg:
+                nps_storage = StorageSpec(
+                    e_max=base_load * nps_cfg.get("capacity_factor", 2.5),
+                    p_ch_max=base_load * nps_cfg.get("capacity_factor", 2.5)
+                              * nps_cfg.get("power_ratio", 0.30),
+                    p_dis_max=base_load * nps_cfg.get("capacity_factor", 2.5)
+                               * nps_cfg.get("power_ratio", 0.30),
+                    eta_ch=nps_cfg.get("eta_ch", 0.92),
+                    eta_dis=nps_cfg.get("eta_dis", 0.92),
+                    soc0=nps_cfg.get("soc0", 0.5),
+                    soc_min=nps_cfg.get("soc_min", 0.10),
+                    soc_max=nps_cfg.get("soc_max", 0.95),
+                )
+                storage = nps_storage
 
         agent = Agent(
             name=f"Bus{bus}{load_type[0].upper()}",
@@ -301,12 +321,16 @@ def load_profile(hours: np.ndarray,
 def pv_profile(hours: np.ndarray, amplitude: float = 1.0,
                cloud_prob: float = 0.15, cloud_attenuation_min: float = 0.55,
                cloud_attenuation_max: float = 0.85, cloud_persistence: float = 0.85,
-               cloud_seed: int = 42) -> np.ndarray:
+               cloud_seed: int = 42, dt_h: float = 0.25) -> np.ndarray:
     """Synthetic PV profile with clear-sky envelope and smooth cloud attenuation.
 
     Accepts either decimal hours (0..24) or integer periods (0..95 at 15-min
     resolution). Auto-detects: if max(hours) > 30, treats as integer periods
     and converts to decimal hours internally.
+
+    dt_h controls the native modelling time step in hours. When dt_h > 0.25,
+    the AR(1) cloud process runs at the coarser resolution, then the result is
+    linearly interpolated back to the original length.
 
     Cloud cover is modelled as a continuous AR(1) latent process mapped through
     a sigmoid to [cloud_attenuation_min, 1.0] so irradiance never drops to zero
@@ -318,6 +342,20 @@ def pv_profile(hours: np.ndarray, amplitude: float = 1.0,
         hours_dec = hours * 0.25
     else:
         hours_dec = hours
+
+    # If modelling at coarser resolution, generate coarse then interpolate
+    if dt_h > 0.25:
+        T_coarse = int(24 / dt_h)
+        hours_coarse = np.arange(T_coarse) * dt_h
+        coarse = pv_profile(hours_coarse, amplitude=amplitude,
+                            cloud_prob=cloud_prob,
+                            cloud_attenuation_min=cloud_attenuation_min,
+                            cloud_attenuation_max=cloud_attenuation_max,
+                            cloud_persistence=cloud_persistence,
+                            cloud_seed=cloud_seed, dt_h=0.25)
+        x_coarse = hours_coarse
+        x_fine = hours_dec
+        return np.interp(x_fine, x_coarse, coarse)
 
     # Clear-sky envelope: clipped sine peaking at 12:00 (solar noon)
     clear_sky = np.clip(amplitude * np.sin((hours_dec - 6) / 24 * 2 * np.pi), 0, None)
@@ -349,15 +387,20 @@ def pv_profile(hours: np.ndarray, amplitude: float = 1.0,
 
 def wind_profile(hours: np.ndarray, seed: int = 42,
                  ar_coef: float = 0.88, noise_std: float = 0.18,
-                 peak_hour: float = 3.0, floor: float = 0.0) -> np.ndarray:
+                 peak_hour: float = 3.0, floor: float = 0.0,
+                 dt_h: float = 0.25) -> np.ndarray:
     """Synthetic wind generation with AR(1) temporal correlation.
 
     Accepts either decimal hours (0..24) or integer periods (0..95 at 15-min
     resolution). Diurnal baseline peaks at peak_hour (default 3:00 AM for
     complementarity with solar PV).
+
+    dt_h controls the native modelling time step in hours. When dt_h > 0.25,
+    the AR(1) process runs at the coarser resolution, then the result is
+    linearly interpolated back to the original length.
+
     Each bus can receive a different seed for spatial diversity.
     """
-    rng = np.random.RandomState(seed)
     T = len(hours)
     max_h = float(np.max(hours))
     if max_h > 30:
@@ -365,10 +408,22 @@ def wind_profile(hours: np.ndarray, seed: int = 42,
     else:
         hours_dec = hours
 
+    # If modelling at coarser resolution, generate coarse then interpolate
+    if dt_h > 0.25:
+        T_coarse = int(24 / dt_h)
+        hours_coarse = np.arange(T_coarse) * dt_h
+        coarse = wind_profile(hours_coarse, seed=seed,
+                              ar_coef=ar_coef, noise_std=noise_std,
+                              peak_hour=peak_hour, floor=floor, dt_h=0.25)
+        x_coarse = hours_coarse
+        x_fine = hours_dec
+        return np.interp(x_fine, x_coarse, coarse)
+
     # Diurnal: peak at peak_hour, trough 12h later (complementary to PV)
     diurnal = 0.55 + 0.35 * np.sin((hours_dec - peak_hour + 6) / 24 * 2 * np.pi)
 
     # AR(1) process — preserves temporal structure across periods
+    rng = np.random.RandomState(seed)
     innovations = rng.normal(0, noise_std, size=T)
     ar_component = np.zeros(T)
     ar_component[0] = innovations[0]

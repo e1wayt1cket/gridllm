@@ -1,9 +1,9 @@
 """Batch export: 4 scenarios with charts + Nash equilibrium tests."""
-import os, sys, warnings, numpy as np, time
+import os, sys, warnings, time
+from ortools.linear_solver import pywraplp  # preload before numpy to avoid DLL order conflict
+import numpy as np
 warnings.filterwarnings("ignore")
 np.random.seed(1)
-
-from ortools.linear_solver import pywraplp  # preload before numpy
 from models import MarketConfig
 from market import clear_market, adaptive_bidding
 from scenarios import get_scenario
@@ -14,7 +14,7 @@ from datetime import datetime
 SCENARIOS = ["baseline", "high_re", "peak_load", "congestion"]
 T = 96
 config = MarketConfig(opf_mode="lindistflow", verbose=False)
-strategy = "best_response"
+strategy = "rl"
 
 ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 base_dir = os.path.join("exports", ts)
@@ -26,7 +26,7 @@ for scenario in SCENARIOS:
     print(f"{'='*60}")
 
     # ---- Market clearing ----
-    agents, _ = get_scenario(scenario, T=T)
+    agents, _ = get_scenario(scenario, T=T, config=config)
     t0 = time.time()
     da_actions = adaptive_bidding(agents, config, strategy=strategy)
     da_results = clear_market(agents, T, "DA", da_actions, config)
@@ -43,7 +43,7 @@ for scenario in SCENARIOS:
     t0 = time.time()
     tester = NashEquilibriumTester(agents, config, T, stage="DA", use_optimization=False)
     is_nash, improvements = tester.test_nash_equilibrium(
-        da_actions, threshold_abs=30.0, num_variations=3)
+        da_actions, num_variations=3)
     n_prof = sum(1 for v in improvements.values() if v.get("profitable"))
     print(f"  Nash={'Y' if is_nash else 'N'} (profitable deviations: {n_prof}) ({time.time()-t0:.1f}s)")
 

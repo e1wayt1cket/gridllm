@@ -15,7 +15,7 @@ def test_baseline_da_welfare():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     welfare = results["welfare"]
     assert 50000 < welfare < 200000, f"welfare {welfare:.0f} out of range"
@@ -26,7 +26,7 @@ def test_baseline_re_rate():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     re_rate = results["re_consumption_rate"]
     assert re_rate >= 90.0, f"RE rate {re_rate:.1f}% below 90%"
@@ -37,7 +37,7 @@ def test_baseline_carbon_positive():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     assert results["carbon_emissions"] > 0, "carbon emissions should be > 0"
     assert results["carbon_intensity"] > 0, "carbon intensity should be > 0"
@@ -48,7 +48,7 @@ def test_baseline_result_schema():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     required = ["price", "lmp", "schedules", "welfare", "re_consumption_rate",
                 "total_re_available", "carbon_emissions", "carbon_intensity",
@@ -62,7 +62,7 @@ def test_baseline_lmp_shape():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     assert results["lmp"].shape == (96, 33), f"LMP shape {results['lmp'].shape} != (96, 33)"
 
@@ -72,7 +72,7 @@ def test_baseline_schedule_keys():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     sub_keys = ["p_buy", "p_sell", "served", "unserved", "pv_used",
                 "wind_used", "p_ch", "p_dis", "soc"]
@@ -88,12 +88,12 @@ def test_peak_load_higher_welfare():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False,
                           use_constraint_multi_obj=False)
-    agents_b, _ = get_scenario("baseline", T=T)
-    agents_p, _ = get_scenario("peak_load", T=T)
+    agents_b, _ = get_scenario("baseline", T=T, config=config)
+    agents_p, _ = get_scenario("peak_load", T=T, config=config)
     r_b = clear_market(agents_b, T, "DA",
-                       adaptive_bidding(agents_b, config, "random"), config)
+                       adaptive_bidding(agents_b, config, "rl"), config)
     r_p = clear_market(agents_p, T, "DA",
-                       adaptive_bidding(agents_p, config, "random"), config)
+                       adaptive_bidding(agents_p, config, "rl"), config)
     assert r_p["welfare"] > r_b["welfare"], \
         f"peak_load welfare {r_p['welfare']:.0f} <= baseline {r_b['welfare']:.0f}"
 
@@ -106,7 +106,7 @@ def test_constraint_mode_feasible():
                           use_constraint_multi_obj=True,
                           carbon_cap_tco2=200.0, re_min_rate=90.0)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     assert results is not None, "constraint mode should not fail"
     assert results["re_consumption_rate"] >= config.re_min_rate - 0.5, \
@@ -122,14 +122,13 @@ def test_congestion_lower_welfare():
     config_b = MarketConfig(opf_mode="lindistflow", verbose=False,
                             use_constraint_multi_obj=False)
     config_c = MarketConfig(opf_mode="lindistflow", verbose=False,
-                            use_constraint_multi_obj=False,
-                            line_capacity_multiplier=0.5)
-    agents_b, _ = get_scenario("baseline", T=T)
-    agents_c, _ = get_scenario("congestion", T=T)
+                            use_constraint_multi_obj=False)
+    agents_b, _ = get_scenario("baseline", T=T, config=config_b)
+    agents_c, _ = get_scenario("congestion", T=T, config=config_c)
     r_b = clear_market(agents_b, T, "DA",
-                       adaptive_bidding(agents_b, config_b, "random"), config_b)
+                       adaptive_bidding(agents_b, config_b, "rl"), config_b)
     r_c = clear_market(agents_c, T, "DA",
-                       adaptive_bidding(agents_c, config_c, "random"), config_c)
+                       adaptive_bidding(agents_c, config_c, "rl"), config_c)
     assert r_c["welfare"] <= r_b["welfare"] * 1.05, \
         f"congestion welfare {r_c['welfare']:.0f} much higher than baseline {r_b['welfare']:.0f}"
 
@@ -140,7 +139,7 @@ def test_carbon_scales_with_dt():
     config = MarketConfig(opf_mode="lindistflow", verbose=False,
                           carbon_cap_tco2=200.0, re_min_rate=90.0)
     agents, _ = get_scenario("baseline", T=T)
-    actions = adaptive_bidding(agents, config, strategy="random")
+    actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     assert results["carbon_emissions"] <= config.carbon_cap_tco2 + 1.0, \
         f"carbon {results['carbon_emissions']:.1f} exceeds cap {config.carbon_cap_tco2}"
@@ -187,9 +186,9 @@ def test_two_settlement_flow():
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
-    da_actions = adaptive_bidding(agents, config, strategy="random")
+    da_actions = adaptive_bidding(agents, config, strategy="rl")
     da = clear_market(agents, T, "DA", da_actions, config)
-    rt_actions = adaptive_bidding(agents, config, strategy="random")
+    rt_actions = adaptive_bidding(agents, config, strategy="rl")
     rt = clear_market(agents, T, "RT", rt_actions, config)
     payment = two_settlement(agents, da, rt)
 
@@ -215,7 +214,7 @@ def test_constraint_vs_weighted():
     config_c = MarketConfig(opf_mode="lindistflow", verbose=False,
                             carbon_cap_tco2=cap, re_min_rate=90.0)
     agents_c, _ = get_scenario("baseline", T=T)
-    actions_c = adaptive_bidding(agents_c, config_c, strategy="random")
+    actions_c = adaptive_bidding(agents_c, config_c, strategy="rl")
     r_c = clear_market(agents_c, T, "DA", actions_c, config_c)
     assert r_c["carbon_emissions"] <= cap + 1.0, \
         f"constraint mode carbon {r_c['carbon_emissions']:.1f} exceeds cap {cap}"
@@ -225,18 +224,18 @@ def test_constraint_vs_weighted():
                              use_constraint_multi_obj=False,
                              lambda_carbon=0, lambda_re=0, lambda_curtail=0)
     r_w0 = clear_market(agents_w, T, "DA",
-                        adaptive_bidding(agents_w, config_w0, "random"), config_w0)
+                        adaptive_bidding(agents_w, config_w0, "rl"), config_w0)
     config_wh = MarketConfig(opf_mode="lindistflow", verbose=False,
                              use_constraint_multi_obj=False,
                              lambda_carbon=500, lambda_re=0, lambda_curtail=0)
     r_wh = clear_market(agents_w, T, "DA",
-                        adaptive_bidding(agents_w, config_wh, "random"), config_wh)
+                        adaptive_bidding(agents_w, config_wh, "rl"), config_wh)
     assert r_wh["carbon_emissions"] <= r_w0["carbon_emissions"] + 1.0, \
         f"high carbon price {r_wh['carbon_emissions']:.1f} > zero price {r_w0['carbon_emissions']:.1f}"
 
 
 def test_stackelberg_improves_leader_payoff():
-    """Stackelberg leader bidding should improve leader payoff vs best_response."""
+    """Stackelberg leader bidding should improve leader payoff vs RL bidding."""
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
@@ -246,8 +245,8 @@ def test_stackelberg_improves_leader_payoff():
     leader = storage_agents[1]  # use second storage (larger capacity)
     from stackelberg import stackelberg_bidding
 
-    # best_response baseline
-    br_actions = adaptive_bidding(agents, config, strategy="best_response")
+    # RL baseline
+    br_actions = adaptive_bidding(agents, config, strategy="rl")
     br_result = clear_market(agents, T, "DA", br_actions, config)
 
     # Stackelberg

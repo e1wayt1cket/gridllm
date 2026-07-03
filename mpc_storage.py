@@ -10,7 +10,7 @@ import gurobipy as gp
 from gurobipy import GRB
 
 
-def solve_storage_mpc(storage, soc0, price_forecast, dt=0.25):
+def solve_storage_mpc(storage, soc0, price_forecast, dt=0.25, terminal_price=None):
     """Solve a small LP for optimal storage schedule over the given horizon.
 
     The LP naturally avoids simultaneous charge+discharge because
@@ -21,6 +21,9 @@ def solve_storage_mpc(storage, soc0, price_forecast, dt=0.25):
         soc0: initial SOC (p.u.)
         price_forecast: array of LMP forecast [$/MWh] for next H periods
         dt: time step in hours
+        terminal_price: optional override for terminal value price.
+            If None, uses max(price_forecast). For DA self-scheduling,
+            pass the DA average price to limit "hold" behavior.
 
     Returns:
         (ch, dis, soc): arrays of length H (ch/dis) and H+1 (soc)
@@ -45,9 +48,10 @@ def solve_storage_mpc(storage, soc0, price_forecast, dt=0.25):
         (dis[t] - ch[t]) * price_forecast[t] * dt for t in range(H)
     )
     # Terminal value: energy kept at end of horizon can be sold later.
-    # Use max forecast price as a proxy for future opportunity value,
+    # Default uses max forecast price as a proxy for future opportunity value,
     # so the LP doesn't discharge at low prices just before horizon end.
-    terminal_price = np.max(price_forecast)
+    if terminal_price is None:
+        terminal_price = np.max(price_forecast)
     terminal_value = terminal_price * soc[H] * storage.e_max * storage.eta_dis
     m.setObjective(revenue + terminal_value, GRB.MAXIMIZE)
     m.optimize()
@@ -82,10 +86,10 @@ def mpc_storage_bidding(agents, config, market_history=None, T=96, H=8):
     Returns:
         actions dict
     """
-    from market import best_response_bidding, day_ahead_price_china
+    from market import _bootstrap_actions, day_ahead_price_china
 
     # Base actions for all agents (fallback)
-    base_actions = best_response_bidding(agents, config, market_history, T)
+    base_actions = _bootstrap_actions(agents, config, T)
 
     # LMP forecast: use previous market LMP if available, else base price curve
     if market_history is not None:
@@ -333,7 +337,7 @@ def _mpc_fallback_step(agents, base_net, config, t_abs, T, wholesale,
 
     success, lmp_t, welfare_t, agent_res, p_grid = solve_opf_gurobi(
         base_net, agents, t_abs, "RT", prev_soc, wholesale[t_abs],
-        action_params_base, config, prev_power
+        action_params_base, config
     )
     if not success:
         if t_abs > 0:
