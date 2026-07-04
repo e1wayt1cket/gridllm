@@ -72,10 +72,13 @@ class BiddingEnv:
     def _compute_obs_dim(self) -> int:
         """Compute flattened observation dimension per agent."""
         # 4 load + 4 pv/wind + 4 hist LMP + 4 forecast + 1 SOC + 1 avg LMP
-        return 4 + 4 + 4 + 4 + 1 + 1
+        # + 1 system_load_re_ratio + 1 congestion_index
+        return 4 + 4 + 4 + 4 + 1 + 1 + 1 + 1
 
     def _get_agent_obs(self, agent: Agent, block_idx: int,
-                       hist_lmp: np.ndarray, avg_lmp: float) -> np.ndarray:
+                       hist_lmp: np.ndarray, avg_lmp: float,
+                       system_load_re_ratio: float = 1.0,
+                       congestion_idx: float = 0.0) -> np.ndarray:
         """Build observation vector for one agent at a decision block."""
         t_start = block_idx * BLOCK_SIZE
         t_end = min(t_start + BLOCK_SIZE, self.T)
@@ -111,8 +114,29 @@ class BiddingEnv:
         else:
             soc = np.array([0.0])
 
-        obs = np.concatenate([load, pv+wind, lmp_hist, price_fc, soc, [avg_lmp]])
+        obs = np.concatenate([load, pv+wind, lmp_hist, price_fc, soc, [avg_lmp],
+                              [system_load_re_ratio, congestion_idx]])
         return obs.astype(np.float32)
+
+    def _compute_system_load_re_ratio(self, t_start: int) -> float:
+        """Total load / total RE forecast for the upcoming block."""
+        t_end = min(t_start + BLOCK_SIZE, self.T)
+        total_load = 0.0
+        total_re = 0.0
+        for a in self.all_agents:
+            if self.stage == "DA":
+                total_load += np.sum(a.load_forecast[t_start:t_end])
+                if a.is_prosumer:
+                    total_re += np.sum(np.maximum(a.pv_forecast[t_start:t_end], 0))
+                if a.has_wind:
+                    total_re += np.sum(np.maximum(a.wind_forecast[t_start:t_end], 0))
+            else:
+                total_load += np.sum(a.load_real[t_start:t_end])
+                if a.is_prosumer:
+                    total_re += np.sum(np.maximum(a.pv_real[t_start:t_end], 0))
+                if a.has_wind:
+                    total_re += np.sum(np.maximum(a.wind_real[t_start:t_end], 0))
+        return float(total_load / max(total_re, 1e-6))
 
     def reset(self, wholesale=None) -> Dict[str, np.ndarray]:
         """Reset environment for a new episode. Returns initial obs per agent."""
@@ -136,8 +160,10 @@ class BiddingEnv:
 
         obs = {}
         avg_lmp = np.mean(self.wholesale)
+        # Initial global signals from forecasts (no LMP data yet)
+        slr = self._compute_system_load_re_ratio(0)
         for a in self.rl_agents:
-            obs[a.name] = self._get_agent_obs(a, 0, None, avg_lmp)
+            obs[a.name] = self._get_agent_obs(a, 0, None, avg_lmp, slr, 0.0)
         return obs
 
     def step(self, actions: Dict[str, int]) -> Tuple[Dict[str, np.ndarray],
@@ -235,10 +261,17 @@ class BiddingEnv:
         obs = {}
         avg_lmp = np.mean(self.wholesale) if self.wholesale is not None else 420.0
         hist_arr = np.array(list(self.hist_lmp)) if self.hist_lmp else None
+        # Global signals from latest result
+        if result is not None and result["lmp"] is not None:
+            lmp_t = result["lmp"][min(t_end - 1, self.T - 1)]
+            cong_idx = float(np.std(lmp_t) / max(np.mean(lmp_t), 1e-6))
+        else:
+            cong_idx = 0.0
+        slr = self._compute_system_load_re_ratio(t_start)
         if not done:
             for a in self.rl_agents:
                 obs[a.name] = self._get_agent_obs(a, self.block_idx,
-                                                  hist_arr, avg_lmp)
+                                                  hist_arr, avg_lmp, slr, cong_idx)
         else:
             for a in self.rl_agents:
                 obs[a.name] = np.zeros(self.obs_dim, dtype=np.float32)

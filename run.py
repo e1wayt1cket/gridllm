@@ -217,7 +217,7 @@ def main():
         rt_actions = adaptive_bidding(agents, config, strategy=strategy_name)
         rt_results = clear_market(agents, T, "RT", rt_actions, config)
 
-    payment = two_settlement(agents, da_results, rt_results)
+    payment, _ = two_settlement(agents, da_results, rt_results)
 
     carbon_em = da_results.get('carbon_emissions', 0)
     carbon_int = da_results.get('carbon_intensity', 0)

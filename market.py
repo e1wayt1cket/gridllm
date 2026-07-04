@@ -56,43 +56,10 @@ def _bootstrap_actions(agents, config, T=96):
 
 
 def _rl_bidding(agents, config, market_history, T):
-    """RL-based bidding: uses trained PPO policies or fall back to random exploration."""
-    from rl_bidding import _TRAINED_POLICIES, rl_bidding_strategy
-    from rl_env import BiddingEnv, action_to_params
-
-    if not _TRAINED_POLICIES:
-        # No trained policies yet — use random exploration as bootstrap
-        actions = rl_bidding_strategy(agents, config, market_history, T)
-        for a in agents:
-            if not a.is_prosumer:
-                continue
-            # Random action for RL agent (exploration bootstrap)
-            rng = np.random.RandomState(hash(a.name) % (2**31))
-            bid_m = rng.choice([0.3, 0.6, 0.9, 1.2, 1.5, 1.8])
-            offer_a = rng.choice([0, 15, 30, 45])
-            actions[a.name] = {
-                "bid_mult": np.full(T, bid_m),
-                "offer_adder": np.full(T, offer_a),
-            }
-        return actions
-
-    actions = rl_bidding_strategy(agents, config, market_history, T)
-    env_temp = BiddingEnv(agents, config)
-    avg_price = 420.0
-    if market_history is not None and hasattr(market_history, 'get'):
-        avg_price = float(np.mean(market_history.get('price', [420.0])))
-    for nm, policy in _TRAINED_POLICIES.items():
-        agent = next((a for a in agents if a.name == nm), None)
-        if agent is None:
-            continue
-        obs = env_temp._get_agent_obs(agent, 0, None, avg_price)
-        action_idx, _ = policy.act(obs, deterministic=True)
-        bid_m, offer_a = action_to_params(action_idx)
-        actions[nm] = {
-            "bid_mult": np.full(T, bid_m),
-            "offer_adder": np.full(T, offer_a),
-        }
-    return actions
+    """RL-based bidding: delegates to rl_bidding_strategy which handles
+    trained-policy vs bootstrap fallback."""
+    from rl_bidding import rl_bidding_strategy
+    return rl_bidding_strategy(agents, config, market_history, T)
 
 
 def adaptive_bidding(agents, config, strategy="rl", market_history=None, T=96):
@@ -130,6 +97,7 @@ def two_settlement(agents, da, rt):
         bus_to_idx = {}
 
     payments = {}
+    breakdown = {}
     for a in agents:
         bus = a.bus
         lmp_da = da_lmp[:, bus_to_idx.get(bus, 0)] if da_lmp is not None else da["price"]
@@ -140,7 +108,8 @@ def two_settlement(agents, da, rt):
         da_cost = np.sum(lmp_da * da_import)
         rt_cost = np.sum(lmp_rt * (rt_import - da_import))
         payments[a.name] = float(da_cost + rt_cost)
-    return payments
+        breakdown[a.name] = {"da": float(da_cost), "rt": float(rt_cost)}
+    return payments, breakdown
 
 def clear_market(agents, T, stage, action_params, config, storage_units=None):
     if stage == "DA" and config.da_rolling_enabled:
@@ -253,6 +222,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
         "carbon_emissions": carbon_emissions,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
+        "shadow_prices": {},
     }
 
 
@@ -416,6 +386,7 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None):
         "carbon_emissions": carbon_emissions,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
+        "shadow_prices": {},
     }
 
 
@@ -478,9 +449,7 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
     total_re_available = 0.0
     total_re_used = 0.0
 
-    window_config = dataclasses.replace(config, verbose=False,
-                                        enable_multi_objective=False,
-                                        use_constraint_multi_obj=False)
+    window_config = dataclasses.replace(config, verbose=False)
     idx = 0
     while idx < T:
         window_end = min(idx + rt_horizon, T)
@@ -581,6 +550,7 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
         "carbon_emissions": carbon_emissions,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
+        "shadow_prices": {},
     }
 def clear_rt_rolling(agents, T, action_params_base, config):
     """Rolling real-time market (MPC) — enable on demand."""
@@ -656,4 +626,5 @@ def clear_rt_rolling(agents, T, action_params_base, config):
         "carbon_emissions": carbon_emissions,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
+        "shadow_prices": {},
     }

@@ -98,7 +98,6 @@ def test_peak_load_higher_welfare():
         f"peak_load welfare {r_p['welfare']:.0f} <= baseline {r_b['welfare']:.0f}"
 
 
-@pytest.mark.skip(reason="constraint-based multi-objective system removed from dispatch")
 def test_constraint_mode_feasible():
     """Constraint mode with default caps should be feasible and meet targets."""
     T = 96
@@ -190,7 +189,7 @@ def test_two_settlement_flow():
     da = clear_market(agents, T, "DA", da_actions, config)
     rt_actions = adaptive_bidding(agents, config, strategy="rl")
     rt = clear_market(agents, T, "RT", rt_actions, config)
-    payment = two_settlement(agents, da, rt)
+    payment, _ = two_settlement(agents, da, rt)
 
     da_lmp = da.get("lmp")
     rt_lmp = rt.get("lmp")

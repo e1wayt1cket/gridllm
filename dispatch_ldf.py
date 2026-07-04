@@ -18,6 +18,7 @@ from dispatch_core import (
     _build_line_params_full,
     _build_agent_info,
     _classify_storage_mode,
+    _select_radial_lines,
 )
 
 
@@ -30,7 +31,7 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         raise RuntimeError("LinDistFlow requires Gurobi; only DC-OPF has HiGHS fallback")
     buses = list(net.bus.index)
     n_buses = len(buses)
-    lines = list(net.line.index)[:n_buses - 1]  # radial backbone only
+    lines = _select_radial_lines(net)
     slack_bus = net.ext_grid.at[0, 'bus']
     base_kv = config.base_kv
 
@@ -124,12 +125,14 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         to_bus = net.line.at[l, 'to_bus']
         m.addConstr(V[f] - V[to_bus] == r[l] * P[l] + x_val[l] * Q[l], f"voltage_drop_{l}")
 
-    # Line limits (P and Q)
+    # Line limits — diamond constraint |P|+|Q| <= S_max (linear inner
+    # approximation of apparent-power circle, conservatively ~30% tighter
+    # than the box P<=S, Q<=S which allows S up to sqrt(2)*limit).
     for l in lines:
-        m.addConstr(P[l] <= limit[l], f"limitP_pos_{l}")
-        m.addConstr(P[l] >= -limit[l], f"limitP_neg_{l}")
-        m.addConstr(Q[l] <= limit[l], f"limitQ_pos_{l}")
-        m.addConstr(Q[l] >= -limit[l], f"limitQ_neg_{l}")
+        m.addConstr(P[l] + Q[l] <= limit[l], f"diamond_PpQp_{l}")
+        m.addConstr(P[l] - Q[l] <= limit[l], f"diamond_PpQn_{l}")
+        m.addConstr(-P[l] + Q[l] <= limit[l], f"diamond_PnQp_{l}")
+        m.addConstr(-P[l] - Q[l] <= limit[l], f"diamond_PnQn_{l}")
 
     # Reactive power bounds from DER inverters
     # s_max uses INSTALLED capacity, not forecast, because inverters can
@@ -218,7 +221,7 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
     n_buses = len(net.bus.index)
     lmp = np.zeros((T, n_buses))
     buses = list(net.bus.index)
-    lines = list(net.line.index)[:n_buses - 1]  # radial backbone only
+    lines = _select_radial_lines(net)
     slack_bus = net.ext_grid.at[0, 'bus']
     base_kv = config.base_kv
 
@@ -385,10 +388,10 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                         f"vdrop_{t}_{l}")
 
         for l in lines:
-            m.addConstr(P[t, l] <= limit[l], f"limP_{t}_{l}")
-            m.addConstr(P[t, l] >= -limit[l], f"limN_{t}_{l}")
-            m.addConstr(Q[t, l] <= limit[l], f"limQP_{t}_{l}")
-            m.addConstr(Q[t, l] >= -limit[l], f"limQN_{t}_{l}")
+            m.addConstr(P[t, l] + Q[t, l] <= limit[l], f"diam_PpQp_{t}_{l}")
+            m.addConstr(P[t, l] - Q[t, l] <= limit[l], f"diam_PpQn_{t}_{l}")
+            m.addConstr(-P[t, l] + Q[t, l] <= limit[l], f"diam_PnQp_{t}_{l}")
+            m.addConstr(-P[t, l] - Q[t, l] <= limit[l], f"diam_PnQn_{t}_{l}")
 
         for a in agents_list:
             nm = a.name
@@ -432,6 +435,14 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                 if stor.ramp_down_dis is not None:
                     m.addConstr(dis[nm][t-1] - dis[nm][t] <= stor.ramp_down_dis,
                                 f"ramp_down_dis_{nm}_{t}")
+
+        # Grid ramping constraint (peak shaving): limit net exchange change rate
+        if config.ramp_limit_mw_per_period is not None and t > 0:
+            ramp = config.ramp_limit_mw_per_period
+            net_t = p_grid_import[t] - p_grid_export[t]
+            net_tm1 = p_grid_import[t-1] - p_grid_export[t-1]
+            m.addConstr(net_t - net_tm1 <= ramp, f"ramp_up_grid_{t}")
+            m.addConstr(net_tm1 - net_t <= ramp, f"ramp_down_grid_{t}")
 
         # Reactive power support from DER inverters (PV + wind + storage)
         # Diamond constraint: |q_re| + p_total <= s_max (linear, tighter than box)
@@ -484,6 +495,30 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                 if stor.ramp_down_dis is not None:
                     m.addConstr(dis[nm][t-1] - dis[nm][t] <= stor.ramp_down_dis,
                                 f"ramp_down_dis_{nm}_{t}")
+
+    # Precompute total RE available for constraint-based multi-objective
+    total_re_avail_mwh = 0.0
+    for a in agents_list:
+        pv_arr = a.pv_forecast if stage == "DA" else a.pv_real
+        wind_arr = (a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else np.zeros(T)
+        total_re_avail_mwh += float(np.sum(np.maximum(pv_arr, 0)) + np.sum(np.maximum(wind_arr, 0))) * DT_HOURS
+
+    # Constraint-based multi-objective: carbon cap and RE minimum rate
+    shadow_prices = {}
+    if config.use_constraint_multi_obj:
+        if config.carbon_cap_tco2 is not None:
+            carbon_expr = gp.LinExpr()
+            for t in range(T):
+                carbon_expr += config.emission_factor_grid * p_grid_import[t] * DT_HOURS
+            m.addConstr(carbon_expr <= config.carbon_cap_tco2, "carbon_cap")
+        if config.re_min_rate is not None and total_re_avail_mwh > 0:
+            re_expr = gp.LinExpr()
+            for t in range(T):
+                for a in agents_list:
+                    nm = a.name
+                    re_expr += (pv[nm][t] + wind[nm][t]) * DT_HOURS
+            re_target = config.re_min_rate * total_re_avail_mwh
+            m.addConstr(re_expr >= re_target, "re_min_rate")
 
     # Objective — precompute per-agent bid/offer arrays and RE max arrays
     bid_arr = {}
@@ -563,7 +598,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         m.optimize()
 
         if m.status != GRB.OPTIMAL:
-            print("Batch model solve failed, status:", m.status)
+            if config.verbose:
+                print("Batch model solve failed, status:", m.status)
             return None
 
         if loss_iter < config.n_loss_iters - 1:
@@ -649,6 +685,22 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
             if max_change < 1.0:  # 1 CNY/MWh tolerance
                 converged = True
                 break
+
+    # Extract shadow prices from constraint-based multi-objective
+    shadow_prices = {}
+    if config.use_constraint_multi_obj:
+        try:
+            carbon_c = m.getConstrByName("carbon_cap")
+            if carbon_c is not None:
+                shadow_prices["carbon_cap"] = carbon_c.Pi
+        except Exception:
+            pass
+        try:
+            re_c = m.getConstrByName("re_min_rate")
+            if re_c is not None:
+                shadow_prices["re_min_rate"] = -re_c.Pi
+        except Exception:
+            pass
 
     # Extract results
     from market import empty_schedules as _empty_schedules, split_power as _split_power
@@ -780,5 +832,6 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
         "carbon_emissions": carbon_emissions,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
+        "shadow_prices": shadow_prices,
     }
     return result

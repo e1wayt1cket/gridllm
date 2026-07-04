@@ -1,7 +1,7 @@
 # models.py
 from dataclasses import dataclass
 import numpy as np
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 @dataclass
 class MarketConfig:
@@ -15,6 +15,7 @@ class MarketConfig:
     default_bid_mult: float = 1.0
     default_offer_adder: float = 0.0
     line_capacity_multiplier: float = 1.0
+    line_capacity_overrides: Optional[Dict[int, float]] = None
     penalty_unserved: float = 5000.0
     base_mva: float = 1.0
     base_kv: float = 12.66
@@ -26,10 +27,10 @@ class MarketConfig:
     lambda_carbon: float = 50.0       # Carbon cost (CNY/tCO2)
     emission_factor_grid: float = 0.58  # Grid emission factor (tCO2/MWh)
     enable_multi_objective: bool = True
-    # Constraint-based multi-objective (hard constraints) — disabled
+    # Constraint-based multi-objective (hard constraints) — supported in LDF/SOCP batch solvers
     use_constraint_multi_obj: bool = False
-    carbon_cap_tco2: Optional[float] = None
-    re_min_rate: Optional[float] = None
+    carbon_cap_tco2: Optional[float] = None  # total CO2 emissions cap (tonnes)
+    re_min_rate: Optional[float] = None      # minimum RE consumption rate (fraction 0-1)
     # Storage mode thresholds (per-unit, relative to bid/offer)
     storage_charge_discount: float = 0.75   # bid * roundtrip_eff * this → charge trigger
     storage_discharge_premium: float = 1.30  # offer / roundtrip_eff * this → discharge trigger
@@ -44,11 +45,12 @@ class MarketConfig:
     storage_mpc_horizon: int = 8       # MPC look-ahead periods for self-scheduling (2 hours)
     storage_mpc_price_noise_pct: float = 5.0  # per-agent MPC price forecast noise (%)
     storage_mpc_bus_markup_pct: float = 30.0  # max bus-distance markup for MPC prices (%)
-    rt_forecast_mode: str = "perfect"  # perfect | da_as_forecast | noisy_da
+    rt_forecast_mode: str = "noisy_da"  # perfect | da_as_forecast | noisy_da
     rt_forecast_noise_pct: float = 10.0  # noise std as % of DA price (noisy_da)
     rt_horizon: int = 8        # periods per RT optimization window
     rt_step: int = 1           # RT step size (periods)
     reverse_power_limit_mw: float = 1.0  # max reverse power flow to main grid (MW), 0=no export
+    ramp_limit_mw_per_period: Optional[float] = None  # max MW change per 15-min in net grid exchange, None = disabled
     reactive_support: bool = True  # PV/storage inverters provide reactive power
     # DA rolling-horizon MPC — limits storage price foresight
     da_rolling_enabled: bool = False  # Toggle on/off

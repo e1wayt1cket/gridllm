@@ -317,6 +317,90 @@ def create_trade_figure(da_results, agents):
                       paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc')
     return fig
 
+def create_deviation_figure(da_results, rt_results, agents):
+    """Plan (DA) vs Execution (RT) deviation chart.
+
+    Top panel: DA buy/sell bars vs RT buy/sell overlaid lines.
+    Bottom panel: DA mean LMP vs RT mean LMP.
+    """
+    T = len(next(iter(da_results["schedules"].values()))["p_buy"])
+    x_dt = _make_datetime_x(T)
+    time_labels = _make_time_labels(T)
+
+    da_buy = np.zeros(T); da_sell = np.zeros(T)
+    rt_buy = np.zeros(T); rt_sell = np.zeros(T)
+    da_lmp_mean = np.zeros(T); rt_lmp_mean = np.zeros(T)
+    if da_results.get("lmp") is not None:
+        da_lmp_mean = da_results["lmp"].mean(axis=1)
+    if rt_results.get("lmp") is not None:
+        rt_lmp_mean = rt_results["lmp"].mean(axis=1)
+    for a in agents:
+        da_s = da_results["schedules"][a.name]
+        rt_s = rt_results["schedules"][a.name]
+        da_buy += da_s["p_buy"]; da_sell += da_s["p_sell"]
+        rt_buy += rt_s["p_buy"]; rt_sell += rt_s["p_sell"]
+
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=True,
+        vertical_spacing=0.08,
+        subplot_titles=("DA vs RT 购售电功率", "DA vs RT 平均节点电价"),
+        row_heights=[0.55, 0.45],
+        specs=[[{"secondary_y": False}], [{"secondary_y": False}]],
+    )
+
+    # Top panel: DA bars + RT lines
+    fig.add_trace(go.Bar(x=x_dt, y=da_buy, name="DA 购电", marker_color='#ef4444',
+                          opacity=0.45, customdata=time_labels,
+                          hovertemplate='%{customdata}<br>DA购电=%{y:.2f} MW<extra></extra>'),
+                  row=1, col=1)
+    fig.add_trace(go.Bar(x=x_dt, y=-da_sell, name="DA 售电", marker_color='#10b981',
+                          opacity=0.45, customdata=time_labels,
+                          hovertemplate='%{customdata}<br>DA售电=%{y:.2f} MW<extra></extra>'),
+                  row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_dt, y=rt_buy, mode='lines', name="RT 购电",
+                             line=dict(color='#dc2626', width=2.2),
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>RT购电=%{y:.2f} MW<extra></extra>'),
+                  row=1, col=1)
+    fig.add_trace(go.Scatter(x=x_dt, y=-rt_sell, mode='lines', name="RT 售电",
+                             line=dict(color='#059669', width=2.2, dash='dash'),
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>RT售电=%{y:.2f} MW<extra></extra>'),
+                  row=1, col=1)
+
+    # Deviation area
+    dev_buy = rt_buy - da_buy
+    dev_color = ['#ef4444' if v > 0 else '#10b981' for v in dev_buy]
+    fig.add_trace(go.Bar(x=x_dt, y=dev_buy, name="净偏差 (RT-DA)",
+                          marker_color=dev_color, opacity=0.35,
+                          customdata=time_labels,
+                          hovertemplate='%{customdata}<br>偏差=%{y:.3f} MW<extra></extra>'),
+                  row=1, col=1)
+
+    # Bottom panel: LMP comparison
+    fig.add_trace(go.Scatter(x=x_dt, y=da_lmp_mean, mode='lines',
+                             name="DA 均价", line=dict(color='#6366f1', width=2.5),
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>DA LMP=%{y:.1f} CNY<extra></extra>'),
+                  row=2, col=1)
+    fig.add_trace(go.Scatter(x=x_dt, y=rt_lmp_mean, mode='lines',
+                             name="RT 均价", line=dict(color='#f59e0b', width=2.5),
+                             customdata=time_labels,
+                             hovertemplate='%{customdata}<br>RT LMP=%{y:.1f} CNY<extra></extra>'),
+                  row=2, col=1)
+
+    fig.update_layout(height=900, template="plotly_white", hovermode="x unified",
+                      legend=dict(orientation='h', y=1.1),
+                      margin=dict(l=40, r=20, t=80, b=40),
+                      paper_bgcolor='#ffffff', plot_bgcolor='#f8fafc',
+                      barmode='relative')
+    fig.update_xaxes(**_time_axis_config(T), row=2, col=1)
+    fig.update_xaxes(title_text="时间", row=2, col=1)
+    fig.update_yaxes(title_text="功率 (MW)", row=1, col=1)
+    fig.update_yaxes(title_text="电价 (CNY/MWh)", row=2, col=1)
+    return fig
+
+
 def create_soc_figure(da_results, agents):
     storage_agents = [a for a in agents if a.storage is not None]
     if not storage_agents:
@@ -530,8 +614,7 @@ def create_payment_table(payment, agents):
 def build_simulation_outputs(scenario_en, strategy="rl", opf_mode="socp", nl_msg_prefix=""):
     """Run simulation for a scenario and build all chart/KPI/table outputs.
 
-    Returns the 8-tuple expected by the Dash output callbacks:
-    (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, pay_tab, nl_msg, ai_output)
+    Returns a 13-tuple for Dash callbacks including lmp_store.
     """
     from config_loader import get_scenario_cfg
     sc_cfg = get_scenario_cfg(scenario_en) or {}
@@ -542,7 +625,7 @@ def build_simulation_outputs(scenario_en, strategy="rl", opf_mode="socp", nl_msg
     da_results = clear_market(agents, T, "DA", da_actions, config)
     rt_actions = adaptive_bidding(agents, config, strategy=strategy, T=T)
     rt_results = clear_market(agents, T, "RT", rt_actions, config)
-    payment = two_settlement(agents, da_results, rt_results)
+    payment, pbr = two_settlement(agents, da_results, rt_results)
 
     net = build_base_network(config)
     kpi = create_kpi_cards(da_results, rt_results, payment, agents, config)
@@ -550,6 +633,7 @@ def build_simulation_outputs(scenario_en, strategy="rl", opf_mode="socp", nl_msg
     topo_fig = create_topology_figure(net, agents_info=agents_info, lmp_arr=da_results['lmp'])
     lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")
     trade_fig = create_trade_figure(da_results, agents)
+    dev_fig = create_deviation_figure(da_results, rt_results, agents)
     soc_fig = create_soc_figure(da_results, agents)
     re_gen_fig = create_re_gen_figure(da_results, agents)
     load_fig = create_load_figure(da_results, agents)
@@ -568,8 +652,13 @@ def build_simulation_outputs(scenario_en, strategy="rl", opf_mode="socp", nl_msg
         "scenario": scenario_en, "strategy": strategy,
         "opf_mode": opf_mode, "T": T,
     }
+    lmp_store = {
+        "da": da_results['lmp'].tolist() if da_results.get('lmp') is not None else [],
+        "rt": rt_results['lmp'].tolist() if rt_results and rt_results.get('lmp') is not None else [],
+        "agents_info": agents_info,
+    }
 
-    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, re_gen_fig, load_fig, pay_tab, nl_msg, ai_output, sim_state)
+    return (kpi, topo_fig, lmp_fig, trade_fig, dev_fig, soc_fig, re_gen_fig, load_fig, pay_tab, nl_msg, ai_output, sim_state, lmp_store)
 
 
 def build_insight_summary(da_results, agents, scenario_cn):
@@ -798,7 +887,20 @@ app.layout = dbc.Container([
 
     # -- 图表区 --
     dbc.Card(dbc.CardBody([
-        html.H6("网络拓扑", className='fw-bold text-secondary mb-2'),
+        html.Div([
+            html.H6("网络拓扑", className='fw-bold text-secondary mb-0'),
+            dcc.RadioItems(
+                id='lmp-mode',
+                options=[
+                    {'label': ' 日前 (DA) ', 'value': 'da'},
+                    {'label': ' 实时 (RT) ', 'value': 'rt'},
+                ],
+                value='da',
+                inline=True,
+                inputStyle={'marginLeft': '10px'},
+                labelStyle={'fontSize': '13px', 'fontWeight': '500', 'color': C_MUTED},
+            ),
+        ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'marginBottom': '8px'}),
         dcc.Graph(id='topology-graph', figure=_placeholder_fig("拓扑图 -- 等待仿真"),
                   config={'displayModeBar': 'hover'}),
     ]), className='mb-4 chart-card'),
@@ -824,6 +926,12 @@ app.layout = dbc.Container([
     dbc.Card(dbc.CardBody([
         html.H6("购售电功率", className='fw-bold text-secondary mb-2'),
         dcc.Graph(id='trade-graph', figure=_placeholder_fig("购售电曲线 -- 等待仿真"),
+                  config={'displayModeBar': 'hover'}),
+    ]), className='mb-4 chart-card'),
+
+    dbc.Card(dbc.CardBody([
+        html.H6("计划 vs 执行 (DA vs RT)", className='fw-bold text-secondary mb-2'),
+        dcc.Graph(id='deviation-graph', figure=_placeholder_fig("偏差分析 -- 等待仿真"),
                   config={'displayModeBar': 'hover'}),
     ]), className='mb-4 chart-card'),
 
@@ -857,6 +965,7 @@ app.layout = dbc.Container([
 
     # -- 结果区 --
     dcc.Store(id='sim-state', storage_type='memory'),
+    dcc.Store(id='lmp-store', storage_type='memory'),
 
 
 ], fluid=True, style={'backgroundColor': C_BG, 'minHeight': '100vh', 'padding': '24px',
@@ -877,13 +986,15 @@ SCENARIO_BUTTON_MAP = {
      Output('topology-graph', 'figure', allow_duplicate=True),
      Output('lmp-graph', 'figure', allow_duplicate=True),
      Output('trade-graph', 'figure', allow_duplicate=True),
+     Output('deviation-graph', 'figure', allow_duplicate=True),
      Output('soc-graph', 'figure', allow_duplicate=True),
      Output('re-gen-graph', 'figure', allow_duplicate=True),
      Output('load-graph', 'figure', allow_duplicate=True),
      Output('payment-table', 'children', allow_duplicate=True),
      Output('nl-result', 'children', allow_duplicate=True),
      Output('ai-output', 'children', allow_duplicate=True),
-     Output('sim-state', 'data', allow_duplicate=True)],
+     Output('sim-state', 'data', allow_duplicate=True),
+     Output('lmp-store', 'data', allow_duplicate=True)],
     [Input('scenario-btn-baseline', 'n_clicks'),
      Input('scenario-btn-high_re', 'n_clicks'),
      Input('scenario-btn-peak_load', 'n_clicks'),
@@ -900,6 +1011,34 @@ def scenario_quick_select_callback(b_n, hr_n, pl_n, cg_n):
 
 
 # ------------------------------
+# LMP mode switching callback (no re-simulation)
+# ------------------------------
+@app.callback(
+    [Output('topology-graph', 'figure', allow_duplicate=True),
+     Output('lmp-graph', 'figure', allow_duplicate=True)],
+    [Input('lmp-mode', 'value'),
+     Input('lmp-store', 'data')],
+    prevent_initial_call=True
+)
+def lmp_mode_callback(lmp_mode, lmp_store):
+    if not lmp_store or not lmp_store.get('da') or not lmp_store.get('rt'):
+        raise PreventUpdate
+
+    lmp_data = np.array(lmp_store[lmp_mode])
+    if lmp_data.size == 0:
+        raise PreventUpdate
+
+    config = MarketConfig(opf_mode="socp", verbose=False)
+    net = build_base_network(config)
+    agents_info = lmp_store.get("agents_info")
+
+    title = "日前节点边际电价 (LMP)" if lmp_mode == 'da' else "实时节点边际电价 (LMP)"
+    topo_fig = create_topology_figure(net, agents_info=agents_info, lmp_arr=lmp_data)
+    lmp_fig = create_lmp_figure(lmp_data, title)
+    return topo_fig, lmp_fig
+
+
+# ------------------------------
 # 主回调 (NL 输入)
 # ------------------------------
 @app.callback(
@@ -907,13 +1046,15 @@ def scenario_quick_select_callback(b_n, hr_n, pl_n, cg_n):
      Output('topology-graph', 'figure', allow_duplicate=True),
      Output('lmp-graph', 'figure', allow_duplicate=True),
      Output('trade-graph', 'figure', allow_duplicate=True),
+     Output('deviation-graph', 'figure', allow_duplicate=True),
      Output('soc-graph', 'figure', allow_duplicate=True),
      Output('re-gen-graph', 'figure', allow_duplicate=True),
      Output('load-graph', 'figure', allow_duplicate=True),
      Output('payment-table', 'children', allow_duplicate=True),
      Output('nl-result', 'children', allow_duplicate=True),
      Output('ai-output', 'children', allow_duplicate=True),
-     Output('sim-state', 'data', allow_duplicate=True)],
+     Output('sim-state', 'data', allow_duplicate=True),
+     Output('lmp-store', 'data', allow_duplicate=True)],
     [Input('parse-btn', 'n_clicks')],
     [State('nl-input', 'value')],
     prevent_initial_call=True
@@ -936,8 +1077,8 @@ def main_callback(parse_clicks, nl_text):
     )
 
     if not nl_text or not nl_text.strip():
-        return (empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_table,
-                "请输入场景描述后点击运行仿真", "", None)
+        return (empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_fig, empty_table,
+                "请输入场景描述后点击运行仿真", "", None, {})
 
     advisor = LLMAdvisor()
     parsed = advisor.parse_natural_language_to_config(nl_text.strip())
@@ -972,7 +1113,7 @@ def main_callback(parse_clicks, nl_text):
     da_results = clear_market(agents, T, "DA", da_actions, config)
     rt_actions = adaptive_bidding(agents, config, strategy=strategy_nl, T=T)
     rt_results = clear_market(agents, T, "RT", rt_actions, config)
-    payment = two_settlement(agents, da_results, rt_results)
+    payment, pbr = two_settlement(agents, da_results, rt_results)
 
     net = build_base_network(config)
     kpi = create_kpi_cards(da_results, rt_results, payment, agents, config)
@@ -980,6 +1121,7 @@ def main_callback(parse_clicks, nl_text):
     topo_fig = create_topology_figure(net, agents_info=agents_info, lmp_arr=da_results['lmp'])
     lmp_fig = create_lmp_figure(da_results['lmp'], "日前节点边际电价 (LMP)")
     trade_fig = create_trade_figure(da_results, agents)
+    dev_fig = create_deviation_figure(da_results, rt_results, agents)
     soc_fig = create_soc_figure(da_results, agents)
     re_gen_fig = create_re_gen_figure(da_results, agents)
     load_fig = create_load_figure(da_results, agents)
@@ -994,8 +1136,13 @@ def main_callback(parse_clicks, nl_text):
         "opf_mode": config.opf_mode,
         "T": T,
     }
+    lmp_store = {
+        "da": da_results['lmp'].tolist() if da_results.get('lmp') is not None else [],
+        "rt": rt_results['lmp'].tolist() if rt_results and rt_results.get('lmp') is not None else [],
+        "agents_info": agents_info,
+    }
 
-    return (kpi, topo_fig, lmp_fig, trade_fig, soc_fig, re_gen_fig, load_fig, pay_tab, nl_msg, ai_output, sim_state)
+    return (kpi, topo_fig, lmp_fig, trade_fig, dev_fig, soc_fig, re_gen_fig, load_fig, pay_tab, nl_msg, ai_output, sim_state, lmp_store)
 
 
 # ------------------------------
@@ -1143,4 +1290,4 @@ app.index_string = '''
 '''
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8056)
+    app.run(debug=False, port=8056)

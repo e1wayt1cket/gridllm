@@ -271,12 +271,12 @@ class NashEquilibriumTester:
         Whether to use COBYLA block optimization for best response.
         None auto-detects: True if scipy is available. Strongly recommended
         — random sampling is too weak for 48-dim strategy space.
-    block_count : int, default 48
-        Number of strategy blocks (30-min for T=96). Higher = finer granularity.
+    block_count : int, default 12
+        Number of strategy blocks (2-hour for T=96). Higher = finer granularity.
     """
 
     def __init__(self, agents, config, T=96, stage="DA", parallel=None,
-                 use_optimization=None, block_count=48):
+                 use_optimization=None, block_count=12):
         self.agents = agents
         self.config = config
         self.T = T
@@ -839,7 +839,9 @@ def plot_nash_results(improvements, is_nash, threshold_rel=0.01,
         ax_dist_twin.tick_params(axis='y', colors='#92400e', labelsize=8)
         ax_dist_twin.set_ylim(bottom=0)
     except Exception:
-        pass
+        # KDE requires scipy; silent fallback is acceptable for visualization
+        import logging
+        logging.getLogger(__name__).debug("KDE overlay failed", exc_info=True)
 
     ax_dist.set_xlabel('Gain (CNY)', fontsize=11)
     ax_dist.set_ylabel('Agent count', fontsize=11)

@@ -20,7 +20,7 @@ class PriceForecaster:
         RNG seed for reproducible noise.
     """
 
-    def __init__(self, da_prices, mode="perfect", noise_pct=10.0, seed=42):
+    def __init__(self, da_prices, mode="noisy_da", noise_pct=10.0, seed=42):
         self.da_prices = np.asarray(da_prices, dtype=float)
         self.T = len(self.da_prices)
         self.mode = mode

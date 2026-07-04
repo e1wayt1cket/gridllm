@@ -282,6 +282,47 @@ if lmp_neg > 0:
     anomalies.append({"type": "negative_lmp", "agent": "system",
                       "detail": f"{lmp_neg} negative LMPs"})
 
+# --- (H2) Congestion indicator: LMP spatial dispersion ---
+# High CV(coefficient of variation) across buses = binding line constraints.
+# CV > 10% suggests meaningful congestion; CV < 3% suggests negligible.
+lmp_cv = np.std(result["lmp"], axis=1) / (np.mean(result["lmp"], axis=1) + 1e-6) * 100
+lmp_cv_max = float(np.max(lmp_cv))
+lmp_cv_avg = float(np.mean(lmp_cv))
+t_peak_cv = int(np.argmax(lmp_cv))
+print(f"\n[H2] CONGESTION INDICATOR (LMP spatial CV):")
+print(f"  Max CV: {lmp_cv_max:.1f}% at period {t_peak_cv}")
+print(f"  Avg CV: {lmp_cv_avg:.1f}%")
+if lmp_cv_max > 15:
+    print(f"  STATUS: Significant congestion — LMP spatial variation > 15%")
+    print(f"  ACTION: Check line capacity settings; consider increasing bottleneck lines")
+elif lmp_cv_max > 5:
+    print(f"  STATUS: Moderate congestion — LMP shows spatial structure")
+elif lmp_cv_max > 2:
+    print(f"  STATUS: Light congestion — LMP nearly uniform")
+else:
+    print(f"  STATUS: Negligible congestion — line capacity >> load, LMP uniform")
+    print(f"  ACTION: Reduce line_capacity_multiplier to study congestion effects")
+
+# --- (H3) Grid import vs weakest line ---
+# Estimate whether the total grid import could saturate known bottlenecks.
+g_grid = result["schedules"]["GRID"]["g_grid"]
+peak_import_mw = float(np.max(np.abs(g_grid)))
+# Compute weakest line MVA capacity from config defaults
+from config_loader import get_default
+net_cfg = get_default("network")
+base_ka = net_cfg.get("base_ampacity_ka", 0.19)
+weakest_ka = base_ka / np.sqrt(1.5042)  # line 18 R=1.504 Ohm, weakest
+weakest_mva = weakest_ka * 12.66 * np.sqrt(3)
+strongest_ka = base_ka / np.sqrt(0.0922)  # line 0 R=0.092 Ohm, strongest
+strongest_mva = strongest_ka * 12.66 * np.sqrt(3)
+print(f"\n[H3] GRID IMPORT vs LINE CAPACITY:")
+print(f"  Peak net grid exchange: {peak_import_mw:.1f} MW")
+print(f"  Weakest line (Line 18): {weakest_mva:.1f} MVA ({weakest_ka:.3f} kA)")
+print(f"  Strongest line (Line 0): {strongest_mva:.1f} MVA ({strongest_ka:.3f} kA)")
+if peak_import_mw > weakest_mva * 0.7:
+    print(f"  WARNING: Peak import {peak_import_mw:.1f} MW > 70% of weakest line {weakest_mva:.1f} MVA")
+    print(f"  Congestion likely at bottleneck lines during peak periods")
+
 # --- (I) Curtailment check ---
 total_pv_avail = sum(np.sum(a.pv_forecast) * dt for a in agents)
 total_wind_avail = sum(np.sum(a.get_wind_forecast()) * dt for a in agents if a.has_wind)

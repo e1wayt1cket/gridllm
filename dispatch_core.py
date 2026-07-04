@@ -114,6 +114,33 @@ def _classify_storage_mode(ch_val, dis_val):
     return 'idle'
 
 
+def _select_radial_lines(net):
+    """Select the radial backbone lines via BFS from the slack bus.
+
+    Avoids relying on line index ordering (e.g. list(net.line.index)[:n_buses-1])
+    which breaks if the network is reordered or non-standard. Returns a list of
+    line indices that form the radial spanning tree.
+    """
+    slack_bus = net.ext_grid.at[0, 'bus']
+    adj = {}
+    for idx in net.line.index:
+        f = int(net.line.at[idx, 'from_bus'])
+        t = int(net.line.at[idx, 'to_bus'])
+        adj.setdefault(f, []).append((t, idx))
+        adj.setdefault(t, []).append((f, idx))
+    radial_lines = []
+    visited = {slack_bus}
+    queue = deque([slack_bus])
+    while queue:
+        bus = queue.popleft()
+        for nb, lidx in adj.get(bus, []):
+            if nb not in visited:
+                visited.add(nb)
+                radial_lines.append(lidx)
+                queue.append(nb)
+    return radial_lines
+
+
 def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, config):
     """Build per-agent info dict for single-period solvers.
 

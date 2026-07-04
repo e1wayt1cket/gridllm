@@ -17,6 +17,7 @@ import pandapower as pp
 from typing import List, Optional
 
 from models import Agent, MarketConfig
+from dispatch_core import _select_radial_lines
 
 try:
     import gurobipy as gp
@@ -193,7 +194,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         raise RuntimeError("SOCP OPF requires Gurobi")
     n_buses = len(net.bus.index)
     buses = list(net.bus.index)
-    lines = list(net.line.index)[:n_buses - 1]  # radial backbone only
+    lines = _select_radial_lines(net)
     slack_bus = net.ext_grid.at[0, 'bus']
     base_kv = config.base_kv
 
@@ -469,6 +470,40 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 m.addConstr(dis[nm][t - 1] - dis[nm][t] <= stor.ramp_down_dis,
                             f"ramp_down_dis_{nm}_{t}")
 
+    # Grid ramping constraint (peak shaving): limit net exchange change rate
+    if config.ramp_limit_mw_per_period is not None:
+        for t in range(1, T):
+            ramp = config.ramp_limit_mw_per_period
+            net_t = p_grid_import[t] - p_grid_export[t]
+            net_tm1 = p_grid_import[t-1] - p_grid_export[t-1]
+            m.addConstr(net_t - net_tm1 <= ramp, f"ramp_up_grid_{t}")
+            m.addConstr(net_tm1 - net_t <= ramp, f"ramp_down_grid_{t}")
+
+    # Precompute total RE available for constraint-based multi-objective
+    total_re_avail_mwh = 0.0
+    for a in agents_list:
+        pv_arr = a.pv_forecast if stage == "DA" else a.pv_real
+        wind_arr = (a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else np.zeros(T)
+        total_re_avail_mwh += float(np.sum(np.maximum(pv_arr, 0)) + np.sum(np.maximum(wind_arr, 0))) * DT_HOURS
+
+    # Constraint-based multi-objective: carbon cap and RE minimum rate
+    shadow_prices = {}
+    if config.use_constraint_multi_obj:
+        if config.carbon_cap_tco2 is not None:
+            carbon_expr = gp.LinExpr()
+            for t in range(T):
+                carbon_expr += config.emission_factor_grid * p_grid_import[t] * DT_HOURS
+            carbon_constr = m.addConstr(carbon_expr <= config.carbon_cap_tco2,
+                                        "carbon_cap")
+        if config.re_min_rate is not None and total_re_avail_mwh > 0:
+            re_expr = gp.LinExpr()
+            for t in range(T):
+                for a in agents_list:
+                    nm = a.name
+                    re_expr += (pv[nm][t] + wind[nm][t]) * DT_HOURS
+            re_target = config.re_min_rate * total_re_avail_mwh
+            re_constr = m.addConstr(re_expr >= re_target, "re_min_rate")
+
     # --- Objective ---
     bid_arr = {}; offer_arr = {}
     pv_max_arr = {}; wind_max_arr = {}
@@ -541,7 +576,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     m.optimize()
 
     if m.status != GRB.OPTIMAL:
-        print("SOCP model solve failed, status:", m.status)
+        if config.verbose:
+            print("SOCP model solve failed, status:", m.status)
         if m.status == GRB.INFEASIBLE:
             m.computeIIS()
             m.write("socp_infeasible.ilp")
@@ -559,7 +595,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 try:
                     nodal_lmp[t, i] = -p_bal_constr[(t, b)].Pi
                 except AttributeError:
-                    nodal_lmp[t, i] = 0.0
+                    nodal_lmp[t, i] = wholesale[t]
 
         max_iters = 4
         for nodal_iter in range(max_iters):
@@ -615,7 +651,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                     try:
                         new_lmp[t, i] = -p_bal_constr[(t, b)].Pi
                     except AttributeError:
-                        new_lmp[t, i] = 0.0
+                        new_lmp[t, i] = wholesale[t]
 
             max_change = np.max(np.abs(new_lmp - nodal_lmp))
             nodal_lmp = new_lmp
@@ -629,7 +665,23 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             try:
                 lmp[t, i] = -p_bal_constr[(t, b)].Pi
             except AttributeError:
-                lmp[t, i] = 0.0  # dual unavailable (presolve eliminated constraint)
+                lmp[t, i] = wholesale[t]  # dual unavailable (presolve eliminated constraint)
+
+    # Extract shadow prices from constraint-based multi-objective
+    shadow_prices = {}
+    if config.use_constraint_multi_obj:
+        try:
+            carbon_c = m.getConstrByName("carbon_cap")
+            if carbon_c is not None:
+                shadow_prices["carbon_cap"] = carbon_c.Pi
+        except Exception:
+            pass
+        try:
+            re_c = m.getConstrByName("re_min_rate")
+            if re_c is not None:
+                shadow_prices["re_min_rate"] = -re_c.Pi
+        except Exception:
+            pass
 
     # --- Extract results ---
     from market import empty_schedules as _empty_schedules, split_power as _split_power
@@ -703,6 +755,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         "carbon_emissions": carbon_emissions,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
+        "shadow_prices": shadow_prices,
     }
     return result
 

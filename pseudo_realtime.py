@@ -26,6 +26,7 @@ class PseudoRealTimeSimulator:
         """
         self.config = config
         self.step_sec = step_sec
+        self.scenario_name = scenario_name
         self.T = 96                      # 总时段数
         self.agents, _ = get_scenario(scenario_name, T=self.T, config=config)
         self.net = build_base_network(config)
@@ -45,7 +46,7 @@ class PseudoRealTimeSimulator:
 
     def run(self):
         print(f"🚀 伪实时仿真启动，共 {self.T} 时段，每时段 {self.step_sec} 秒")
-        print(f"OPF 模式: {self.config.opf_mode} | 场景: {sys.argv[2] if len(sys.argv)>2 else 'baseline'}")
+        print(f"OPF 模式: {self.config.opf_mode} | 场景: {self.scenario_name}")
         print("-" * 60)
 
         for t in range(self.T):

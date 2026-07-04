@@ -26,6 +26,21 @@ scenarios:
     override_config:
       line_capacity_multiplier: 0.5
 
+  no_congestion:
+    description: "No congestion: 5x line capacity for algorithm validation"
+    with_wind: true
+    override_config:
+      line_capacity_multiplier: 5.0
+
+  tight_bottleneck:
+    description: "Tight bottleneck: lines 11 (11→12) and 15 (15→16) at 20% for LMP research"
+    with_wind: true
+    override_config:
+      line_capacity_multiplier: 1.0
+      line_capacity_overrides:
+        11: 0.20
+        15: 0.20
+
   re_ramp_drop:
     description: "RE sudden drop: output falls to 10% at midpoint"
     with_wind: true

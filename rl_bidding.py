@@ -360,10 +360,40 @@ def rl_bidding_strategy(agents: List[Agent], config: MarketConfig,
     Uses trained PPO policies if available, otherwise falls back to heuristic.
     Called by adaptive_bidding when strategy="rl".
     """
-    from market import _bootstrap_actions
+    if not _TRAINED_POLICIES:
+        from market import _bootstrap_actions
+        return _bootstrap_actions(agents, config, T)
 
-    base = _bootstrap_actions(agents, config, T)
-    return base
+    from rl_env import BiddingEnv, action_to_params
+    env_temp = BiddingEnv(agents, config)
+    avg_price = 420.0
+    if market_history is not None and hasattr(market_history, 'get'):
+        avg_price = float(np.mean(market_history.get('price', [420.0])))
+
+    actions = {}
+    for a in agents:
+        nm = a.name
+        if nm in _TRAINED_POLICIES:
+            obs = env_temp._get_agent_obs(a, 0, None, avg_price)
+            action_idx, _ = _TRAINED_POLICIES[nm].act(obs, deterministic=True)
+            bid_m, offer_a = action_to_params(action_idx)
+            actions[nm] = {
+                "bid_mult": np.full(T, bid_m),
+                "offer_adder": np.full(T, offer_a),
+            }
+        elif a.is_prosumer:
+            rng = np.random.RandomState(hash(nm) % (2 ** 31))
+            bid_m = rng.choice([0.3, 0.6, 0.9, 1.2, 1.5, 1.8])
+            offer_a = rng.choice([0, 15, 30, 45])
+            actions[nm] = {
+                "bid_mult": np.full(T, bid_m),
+                "offer_adder": np.full(T, offer_a),
+            }
+        else:
+            actions[nm] = {
+                "bid_mult": np.full(T, np.mean(config.bid_mult_range))
+            }
+    return actions
 
 
 # Global cache for trained policies

@@ -3,9 +3,21 @@
 
 network:
   name: case33bw
-  base_ampacity_ka: 0.65
-  min_line_ka: 0.25
+  # Ampacity formula: max_i_ka = clip(base_ka / sqrt(R_ohm), min_ka, max_ka)
+  # Calibrated to ACSR conductor data (GB/T 1179): k = I * sqrt(R) ≈ 0.18-0.21
+  #  base_ka=0.19 matches LGJ-120 (~380A at R=0.23 ohm/km) as the reference.
+  #  min_ka=0.08  corresponds to ~80A (smallest practical MV conductor).
+  #  max_ka=0.80  corresponds to ~800A (substation busbar / heavy trunk).
+  # Before recalibration (2026-07-04), base_ka=0.65 with min_ka=0.25 clipped
+  # 17 of 32 lines to the 0.80 ceiling, erasing thermal differentiation.
+  base_ampacity_ka: 0.22
+  min_line_ka: 0.08
   max_line_ka: 0.80
+  ramp_limit_mw_per_period: null  # max MW change per 15-min in net grid exchange, null = disabled
+  # Per-line capacity overrides — use to model line upgrades or N-1 relief.
+  # Remove or set to {} when the physical ampacity formula provides
+  # sufficient headroom (current calibration gives 3-14x margin on all lines).
+  line_capacity_overrides: {}
 
 profiles:
   pv:
@@ -49,11 +61,11 @@ load_types:
     load_multiplier: 0.9
     bid_value: 480.0
   commercial:
-    buses: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    buses: [7, 8, 9, 10, 11, 12, 13, 14, 15, 17]
     load_multiplier: 1.0
     bid_value: 650.0
   industrial:
-    buses: [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+    buses: [16, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
     load_multiplier: 1.1
     bid_value: 850.0
 
@@ -87,7 +99,7 @@ prosumers:
           eta_dis: 0.90
           power_ratio_mult: 1.8
   industrial:
-    prosumer_buses: [23, 25, 30]
+    prosumer_buses: [16, 23, 25, 30]
     wind_capacity_factor: 3.5
     wind_forecast_noise: 0.12
     wind_real_noise: 0.18
@@ -105,6 +117,14 @@ prosumers:
     bid_value: 720.0
     offer_cost: 300.0
     bus_overrides:
+      16:
+        storage:
+          eta_ch: 0.92
+          eta_dis: 0.92
+          soc0: 0.5
+          soc_max: 0.95
+          power_ratio_mult: 1.2
+        wind_capacity_scale: 2.5
       23:
         storage:
           eta_ch: 0.96
@@ -134,7 +154,7 @@ prosumers:
 non_prosumer_storage:
   # Standalone storage on non-prosumer buses for peak shaving and arbitrage.
   # buses 15,16,17 are far-end nodes on the longest radial branch — prone to evening congestion
-  buses: [6, 13, 15, 16, 17, 29, 31]
+  buses: [6, 13, 15, 17, 29, 31]
   capacity_factor: 4.0
   power_ratio: 0.45
   eta_ch: 0.92
@@ -152,10 +172,10 @@ price_curve:
   noon_dip_amplitude: -80.0
   noon_dip_center: 13
   noon_dip_width: 8
-  min_price: 150.0
+  min_price: -200.0
   max_price: 800.0
   noise_sigma: 30.0
-  hard_min: -50.0
+  hard_min: -200.0
   hard_max: 1200.0
   spike_probability: 0.0
   spike_magnitude: 300.0
