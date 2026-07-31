@@ -22,11 +22,11 @@ _net_cache_cfg: Optional[tuple] = None
 
 def build_base_network(config: MarketConfig) -> pp.pandapowerNet:
     global _net_cache, _net_cache_cfg
-    mult = config.line_capacity_multiplier
+    mult = config.network.line_capacity_multiplier
     base_ka = get_default("network.base_ampacity_ka", 0.50)
     min_ka = get_default("network.min_line_ka", 0.15)
     max_ka = get_default("network.max_line_ka", 0.80)
-    line_overrides = config.line_capacity_overrides or get_default("network.line_capacity_overrides", {})
+    line_overrides = config.network.line_capacity_overrides or get_default("network.line_capacity_overrides", {})
     cache_key = (mult, base_ka, min_ka, max_ka, tuple(sorted(line_overrides.items())))
     if _net_cache is not None and _net_cache_cfg == cache_key:
         return _net_cache
@@ -257,9 +257,26 @@ def create_agents_from_network(
     return agents
 
 
-def day_ahead_price_china(T: int = 96) -> np.ndarray:
-    """Generate synthetic day-ahead price curve, reading params from config."""
+def day_ahead_price_china(T: int = 96, agents=None, config=None) -> np.ndarray:
+    """Generate day-ahead price curve.
+
+    Routes to the configured forecast method (defaults.yaml price_curve.forecast_method):
+      - "merit_order": builds supply/demand stacks from agent fundamentals, so
+        the price reflects actual net-load conditions (tight supply → high price,
+        excess RE → low / negative price). Requires *agents* and *config*.
+      - "synthetic": legacy sinusoidal model — no agents needed.
+    """
     cfg = get_default("price_curve", {})
+    method = cfg.get("forecast_method", "synthetic")
+
+    if method == "merit_order" and agents is not None and len(agents) > 0:
+        return _forecast_price_merit_order(agents, T, config, cfg)
+    else:
+        return _forecast_price_synthetic(T, cfg)
+
+
+def _forecast_price_synthetic(T: int, cfg: dict) -> np.ndarray:
+    """Legacy sinusoidal day-ahead price model (no agents needed)."""
     hours = np.arange(T) * 0.25
     base = cfg.get("base", 420.0)
     amp1 = cfg.get("amplitude_1", 300.0)
@@ -295,6 +312,64 @@ def day_ahead_price_china(T: int = 96) -> np.ndarray:
     return price
 
 
+def _forecast_price_merit_order(agents, T: int, config, cfg: dict) -> np.ndarray:
+    """Build supply/demand stacks from agent fundamentals for each period.
+
+    Approach (inspired by ASSUME's calculate_naive_price):
+      1. Compute total demand per period (sum of load forecasts).
+      2. Compute total renewable generation per period (PV + wind forecasts).
+      3. Net load = demand - RE generation.
+      4. Price = base_price * (1 + elasticity * net_load / max_demand).
+
+    When net load is high (tight supply, heavy grid imports), prices rise above
+    base.  When net load is negative (RE surplus, exports), prices fall and can
+    go negative.  This directly ties the price forecast to physical fundamentals
+    instead of a static sinusoidal template.
+    """
+    base = cfg.get("base", 420.0)
+    elasticity = cfg.get("merit_order_price_elasticity", 0.35)
+    floor = cfg.get("merit_order_min_price", 50.0)
+    cap = cfg.get("merit_order_max_price", 900.0)
+    noise_sigma = cfg.get("noise_sigma", 30.0)
+    hard_min = cfg.get("hard_min", -200.0)
+    hard_max = cfg.get("hard_max", 1200.0)
+
+    demand = np.zeros(T)
+    re_gen = np.zeros(T)
+
+    for a in agents:
+        # Use forecasts (DA perspective) or real values (RT perspective)
+        load = a.load_forecast if config is None or not hasattr(config, 'use_real') else a.load_real
+        demand += load
+        re_gen += a.pv_forecast
+        if a.has_wind and a.wind_forecast is not None:
+            re_gen += a.wind_forecast
+
+    # Avoid division by zero
+    max_demand = float(np.max(demand)) if np.max(demand) > 0 else 1.0
+    net_load = demand - re_gen
+
+    # Price = base * (1 + elasticity * net_load / max_demand)
+    #  net_load = +1 * max_demand → price = base * (1 + elasticity)  [high]
+    #  net_load = 0              → price = base                      [balanced]
+    #  net_load = -max_demand    → price = base * (1 - elasticity)  [low]
+    price = base * (1.0 + elasticity * net_load / max_demand)
+    price = np.clip(price, floor, cap)
+
+    if noise_sigma > 0:
+        price = price + np.random.normal(0, noise_sigma, size=T)
+
+    spike_prob = cfg.get("spike_probability", 0.0)
+    spike_mag = cfg.get("spike_magnitude", 300.0)
+    if spike_prob > 0:
+        spike_mask = np.random.random(T) < spike_prob
+        spike_signs = np.random.choice([-1, 1], size=T)
+        price += spike_mask * spike_signs * spike_mag
+
+    price = np.clip(price, hard_min, hard_max)
+    return price
+
+
 # ---------------------------------------------------------------------------
 # Shared profile generators (used by llm.py and create_agents_from_network)
 # ---------------------------------------------------------------------------
@@ -314,11 +389,14 @@ def load_profile(hours: np.ndarray,
     """
     max_h = float(np.max(hours))
     if max_h > 30:
-        h = hours * 0.25 + phase_shift
+        h = hours * 0.25
     else:
-        h = hours + phase_shift
-    morning = morning_peak_amplitude * np.exp(-((h - morning_peak_hour) ** 2) / morning_peak_width)
-    evening = evening_peak_amplitude * np.exp(-((h - evening_peak_hour) ** 2) / evening_peak_width)
+        h = hours
+    # phase_shift > 0 → peak occurs LATER (matching natural intuition)
+    morning = morning_peak_amplitude * np.exp(
+        -((h - (morning_peak_hour + phase_shift)) ** 2) / morning_peak_width)
+    evening = evening_peak_amplitude * np.exp(
+        -((h - (evening_peak_hour + phase_shift)) ** 2) / evening_peak_width)
     raw = night_base + morning + evening
     norm = raw / np.mean(raw)
     return norm * amplitude_scale + (1.0 - amplitude_scale)

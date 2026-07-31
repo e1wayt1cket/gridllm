@@ -173,3 +173,155 @@ def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, co
             'storage_mode': 'idle',
         }
     return agent_info
+
+
+# ===========================================================================
+# Shared schedule utilities (used by batch solvers and market.py)
+# ===========================================================================
+
+def empty_schedules(agents, T):
+    """Create a zero-filled schedules dict for the given agents and periods."""
+    schedules = {}
+    for a in agents:
+        schedules[a.name] = {
+            'p_buy': np.zeros(T), 'p_sell': np.zeros(T),
+            'served': np.zeros(T), 'unserved': np.zeros(T),
+            'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
+            'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
+            'q_re': np.zeros(T),
+            'storage_mode': ['idle'] * T,
+        }
+    schedules['GRID'] = {'g_grid': np.zeros(T)}
+    return schedules
+
+
+def split_power(net_gen, net_con):
+    """Return (p_buy, p_sell) given net generation and consumption."""
+    if net_gen > net_con:
+        return 0.0, net_gen - net_con
+    else:
+        return net_con - net_gen, 0.0
+
+
+# ===========================================================================
+# MPC self-scheduling helpers (shared by LDF and SOCP batch solvers)
+# ===========================================================================
+
+def _compute_bus_electrical_distance(net):
+    """Compute cumulative line resistance from slack bus to each bus."""
+    import collections
+    slack = int(net.ext_grid.at[0, 'bus'])
+    adj = collections.defaultdict(list)
+    for _, row in net.line.iterrows():
+        f = int(row['from_bus'])
+        t = int(row['to_bus'])
+        r = float(row['r_ohm_per_km']) * float(row['length_km'])
+        adj[f].append((t, r))
+    r_cum = {slack: 0.0}
+    stack = [slack]
+    while stack:
+        u = stack.pop()
+        for v, r in adj.get(u, []):
+            if v not in r_cum:
+                r_cum[v] = r_cum[u] + r
+                stack.append(v)
+    return r_cum
+
+
+def _run_mpc_pass(all_storage_agents, T, H, wholesale, term_price,
+                  noise_pct, r_cum, r_max, config, mpc_schedules,
+                  congestion_prices):
+    """Run one pass of MPC for all storage agents.
+
+    If congestion_prices is provided, it overrides the base wholesale
+    price forecast with congestion-aware nodal prices.
+    """
+    use_heuristic = getattr(config.storage, 'mpc_fast_heuristic', False)
+    if use_heuristic:
+        from mpc_storage import solve_storage_mpc_heuristic as _mpc_solve
+    else:
+        from mpc_storage import solve_storage_mpc as _mpc_solve
+
+    if not all_storage_agents:
+        return
+
+    # Pre-compute per-agent noise arrays (single RNG call per agent)
+    noise = {}
+    for a in all_storage_agents:
+        rng = np.random.RandomState(hash(a.name) % 2**31)
+        noise[a.name] = 1.0 + rng.normal(0, noise_pct, T)
+
+    charge_discount = getattr(config.storage, 'charge_discount', 0.75)
+    discharge_premium = getattr(config.storage, 'discharge_premium', 1.30)
+
+    for a in all_storage_agents:
+        mpc_ch = np.zeros(T)
+        mpc_dis = np.zeros(T)
+        mpc_soc_arr = np.zeros(T + 1)
+        soc_now = a.storage.soc0
+        mpc_soc_arr[0] = soc_now
+        price_src = (congestion_prices.get(a.bus, wholesale)
+                     if congestion_prices else wholesale)
+        for t in range(T):
+            remaining = min(H, T - t)
+            if remaining <= 0:
+                mpc_soc_arr[t + 1] = soc_now
+                break
+            price_fwd = price_src[t:t + remaining] * noise[a.name][t:t + remaining]
+            if use_heuristic:
+                ch_sched, dis_sched, soc_sched = _mpc_solve(
+                    a.storage, soc_now, price_fwd, DT_HOURS,
+                    terminal_price=term_price,
+                    charge_discount=charge_discount,
+                    discharge_premium=discharge_premium)
+            else:
+                ch_sched, dis_sched, soc_sched = _mpc_solve(
+                    a.storage, soc_now, price_fwd, DT_HOURS,
+                    terminal_price=term_price)
+            mpc_ch[t] = ch_sched[0]
+            mpc_dis[t] = dis_sched[0]
+            soc_now = soc_sched[1]
+            mpc_soc_arr[t + 1] = soc_now
+        mpc_schedules[a.name] = (mpc_ch, mpc_dis, mpc_soc_arr)
+
+
+def _compute_mpc_schedules(net, agents, T, wholesale, config, storage_units):
+    """Two-pass MPC self-scheduling for storage agents.
+
+    First pass estimates congestion, second pass adjusts with
+    congestion-aware nodal prices. Returns dict of MPC schedules.
+    """
+    all_storage = [a for a in agents if a.storage is not None]
+    if storage_units:
+        all_storage.extend(storage_units)
+    schedules = {}
+    if not config.storage.self_schedule or not all_storage:
+        return schedules
+    H = config.storage.mpc_horizon
+    noise_pct = config.storage.mpc_price_noise_pct / 100.0
+    term_price = float(np.mean(wholesale))
+    r_cum = _compute_bus_electrical_distance(net)
+    r_max = max(r_cum.values()) if r_cum else 1.0
+    _run_mpc_pass(all_storage, T, H, wholesale, term_price,
+                  noise_pct, r_cum, r_max, config, schedules, None)
+    # Second congestion-aware pass — disabled by default.
+    # Storage arbitrage is driven by temporal price differences;
+    # spatial congestion markups have negligible impact in radial
+    # networks with adequate line capacity.  Enable via:
+    #   config.storage.mpc_congestion_pass = True
+    if getattr(config.storage, 'mpc_congestion_pass', False):
+        total_ch_pass1 = np.zeros(T)
+        for sched in schedules.values():
+            total_ch_pass1 += sched[0]
+        if total_ch_pass1.sum() > 1e-6:
+            congestion_prices = {}
+            for b in range(len(net.bus.index)):
+                bus_r = r_cum.get(b, 0.0)
+                markup = 1.0 + 0.30 * (bus_r / r_max) * (
+                    total_ch_pass1 / max(total_ch_pass1.max(), 0.01))
+                congestion_prices[b] = wholesale * markup
+            schedules.clear()
+            _run_mpc_pass(all_storage, T, H, wholesale, term_price,
+                          noise_pct, r_cum, r_max, config, schedules,
+                          congestion_prices)
+    return schedules

@@ -5,10 +5,13 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from matplotlib.patches import FancyBboxPatch
 import pandas as pd
 import numpy as np
 from datetime import datetime
+
+from topology_data import (
+    NODE_COORDS, LINES, REPRESENTATIVE_BUSES, SOC_COLORS,
+)
 
 
 def save_run_results(da_results, rt_results, config, scenario, strategy,
@@ -29,7 +32,7 @@ def save_run_results(da_results, rt_results, config, scenario, strategy,
     """
     if output_dir is None:
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        output_dir = os.path.join("outputs", ts)
+        output_dir = os.path.join("output", ts)
     os.makedirs(output_dir, exist_ok=True)
 
     # -- summary.csv --
@@ -37,7 +40,7 @@ def save_run_results(da_results, rt_results, config, scenario, strategy,
         "scenario": scenario,
         "strategy": strategy,
         "opf_mode": config.opf_mode,
-        "multi_obj_method": "constraint" if config.use_constraint_multi_obj else "weighted-sum",
+        "multi_obj_method": "constraint" if config.market_design.use_constraint_multi_obj else "weighted-sum",
         "da_welfare": da_results.get("welfare", np.nan),
         "da_re_rate_pct": da_results.get("re_consumption_rate", np.nan),
         "da_carbon_tco2": da_results.get("carbon_emissions", np.nan),
@@ -83,6 +86,11 @@ def save_run_results(da_results, rt_results, config, scenario, strategy,
             os.path.join(output_dir, "nash_test.csv"), index=False, float_format="%.4f")
 
     print(f"Results saved to: {output_dir}")
+    # Also persist to SQLite for cross-run queries
+    try:
+        save_run_to_db(da_results, rt_results, config, scenario, strategy)
+    except Exception:
+        pass  # DB export is best-effort
 
 
 def export_curve_csvs(da_results, rt_results, agents, config, scenario,
@@ -154,7 +162,7 @@ def export_curve_csvs(da_results, rt_results, agents, config, scenario,
             row["max_lmp"] = float(lmp[t].max())
             row["p25_lmp"] = float(p25)
             row["p75_lmp"] = float(p75)
-            for bus_idx, label, _ in _REPRESENTATIVE_BUSES:
+            for bus_idx, label, _ in REPRESENTATIVE_BUSES:
                 if bus_idx < lmp.shape[1]:
                     row[f"bus{bus_idx}_lmp"] = float(lmp[t, bus_idx])
             rows.append(row)
@@ -258,18 +266,6 @@ def export_curve_csvs(da_results, rt_results, agents, config, scenario,
     return kpi
 
 
-# bus-index → (label, color) mapping matching dashboard's REPRESENTATIVE_BUSES
-_REPRESENTATIVE_BUSES = [
-    (0,  "Bus1_Grid",       "#e74c3c"),
-    (5,  "Bus6_ResProsumer", "#3b82f6"),
-    (12, "Bus13_Commercial", "#10b981"),
-    (17, "Bus18_Commercial", "#f59e0b"),
-    (21, "Bus22_ResProsumer", "#8b5cf6"),
-    (24, "Bus25_IndProsumer", "#ec4899"),
-    (32, "Bus33_Industrial", "#6366f1"),
-]
-
-
 # ── matplotlib style defaults for chart exports ──
 plt.rcParams.update({
     'font.size': 10, 'axes.titlesize': 14, 'axes.labelsize': 11,
@@ -322,7 +318,7 @@ def _export_lmp_chart(lmp, output_dir, title="LMP Curves"):
             label='System mean')
 
     # Representative bus curves
-    for bus_idx, label, color in _REPRESENTATIVE_BUSES:
+    for bus_idx, label, color in REPRESENTATIVE_BUSES:
         if bus_idx < n_buses:
             ax.plot(hours, lmp[:, bus_idx], color=color, linewidth=1.5, label=label)
 
@@ -365,16 +361,11 @@ def _export_soc_chart(da_results, agents, output_dir, title="Storage SOC & Charg
 
     T = len(da_results["schedules"][storage_agents[0].name]["soc"])
     hours = np.arange(T) * 0.25
-    soc_colors = [
-        '#e74c3c', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
-        '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#06b6d4',
-    ]
-
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 9), sharex=True,
                                     gridspec_kw={'height_ratios': [0.52, 0.48]})
 
     for i, a in enumerate(storage_agents):
-        color = soc_colors[i % len(soc_colors)]
+        color = SOC_COLORS[i % len(SOC_COLORS)]
         s = da_results["schedules"][a.name]
         ax1.plot(hours, s["soc"] * 100, color=color, linewidth=2.0, label=a.name)
         ax1.set_ylabel("SOC (%)")
@@ -453,31 +444,12 @@ def _export_load_chart(served, unserved, forecast, output_dir, title="Load Profi
 
 def _export_topology_chart(lmp_arr, agents_info, output_dir, title="IEEE 33-Bus Topology"):
     """IEEE 33-bus topology with LMP-based node coloring and prosumer stars."""
-    # Bus coordinates (orthogonal layout)
-    node_coords = {
-        0: (0, 0), 1: (2, 0), 2: (4, 0), 3: (6, 0), 4: (8, 0),
-        5: (10, 0), 6: (12, 0), 7: (14, 0), 8: (16, 0), 9: (18, 0),
-        10: (20, 0), 11: (22, 0), 12: (24, 0), 13: (26, 0), 14: (28, 0),
-        15: (30, 0), 16: (32, 0), 17: (34, 0),
-        18: (2, 3), 19: (4, 3), 20: (6, 3), 21: (8, 3),
-        22: (4, -3), 23: (6, -3), 24: (8, -3),
-        25: (10, -3), 26: (12, -3), 27: (14, -3), 28: (16, -3),
-        29: (18, -3), 30: (20, -3), 31: (22, -3), 32: (24, -3),
-    }
-    lines = [
-        (0,1), (1,2), (2,3), (3,4), (4,5), (5,6), (6,7), (7,8), (8,9), (9,10),
-        (10,11), (11,12), (12,13), (13,14), (14,15), (15,16), (16,17),
-        (1,18), (18,19), (19,20), (20,21),
-        (2,22), (22,23), (23,24),
-        (5,25), (25,26), (26,27), (27,28), (28,29), (29,30), (30,31), (31,32),
-    ]
-
     fig, ax = plt.subplots(figsize=(14, 6))
 
     # Draw lines
-    for i, j in lines:
-        x0, y0 = node_coords[i]
-        x1, y1 = node_coords[j]
+    for i, j in LINES:
+        x0, y0 = NODE_COORDS[i]
+        x1, y1 = NODE_COORDS[j]
         ax.plot([x0, x1], [y0, y1], color='#cbd5e1', linewidth=2.0, zorder=1)
 
     # Compute node colors from LMP
@@ -495,7 +467,7 @@ def _export_topology_chart(lmp_arr, agents_info, output_dir, title="IEEE 33-Bus 
 
     # Draw nodes
     for b in range(33):
-        x, y = node_coords[b]
+        x, y = NODE_COORDS[b]
         ax.scatter(x, y, s=200, c=[node_colors[b]], edgecolors='#334155',
                    linewidths=1.5, zorder=3)
         ax.text(x, y + 0.8, f"B{b+1}", ha='center', fontsize=7,
@@ -506,8 +478,8 @@ def _export_topology_chart(lmp_arr, agents_info, output_dir, title="IEEE 33-Bus 
         prosumer_buses = list({info.get("bus", -1) for info in agents_info
                                if info.get("is_prosumer", False)})
         if prosumer_buses:
-            px = [node_coords[b][0] for b in prosumer_buses if b in node_coords]
-            py = [node_coords[b][1] for b in prosumer_buses if b in node_coords]
+            px = [NODE_COORDS[b][0] for b in prosumer_buses if b in NODE_COORDS]
+            py = [NODE_COORDS[b][1] for b in prosumer_buses if b in NODE_COORDS]
             ax.scatter(px, py, s=120, marker='*', color='#f59e0b',
                        edgecolors='#d0d7e3', linewidths=1.0, zorder=4,
                        label='Prosumer')
@@ -550,3 +522,106 @@ def _save_schedules(results, path):
                 "soc": float(sched.get("soc", np.zeros(1))[period]),
             })
     pd.DataFrame(rows).to_csv(path, index=False, float_format="%.6f")
+
+
+# ---------------------------------------------------------------------------
+# SQLite export — enables cross-run queries and reproducibility
+# ---------------------------------------------------------------------------
+
+_DB_PATH = os.path.join(os.path.dirname(__file__), "output", "simulations.db")
+
+
+def _get_db():
+    import sqlite3
+    os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
+def init_db():
+    """Create tables if they don't exist."""
+    conn = _get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            scenario TEXT NOT NULL,
+            strategy TEXT NOT NULL,
+            opf_mode TEXT NOT NULL,
+            config_hash TEXT
+        );
+        CREATE TABLE IF NOT EXISTS kpis (
+            run_id INTEGER REFERENCES runs(id),
+            stage TEXT NOT NULL,
+            welfare REAL,
+            re_rate REAL,
+            carbon_emissions REAL,
+            carbon_intensity REAL,
+            total_curtailment REAL
+        );
+        CREATE TABLE IF NOT EXISTS timeseries (
+            run_id INTEGER REFERENCES runs(id),
+            stage TEXT NOT NULL,
+            period INTEGER NOT NULL,
+            agent TEXT NOT NULL,
+            lmp_bus0 REAL,
+            served REAL,
+            pv_used REAL,
+            wind_used REAL,
+            p_ch REAL,
+            p_dis REAL,
+            soc REAL
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+
+def save_run_to_db(da_results, rt_results, config, scenario, strategy):
+    """Persist key results to SQLite for cross-run analysis."""
+    import hashlib, json
+    init_db()
+    conn = _get_db()
+    ts = datetime.now().isoformat()
+    config_json = json.dumps({
+        "opf_mode": config.opf_mode,
+        "line_mult": config.network.line_capacity_multiplier,
+    }, sort_keys=True)
+    config_hash = hashlib.md5(config_json.encode()).hexdigest()[:8]
+
+    cur = conn.execute(
+        "INSERT INTO runs(timestamp, scenario, strategy, opf_mode, config_hash) "
+        "VALUES (?,?,?,?,?)", (ts, scenario, strategy, config.opf_mode, config_hash))
+    run_id = cur.lastrowid
+
+    for stage, results in [("DA", da_results), ("RT", rt_results)]:
+        if results is None:
+            continue
+        conn.execute(
+            "INSERT INTO kpis VALUES (?,?,?,?,?,?,?)",
+            (run_id, stage, results.get("welfare"),
+             results.get("re_consumption_rate"),
+             results.get("carbon_emissions"),
+             results.get("carbon_intensity"),
+             results.get("total_curtailment")))
+
+        # Sample every 4th period to keep DB size reasonable
+        lmp = results.get("lmp")
+        schedules = results.get("schedules", {})
+        for t in range(0, len(results.get("price", [])), 4):
+            for nm, sched in schedules.items():
+                if nm == "GRID":
+                    continue
+                conn.execute(
+                    "INSERT INTO timeseries VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    (run_id, stage, t, nm,
+                     float(lmp[t, 0]) if lmp is not None else None,
+                     float(sched.get("served", np.zeros(1))[t]),
+                     float(sched.get("pv_used", np.zeros(1))[t]),
+                     float(sched.get("wind_used", np.zeros(1))[t]),
+                     float(sched.get("p_ch", np.zeros(1))[t]),
+                     float(sched.get("p_dis", np.zeros(1))[t]),
+                     float(sched.get("soc", np.zeros(1))[t])))
+    conn.commit()
+    conn.close()

@@ -76,7 +76,7 @@ def _evaluate_payoffs(args):
     consumption_value = agent.bid_value * np.sum(sched["served"])
     generation_cost = agent.offer_cost * np.sum(sched["pv_used"] + sched["wind_used"])
     market_payment = np.sum(sched["p_sell"] * node_price) - np.sum(sched["p_buy"] * node_price)
-    penalty = config.penalty_unserved * np.sum(sched["unserved"])
+    penalty = config.market_design.penalty_unserved * np.sum(sched["unserved"])
     payoff = consumption_value - generation_cost + market_payment - penalty
     return target_name, float(payoff), action_variant.get(target_name)
 
@@ -111,14 +111,14 @@ def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
             bid_blk = x[:block_count]
             offer_blk = x[block_count:]
             bid = np.clip(_blocks_to_strategy(bid_blk, T),
-                          *config.bid_mult_range)
+                          *config.market_design.bid_mult_range)
             offer = np.clip(_blocks_to_strategy(offer_blk, T),
-                            *config.offer_adder_range)
+                            *config.market_design.offer_adder_range)
             trial[name] = {"bid_mult": bid, "offer_adder": offer}
         else:
             bid_blk = x
             bid = np.clip(_blocks_to_strategy(bid_blk, T),
-                          *config.bid_mult_range)
+                          *config.market_design.bid_mult_range)
             trial[name] = {"bid_mult": bid}
 
         r_name, payoff, _ = _evaluate_payoffs(
@@ -137,13 +137,13 @@ def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
     if is_prosumer:
         best_strat["bid_mult"] = np.clip(
             _blocks_to_strategy(opt_x[:block_count], T),
-            *config.bid_mult_range)
+            *config.market_design.bid_mult_range)
         best_strat["offer_adder"] = np.clip(
             _blocks_to_strategy(opt_x[block_count:], T),
-            *config.offer_adder_range)
+            *config.market_design.offer_adder_range)
     else:
         best_strat["bid_mult"] = np.clip(
-            _blocks_to_strategy(opt_x, T), *config.bid_mult_range)
+            _blocks_to_strategy(opt_x, T), *config.market_design.bid_mult_range)
 
     # Final OPF evaluation to get accurate payoff
     trial_final = copy.deepcopy(base_strategy)
@@ -173,14 +173,14 @@ def _generate_variations(base_strategy, agent, config, num_variations=150,
         new_strat = copy.deepcopy(base_strategy)
         if is_prosumer:
             bid_mult = np.clip(np.random.normal(base_bid, bid_sigma),
-                               *config.bid_mult_range)
+                               *config.market_design.bid_mult_range)
             offer_adder = np.clip(np.random.normal(base_offer, offer_sigma),
-                                  *config.offer_adder_range)
+                                  *config.market_design.offer_adder_range)
             new_strat[agent.name] = {"bid_mult": bid_mult,
                                      "offer_adder": offer_adder}
         else:
             bid_mult = np.clip(np.random.normal(base_bid, bid_sigma),
-                               *config.bid_mult_range)
+                               *config.market_design.bid_mult_range)
             new_strat[agent.name] = {"bid_mult": bid_mult}
         variants.append(new_strat)
     return variants
@@ -207,56 +207,19 @@ def _evaluate_best_response(args):
 
 
 # ---------------------------------------------------------------------------
-# Strategy distance (normalized by parameter range)
-# ---------------------------------------------------------------------------
-
-def _strategy_distance(s1, s2, agent):
-    """Normalized distance between two strategy dicts for one agent.
-
-    bid_mult range ~0.4 (0.8–1.2), offer_adder range ~50 (0–50).
-    Dividing by range makes the metric comparable across parameter types.
-    """
-    name = agent.name
-    bid_range = 1.5
-    bid_diff = (np.abs(np.array(s1[name]["bid_mult"])
-                       - np.array(s2[name]["bid_mult"])).mean()
-                / bid_range)
-    if agent.is_prosumer:
-        offer_range = 50.0
-        offer_diff = (np.abs(np.array(s1[name]["offer_adder"])
-                             - np.array(s2[name]["offer_adder"])).mean()
-                      / offer_range)
-        return (bid_diff + offer_diff) / 2.0
-    return bid_diff
-
-
-def _blend_strategy(current, name, br_strat, is_prosumer, alpha):
-    """Blend current strategy toward best response with weight alpha."""
-    if is_prosumer:
-        current[name]["bid_mult"] = (
-            (1 - alpha) * current[name]["bid_mult"]
-            + alpha * br_strat["bid_mult"])
-        current[name]["offer_adder"] = (
-            (1 - alpha) * current[name]["offer_adder"]
-            + alpha * br_strat["offer_adder"])
-    else:
-        current[name]["bid_mult"] = (
-            (1 - alpha) * current[name]["bid_mult"]
-            + alpha * br_strat["bid_mult"])
-
-
-# ---------------------------------------------------------------------------
-# NashEquilibriumTester
+# NashEquilibriumTester — detection only (no solving)
 # ---------------------------------------------------------------------------
 
 class NashEquilibriumTester:
-    """Nash equilibrium solver with block-parameterized best response.
+    """Nash equilibrium detector with block-parameterized best response.
+
+    Tests whether a given strategy profile is a Nash equilibrium by checking
+    each agent for profitable unilateral deviations via random sampling.
 
     Important: electricity markets with storage are NOT zero-sum — the
-    payoff landscape has local plateaus. Fictitious play convergence proofs
-    do not apply; the fixed point found is only guaranteed to be a
-    correlated equilibrium. Always run test_nash_equilibrium() after
-    convergence to verify the result.
+    payoff landscape has local plateaus. Detection uses random perturbations;
+    a negative result is informative but a "pass" does not guarantee a
+    global Nash equilibrium.
 
     Parameters
     ----------
@@ -269,8 +232,7 @@ class NashEquilibriumTester:
         False on Windows (spawn forks require serial guard).
     use_optimization : bool or None
         Whether to use COBYLA block optimization for best response.
-        None auto-detects: True if scipy is available. Strongly recommended
-        — random sampling is too weak for 48-dim strategy space.
+        None auto-detects: True if scipy is available.
     block_count : int, default 12
         Number of strategy blocks (2-hour for T=96). Higher = finer granularity.
     """
@@ -327,21 +289,6 @@ class NashEquilibriumTester:
     def _clear_cache(self):
         self._payoff_cache.clear()
 
-    # -- build average strategy from history --------------------------------
-
-    def _build_average_strategy(self, history):
-        """Average strategy profile across all snapshots in history."""
-        avg = {}
-        for a in self.agents:
-            name = a.name
-            avg_bid = np.mean([h[name]["bid_mult"] for h in history], axis=0)
-            avg[name] = {"bid_mult": avg_bid}
-            if a.is_prosumer:
-                avg_offer = np.mean([h[name]["offer_adder"]
-                                     for h in history], axis=0)
-                avg[name]["offer_adder"] = avg_offer
-        return avg
-
     def compute_base_payoffs(self, base_strategy):
         """Compute base payoff for each agent under the given strategy.
         Results are cached so that test_nash_equilibrium re-uses them.
@@ -359,259 +306,6 @@ class NashEquilibriumTester:
             results = [_evaluate_payoffs(t) for t in tasks]
         return {r[0]: r[1] for r in results}
 
-    # ------------------------------------------------------------------
-    # Diagonalization (Gauss-Seidel sequential best response)
-    # ------------------------------------------------------------------
-
-    def diagonalization(self, init_strategy, max_iter=25, num_variations=150,
-                        alpha=0.7, tol_distance=0.01, patience=5, history=None):
-        """Gauss-Seidel diagonalization.
-
-        Iterates through agents sequentially. Each agent finds its best response
-        given the already-updated strategies of previous agents in this round.
-
-        alpha=1.0: pure Gauss-Seidel (full best-response adoption).
-        alpha<1.0: damped (safer but slower).
-
-        Converges when strategy distance < tol_distance AND no payoff
-        improvement for patience consecutive iterations.
-        """
-        current = copy.deepcopy(init_strategy)
-        best_avg_pay = float('-inf')
-        stagnation = 0
-
-        for it in range(max_iter):
-            prev_round = copy.deepcopy(current)
-            total_pay = 0.0
-
-            for a in self.agents:
-                # Clear cache per-agent: later agents' BR depends on just-updated
-                # strategies of earlier agents in this round.
-                self._clear_cache()
-                br = self._best_response(a, current, num_variations)
-                name, payoff, strat = br
-                total_pay += payoff
-                _blend_strategy(current, name, strat, a.is_prosumer, alpha)
-
-            avg_pay = total_pay / len(self.agents)
-            max_dist = max(
-                _strategy_distance(prev_round, current, a)
-                for a in self.agents)
-
-            print(f"  diagonalization {it + 1}/{max_iter}: "
-                  f"avg_pay={avg_pay:.1f}  max_dist={max_dist:.4f}")
-
-            if history is not None:
-                history.append({"iter": it + 1, "avg_payoff": avg_pay,
-                                "max_distance": max_dist})
-
-            # Patience-based convergence: distance below threshold AND payoff stalled
-            if max_dist < tol_distance:
-                if avg_pay > best_avg_pay + 1.0:  # 1 CNY improvement floor
-                    best_avg_pay = avg_pay
-                    stagnation = 0
-                else:
-                    stagnation += 1
-                    if stagnation >= patience:
-                        print(f"  converged (distance < {tol_distance}, "
-                              f"payoff stalled {patience} rounds)")
-                        self._clear_cache()
-                        return current, it + 1
-            else:
-                best_avg_pay = max(best_avg_pay, avg_pay)
-                stagnation = 0
-
-        self._clear_cache()
-        return current, max_iter
-
-    # ------------------------------------------------------------------
-    # Jacobi (parallel diagonalization)
-    # ------------------------------------------------------------------
-
-    def jacobi(self, init_strategy, max_iter=25, num_variations=150,
-               alpha=0.6, tol_distance=0.01, patience=5, history=None):
-        """Jacobi parallel best response.
-
-        All agents find best responses simultaneously from a shared snapshot,
-        then all update at once. Faster per iteration than GS but can oscillate.
-
-        Converges when strategy distance < tol_distance AND no payoff
-        improvement for patience consecutive iterations.
-        """
-        current = copy.deepcopy(init_strategy)
-        best_avg_pay = float('-inf')
-        stagnation = 0
-
-        for it in range(max_iter):
-            prev_snapshot = copy.deepcopy(current)
-            self._clear_cache()
-
-            if self.parallel and not self.use_optimization:
-                # Parallel via Pool (random sampling only)
-                tasks = [(a, self.agents, self.config, self.T, self.stage,
-                          prev_snapshot, num_variations, None)
-                         for a in self.agents]
-                try:
-                    n_proc = min(len(tasks), os.cpu_count() or 4)
-                    with Pool(processes=n_proc) as pool:
-                        br_results = pool.map(_evaluate_best_response, tasks)
-                except Exception:
-                    br_results = [_evaluate_best_response(t) for t in tasks]
-            else:
-                # Serial (optimization path or forced serial)
-                br_results = [
-                    self._best_response(a, prev_snapshot, num_variations)
-                    for a in self.agents]
-
-            payoffs = {}
-            best_strategies = {}
-            for name, payoff, strat in br_results:
-                payoffs[name] = payoff
-                best_strategies[name] = strat
-
-            for a in self.agents:
-                _blend_strategy(current, a.name, best_strategies[a.name],
-                                a.is_prosumer, alpha)
-
-            avg_pay = np.mean(list(payoffs.values()))
-            max_dist = max(
-                _strategy_distance(prev_snapshot, current, a)
-                for a in self.agents)
-
-            print(f"  jacobi {it + 1}/{max_iter}: "
-                  f"avg_pay={avg_pay:.1f}  max_dist={max_dist:.4f}")
-
-            if history is not None:
-                history.append({"iter": it + 1, "avg_payoff": avg_pay,
-                                "max_distance": max_dist})
-
-            if max_dist < tol_distance:
-                if avg_pay > best_avg_pay + 1.0:
-                    best_avg_pay = avg_pay
-                    stagnation = 0
-                else:
-                    stagnation += 1
-                    if stagnation >= patience:
-                        print(f"  converged (distance < {tol_distance}, "
-                              f"payoff stalled {patience} rounds)")
-                        self._clear_cache()
-                        return current, it + 1
-            else:
-                best_avg_pay = max(best_avg_pay, avg_pay)
-                stagnation = 0
-
-        self._clear_cache()
-        return current, max_iter
-
-    # ------------------------------------------------------------------
-    # Fictitious play (true average-history formulation)
-    # ------------------------------------------------------------------
-
-    def iter_fictitious_play(self, init_strategy, max_iter=25,
-                             num_variations=150, alpha=0.3,
-                             tol_relative=0.005, tol_distance=0.01,
-                             adaptive_alpha=True, history=None):
-        """Fictitious play: each agent best-responds to average of opponents' history.
-
-        Each iteration:
-          1. Compute average strategy from ALL past history.
-          2. Each agent finds best response against that average.
-          3. Blend new strategy toward best response (alpha), append to history.
-
-        When adaptive_alpha=True, alpha starts at 0.7 and decays linearly to
-        the final alpha value over max_iter rounds.
-
-        WARNING: convergence proofs for fictitious play only hold for zero-sum
-        and potential games. Electricity markets with storage are positive-sum.
-        The fixed point here is only guaranteed to be a correlated equilibrium.
-        Run test_nash_equilibrium() afterward to verify.
-        """
-        current = copy.deepcopy(init_strategy)
-        strategy_history = [copy.deepcopy(init_strategy)]
-        prev_avg_pay = None
-        best_avg_pay = float('-inf')
-        stagnation = 0
-        patience = 5
-
-        for it in range(max_iter):
-            if adaptive_alpha:
-                r = it / max(1, max_iter - 1)
-                alpha_t = 0.7 * (1 - r) + alpha * r
-            else:
-                alpha_t = alpha
-
-            print(f"\n==========  fictitious play {it + 1}/{max_iter}  "
-                  f"(alpha={alpha_t:.3f}) ==========")
-
-            # Build average strategy from history
-            avg_strategy = self._build_average_strategy(strategy_history)
-            self._clear_cache()
-
-            if self.parallel and not self.use_optimization:
-                tasks = [(a, self.agents, self.config, self.T, self.stage,
-                          avg_strategy, num_variations, None)
-                         for a in self.agents]
-                try:
-                    n_proc = min(len(tasks), os.cpu_count() or 4)
-                    with Pool(processes=n_proc) as pool:
-                        br_results = pool.map(_evaluate_best_response, tasks)
-                except Exception:
-                    br_results = [_evaluate_best_response(t) for t in tasks]
-            else:
-                br_results = [
-                    self._best_response(a, avg_strategy, num_variations)
-                    for a in self.agents]
-
-            payoffs = {}
-            best_strategies = {}
-            for name, payoff, strat in br_results:
-                payoffs[name] = payoff
-                best_strategies[name] = strat
-
-            # Blend toward best response
-            prev_strategy = copy.deepcopy(current)
-            for a in self.agents:
-                _blend_strategy(current, a.name, best_strategies[a.name],
-                                a.is_prosumer, alpha_t)
-
-            strategy_history.append(copy.deepcopy(current))
-
-            avg_pay = np.mean(list(payoffs.values()))
-            max_dist = max(
-                _strategy_distance(prev_strategy, current, a)
-                for a in self.agents)
-            print(f"  avg payoff: {avg_pay:.2f}  max_dist: {max_dist:.4f}")
-
-            if history is not None:
-                history.append({"iter": it + 1, "avg_payoff": avg_pay,
-                                "max_distance": max_dist})
-
-            # Dual convergence: payoff relative change AND strategy distance
-            payoff_converged = False
-            if prev_avg_pay is not None:
-                rel_change = (abs(avg_pay - prev_avg_pay)
-                              / (abs(prev_avg_pay) + 1e-6))
-                payoff_converged = rel_change < tol_relative
-            prev_avg_pay = avg_pay
-
-            if max_dist < tol_distance and payoff_converged:
-                if avg_pay > best_avg_pay + 1.0:
-                    best_avg_pay = avg_pay
-                    stagnation = 0
-                else:
-                    stagnation += 1
-                    if stagnation >= patience:
-                        print("  converged (payoff + distance + patience)")
-                        self._clear_cache()
-                        return current, it + 1
-            else:
-                best_avg_pay = max(best_avg_pay, avg_pay)
-                stagnation = 0
-
-        self._clear_cache()
-        return current, max_iter
-
-    # ------------------------------------------------------------------
     # Nash equilibrium test
     # ------------------------------------------------------------------
 
@@ -871,7 +565,7 @@ def plot_nash_results(improvements, is_nash, threshold_rel=0.01,
     plt.tight_layout(rect=[0, 0, 1, 0.93])
 
     if save_path is None:
-        save_path = 'nash_test_results.png'
+        save_path = 'output/nash_test_results.png'
     fig.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
     print(f"  Chart saved to: {save_path}")
 

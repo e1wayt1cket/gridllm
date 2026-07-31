@@ -17,7 +17,7 @@ config = MarketConfig(opf_mode="lindistflow", verbose=False)
 strategy = "rl"
 
 ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-base_dir = os.path.join("exports", ts)
+base_dir = os.path.join("output", ts)
 os.makedirs(base_dir, exist_ok=True)
 
 for scenario in SCENARIOS:

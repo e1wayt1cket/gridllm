@@ -16,7 +16,7 @@ strategy = "rl"
 T = 96
 
 ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-base_dir = os.path.join("exports", ts)
+base_dir = os.path.join("output", ts)
 os.makedirs(base_dir, exist_ok=True)
 
 all_kpis = []

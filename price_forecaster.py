@@ -1,7 +1,98 @@
 # price_forecaster.py
-"""RT price forecast models for rolling-horizon MPC with imperfect information."""
-import numpy as np
+"""Price forecast models for rolling-horizon MPC with imperfect information.
 
+Algorithm registry pattern adapted from ASSUME (forecast_algorithms.py):
+  - forecast_algorithms:    dict of algorithm_id -> callable for initial forecast
+  - get_price_forecast:     single entry point that resolves by algorithm_id
+
+Built-in algorithms:
+  - price_synthetic       Legacy sinusoidal DA price curve (no agents needed)
+  - price_merit_order     Merit-order forecast from agent supply/demand stacks
+  - price_ema             Exponential moving average of historical LMP
+  - price_persistence     Naive persistence: tomorrow = today
+"""
+import numpy as np
+from functools import lru_cache
+from typing import Optional, List, Dict, Callable
+
+
+# ---------------------------------------------------------------------------
+# Algorithm registry
+# ---------------------------------------------------------------------------
+
+forecast_algorithms: Dict[str, Callable] = {}
+
+
+def register_forecast(algo_id: str):
+    """Decorator to register a forecast algorithm by its ID."""
+    def decorator(fn):
+        forecast_algorithms[algo_id] = fn
+        return fn
+    return decorator
+
+
+def get_price_forecast(algo_id: str, T: int = 96, agents=None, config=None,
+                       history: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
+    """Resolve and call a forecast algorithm by ID. Falls back to merit_order."""
+    if algo_id in forecast_algorithms:
+        return forecast_algorithms[algo_id](
+            T=T, agents=agents, config=config, history=history, **kwargs)
+    # Fallback: use grid's day_ahead_price_china
+    from grid import day_ahead_price_china
+    return day_ahead_price_china(T, agents=agents, config=config)
+
+
+# ---------------------------------------------------------------------------
+# Built-in forecast algorithms
+# ---------------------------------------------------------------------------
+
+@register_forecast("price_merit_order")
+@lru_cache(maxsize=8)
+def _cached_merit_order(T: int, agents=None, config=None,
+                        history: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
+    """Merit-order based: builds supply/demand stacks from agent fundamentals."""
+    from grid import day_ahead_price_china
+    return day_ahead_price_china(T, agents=agents, config=config)
+
+
+@register_forecast("price_synthetic")
+def _forecast_synthetic(T: int = 96, agents=None, config=None,
+                        history: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
+    """Legacy sinusoidal DA price curve."""
+    from grid import _forecast_price_synthetic
+    from config_loader import get_default
+    cfg = get_default("price_curve", {})
+    return _forecast_price_synthetic(T, cfg)
+
+
+@register_forecast("price_ema")
+def _forecast_ema(T: int = 96, agents=None, config=None,
+                  history: Optional[np.ndarray] = None, alpha: float = 0.3,
+                  **kwargs) -> np.ndarray:
+    """EMA-smoothed historical LMP forecast.  Falls back to synthetic if no history."""
+    if history is not None and len(history) > 0:
+        ema = float(np.mean(history[:8]))  # initial from first 8 periods
+        for v in history[8:]:
+            ema = alpha * v + (1 - alpha) * ema
+        return np.full(T, ema)
+    # No history available — fall back to synthetic
+    return _forecast_synthetic(T, agents=agents, config=config,
+                               history=history, **kwargs)
+
+
+@register_forecast("price_persistence")
+def _forecast_persistence(T: int = 96, agents=None, config=None,
+                          history: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
+    """Naive persistence: repeat last period's price for all T periods."""
+    if history is not None and len(history) > 0:
+        return np.full(T, float(history[-1]))
+    return _forecast_synthetic(T, agents=agents, config=config,
+                               history=history, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# PriceForecaster — RT forecast over look-ahead window
+# ---------------------------------------------------------------------------
 
 class PriceForecaster:
     """Generate RT price forecasts over a look-ahead window.
@@ -57,6 +148,19 @@ class PriceForecaster:
 
         raise ValueError(f"unknown forecast mode: {self.mode}")
 
+    def get_algo_id(self) -> str:
+        """Map legacy mode string to algorithm registry ID for logging/debugging."""
+        mode_map = {
+            "perfect": "price_persistence",
+            "da_as_forecast": "price_persistence",
+            "noisy_da": "price_merit_order",
+        }
+        return mode_map.get(self.mode, "price_merit_order")
+
+
+# ---------------------------------------------------------------------------
+# NodalPriceForecaster — per-bus EMA forecaster
+# ---------------------------------------------------------------------------
 
 class NodalPriceForecaster:
     """Per-agent nodal LMP forecaster using EMA + seasonal decomposition.

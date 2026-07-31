@@ -5,9 +5,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import pytest
-from models import MarketConfig
+from models import MarketConfig, MarketDesignConfig
 from market import clear_market, adaptive_bidding, two_settlement
 from scenarios import get_scenario
+
+
+@pytest.fixture(autouse=True)
+def _clear_opf_cache():
+    """Prevent cached OPF models from leaking between test cases."""
+    from dispatch_ldf import _OPF_CACHE
+    _OPF_CACHE.clear()
+    yield
+    _OPF_CACHE.clear()
 
 
 def test_baseline_da_welfare():
@@ -86,14 +95,17 @@ def test_baseline_schedule_keys():
 def test_peak_load_higher_welfare():
     """Peak load should have higher DA welfare than baseline (weighted-sum mode)."""
     T = 96
-    config = MarketConfig(opf_mode="lindistflow", verbose=False,
-                          use_constraint_multi_obj=False)
-    agents_b, _ = get_scenario("baseline", T=T, config=config)
-    agents_p, _ = get_scenario("peak_load", T=T, config=config)
+    md = MarketDesignConfig(use_constraint_multi_obj=False)
+    config_b = MarketConfig(opf_mode="lindistflow", verbose=False,
+                            market_design=md)
+    config_p = MarketConfig(opf_mode="lindistflow", verbose=False,
+                            market_design=md)
+    agents_b, _ = get_scenario("baseline", T=T, config=config_b)
+    agents_p, _ = get_scenario("peak_load", T=T, config=config_p)
     r_b = clear_market(agents_b, T, "DA",
-                       adaptive_bidding(agents_b, config, "rl"), config)
+                       adaptive_bidding(agents_b, config_b, "rl"), config_b)
     r_p = clear_market(agents_p, T, "DA",
-                       adaptive_bidding(agents_p, config, "rl"), config)
+                       adaptive_bidding(agents_p, config_p, "rl"), config_p)
     assert r_p["welfare"] > r_b["welfare"], \
         f"peak_load welfare {r_p['welfare']:.0f} <= baseline {r_b['welfare']:.0f}"
 
@@ -102,16 +114,17 @@ def test_constraint_mode_feasible():
     """Constraint mode with default caps should be feasible and meet targets."""
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False,
-                          use_constraint_multi_obj=True,
-                          carbon_cap_tco2=200.0, re_min_rate=90.0)
+                          market_design=MarketDesignConfig(
+                              use_constraint_multi_obj=True,
+                              carbon_cap_tco2=200.0, re_min_rate=90.0))
     agents, _ = get_scenario("baseline", T=T)
     actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
     assert results is not None, "constraint mode should not fail"
-    assert results["re_consumption_rate"] >= config.re_min_rate - 0.5, \
-        f"RE rate {results['re_consumption_rate']:.1f}% below min {config.re_min_rate}%"
-    assert results["carbon_emissions"] <= config.carbon_cap_tco2 + 1.0, \
-        f"carbon {results['carbon_emissions']:.1f} exceeds cap {config.carbon_cap_tco2}"
+    assert results["re_consumption_rate"] >= config.market_design.re_min_rate - 0.5, \
+        f"RE rate {results['re_consumption_rate']:.1f}% below min {config.market_design.re_min_rate}%"
+    assert results["carbon_emissions"] <= config.market_design.carbon_cap_tco2 + 1.0, \
+        f"carbon {results['carbon_emissions']:.1f} exceeds cap {config.market_design.carbon_cap_tco2}"
     assert "shadow_prices" in results, "constraint mode should return shadow prices"
 
 
@@ -119,9 +132,9 @@ def test_congestion_lower_welfare():
     """Congestion should have lower or equal welfare vs baseline (weighted-sum mode)."""
     T = 96
     config_b = MarketConfig(opf_mode="lindistflow", verbose=False,
-                            use_constraint_multi_obj=False)
+                            market_design=MarketDesignConfig(use_constraint_multi_obj=False))
     config_c = MarketConfig(opf_mode="lindistflow", verbose=False,
-                            use_constraint_multi_obj=False)
+                            market_design=MarketDesignConfig(use_constraint_multi_obj=False))
     agents_b, _ = get_scenario("baseline", T=T, config=config_b)
     agents_c, _ = get_scenario("congestion", T=T, config=config_c)
     r_b = clear_market(agents_b, T, "DA",
@@ -136,12 +149,14 @@ def test_carbon_scales_with_dt():
     """Carbon emissions capped by carbon_cap_tco2 regardless of T."""
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False,
-                          carbon_cap_tco2=200.0, re_min_rate=90.0)
+                          market_design=MarketDesignConfig(
+                              use_constraint_multi_obj=True,
+                              carbon_cap_tco2=200.0, re_min_rate=90.0))
     agents, _ = get_scenario("baseline", T=T)
     actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
-    assert results["carbon_emissions"] <= config.carbon_cap_tco2 + 1.0, \
-        f"carbon {results['carbon_emissions']:.1f} exceeds cap {config.carbon_cap_tco2}"
+    assert results["carbon_emissions"] <= config.market_design.carbon_cap_tco2 + 1.0, \
+        f"carbon {results['carbon_emissions']:.1f} exceeds cap {config.market_design.carbon_cap_tco2}"
 
 
 def test_soc_transition_formula():
@@ -211,24 +226,29 @@ def test_constraint_vs_weighted():
     T = 96
     cap = 150.0
     config_c = MarketConfig(opf_mode="lindistflow", verbose=False,
-                            carbon_cap_tco2=cap, re_min_rate=90.0)
+                            market_design=MarketDesignConfig(
+                                use_constraint_multi_obj=True,
+                                carbon_cap_tco2=cap, re_min_rate=90.0))
     agents_c, _ = get_scenario("baseline", T=T)
     actions_c = adaptive_bidding(agents_c, config_c, strategy="rl")
     r_c = clear_market(agents_c, T, "DA", actions_c, config_c)
     assert r_c["carbon_emissions"] <= cap + 1.0, \
         f"constraint mode carbon {r_c['carbon_emissions']:.1f} exceeds cap {cap}"
 
-    agents_w, _ = get_scenario("baseline", T=T)
+    agents_w0, _ = get_scenario("baseline", T=T)
+    agents_wh, _ = get_scenario("baseline", T=T)
     config_w0 = MarketConfig(opf_mode="lindistflow", verbose=False,
-                             use_constraint_multi_obj=False,
-                             lambda_carbon=0, lambda_re=0, lambda_curtail=0)
-    r_w0 = clear_market(agents_w, T, "DA",
-                        adaptive_bidding(agents_w, config_w0, "rl"), config_w0)
+                             market_design=MarketDesignConfig(
+                                 use_constraint_multi_obj=False,
+                                 lambda_carbon=0, lambda_re=0, lambda_curtail=0))
+    r_w0 = clear_market(agents_w0, T, "DA",
+                        adaptive_bidding(agents_w0, config_w0, "rl"), config_w0)
     config_wh = MarketConfig(opf_mode="lindistflow", verbose=False,
-                             use_constraint_multi_obj=False,
-                             lambda_carbon=500, lambda_re=0, lambda_curtail=0)
-    r_wh = clear_market(agents_w, T, "DA",
-                        adaptive_bidding(agents_w, config_wh, "rl"), config_wh)
+                             market_design=MarketDesignConfig(
+                                 use_constraint_multi_obj=False,
+                                 lambda_carbon=500, lambda_re=0, lambda_curtail=0))
+    r_wh = clear_market(agents_wh, T, "DA",
+                        adaptive_bidding(agents_wh, config_wh, "rl"), config_wh)
     assert r_wh["carbon_emissions"] <= r_w0["carbon_emissions"] + 1.0, \
         f"high carbon price {r_wh['carbon_emissions']:.1f} > zero price {r_w0['carbon_emissions']:.1f}"
 
@@ -257,7 +277,7 @@ def test_stackelberg_improves_leader_payoff():
         node_p = result["lmp"][:, a.bus]
         return float(np.sum(sched["p_sell"] * node_p)
                      - np.sum(sched["p_buy"] * node_p)
-                     - np.sum(sched["unserved"] * config.penalty_unserved))
+                     - np.sum(sched["unserved"] * config.market_design.penalty_unserved))
 
     br_pay = agent_payoff(br_result, leader)
     st_pay = agent_payoff(st_result, leader)

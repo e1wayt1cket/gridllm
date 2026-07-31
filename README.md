@@ -9,7 +9,7 @@ run.py / dashboard.py / batch_export.py
   ├─ config/defaults.yaml + config/scenarios.yaml  (externalized config)
   ├─ config_loader.py                              (YAML → typed access)
   ├─ scenarios.py → grid.py → models.py            (config → network → agents)
-  ├─ market.py → dispatch.py → models.py           (clearing → OPF → constraints)
+  ├─ market.py → dispatch.py / dispatch_*.py → models.py  (clearing → OPF → constraints)
   ├─ nash.py → market.py → dispatch.py             (game theory → clearing)
   ├─ outputs.py                                     (CSV + PNG chart export)
   └─ llm.py → Ollama API                           (AI advisor)
@@ -17,17 +17,21 @@ run.py / dashboard.py / batch_export.py
 
 ## Features
 
-- **Two OPF modes**: DC-OPF (lossless linear) and LinDistFlow (branch-flow model for radial distribution networks), both solved via Gurobi MILP
-- **Multi-objective optimization**: weighted-sum and constraint-based methods for carbon emissions, renewable consumption rate, and curtailment
-- **Bidding strategies**: random exploration and adaptive best-response bidding based on locational marginal price (LMP) signals
+- **Three OPF modes**: DC-OPF (lossless linear), LinDistFlow (branch-flow model for radial networks), and SOCP-OPF (second-order cone relaxation), all solved via Gurobi MILP/QCQP
+- **Multi-objective optimization**: weighted-sum and constraint-based methods covering carbon emissions, renewable consumption rate, and curtailment
+- **Bidding strategies**: random exploration, adaptive best-response based on LMP signals, and PPO-based reinforcement learning bidding
 - **Two-settlement system**: day-ahead financial settlement + real-time imbalance settlement, settled at nodal LMP per agent
 - **Rolling real-time market**: MPC-style rolling horizon clearing with configurable forecast modes (perfect, DA-as-forecast, noisy-DA)
-- **Six built-in scenarios**: baseline, high renewable (2x), peak load (1.8x), network congestion (line capacity halved), renewable sudden drop (to 10%), renewable surge (10% to full)
-- **Nash equilibrium analysis**: diagonalization (Gauss-Seidel), Jacobi, and fictitious play with configurable block-level strategy parameters
-- **Batch export**: `--export-all` mode runs all 4 default scenarios with Nash testing and outputs per-scenario CSV + PNG chart files
+- **Storage self-scheduling**: MPC pre-computed storage charge/discharge plans used as fixed injections during OPF, eliminating LMP spikes from storage intertemporal arbitrage
+- **DA rolling horizon**: limits storage price foresight for more realistic market behavior
+- **Eight built-in scenarios**: baseline, high renewable (2x PV and wind), peak load (1.5x), network congestion (line capacity halved), no-congestion verification (5x), tight bottleneck (selected lines at 20%), renewable sudden drop (to 10%), renewable surge (10% to full)
+- **Nash equilibrium analysis**: diagonalization (Gauss-Seidel), Jacobi, and fictitious play with configurable block-level strategy parameters and parallel multiprocessing
+- **Batch export**: `--export-all` runs all default scenarios with Nash testing and outputs per-scenario CSV + PNG chart files
 - **LLM advisor**: natural language scenario configuration and <200-word simulation insights via Ollama, with rule-based fallback when unavailable
 - **Interactive dashboard**: Plotly Dash on port 8050 with IEEE 33-bus topology visualization, LMP heatmap, time-series curves, storage SOC, KPI cards, settlement tables, and LLM insight panel
 - **Pseudo-real-time simulation**: 96-period step-by-step execution with incremental storage state and configurable wall-clock speed
+- **Stackelberg game**: leader-follower model with supplier as leader and prosumers as followers
+- **Reinforcement learning bidding**: PPO-based bidding strategy training with Gym-style environment interface
 
 ## Quick Start
 
@@ -49,52 +53,76 @@ python batch_export.py
 
 # Launch interactive dashboard
 python dashboard.py
+
+# Compare multi-objective optimization methods
+python compare_methods.py
+
+# Run all tests
+python -m pytest tests/ -v
 ```
 
 ## Requirements
 
 - Python 3.10+
-- Gurobi (license required for the optimization solver)
+- Gurobi (license required; all OPF paths depend on Gurobi; DC-OPF has HiGHS fallback)
 - Ollama (optional, for LLM advisor features)
 
-Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, `pandas`, `matplotlib`
+Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, `pandas`, `matplotlib`, `ortools`, `pyyaml`
 
 ## Module Overview
 
 | Module | Purpose |
 |--------|---------|
-| `models.py` | Data classes: `MarketConfig` (all market/OPF/multi-objective params), `StorageSpec`, `Agent` |
-| `grid.py` | IEEE 33-bus network builder; agent population with synthetic load/PV/wind/storage profiles |
+| `models.py` | Data classes: `MarketConfig` (all market/OPF/multi-objective params), `StorageSpec` (storage params and SOC feasibility checks), `Agent` (load/PV/wind forecasts and actuals, storage reference) |
+| `grid.py` | IEEE 33-bus network builder; agent population (residential/commercial/industrial prosumers) with synthetic load/PV/wind/storage profiles; China day-ahead price curve generation. Network cached by line capacity multiplier. All tunable parameters read from `config/defaults.yaml` via `config_loader.py` |
 | `config_loader.py` | YAML config loader for `defaults.yaml` and `scenarios.yaml` with dotted-key access |
-| `dispatch.py` | OPF engines via Gurobi MILP: DC-OPF and LinDistFlow with storage constraints |
-| `market.py` | Market clearing, bidding strategies, two-settlement, MPC rolling RT |
-| `nash.py` | Nash equilibrium tester: block-parameterized best response via random sampling or COBYLA |
-| `scenarios.py` | Scenario registry with YAML-driven multipliers |
-| `outputs.py` | CSV + PNG chart export: 10 curve CSVs, 6 chart types matching dashboard visual style |
-| `llm.py` | Ollama LLM integration for NL scenario config and simulation insight generation |
-| `pseudo_realtime.py` | Step-by-step pseudo-real-time simulator with incremental storage updates |
-| `dashboard.py` | Interactive Plotly Dash dashboard (port 8050) |
-| `run.py` | CLI entry point with `--export-all`, `--nash`, `--multi-scale`, and other flags |
+| `config/defaults.yaml` | Externalized defaults: network topology, load types, prosumer specs, storage parameters, profile generation, price curve |
+| `config/scenarios.yaml` | Scenario-specific multipliers and descriptors; new scenarios only need YAML entries |
+| `dispatch.py` | Unified OPF entry point, routes to DC/LDF/SOCP engines |
+| `dispatch_core.py` | `StorageConstraints`: storage feasibility checks and post-clearing SOC updates |
+| `dispatch_dc.py` | DC-OPF engine: lossless linear OPF (Gurobi; HiGHS fallback available) |
+| `dispatch_ldf.py` | LinDistFlow engine: branch-flow model with multi-period joint optimization, storage constraints, multi-objective (weighted-sum and constraint-based) |
+| `dispatch_socp.py` | SOCP-OPF engine: second-order cone relaxation with line capacity diamond constraint and loss iteration |
+| `market.py` | Market clearing orchestration: builds OPF problem and calls dispatch; bidding strategy dispatch (`random_actions`, `best_response_bidding`); two-settlement calculation; MPC-style rolling RT clearing |
+| `nash.py` | Nash equilibrium tester: diagonalization, Jacobi, fictitious play with parallel multiprocessing (`Pool`) and block-level strategy parameter configuration |
+| `scenarios.py` | Scenario registry, YAML-driven: `get_scenario(name, T)` builds agents and price curves |
+| `outputs.py` | Clearing result export: 10 curve CSVs + 6 PNG chart types matching dashboard visual style |
+| `llm.py` | Ollama LLM integration: NL → scenario config parsing + post-simulation insight generation (<200 words), rule-based fallback when unavailable |
+| `pseudo_realtime.py` | Pseudo-real-time simulator: step-by-step RT clearing with incremental storage state updates and configurable wall-clock speed |
+| `dashboard.py` | Interactive Plotly Dash dashboard (port 8050): topology visualization, LMP heatmap, time-series curves, storage SOC, KPI cards, settlement tables, AI insight panel, pseudo-real-time controls, Nash trigger |
+| `run.py` | CLI entry point: single scenario, batch export, Nash testing, multi-scale MPC |
 | `batch_export.py` | Standalone batch runner: 4 scenarios with fast Nash testing |
+| `compare_methods.py` | Multi-objective method comparison: sweeps carbon caps and RE rate targets, outputs welfare/emission/shadow-price comparison table |
+| `stackelberg.py` | Supplier-prosumer leader-follower game model |
+| `rl_env.py` | Reinforcement learning environment: Gym-style interface for bidding strategy training |
+| `rl_bidding.py` | PPO-based bidding strategy training |
+| `price_forecaster.py` | Price forecasting: synthetic sinusoidal and supply-stack merit-order methods |
 | `export_analysis.py` | Data quality analysis: agent energy balance, SOC boundaries, anomaly detection |
+| `mpc_storage.py` | MPC storage self-scheduling: rolling-horizon optimization of storage charge/discharge plans |
+| `export_curves.py` | Load curve and price curve visualization export |
+| `export_charts_only.py` | Standalone chart export from saved clearing results |
+| `plot_diagrams.py` | System architecture diagrams, load curves, parameter table visualization |
+| `topology_data.py` | IEEE 33-bus topology coordinate data |
 
 ## Scenarios
 
 | Name | Description |
 |------|-------------|
 | `baseline` | Default wind/solar/storage configuration |
-| `high_re` | 2x renewable capacity |
-| `peak_load` | 1.8x load |
-| `congestion` | Line thermal limits halved |
-| `re_ramp_drop` | Renewable output drops to 10% |
-| `re_ramp_surge` | Renewable output surges from 10% to full |
+| `high_re` | High renewable: 2x PV and wind capacity |
+| `peak_load` | Peak load: 1.5x all loads and storage |
+| `congestion` | Network congestion: line thermal limits halved |
+| `no_congestion` | No congestion: 5x line capacity for algorithm validation |
+| `tight_bottleneck` | Tight bottleneck: selected lines (11→12, 15→16) capped at 20% for LMP congestion study |
+| `re_ramp_drop` | Renewable sudden drop: PV/wind output falls to 10% after midpoint |
+| `re_ramp_surge` | Renewable surge: output rises from 10% to full after midpoint |
 
 ## Dashboard
 
 Launch with `python dashboard.py` and open `http://localhost:8050`. Features:
 
-- Scenario quick-select with Chinese labels and OPF mode toggle
-- Bidding strategy selection (random / learning / best_response)
+- Scenario quick-select with Chinese labels and OPF mode toggle (DC / LinDistFlow / SOCP)
+- Bidding strategy selection (random / rl / best_response)
 - Static market clearing and pseudo-real-time simulation controls
 - Nash equilibrium test trigger with configurable method and iterations
 - Natural language input for LLM-driven configuration
@@ -111,10 +139,19 @@ Run `python run.py --export-all` or `python batch_export.py` to produce per-scen
 
 ```
 exports/<timestamp>/
-  baseline/      (7 PNG charts + 11 CSV files)
+  baseline/      (PNG charts + CSV data files)
   high_re/
   peak_load/
   congestion/
 ```
 
-PNG charts replicate dashboard visuals: LMP curves, trade curves, storage SOC, RE generation, load profile, IEEE 33-bus topology, and Nash test summary. Nash equilibrium testing uses random-sampling best response for practical speed.
+PNG charts replicate dashboard visuals: LMP curves, trade curves, storage SOC, RE generation, load profile, IEEE 33-bus topology, and Nash test summary.
+
+## Key Design Points
+
+- **Gurobi is required**: the `_HAS_GUROBI` flag guards imports but all OPF paths depend on Gurobi; DC-OPF has a HiGHS fallback, LinDistFlow and SOCP have no open-source alternative
+- **T=96 is the standard horizon**: 24h × 15-min resolution (dt=0.25h); all modules assume this value
+- **`MarketConfig` centralizes control**: OPF mode, multi-objective method (`use_constraint_multi_obj` with `carbon_cap_tco2` / `re_min_rate`, or weighted-sum with `lambda_re` / `lambda_curtail` / `lambda_carbon`), line capacity, storage thresholds, RT horizon/step
+- **Result dict schema**: `clear_market` returns `{price, lmp (96×33), schedules, welfare, re_consumption_rate, carbon_emissions, carbon_intensity, total_curtailment, shadow_prices}`
+- **Bidding strategies** operate on `bid_mult` (scales willingness-to-pay) and `offer_adder` (added to marginal cost); `best_response_bidding` adapts based on prior LMP signals
+- **UI language**: dashboard labels use Chinese; physical quantities and abbreviations keep English

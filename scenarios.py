@@ -30,13 +30,45 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
 
     if config is not None:
         for k, v in override.items():
-            setattr(config, k, v)
+            # Support dotted keys like "network.line_capacity_multiplier"
+            if "." in k:
+                parts = k.split(".")
+                obj = config
+                for p in parts[:-1]:
+                    obj = getattr(obj, p)
+                setattr(obj, parts[-1], v)
+            else:
+                setattr(config, k, v)
     else:
-        config = MarketConfig(use_ac_opf=False, **override)
+        # Dotted keys in override are resolved into nested dataclass instances
+        net_kwargs = {}
+        stor_kwargs = {}
+        md_kwargs = {}
+        rt_kwargs = {}
+        top_kwargs = {}
+        for k, v in override.items():
+            if k.startswith("network."):
+                net_kwargs[k.split(".", 1)[1]] = v
+            elif k.startswith("storage."):
+                stor_kwargs[k.split(".", 1)[1]] = v
+            elif k.startswith("market_design."):
+                md_kwargs[k.split(".", 1)[1]] = v
+            elif k.startswith("rt."):
+                rt_kwargs[k.split(".", 1)[1]] = v
+            else:
+                top_kwargs[k] = v
+        from models import NetworkConfig, StorageConfig, MarketDesignConfig, RTConfig
+        config = MarketConfig(
+            network=NetworkConfig(**net_kwargs) if net_kwargs else NetworkConfig(),
+            storage=StorageConfig(**stor_kwargs) if stor_kwargs else StorageConfig(),
+            market_design=MarketDesignConfig(**md_kwargs) if md_kwargs else MarketDesignConfig(),
+            rt=RTConfig(**rt_kwargs) if rt_kwargs else RTConfig(),
+            **top_kwargs,
+        )
 
     net = build_base_network(config)
     agents = create_agents_from_network(net, T, with_wind=with_wind)
-    wholesale = day_ahead_price_china(T)
+    wholesale = day_ahead_price_china(T, agents=agents, config=config)
 
     # --- apply multipliers ---
     pv_mult = multipliers.get("pv", 1.0)

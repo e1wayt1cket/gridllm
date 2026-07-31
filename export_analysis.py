@@ -7,7 +7,7 @@ from models import MarketConfig
 from market import clear_market, adaptive_bidding
 from scenarios import get_scenario
 
-os.makedirs("output_csv", exist_ok=True)
+os.makedirs("output", exist_ok=True)
 
 config = MarketConfig(opf_mode="lindistflow", verbose=False)
 agents, _ = get_scenario("baseline", T=96)
@@ -44,14 +44,14 @@ for a in agents:
             "storage_mode": s.get("storage_mode", ["idle"] * T)[t],
         })
 df_agent = pd.DataFrame(rows)
-df_agent.to_csv("output_csv/agent_timeseries.csv", index=False)
+df_agent.to_csv("output/agent_timeseries.csv", index=False)
 print(f"[1/7] agent_timeseries.csv — {len(df_agent)} rows")
 
 # =====================================================================
 # 2. LMP heatmap (96 x 33)
 # =====================================================================
 lmp_df = pd.DataFrame(result["lmp"], columns=[f"bus{b}" for b in range(33)])
-lmp_df.to_csv("output_csv/lmp_heatmap.csv")
+lmp_df.to_csv("output/lmp_heatmap.csv")
 print(f"[2/7] lmp_heatmap.csv — {lmp_df.shape[0]} periods x {lmp_df.shape[1]} buses")
 
 # =====================================================================
@@ -66,10 +66,10 @@ summary = {
     "total_curtailment_MWh": result["total_curtailment"],
     "shadow_carbon_cap_CNY": result.get("shadow_prices", {}).get("carbon_cap", np.nan),
     "shadow_re_min_rate_CNY": result.get("shadow_prices", {}).get("re_min_rate", np.nan),
-    "carbon_cap_tCO2": config.carbon_cap_tco2,
-    "re_min_rate_pct": config.re_min_rate,
+    "carbon_cap_tCO2": config.market_design.carbon_cap_tco2,
+    "re_min_rate_pct": config.market_design.re_min_rate,
 }
-pd.DataFrame([summary]).to_csv("output_csv/summary.csv", index=False)
+pd.DataFrame([summary]).to_csv("output/summary.csv", index=False)
 print(f"[3/7] summary.csv")
 
 # =====================================================================
@@ -108,7 +108,7 @@ for a in agents:
             "n_periods_idle": int(np.sum((ch_arr <= 0.001) & (dis_arr <= 0.001))),
         })
 df_st = pd.DataFrame(st_rows)
-df_st.to_csv("output_csv/storage_summary.csv", index=False)
+df_st.to_csv("output/storage_summary.csv", index=False)
 print(f"[4/7] storage_summary.csv — {len(df_st)} agents")
 
 # =====================================================================
@@ -147,7 +147,7 @@ for a in agents:
         "imbalance_pct": round(abs(supply - demand) / max(total_load, 0.001) * 100, 6),
     })
 df_bal = pd.DataFrame(bal_rows)
-df_bal.to_csv("output_csv/agent_balance.csv", index=False)
+df_bal.to_csv("output/agent_balance.csv", index=False)
 n_bad = int(np.sum(df_bal["imbalance_pct"] > 0.1))
 print(f"[5/7] agent_balance.csv — {n_bad} agents with >0.1% imbalance")
 
@@ -183,7 +183,7 @@ for t in range(T):
         "grid_import_MW": round(total_buy_t - total_sell_t, 6),
     })
 df_sys = pd.DataFrame(sys_rows)
-df_sys.to_csv("output_csv/system_timeseries.csv", index=False)
+df_sys.to_csv("output/system_timeseries.csv", index=False)
 print(f"[6/7] system_timeseries.csv — {len(df_sys)} periods")
 
 # =====================================================================
@@ -341,7 +341,7 @@ print(f"TOTAL ANOMALIES FOUND: {len(anomalies)}")
 print(f"{'=' * 70}")
 if anomalies:
     df_anom = pd.DataFrame(anomalies)
-    df_anom.to_csv("output_csv/anomalies.csv", index=False)
+    df_anom.to_csv("output/anomalies.csv", index=False)
     print("[7/7] anomalies.csv")
     for cat in df_anom["type"].unique():
         cat_anoms = df_anom[df_anom["type"] == cat]
@@ -349,7 +349,7 @@ if anomalies:
 else:
     print("[7/7] No anomalies found.")
 
-print(f"\nAll files in output_csv/:")
-for f in sorted(os.listdir("output_csv")):
-    sz = os.path.getsize(f"output_csv/{f}")
+print(f"\nAll files in output/:")
+for f in sorted(os.listdir("output")):
+    sz = os.path.getsize(f"output/{f}")
     print(f"  {f} ({sz:,} bytes)")

@@ -77,7 +77,7 @@ baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge
 字段名 — 含义（默认值）
   carbon_cap_tco2 — 碳排放上限tCO2(200)
   re_min_rate — 可再生最低消纳率%(95)
-  lambda_carbon — 碳价格权重(50)
+  lambda_carbon — 碳价格权重(80)
   lambda_re — 可再生激励权重(50)
   lambda_curtail — 弃电惩罚权重(15)
   load_factor — 全局负荷系数(1.0)
@@ -155,7 +155,7 @@ baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge
         """Extract default values from MarketConfig dataclass fields.
         Excludes internal/debug fields that users should not control via NL.
         """
-        exclude = {"verbose", "use_ac_opf", "opf_tolerance",
+        exclude = {"verbose", "opf_tolerance",
                    "opf_max_iter", "base_mva", "base_kv"}
         result = {}
         for f in dataclasses.fields(MarketConfig):
@@ -431,13 +431,13 @@ baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge
             opf_mode=str(gp.get("opf_mode", "lindistflow")),
             lambda_re=_float("lambda_re", 50.0, min_val=0, max_val=10000),
             lambda_curtail=_float("lambda_curtail", 15.0, min_val=0, max_val=10000),
-            lambda_carbon=_float("lambda_carbon", 50.0, min_val=0, max_val=10000),
+            lambda_carbon=_float("lambda_carbon", 80.0, min_val=0, max_val=10000),
             enable_multi_objective=_bool("enable_multi_objective", True),
             use_constraint_multi_obj=_bool("use_constraint_multi_obj", True),
             carbon_cap_tco2=max(0.0, float(gp.get("carbon_cap_tco2", 200.0))),
             re_min_rate=max(0.0, min(100.0, float(gp.get("re_min_rate", 95.0)))),
-            line_capacity_multiplier=3.0 * _float("line_capacity_factor", 1.0, min_val=0.1, max_val=100),
-            penalty_unserved=_float("penalty_unserved", 5000.0, min_val=0, max_val=1e6),
+            line_capacity_multiplier=_float("line_capacity_multiplier", 1.5, min_val=0.1, max_val=100),
+            penalty_unserved=_float("penalty_unserved", 2500.0, min_val=0, max_val=1e6),
             emission_factor_grid=_float("emission_factor_grid", 0.58, min_val=0, max_val=100),
             storage_charge_discount=_float("storage_charge_discount", 0.85, min_val=0, max_val=1),
             storage_discharge_premium=_float("storage_discharge_premium", 1.15, min_val=1, max_val=100),

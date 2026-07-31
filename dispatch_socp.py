@@ -17,7 +17,7 @@ import pandapower as pp
 from typing import List, Optional
 
 from models import Agent, MarketConfig
-from dispatch_core import _select_radial_lines
+from dispatch_core import _select_radial_lines, _compute_mpc_schedules, empty_schedules, split_power, DT_HOURS
 
 try:
     import gurobipy as gp
@@ -27,159 +27,6 @@ except ImportError:
     _HAS_GUROBI = False
 
 DT_HOURS = 0.25
-
-
-def _compute_bus_electrical_distance(net):
-    """Compute cumulative line resistance from slack bus to each bus.
-
-    Used to derive bus-dependent MPC price markups reflecting the
-    higher cost of delivering power to electrically distant nodes.
-    """
-    import collections
-    slack = int(net.ext_grid.at[0, 'bus'])
-    adj = collections.defaultdict(list)
-    for _, row in net.line.iterrows():
-        f = int(row['from_bus'])
-        t = int(row['to_bus'])
-        r = float(row['r_ohm_per_km']) * float(row['length_km'])
-        adj[f].append((t, r))
-    r_cum = {slack: 0.0}
-    stack = [slack]
-    while stack:
-        u = stack.pop()
-        for v, r in adj.get(u, []):
-            if v not in r_cum:
-                r_cum[v] = r_cum[u] + r
-                stack.append(v)
-    return r_cum
-
-
-def _compute_voltage_aware_prices(net, agents, T, wholesale, config, stage):
-    """Compute bus- and time-specific price forecasts using voltage estimation.
-
-    Uses simplified DistFlow (P-only, no losses) to estimate voltage at each
-    bus per period. When voltage margin is tight, prices are marked up to
-    discourage charging at electrically distant / stressed nodes.
-
-    Returns: dict[int, ndarray] mapping bus_index -> price[T]
-    """
-    slack = int(net.ext_grid.at[0, 'bus'])
-    n_buses = len(net.bus.index)
-    # Build downstream topology: for each bus, list of buses in its subtree
-    children = {b: [] for b in range(n_buses)}
-    parent = {}
-    for _, row in net.line.iterrows():
-        f = int(row['from_bus'])
-        t = int(row['to_bus'])
-        children[f].append(t)
-        parent[t] = f
-    # BFS to get downstream buses for each bus
-    downstream = {}
-    def _get_downstream(b):
-        if b in downstream:
-            return downstream[b]
-        result = set()
-        for c in children.get(b, []):
-            result.add(c)
-            result.update(_get_downstream(c))
-        downstream[b] = result
-        return result
-    for b in range(n_buses):
-        _get_downstream(b)
-    # Compute cumulative R from slack to each bus
-    r_cum = _compute_bus_electrical_distance(net)
-    r_max = max(r_cum.values()) if r_cum else 1.0
-    # Compute net load (load - pv - wind) per bus per period
-    net_load = np.zeros((n_buses, T))
-    for a in agents:
-        b = a.bus
-        ld = a.load_forecast if stage == "DA" else a.load_real
-        pv = a.pv_forecast if stage == "DA" else a.pv_real
-        net_load[b] += np.maximum(ld, 0) - np.maximum(pv, 0)
-        if a.has_wind:
-            wd = a.wind_forecast if stage == "DA" else a.wind_real
-            net_load[b] -= np.maximum(wd, 0)
-    # Compute downstream net load for each bus
-    downstream_load = np.zeros((n_buses, T))
-    for b in range(n_buses):
-        ds = downstream.get(b, set())
-        downstream_load[b] = net_load[b].copy()
-        for d in ds:
-            downstream_load[b] += net_load[d]
-    # Estimate voltage drop using P-only DistFlow (V in pu, P in MW)
-    # V_drop ≈ P_flow * R / V0 (ignoring Q and losses for speed)
-    v0 = 1.0  # assume slack at 1.0 pu
-    v_min = config.v_min_pu
-    v_margin_threshold = 0.04  # start marking up when margin < 4%
-    max_markup = config.storage_mpc_bus_markup_pct / 100.0
-    # Build line R lookup: bus -> R from parent
-    bus_to_parent_r = {}
-    for _, row in net.line.iterrows():
-        f = int(row['from_bus'])
-        t = int(row['to_bus'])
-        r_ohm = float(row['r_ohm_per_km']) * float(row['length_km'])
-        bus_to_parent_r[t] = r_ohm
-    v_est = np.ones((n_buses, T))
-    for b in range(n_buses):
-        if b == slack:
-            continue
-        # Walk from bus to slack, accumulating R * P_flow
-        node = b
-        v_drop = np.zeros(T)
-        while node != slack:
-            p_flow = np.maximum(downstream_load[node], 0)  # MW
-            r_line = bus_to_parent_r.get(node, 0.0)  # ohm
-            # V_drop in pu: P(MW) * R(ohm) / V_base(kV)^2
-            # V_drop = I * R, with I ≈ P / V_base (approximate)
-            v_drop += p_flow * r_line / (config.base_kv ** 2)
-            node = parent.get(node, slack)
-        v_est[b] = v0 - v_drop
-    v_margin = v_est - v_min  # positive = ok, negative = violation
-    # Compute price markup: when margin < threshold, increase price
-    prices = {}
-    for b in range(n_buses):
-        # Markup factor: 1.0 + max_markup * max(0, 1 - margin/threshold)
-        margin_clipped = np.maximum(v_margin[b], 0)
-        stress = np.maximum(0, 1.0 - margin_clipped / v_margin_threshold)
-        markup = 1.0 + max_markup * stress
-        # Also include static bus-distance component
-        static_markup = 1.0 + max_markup * 0.25 * r_cum.get(b, 0) / r_max
-        prices[b] = wholesale * markup * static_markup
-    return prices
-
-
-def _run_mpc_pass(all_storage_agents, T, H, wholesale, term_price,
-                  noise_pct, r_cum, r_max, config, mpc_schedules,
-                  congestion_prices):
-    """Run one pass of MPC for all storage agents.
-
-    If congestion_prices is provided, it overrides the base wholesale
-    price forecast with congestion-aware nodal prices.
-    """
-    from mpc_storage import solve_storage_mpc
-    for a in all_storage_agents:
-        mpc_ch = np.zeros(T)
-        mpc_dis = np.zeros(T)
-        mpc_soc_arr = np.zeros(T + 1)
-        soc_now = a.storage.soc0
-        mpc_soc_arr[0] = soc_now
-        price_src = congestion_prices.get(a.bus, wholesale) if congestion_prices else wholesale
-        rng = np.random.RandomState(hash(a.name) % 2**31)
-        for t in range(T):
-            remaining = min(H, T - t)
-            if remaining <= 0:
-                mpc_soc_arr[t + 1] = soc_now
-                break
-            noise = 1.0 + rng.normal(0, noise_pct, remaining)
-            price_fwd = price_src[t:t + remaining] * noise
-            ch_sched, dis_sched, soc_sched = solve_storage_mpc(
-                a.storage, soc_now, price_fwd, DT_HOURS,
-                terminal_price=term_price)
-            mpc_ch[t] = ch_sched[0]
-            mpc_dis[t] = dis_sched[0]
-            soc_now = soc_sched[1]
-            mpc_soc_arr[t + 1] = soc_now
-        mpc_schedules[a.name] = (mpc_ch, mpc_dis, mpc_soc_arr)
 
 
 def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale,
@@ -196,7 +43,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     buses = list(net.bus.index)
     lines = _select_radial_lines(net)
     slack_bus = net.ext_grid.at[0, 'bus']
-    base_kv = config.base_kv
+    base_kv = config.network.base_kv
 
     # Line parameters (filter to radial lines)
     r, x_val, limit = _build_line_params(net, base_kv)
@@ -211,39 +58,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         t = int(net.line.at[l, 'to_bus'])
         line_from_to[l] = (f, t)
 
-    # --- Storage self-scheduling: pre-compute MPC schedules ---
-    all_storage_agents = [a for a in agents if a.storage is not None]
-    if storage_units:
-        all_storage_agents.extend(storage_units)
-    mpc_schedules = {}
-    if config.storage_self_schedule and all_storage_agents:
-        from mpc_storage import solve_storage_mpc
-        H = config.storage_mpc_horizon
-        noise_pct = config.storage_mpc_price_noise_pct / 100.0
-        term_price = float(np.mean(wholesale))
-        r_cum = _compute_bus_electrical_distance(net)
-        r_max = max(r_cum.values()) if r_cum else 1.0
-        # Two-pass MPC: first pass estimates congestion, second pass adjusts
-        _run_mpc_pass(all_storage_agents, T, H, wholesale, term_price,
-                      noise_pct, r_cum, r_max, config, mpc_schedules, None)
-        # Build congestion-aware prices from first-pass total charging
-        total_ch_pass1 = np.zeros(T)
-        for sched in mpc_schedules.values():
-            total_ch_pass1 += sched[0]
-        # Second pass with congestion markup: periods with high aggregate
-        # charging get higher prices at electrically distant buses.
-        congestion_prices = {}
-        for b in range(len(net.bus.index)):
-            bus_r = r_cum.get(b, 0.0)
-            # Congestion markup scales with bus distance and total charging
-            congestion_markup = 1.0 + 0.30 * (bus_r / r_max) * (
-                total_ch_pass1 / max(total_ch_pass1.max(), 0.01)
-            )
-            congestion_prices[b] = wholesale * congestion_markup
-        mpc_schedules.clear()
-        _run_mpc_pass(all_storage_agents, T, H, wholesale, term_price,
-                      noise_pct, r_cum, r_max, config, mpc_schedules,
-                      congestion_prices)
+    mpc_schedules = _compute_mpc_schedules(net, agents, T, wholesale, config, storage_units)
 
     m = gp.Model("SOCP_OPF_batch_T")
     m.setParam('OutputFlag', 0)
@@ -251,13 +66,13 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     m.setParam('QCPDual', 1)  # enable dual values for QCP constraints
 
     # --- Network variables ---
-    v = m.addVars(T, buses, lb=config.v_min_pu ** 2, ub=config.v_max_pu ** 2,
+    v = m.addVars(T, buses, lb=config.network.v_min_pu ** 2, ub=config.network.v_max_pu ** 2,
                    name="v")  # V^2
     P = m.addVars(T, lines, lb=-GRB.INFINITY, name="P")
     Q = m.addVars(T, lines, lb=-GRB.INFINITY, name="Q")
     I_sq = m.addVars(T, lines, lb=0, ub=GRB.INFINITY, name="I_sq")
     p_grid_import = m.addVars(T, lb=0, ub=GRB.INFINITY, name="p_grid_import")
-    p_grid_export = m.addVars(T, lb=0, ub=config.reverse_power_limit_mw, name="p_grid_export")
+    p_grid_export = m.addVars(T, lb=0, ub=config.network.reverse_power_limit_mw, name="p_grid_export")
     q_grid = m.addVars(T, lb=-GRB.INFINITY, name="q_grid")
 
     # --- Agent variables ---
@@ -277,7 +92,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         ch[nm] = m.addVars(T, lb=0, ub=GRB.INFINITY, name=f"ch_{nm}")
         dis[nm] = m.addVars(T, lb=0, ub=GRB.INFINITY, name=f"dis_{nm}")
 
-    if config.reactive_support:
+    if config.network.reactive_support:
         for a in agents_list:
             nm = a.name
             if a.is_prosumer or a.storage is not None:
@@ -319,7 +134,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             soc[nm][T].LB = mpc_soc_arr[T]
             soc[nm][T].UB = mpc_soc_arr[T]
 
-    pf = config.load_power_factor
+    pf = config.network.load_power_factor
     q_ratio = np.tan(np.arccos(pf))
     p_bal_constr = {}  # save refs for LMP extraction
 
@@ -430,7 +245,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 m.addConstr(dis[nm][t] <= dis_max, f"dis_ub_{nm}_{t}")
 
             # Reactive power limits per DER inverter
-            if config.reactive_support and nm in q_re:
+            if config.network.reactive_support and nm in q_re:
                 s_max = a.pv_capacity + a.wind_capacity
                 if a.storage:
                     s_max += a.storage.p_dis_max
@@ -471,9 +286,9 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                             f"ramp_down_dis_{nm}_{t}")
 
     # Grid ramping constraint (peak shaving): limit net exchange change rate
-    if config.ramp_limit_mw_per_period is not None:
+    if config.network.ramp_limit_mw_per_period is not None:
         for t in range(1, T):
-            ramp = config.ramp_limit_mw_per_period
+            ramp = config.network.ramp_limit_mw_per_period
             net_t = p_grid_import[t] - p_grid_export[t]
             net_tm1 = p_grid_import[t-1] - p_grid_export[t-1]
             m.addConstr(net_t - net_tm1 <= ramp, f"ramp_up_grid_{t}")
@@ -488,21 +303,28 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
     # Constraint-based multi-objective: carbon cap and RE minimum rate
     shadow_prices = {}
-    if config.use_constraint_multi_obj:
-        if config.carbon_cap_tco2 is not None:
+    slack_carbon = m.addVar(lb=0, ub=GRB.INFINITY, name="slack_carbon")
+    slack_re = m.addVar(lb=0, ub=GRB.INFINITY, name="slack_re")
+    if config.market_design.use_constraint_multi_obj:
+        if config.market_design.carbon_cap_tco2 is not None:
             carbon_expr = gp.LinExpr()
             for t in range(T):
-                carbon_expr += config.emission_factor_grid * p_grid_import[t] * DT_HOURS
-            carbon_constr = m.addConstr(carbon_expr <= config.carbon_cap_tco2,
+                carbon_expr += config.market_design.emission_factor_grid * p_grid_import[t] * DT_HOURS
+            carbon_constr = m.addConstr(carbon_expr - slack_carbon
+                                        <= config.market_design.carbon_cap_tco2,
                                         "carbon_cap")
-        if config.re_min_rate is not None and total_re_avail_mwh > 0:
+        else:
+            slack_carbon.UB = 0
+        if config.market_design.re_min_rate is not None and total_re_avail_mwh > 0:
             re_expr = gp.LinExpr()
             for t in range(T):
                 for a in agents_list:
                     nm = a.name
                     re_expr += (pv[nm][t] + wind[nm][t]) * DT_HOURS
-            re_target = config.re_min_rate * total_re_avail_mwh
-            re_constr = m.addConstr(re_expr >= re_target, "re_min_rate")
+            re_target = config.market_design.re_min_rate * total_re_avail_mwh
+            re_constr = m.addConstr(re_expr + slack_re >= re_target, "re_min_rate")
+        else:
+            slack_re.UB = 0
 
     # --- Objective ---
     bid_arr = {}; offer_arr = {}
@@ -523,12 +345,12 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         pv_max_arr[nm] = a.pv_forecast if stage == "DA" else a.pv_real
         wind_max_arr[nm] = (a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else np.zeros(T)
 
-    if config.storage_terminal_value is not None:
-        terminal_value = config.storage_terminal_value
+    if config.storage.terminal_value is not None:
+        terminal_value = config.storage.terminal_value
     else:
         terminal_value = float(np.mean(wholesale))
 
-    gamma = config.storage_discount_factor
+    gamma = config.storage.discount_factor
     obj = gp.LinExpr()
     for t in range(T):
         discount_t = gamma ** t
@@ -539,25 +361,31 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             obj += bid * served[nm][t]
             if a.storage is not None:
                 obj += discount_t * wholesale[t] * (dis[nm][t] - ch[nm][t])
-                if config.lambda_cycle > 0:
-                    obj -= config.lambda_cycle * (ch[nm][t] + dis[nm][t])
+                if config.storage.cycle_cost > 0:
+                    obj -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
             else:
                 obj -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
-            obj -= config.penalty_unserved * unserved[nm][t]
+            obj -= config.market_design.penalty_unserved * unserved[nm][t]
         obj -= wholesale[t] * (p_grid_import[t] - p_grid_export[t])
-        if config.enable_multi_objective:
-            if config.lambda_carbon > 0:
-                obj -= config.lambda_carbon * config.emission_factor_grid \
+        if config.market_design.enable_multi_objective:
+            if config.market_design.lambda_carbon > 0:
+                obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid \
                        * p_grid_import[t] * DT_HOURS
-            if config.lambda_re > 0:
+            if config.market_design.lambda_re > 0:
                 for a in agents_list:
                     nm = a.name
-                    obj += config.lambda_re * (pv[nm][t] + wind[nm][t]) * DT_HOURS
-            if config.lambda_curtail > 0:
+                    obj += config.market_design.lambda_re * (pv[nm][t] + wind[nm][t]) * DT_HOURS
+            if config.market_design.lambda_curtail > 0:
                 for a in agents_list:
                     nm = a.name
                     curtail = (pv_max_arr[nm][t] - pv[nm][t]) + (wind_max_arr[nm][t] - wind[nm][t])
-                    obj -= config.lambda_curtail * curtail * DT_HOURS
+                    obj -= config.market_design.lambda_curtail * curtail * DT_HOURS
+    # Constraint-slack penalties
+    if config.market_design.use_constraint_multi_obj:
+        if config.market_design.carbon_cap_tco2 is not None:
+            obj -= config.market_design.penalty_carbon_slack * slack_carbon
+        if config.market_design.re_min_rate is not None:
+            obj -= config.market_design.penalty_re_slack * slack_re
     disc_T = gamma ** T
     for a in storage_agents:
         obj += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
@@ -567,8 +395,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         for t in range(T):
             obj += su.bid_value * ch[nm][t]
             obj -= su.offer_cost * dis[nm][t]
-            if config.lambda_cycle > 0:
-                obj -= config.lambda_cycle * (ch[nm][t] + dis[nm][t])
+            if config.storage.cycle_cost > 0:
+                obj -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
         obj += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
 
     m.setObjective(obj, GRB.MAXIMIZE)
@@ -585,7 +413,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
     # --- Nodal storage pricing: re-solve with storage at nodal LMP ---
     all_storage = storage_agents + storage_units
-    if all_storage and config.use_nodal_storage_price:
+    if all_storage and config.storage.use_nodal_price:
         bus_to_idx = {b: i for i, b in enumerate(buses)}
 
         # Extract first-pass nodal LMPs
@@ -610,25 +438,25 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                     if a.storage is not None:
                         price_t = nodal_lmp[t, bus_to_idx[a.bus]]
                         obj2 += discount_t * price_t * (dis[nm][t] - ch[nm][t])
-                        if config.lambda_cycle > 0:
-                            obj2 -= config.lambda_cycle * (ch[nm][t] + dis[nm][t])
+                        if config.storage.cycle_cost > 0:
+                            obj2 -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
                     else:
                         obj2 -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
-                    obj2 -= config.penalty_unserved * unserved[nm][t]
+                    obj2 -= config.market_design.penalty_unserved * unserved[nm][t]
                 obj2 -= wholesale[t] * (p_grid_import[t] - p_grid_export[t])
-                if config.enable_multi_objective:
-                    if config.lambda_carbon > 0:
-                        obj2 -= config.lambda_carbon * config.emission_factor_grid \
+                if config.market_design.enable_multi_objective:
+                    if config.market_design.lambda_carbon > 0:
+                        obj2 -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid \
                                 * p_grid_import[t] * DT_HOURS
-                    if config.lambda_re > 0:
+                    if config.market_design.lambda_re > 0:
                         for a in agents_list:
                             nm = a.name
-                            obj2 += config.lambda_re * (pv[nm][t] + wind[nm][t]) * DT_HOURS
-                    if config.lambda_curtail > 0:
+                            obj2 += config.market_design.lambda_re * (pv[nm][t] + wind[nm][t]) * DT_HOURS
+                    if config.market_design.lambda_curtail > 0:
                         for a in agents_list:
                             nm = a.name
                             curtail = (pv_max_arr[nm][t] - pv[nm][t]) + (wind_max_arr[nm][t] - wind[nm][t])
-                            obj2 -= config.lambda_curtail * curtail * DT_HOURS
+                            obj2 -= config.market_design.lambda_curtail * curtail * DT_HOURS
             for a in storage_agents:
                 obj2 += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
             for su in storage_units:
@@ -636,8 +464,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 for t in range(T):
                     obj2 += su.bid_value * ch[nm][t]
                     obj2 -= su.offer_cost * dis[nm][t]
-                    if config.lambda_cycle > 0:
-                        obj2 -= config.lambda_cycle * (ch[nm][t] + dis[nm][t])
+                    if config.storage.cycle_cost > 0:
+                        obj2 -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
                 obj2 += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
 
             m.setObjective(obj2, GRB.MAXIMIZE)
@@ -669,7 +497,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
     # Extract shadow prices from constraint-based multi-objective
     shadow_prices = {}
-    if config.use_constraint_multi_obj:
+    if config.market_design.use_constraint_multi_obj:
         try:
             carbon_c = m.getConstrByName("carbon_cap")
             if carbon_c is not None:
@@ -682,10 +510,14 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 shadow_prices["re_min_rate"] = -re_c.Pi
         except Exception:
             pass
+        # Report slack usage
+        if slack_carbon.X > 1e-6:
+            shadow_prices["carbon_slack_tco2"] = float(slack_carbon.X)
+        if slack_re.X > 1e-6:
+            shadow_prices["re_slack_mwh"] = float(slack_re.X)
 
     # --- Extract results ---
-    from market import empty_schedules as _empty_schedules, split_power as _split_power
-    schedules = _empty_schedules(agents_list, T)
+    schedules = empty_schedules(agents_list, T)
     for su in storage_units:
         schedules[su.name] = {
             'p_buy': np.zeros(T), 'p_sell': np.zeros(T),
@@ -709,7 +541,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     for t in range(T):
         p_import_val = p_grid_import[t].X
         if p_import_val > 0:
-            carbon_emissions += config.emission_factor_grid * p_import_val * DT_HOURS
+            carbon_emissions += config.market_design.emission_factor_grid * p_import_val * DT_HOURS
 
         for a in agents_list:
             nm = a.name
@@ -734,7 +566,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                                      + (max(wind_max, 0) - s['wind_used'][t])) * DT_HOURS
             net_gen = s['pv_used'][t] + s['wind_used'][t] + s['p_dis'][t]
             net_con = s['served'][t] + s['p_ch'][t]
-            s['p_buy'][t], s['p_sell'][t] = _split_power(net_gen, net_con)
+            s['p_buy'][t], s['p_sell'][t] = split_power(net_gen, net_con)
             total_served_mwh += s['served'][t] * DT_HOURS
 
     # SOC for final period

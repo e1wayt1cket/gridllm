@@ -1,10 +1,24 @@
 # dispatch.py
-"""Unified OPF dispatch entry point and public API re-exports."""
+"""Unified OPF dispatch entry point and public API re-exports.
+
+Solver availability:
+  - Gurobi: required for LinDistFlow and SOCP modes
+  - HiGHS (via ortools): automatic fallback for DC-OPF mode only
+
+To install Gurobi: https://www.gurobi.com/downloads/
+Free academic licenses available.
+"""
 
 # Re-export public API for backward compatibility
 from dispatch_core import StorageConstraints  # noqa: F401
 from dispatch_ldf import solve_lindist_opf_batch  # noqa: F401
 from dispatch_socp import solve_socp_opf_batch  # noqa: F401
+
+_GUROBI_MISSING_MSG = (
+    "Gurobi is required for opf_mode='{mode}'. "
+    "Use opf_mode='dc' for the built-in HiGHS fallback, "
+    "or install Gurobi from https://www.gurobi.com/downloads/"
+)
 
 
 def solve_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
@@ -23,7 +37,7 @@ def solve_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         if config.opf_mode == "dc":
             return _solve_dc_opf_highs(net, agents, t, stage, prev_soc,
                                        wholesale_t, action_params, config)
-        raise RuntimeError("Gurobi unavailable and no HiGHS fallback for LinDistFlow")
+        raise RuntimeError(_GUROBI_MISSING_MSG.format(mode=config.opf_mode))
     if config.opf_mode == "dc":
         return solve_dc_opf_gurobi(net, agents, t, stage, prev_soc,
                                    wholesale_t, action_params, config)

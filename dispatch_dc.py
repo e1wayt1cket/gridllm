@@ -26,7 +26,7 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
     buses = list(net.bus.index)
     lines = list(net.line.index)
     slack_bus = net.ext_grid.at[0, 'bus']
-    base_kv = config.base_kv
+    base_kv = config.network.base_kv
     x, limit = _build_line_params(net, base_kv)
 
     agent_info = _build_agent_info(agents, t, stage, prev_soc, wholesale_t,
@@ -54,7 +54,7 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
     p_grid_import = m.addVar(lb=0, ub=GRB.INFINITY, name="p_grid_import")
-    p_grid_export = m.addVar(lb=0, ub=config.reverse_power_limit_mw, name="p_grid_export")
+    p_grid_export = m.addVar(lb=0, ub=config.network.reverse_power_limit_mw, name="p_grid_export")
 
     net_inj = {b: gp.LinExpr() for b in buses}
     net_inj[slack_bus] += p_grid_import - p_grid_export
@@ -86,11 +86,11 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             obj += wholesale_t * (dis[nm] - ch[nm])
         else:
             obj -= agent_info[nm]['offer'] * (pv[nm] + wind[nm] + dis[nm])
-        obj -= config.penalty_unserved * unserved[nm]
+        obj -= config.market_design.penalty_unserved * unserved[nm]
     obj -= wholesale_t * (p_grid_import - p_grid_export)
-    if config.enable_multi_objective and config.lambda_carbon > 0:
+    if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
         from dispatch_core import DT_HOURS
-        obj -= config.lambda_carbon * config.emission_factor_grid * p_grid_import * DT_HOURS
+        obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * p_grid_import * DT_HOURS
     m.setObjective(obj, GRB.MAXIMIZE)
     m.optimize()
 
@@ -126,7 +126,7 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
     buses = list(net.bus.index)
     lines = list(net.line.index)
     slack_bus = net.ext_grid.at[0, 'bus']
-    base_kv = config.base_kv
+    base_kv = config.network.base_kv
     x, limit = _build_line_params(net, base_kv)
 
     agent_info = _build_agent_info(agents, t, stage, prev_soc, wholesale_t,
@@ -151,7 +151,7 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         solver.Add(p_flow[l] == (theta[f] - theta[t_b]) / x[l])
 
     p_grid_import = solver.NumVar(0, INF, "p_grid_import")
-    p_grid_export = solver.NumVar(0, config.reverse_power_limit_mw, "p_grid_export")
+    p_grid_export = solver.NumVar(0, config.network.reverse_power_limit_mw, "p_grid_export")
 
     served = {}; unserved = {}; pv_v = {}; wind_v = {}; ch_v = {}; dis_v = {}
     for a in agents:
@@ -204,12 +204,12 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
             obj.SetCoefficient(pv_v[nm], -agent_info[nm]['offer'])
             obj.SetCoefficient(wind_v[nm], -agent_info[nm]['offer'])
             obj.SetCoefficient(dis_v[nm], -agent_info[nm]['offer'])
-        obj.SetCoefficient(unserved[nm], -config.penalty_unserved)
+        obj.SetCoefficient(unserved[nm], -config.market_design.penalty_unserved)
 
     grid_import_coef = -wholesale_t
-    if config.enable_multi_objective and config.lambda_carbon > 0:
+    if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
         from dispatch_core import DT_HOURS
-        grid_import_coef -= config.lambda_carbon * config.emission_factor_grid * DT_HOURS
+        grid_import_coef -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * DT_HOURS
     obj.SetCoefficient(p_grid_import, grid_import_coef)
     obj.SetCoefficient(p_grid_export, wholesale_t)
     obj.SetMaximization()

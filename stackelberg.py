@@ -23,7 +23,7 @@ def _leader_payoff(leader_name, leader_bus, actions, agents, T, config):
     node_price = result["lmp"][:, leader_bus]
     sell = np.sum(sched["p_sell"] * node_price)
     buy = np.sum(sched["p_buy"] * node_price)
-    penalty = np.sum(sched["unserved"] * config.penalty_unserved)
+    penalty = np.sum(sched["unserved"] * config.market_design.penalty_unserved)
     return result, sell - buy - penalty
 
 
@@ -39,9 +39,9 @@ def _param_to_arrays(x, n_blocks, T, is_prosumer):
 
 def _build_bounds(config, n_blocks, is_prosumer):
     """Build bounds list for scipy.optimize."""
-    bounds = [config.bid_mult_range] * n_blocks
+    bounds = [config.market_design.bid_mult_range] * n_blocks
     if is_prosumer:
-        bounds += [config.offer_adder_range] * n_blocks
+        bounds += [config.market_design.offer_adder_range] * n_blocks
     return bounds
 
 
