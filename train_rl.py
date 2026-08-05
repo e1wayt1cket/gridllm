@@ -1,7 +1,9 @@
 # train_rl.py
-"""Standalone RL training script with checkpointing and real-time progress."""
-import sys, os, time
+"""Standalone RL training script with checkpointing, TensorBoard logging
+and reproducible seeds."""
+import os, time, argparse, random, datetime
 import numpy as np
+import torch
 
 from scenarios import get_scenario
 from models import MarketConfig
@@ -12,7 +14,19 @@ N_EPISODES = 200
 SAVE_PATH = "policies/default.pt"
 
 def main():
-    print("Building environment...", flush=True)
+    parser = argparse.ArgumentParser(description="Train MATD3 bidding agents")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="RNG seed for reproducibility")
+    args = parser.parse_args()
+
+    # Seed all RNGs before scenario/profile generation for reproducible runs
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+
+    print(f"Building environment (seed={args.seed})...", flush=True)
     config = MarketConfig(opf_mode="socp", verbose=False)
     agents, _ = get_scenario("baseline", T=96, config=config)
 
@@ -21,6 +35,11 @@ def main():
     print(f"RL agents: {len(env.rl_agents)}", flush=True)
     for a in env.rl_agents:
         print(f"  {a.name} bus={a.bus} type={a.load_type}", flush=True)
+
+    from torch.utils.tensorboard import SummaryWriter
+    log_dir = os.path.join("runs", "train-" + datetime.datetime.now().strftime(
+        "%Y%m%d-%H%M%S"))
+    writer = SummaryWriter(log_dir)
 
     t0 = time.time()
     for ep in range(N_EPISODES):
@@ -72,11 +91,22 @@ def main():
                   f"elapsed={elapsed:.0f}s eta={eta:.0f}s",
                   flush=True)
 
+        # TensorBoard logging (every episode)
+        writer.add_scalar("Reward/mean", avg_r, ep)
+        writer.add_scalar("Welfare", info.get("welfare", 0), ep)
+        writer.add_scalar("RE_Rate", info.get("re_rate", 0), ep)
+        if c_loss is not None:
+            writer.add_scalar("Loss/critic", c_loss, ep)
+        if a_loss is not None:
+            writer.add_scalar("Loss/actor", a_loss, ep)
+
         # Checkpoint every 50 episodes
         if (ep + 1) % 50 == 0:
             ckpt_path = f"policies/ckpt_{ep+1}.pt"
             save_policies(matd3.actors, ckpt_path)
             print(f"  -> checkpoint saved: {ckpt_path}", flush=True)
+
+    writer.close()
 
     os.makedirs(os.path.dirname(SAVE_PATH) or ".", exist_ok=True)
     save_policies(matd3.actors, SAVE_PATH)
@@ -84,6 +114,8 @@ def main():
     print(f"Training complete: {N_EPISODES} episodes in {elapsed:.0f}s "
           f"({elapsed/N_EPISODES:.1f}s/ep)", flush=True)
     print(f"Model saved to {SAVE_PATH}", flush=True)
+    print(f"TensorBoard log: {log_dir}  (run `tensorboard --logdir runs`)",
+          flush=True)
 
 
 if __name__ == "__main__":
