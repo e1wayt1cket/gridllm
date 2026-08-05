@@ -45,3 +45,7 @@ raw/
 # 其他
 *.deb
 plots/
+# 生成产物
+outputs/
+policies/
+runs/

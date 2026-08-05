@@ -19,7 +19,7 @@ run.py / dashboard.py / batch_export.py
 
 - **Three OPF modes**: DC-OPF (lossless linear), LinDistFlow (branch-flow model for radial networks), and SOCP-OPF (second-order cone relaxation), all solved via Gurobi MILP/QCQP
 - **Multi-objective optimization**: weighted-sum and constraint-based methods covering carbon emissions, renewable consumption rate, and curtailment
-- **Bidding strategies**: random exploration, adaptive best-response based on LMP signals, and PPO-based reinforcement learning bidding
+- **Bidding strategies**: random exploration, adaptive best-response based on LMP signals, and MATD3-based reinforcement learning bidding
 - **Two-settlement system**: day-ahead financial settlement + real-time imbalance settlement, settled at nodal LMP per agent
 - **Rolling real-time market**: MPC-style rolling horizon clearing with configurable forecast modes (perfect, DA-as-forecast, noisy-DA)
 - **Storage self-scheduling**: MPC pre-computed storage charge/discharge plans used as fixed injections during OPF, eliminating LMP spikes from storage intertemporal arbitrage
@@ -31,7 +31,7 @@ run.py / dashboard.py / batch_export.py
 - **Interactive dashboard**: Plotly Dash on port 8050 with IEEE 33-bus topology visualization, LMP heatmap, time-series curves, storage SOC, KPI cards, settlement tables, and LLM insight panel
 - **Pseudo-real-time simulation**: 96-period step-by-step execution with incremental storage state and configurable wall-clock speed
 - **Stackelberg game**: leader-follower model with supplier as leader and prosumers as followers
-- **Reinforcement learning bidding**: PPO-based bidding strategy training with Gym-style environment interface
+- **Reinforcement learning bidding**: MATD3 (multi-agent twin-delayed DDPG) bidding strategy training with centralized critics and decentralized actors, gym-style environment, and L2-regularized optimizers
 
 ## Quick Start
 
@@ -56,6 +56,12 @@ python dashboard.py
 
 # Compare multi-objective optimization methods
 python compare_methods.py
+
+# Train MATD3 bidding agents (200 episodes, checkpoints every 50)
+python train_rl.py
+
+# A/B experiment: uniform replay vs Prioritized Experience Replay
+python compare_per.py --episodes 150
 
 # Run all tests
 python -m pytest tests/ -v
@@ -94,8 +100,10 @@ Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, 
 | `batch_export.py` | Standalone batch runner: 4 scenarios with fast Nash testing |
 | `compare_methods.py` | Multi-objective method comparison: sweeps carbon caps and RE rate targets, outputs welfare/emission/shadow-price comparison table |
 | `stackelberg.py` | Supplier-prosumer leader-follower game model |
-| `rl_env.py` | Reinforcement learning environment: Gym-style interface for bidding strategy training |
-| `rl_bidding.py` | PPO-based bidding strategy training |
+| `rl_env.py` | Reinforcement learning environment: Gym-style interface for bidding strategy training (103-dim observation, 24 decision blocks/day) |
+| `rl_bidding.py` | MATD3 bidding strategy training: centralized critics, twin delayed Q-learning, L2 regularization |
+| `rl_bidding_per.py` | MATD3 variant with Prioritized Experience Replay (SumTree buffer, TD-error priorities, importance-sampling weights) for A/B comparison |
+| `compare_per.py` | A/B experiment: uniform replay vs PER under identical seed/hyperparameters, outputs convergence comparison chart |
 | `price_forecaster.py` | Price forecasting: synthetic sinusoidal and supply-stack merit-order methods |
 | `export_analysis.py` | Data quality analysis: agent energy balance, SOC boundaries, anomaly detection |
 | `mpc_storage.py` | MPC storage self-scheduling: rolling-horizon optimization of storage charge/discharge plans |
@@ -103,6 +111,14 @@ Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, 
 | `export_charts_only.py` | Standalone chart export from saved clearing results |
 | `plot_diagrams.py` | System architecture diagrams, load curves, parameter table visualization |
 | `topology_data.py` | IEEE 33-bus topology coordinate data |
+
+## Reinforcement Learning Bidding
+
+- **Algorithm**: MATD3 with CTDE — one Actor (local observation → bid) and one centralized twin-Q Critic per agent
+- **Action space**: `(bid_mult ∈ [0.3, 1.8], offer_adder ∈ [0, 50])` per decision block; 24 blocks/day (15-min periods, 1-hour decisions)
+- **Observation**: 103-dim vector — 24-period lookahead load/RE generation, LMP history, price forecast, SOC, congestion index, opponent bid statistics
+- **Training**: `python train_rl.py` (200 episodes, ~7s/episode); TensorBoard logs under `runs/`
+- **PER experiment**: `rl_bidding_per.py` implements a SumTree-based prioritized replay variant; `compare_per.py` runs a controlled A/B (same seed, same hyperparameters) and saves a reward/welfare convergence chart to `outputs/`
 
 ## Scenarios
 
