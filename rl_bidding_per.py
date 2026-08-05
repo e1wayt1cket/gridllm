@@ -1,10 +1,12 @@
-# rl_bidding.py
-"""MATD3 with CTDE for agent bidding in electricity markets.
+# rl_bidding_per.py
+"""MATD3 with Prioritized Experience Replay (PER) for agent bidding.
 
-Centralized Training with Decentralized Execution: each agent has an
-Actor (local obs → action) and a Centralized Critic (global obs+act → Q).
-The Critic sees all agents' unique observations and actions during training,
-resolving the non-stationarity problem of independent learners.
+Same architecture as rl_bidding.py (Tanh output, L2-regularized Adam),
+with the uniform ReplayBuffer replaced by a SumTree-based prioritized
+buffer. Joint transitions carry per-agent TD-errors, so priorities are
+max-aggregated across agents to keep joint-sampling intact.
+
+This module exists for A/B comparison against the uniform baseline.
 """
 
 import os
@@ -14,7 +16,6 @@ import torch.nn as nn
 import torch.optim as optim
 from typing import Dict, List, Tuple
 from collections import deque
-import random
 
 from models import Agent, MarketConfig
 from rl_env import BiddingEnv, N_BLOCKS
@@ -83,59 +84,147 @@ class CentralizedCritic(nn.Module):
 
 
 # ---------------------------------------------------------------------------
-# Replay Buffer — shared across all agents, supports off-policy training
+# SumTree — flat-array binary tree for O(log N) priority sampling
 # ---------------------------------------------------------------------------
 
-class ReplayBuffer:
-    """Fixed-size replay buffer storing (obs, action, reward, next_obs)."""
+class SumTree:
+    """Segment-tree over priorities; leaves hold data indices.
 
-    def __init__(self, capacity: int = 100_000):
-        self.buffer = deque(maxlen=capacity)
+    Node 0 is the root; node i has children 2i+1 (left) and 2i+2 (right).
+    Leaves occupy nodes [capacity-1, 2*capacity-1).
+    """
+
+    def __init__(self, capacity: int):
+        self.capacity = capacity
+        self.tree = np.zeros(2 * capacity - 1, dtype=np.float64)
+        self.size = 0
+        self.next_idx = 0
+
+    def add(self, priority: float):
+        """Insert a new leaf with the given priority, evicting oldest if full."""
+        idx = self.next_idx
+        self.next_idx = (self.next_idx + 1) % self.capacity
+        self.size = min(self.size + 1, self.capacity)
+        self._update_leaf(idx, priority)
+
+    def _update_leaf(self, idx: int, priority: float):
+        node = idx + self.capacity - 1
+        delta = priority - self.tree[node]
+        self.tree[node] = priority
+        while node > 0:
+            node = (node - 1) // 2
+            self.tree[node] += delta
+
+    def total(self) -> float:
+        return float(self.tree[0])
+
+    def get(self, s: float) -> int:
+        """Return leaf index whose cumulative priority covers mass s."""
+        node = 0
+        while node < self.capacity - 1:
+            left = 2 * node + 1
+            if s <= self.tree[left]:
+                node = left
+            else:
+                s -= self.tree[left]
+                node = left + 1
+        return node - (self.capacity - 1)
+
+    def update(self, idx: int, priority: float):
+        self._update_leaf(idx, priority)
+
+
+# ---------------------------------------------------------------------------
+# Prioritized Replay Buffer — shared across agents
+# ---------------------------------------------------------------------------
+
+class PrioritizedReplayBuffer:
+    """SumTree-backed replay buffer with proportional priority sampling.
+
+    Priorities are max-aggregated across agents (one priority per joint
+    transition), preserving joint-sampling for the centralized critics.
+    Importance-sampling weights correct the sampling bias; beta anneals
+    from beta_start to 1.0 as the MATD3 trainer progresses.
+    """
+
+    def __init__(self, capacity: int = 100_000, alpha: float = 0.6,
+                 beta_start: float = 0.4, eps: float = 1e-6):
+        self.capacity = capacity
+        self.alpha = alpha
+        self.beta = beta_start
+        self.eps = eps
+        self.tree = SumTree(capacity)
+        self.data = deque(maxlen=capacity)
+        self.max_priority = 1.0
+
+    def set_beta(self, beta: float):
+        self.beta = beta
 
     def add(self, obs, action, reward, next_obs):
-        """obs/next_obs: (n_agents, obs_dim), action: (n_agents, act_dim),
-           reward: (n_agents,)"""
-        self.buffer.append((
+        self.data.append((
             obs.copy(), action.copy(), reward.copy(), next_obs.copy()))
+        self.tree.add(self.max_priority)
 
     def sample(self, batch_size: int):
-        batch = random.sample(self.buffer, min(batch_size, len(self.buffer)))
+        """Return (obs, act, rew, next_obs, indices, is_weights).
+
+        is_weights are normalized to max weight 1.0 (bounded bias
+        correction as in Schaul et al. 2016).
+        """
+        n = min(batch_size, len(self.data))
+        indices, batch, total = [], [], self.tree.total()
+        segment = total / n
+        for i in range(n):
+            # Jitter within each segment to decorrelate consecutive samples
+            s = np.random.uniform(i * segment, (i + 1) * segment)
+            idx = self.tree.get(s)
+            indices.append(idx)
+            batch.append(self.data[idx])
         obs, act, rew, next_obs = zip(*batch)
+        prios = np.array([self._leaf_priority(i) for i in indices])
+        probs = prios / (self.tree.total() or 1.0)
+        weights = (len(self.data) * probs) ** (-self.beta)
+        weights = weights / (weights.max() or 1.0)
         return (torch.as_tensor(np.array(obs), dtype=torch.float32),
                 torch.as_tensor(np.array(act), dtype=torch.float32),
                 torch.as_tensor(np.array(rew), dtype=torch.float32),
-                torch.as_tensor(np.array(next_obs), dtype=torch.float32))
+                torch.as_tensor(np.array(next_obs), dtype=torch.float32),
+                indices,
+                torch.as_tensor(weights, dtype=torch.float32))
+
+    def _leaf_priority(self, idx: int) -> float:
+        return float(self.tree.tree[idx + self.capacity - 1])
+
+    def update_priorities(self, indices: List[int], priorities: np.ndarray):
+        """Write back per-sample priorities; clamp small ones above eps."""
+        for idx, p in zip(indices, priorities):
+            p = max(p, self.eps)
+            self.tree.update(idx, p)
+            self.max_priority = max(self.max_priority, p)
 
     def __len__(self):
-        return len(self.buffer)
+        return len(self.data)
 
 
 # ---------------------------------------------------------------------------
-# MATD3 Trainer — centralized critic, decentralized actors
+# MATD3 Trainer (PER variant) — centralized critic, decentralized actors
 # ---------------------------------------------------------------------------
 
 class MATD3:
-    """Multi-Agent TD3 with centralized critics.
+    """Multi-Agent TD3 with PER. API-compatible with rl_bidding.MATD3.
 
-    Parameters
-    ----------
-    env : BiddingEnv
-    lr : float               Learning rate for actor and critic.
-    gamma : float            Discount factor.
-    tau : float              Polyak averaging coefficient.
-    policy_delay : int       Actor update frequency (critic updates every step).
-    noise_std : float        Exploration noise standard deviation.
-    noise_clip : float       Exploration noise clipping.
-    batch_size : int         Mini-batch size.
-    buffer_capacity : int    Replay buffer size.
-    start_steps : int        Steps of random exploration before learning.
+    Differences from the uniform baseline:
+      - buffer is a PrioritizedReplayBuffer
+      - critic loss is scaled by importance-sampling weights
+      - TD-errors computed during critic updates write priorities back
     """
 
     def __init__(self, env: BiddingEnv, lr: float = 3e-4,
                  gamma: float = 0.99, tau: float = 0.005,
                  policy_delay: int = 2, noise_std: float = 0.2,
                  noise_clip: float = 0.5, batch_size: int = 128,
-                 buffer_capacity: int = 100_000, start_steps: int = 500):
+                 buffer_capacity: int = 100_000, start_steps: int = 500,
+                 beta_anneal_steps: int = 20_000):
         self.env = env
         self.gamma = gamma
         self.tau = tau
@@ -144,6 +233,7 @@ class MATD3:
         self.noise_clip = noise_clip
         self.batch_size = batch_size
         self.start_steps = start_steps
+        self.beta_anneal_steps = beta_anneal_steps
 
         obs_dim = env.get_state_dim()
         act_dim = 2
@@ -183,7 +273,7 @@ class MATD3:
             self.critic_opts[a.name] = optim.Adam(
                 self.critics[a.name].parameters(), lr=lr, weight_decay=1e-4)
 
-        self.buffer = ReplayBuffer(buffer_capacity)
+        self.buffer = PrioritizedReplayBuffer(buffer_capacity)
         self.total_steps = 0
         self.action_low = action_bounds[0]
         self.action_high = action_bounds[1]
@@ -228,12 +318,18 @@ class MATD3:
         if len(self.buffer) < self.batch_size:
             return {"critic_loss": None, "actor_loss": None}
 
-        obs, act, rew, next_obs = self.buffer.sample(self.batch_size)
+        obs, act, rew, next_obs, indices, is_weights = \
+            self.buffer.sample(self.batch_size)
         # obs: (batch, n_agents, obs_dim), act: (batch, n_agents, act_dim)
         # rew: (batch, n_agents), next_obs: (batch, n_agents, obs_dim)
+        # is_weights: (batch,) — max-aggregated importance correction
 
         n = self.n_agents
         u_dim = self.unique_obs_dim
+        batch = self.batch_size
+
+        # Max-aggregated TD-error per transition across all agents
+        td_errs = np.zeros(batch, dtype=np.float64)
 
         # ---- Update each agent's critic ----
         critic_losses = []
@@ -256,22 +352,33 @@ class MATD3:
 
                 target_q1, target_q2 = critic_target(
                     self._build_global_state(next_obs, i),
-                    next_act_all.view(self.batch_size, -1))
+                    next_act_all.view(batch, -1))
                 target_q = rew[:, i].unsqueeze(1) + self.gamma * \
                     torch.min(target_q1, target_q2)
 
             current_q1, current_q2 = critic(
                 self._build_global_state(obs, i),
-                act.view(self.batch_size, -1))
-            critic_loss = nn.functional.mse_loss(
-                current_q1, target_q) + nn.functional.mse_loss(
-                current_q2, target_q)
+                act.view(batch, -1))
+            # TD-error from the first critic head; max-aggregate across agents
+            td_errs = np.maximum(
+                td_errs,
+                (target_q - current_q1).abs().squeeze(1)
+                .detach().cpu().numpy())
+            weighted_loss = (
+                nn.functional.mse_loss(current_q1, target_q,
+                                       reduction="none").mean(dim=1)
+                + nn.functional.mse_loss(current_q2, target_q,
+                                         reduction="none").mean(dim=1))
+            critic_loss = (is_weights * weighted_loss).mean()
 
             opt.zero_grad()
             critic_loss.backward()
             nn.utils.clip_grad_norm_(critic.parameters(), 1.0)
             opt.step()
             critic_losses.append(critic_loss.detach().item())
+
+        # Write priorities back (proportional to |TD| ** alpha)
+        self.buffer.update_priorities(indices, td_errs ** 0.6)
 
         # ---- Delayed actor update ----
         actor_losses = []
@@ -292,7 +399,7 @@ class MATD3:
 
                 actor_loss = -critic.q1_forward(
                     self._build_global_state(obs, i),
-                    new_act_all.view(self.batch_size, -1)).mean()
+                    new_act_all.view(batch, -1)).mean()
 
                 opt.zero_grad()
                 actor_loss.backward()
@@ -317,9 +424,9 @@ class MATD3:
     def train(self, n_episodes: int = 100, verbose: bool = True) \
             -> Dict[str, list]:
         from torch.utils.tensorboard import SummaryWriter
-        import datetime, os
+        import datetime
         log_dir = os.path.join("runs", datetime.datetime.now().strftime(
-            "%Y%m%d-%H%M%S"))
+            "%Y%m%d-%H%M%S") + "-per")
         writer = SummaryWriter(log_dir)
 
         history = {nm: {"reward": []} for nm in self.agent_names}
@@ -329,27 +436,16 @@ class MATD3:
         for ep in range(n_episodes):
             obs = self.env.reset()
             ep_rewards = {nm: 0.0 for nm in self.agent_names}
-            ep_obs = {nm: [] for nm in self.agent_names}
-            ep_act = {nm: [] for nm in self.agent_names}
-            ep_rew = {nm: [] for nm in self.agent_names}
 
             for _ in range(N_BLOCKS):
                 # Select actions
                 actions = {}
                 for nm in self.agent_names:
-                    add_noise = self.total_steps < self.start_steps
-                    if not add_noise:
-                        add_noise = True  # always explore during training
                     actions[nm] = self.select_action(
-                        obs[nm], nm, add_noise=add_noise)
+                        obs[nm], nm, add_noise=True)
 
                 next_obs, rewards, done, info = self.env.step(actions)
-
-                # Store in per-agent episode buffers
                 for nm in self.agent_names:
-                    ep_obs[nm].append(obs[nm])
-                    ep_act[nm].append(actions[nm])
-                    ep_rew[nm].append(rewards.get(nm, 0.0))
                     ep_rewards[nm] += rewards.get(nm, 0.0)
 
                 # Store transitions in replay buffer
@@ -362,19 +458,16 @@ class MATD3:
                      for nm in self.agent_names])
                 self.buffer.add(obs_arr, act_arr, rew_arr, next_obs_arr)
                 self.total_steps += 1
+                # Anneal importance-sampling beta with progress
+                progress = min(1.0, self.total_steps / self.beta_anneal_steps)
+                self.buffer.set_beta(0.4 + 0.6 * progress)
 
                 obs = next_obs
 
             # Update after each episode
-            ep_critic_vals = []
-            ep_actor_vals = []
             if self.total_steps >= self.start_steps:
-                for _ in range(N_BLOCKS):  # multiple updates per episode
-                    loss_info = self.update()
-                    if loss_info["critic_loss"] is not None:
-                        ep_critic_vals.append(loss_info["critic_loss"])
-                    if loss_info["actor_loss"] is not None:
-                        ep_actor_vals.append(loss_info["actor_loss"])
+                for _ in range(N_BLOCKS):
+                    self.update()
 
             for nm in self.agent_names:
                 history[nm]["reward"].append(ep_rewards[nm])
@@ -394,10 +487,6 @@ class MATD3:
                 [ep_rewards[nm] for nm in self.agent_names]), ep)
             writer.add_scalar("Welfare", info.get("welfare", 0), ep)
             writer.add_scalar("RE_Rate", info.get("re_rate", 0), ep)
-            if ep_critic_vals:
-                writer.add_scalar("Loss/critic", np.mean(ep_critic_vals), ep)
-            if ep_actor_vals:
-                writer.add_scalar("Loss/actor", np.mean(ep_actor_vals), ep)
 
         writer.close()
         return history
@@ -410,7 +499,7 @@ _TRAINED_POLICIES: Dict[str, Actor] = {}
 def train_rl_agents(agents: List[Agent], config: MarketConfig,
                     n_episodes: int = 100, verbose: bool = True) \
                     -> Tuple[Dict[str, Actor], dict]:
-    """Train MATD3 for all prosumer agents."""
+    """Train MATD3-PER for all prosumer agents."""
     env = BiddingEnv(agents, config)
     matd3 = MATD3(env)
     history = matd3.train(n_episodes, verbose=verbose)

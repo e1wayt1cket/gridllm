@@ -49,15 +49,26 @@ def main():
             for _ in range(24):
                 matd3.update()
 
+        # Collect loss stats from the most recent update
+        loss_info = matd3.update()  # one extra step to get latest loss values
+        c_loss = loss_info.get("critic_loss")
+        a_loss = loss_info.get("actor_loss")
+
         avg_r = np.mean([ep_rewards[nm] for nm in matd3.agent_names])
         elapsed = time.time() - t0
         eta = (elapsed / (ep + 1)) * (N_EPISODES - ep - 1) if ep > 0 else 0
 
         if (ep + 1) % 10 == 0 or ep == 0:
+            loss_str = ""
+            if c_loss is not None:
+                loss_str += f"critic={c_loss:.4f} "
+            if a_loss is not None:
+                loss_str += f"actor={a_loss:.4f}"
             print(f"Ep {ep+1}/{N_EPISODES} | "
                   f"avg_reward={avg_r:+.3f} | "
                   f"welfare={info.get('welfare', 0):.0f} | "
                   f"RE={info.get('re_rate', 0):.1f}% | "
+                  f"{loss_str} | "
                   f"elapsed={elapsed:.0f}s eta={eta:.0f}s",
                   flush=True)
 

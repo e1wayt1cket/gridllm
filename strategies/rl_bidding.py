@@ -62,7 +62,8 @@ class RLBiddingStrategy(BiddingStrategy):
                                "offer_adder": np.full(T, 0.0)}
             else:
                 actions[nm] = {"bid_mult": np.full(
-                    T, np.mean(config.market_design.bid_mult_range))}
+                    T, np.mean(config.market_design.bid_mult_range)),
+                    "offer_adder": np.full(T, 0.0)}
 
         for block_idx in range(N_BLOCKS):
             t_start = block_idx * BLOCK_SIZE
