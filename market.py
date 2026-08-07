@@ -148,6 +148,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
         "shadow_prices": {},
+        "fell_back": True,  # set only on the single-period fallback path
     }
 
 

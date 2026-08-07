@@ -360,7 +360,9 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             offer = offer_arr[nm][t]
             obj += bid * served[nm][t]
             if a.storage is not None:
-                obj += discount_t * wholesale[t] * (dis[nm][t] - ch[nm][t])
+                # Storage is valued at the agent's declared bid/offer, so the
+                # RL agent's bid_mult/offer_adder steer charge/discharge.
+                obj += discount_t * (bid * ch[nm][t] - offer * dis[nm][t])
                 if config.storage.cycle_cost > 0:
                     obj -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
             else:
@@ -411,11 +413,12 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             m.write("socp_infeasible.ilp")
         return None
 
-    # --- Nodal storage pricing: re-solve with storage at nodal LMP ---
+    # --- Nodal re-solve: re-run with the same objective to stabilize LMPs ---
+    # Storage is valued at the agent's declared bid/offer (not nodal LMP), so
+    # this loop converges in one iteration. It is skipped entirely when
+    # use_nodal_price is False (RL path).
     all_storage = storage_agents + storage_units
     if all_storage and config.storage.use_nodal_price:
-        bus_to_idx = {b: i for i, b in enumerate(buses)}
-
         # Extract first-pass nodal LMPs
         nodal_lmp = np.zeros((T, n_buses))
         for t in range(T):
@@ -436,8 +439,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                     offer = offer_arr[nm][t]
                     obj2 += bid * served[nm][t]
                     if a.storage is not None:
-                        price_t = nodal_lmp[t, bus_to_idx[a.bus]]
-                        obj2 += discount_t * price_t * (dis[nm][t] - ch[nm][t])
+                        obj2 += discount_t * (bid * ch[nm][t] - offer * dis[nm][t])
                         if config.storage.cycle_cost > 0:
                             obj2 -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
                     else:

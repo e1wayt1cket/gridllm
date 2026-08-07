@@ -5,6 +5,9 @@ Each episode = one 96-period day. Agents act on 4-period blocks (24 steps).
 State includes 24h-ahead local forecasts, LMP history, price predictions,
 SOC, and system-level indicators.
 Action is continuous: (bid_mult in [0.3, 1.8], offer_adder in [0, 50]).
+
+Supports both multi-agent (all agents are RL) and single-agent
+(rl_agent_names filters to specific agents) modes.
 """
 
 import numpy as np
@@ -26,36 +29,18 @@ N_BLOCKS = 24         # 96 / 4
 LOOKAHEAD_BLOCKS = 6  # 24 periods ahead for observations
 
 
-class RunningMoments:
-    """EMA-tracked mean and variance for dynamic reward normalization.
-
-    Normalizes per-agent rewards to zero-mean unit-variance so that
-    PPO training is robust to changes in reward magnitude across
-    scenarios without a hand-tuned reward_scale.
-    """
-
-    def __init__(self, alpha: float = 0.01):
-        self.mean: float = 0.0
-        self.var: float = 1.0
-        self.alpha = alpha
-        self._n: int = 0
-
-    def update(self, x: float):
-        self._n += 1
-        delta = x - self.mean
-        self.mean += self.alpha * delta
-        # Bias-corrected variance: use (1 - alpha) on var, alpha on delta²
-        self.var = (1.0 - self.alpha) * self.var + self.alpha * delta * delta
-
-    def normalize(self, x: float) -> float:
-        return (x - self.mean) / (np.sqrt(max(self.var, 1e-8)) + 1e-8)
-
-
 class BiddingEnv:
     """Multi-agent bidding environment with continuous actions.
 
-    Each agent trains its own policy. The environment processes all agents
-    jointly through a single market clearing call per block.
+    Supports two modes:
+    - Multi-agent (rl_agent_names=None): all agents are RL-controlled.
+      Backward compatible with the original MATD3 pipeline.
+    - Single-agent (rl_agent_names=["Agent_X"]): only the named agent
+      uses RL actions; all other agents use fixed default strategy
+      (bid_mult=1.0, offer_adder=0.0).
+
+    Reward is raw profit in CNY (not normalized). Storage agents have
+    cycle_cost deducted from their reward.
 
     Parameters
     ----------
@@ -63,10 +48,17 @@ class BiddingEnv:
     config : MarketConfig
     stage : str
         "DA" or "RT".
+    rl_agent_names : list of str or None
+        Agent names to treat as RL learners. None = all agents.
     """
 
     def __init__(self, agents: List[Agent], config: MarketConfig,
-                 stage: str = "DA", roll_horizon: int = 16):
+                 stage: str = "DA", roll_horizon: int = 16,
+                 rl_agent_names: Optional[List[str]] = None,
+                 bid_dev_penalty: float = 0.0,
+                 offer_dev_penalty: float = 0.0,
+                 bid_mult_low: float = BID_MULT_LOW,
+                 bid_mult_high: float = BID_MULT_HIGH):
         self.all_agents = agents
         self.config = config
         self.T = 96
@@ -74,15 +66,25 @@ class BiddingEnv:
         self.wholesale = None
         self.roll_horizon = roll_horizon  # look-ahead periods per window
 
-        self.rl_agents = list(agents)  # all agents learn, not just prosumers
+        # Per-agent action bounds (configurable per training run)
+        self.bid_mult_low = bid_mult_low
+        self.bid_mult_high = bid_mult_high
+
+        # Deviation penalties — discourage policy from saturating at action bounds.
+        # Penalty = bid_dev_penalty * |bid_mult - 1.0| + offer_dev_penalty * offer_adder
+        # Applied per committed period in step().
+        self.bid_dev_penalty = bid_dev_penalty
+        self.offer_dev_penalty = offer_dev_penalty
+
+        if rl_agent_names is not None:
+            self.rl_agents = [a for a in agents if a.name in rl_agent_names]
+        else:
+            self.rl_agents = list(agents)  # all agents are RL (backward compat)
         self.n_agents = len(self.rl_agents)
 
         self.forecasters = {
             a.name: NodalPriceForecaster(alpha=0.3, history_len=24)
             for a in self.rl_agents
-        }
-        self.reward_norms = {
-            a.name: RunningMoments(alpha=0.01) for a in self.rl_agents
         }
         self.prev_soc: Dict[str, float] = {}
         self.obs_dim = self._compute_obs_dim()
@@ -93,8 +95,8 @@ class BiddingEnv:
 
     def get_action_bounds(self) -> torch.Tensor:
         """Return (low, high) bounds tensor for the 2-dim continuous action."""
-        return torch.tensor([[BID_MULT_LOW, OFFER_ADDER_LOW],
-                             [BID_MULT_HIGH, OFFER_ADDER_HIGH]],
+        return torch.tensor([[self.bid_mult_low, OFFER_ADDER_LOW],
+                             [self.bid_mult_high, OFFER_ADDER_HIGH]],
                             dtype=torch.float32)
 
     def get_state_dim(self) -> int:
@@ -117,6 +119,56 @@ class BiddingEnv:
         # 4*24 (load/re_gen/lmp_hist/price_fc) + soc + avg_lmp + load_re_ratio
         # + congestion_idx + block_pos + 2 opponent features = 103
         return L + L + L + L + 1 + 1 + 1 + 1 + 1 + 2
+
+    # ------------------------------------------------------------------
+    # Default actions for non-RL agents
+    # ------------------------------------------------------------------
+
+    def _default_actions(self) -> dict:
+        """Return truthful/default bidding params for all agents.
+
+        bid_mult=1.0, offer_adder=0.0 — the baseline strategy used by
+        non-RL agents during single-agent training and by the evaluation
+        framework for baseline comparison.
+        """
+        return {
+            a.name: {
+                "bid_mult": np.full(self.T, 1.0, dtype=float),
+                "offer_adder": np.full(self.T, 0.0, dtype=float),
+            }
+            for a in self.all_agents
+        }
+
+    # ------------------------------------------------------------------
+    # Scenario switching
+    # ------------------------------------------------------------------
+
+    def set_agents(self, agents: List[Agent],
+                   wholesale: Optional[np.ndarray] = None):
+        """Replace the agent population for scenario switching.
+
+        Rebuilds per-RL-agent forecasters and resets SOC/history state.
+        The RL agent list is re-filtered from the new population using
+        the names originally passed to __init__.
+
+        Call this between episodes when cycling scenarios.
+        """
+        self.all_agents = agents
+        # Re-filter RL agents from the new population
+        rl_names = {a.name for a in self.rl_agents}
+        self.rl_agents = [a for a in agents if a.name in rl_names]
+        self.n_agents = len(self.rl_agents)
+        # Rebuild forecasters for RL agents (new profiles = fresh EMAs)
+        self.forecasters = {
+            a.name: NodalPriceForecaster(alpha=0.3, history_len=24)
+            for a in self.rl_agents
+        }
+        if wholesale is not None:
+            self.wholesale = wholesale
+
+    # ------------------------------------------------------------------
+    # Observation helpers
+    # ------------------------------------------------------------------
 
     def _get_agent_obs(self, agent: Agent, block_idx: int,
                        hist_lmp: np.ndarray | None,
@@ -203,10 +255,9 @@ class BiddingEnv:
     def _compute_opponent_features(self, agent_name: str) -> tuple:
         """Return (avg_other_bid_mult, bid_mult_std) from previous-block snapshot.
 
-        Uses _prev_block_actions (snapshot from the last completed block)
-        rather than current_actions (which is partially filled when agents
-        are evaluated sequentially within a block). This avoids a self-reference
-        bias where later agents see already-updated actions of earlier agents.
+        Iterates over self.all_agents (not just rl_agents) so that the RL
+        agent can observe what ALL other market participants bid, including
+        non-RL agents using default values.
         """
         src = self._prev_block_actions
         if src is None:
@@ -216,7 +267,7 @@ class BiddingEnv:
             return 1.0, 0.0
         other_bids = []
         all_bids = []
-        for a in self.rl_agents:
+        for a in self.all_agents:
             nm = a.name
             if nm in src:
                 bm = float(src[nm].get("bid_mult",
@@ -228,7 +279,12 @@ class BiddingEnv:
         bid_std = float(np.std(all_bids)) if len(all_bids) >= 2 else 0.0
         return avg_other, bid_std
 
-    def reset(self, wholesale=None) -> Dict[str, np.ndarray]:
+    # ------------------------------------------------------------------
+    # Episode lifecycle
+    # ------------------------------------------------------------------
+
+    def reset(self, wholesale: Optional[np.ndarray] = None) \
+            -> Dict[str, np.ndarray]:
         if wholesale is None:
             from grid import day_ahead_price_china
             self.wholesale = day_ahead_price_china(
@@ -243,8 +299,8 @@ class BiddingEnv:
             fc._ema = None
             fc._history = []
 
-        self.current_actions = adaptive_bidding(
-            self.all_agents, self.config, strategy="rl")
+        # Initialize all agents with default actions
+        self.current_actions = self._default_actions()
 
         obs = {}
         avg_lmp = np.mean(self.wholesale)
@@ -260,14 +316,12 @@ class BiddingEnv:
                      Dict[str, float], bool, dict]:
         """Execute one decision block with rolling-window OPF.
 
-        Only a window of self.roll_horizon periods is solved, preventing
-        the OPF from using perfect foresight of all 96 periods to cheat
-        on storage SOC trajectories.
-
         Parameters
         ----------
         actions : dict
             {agent_name: np.array([bid_mult, offer_adder])}
+            Only RL agents need to provide actions; non-RL agents use
+            defaults set during reset().
 
         Returns
         -------
@@ -280,13 +334,13 @@ class BiddingEnv:
         t_start = block * BLOCK_SIZE
         t_end = min(t_start + BLOCK_SIZE, self.T)
 
-        # Update current_actions with this block's decisions
+        # Update current_actions with this block's RL decisions
         for a in self.rl_agents:
             nm = a.name
             if nm not in actions:
                 continue
             act = actions[nm]
-            bid_m = float(np.clip(act[0], BID_MULT_LOW, BID_MULT_HIGH))
+            bid_m = float(np.clip(act[0], self.bid_mult_low, self.bid_mult_high))
             offer_a = float(np.clip(act[1], OFFER_ADDER_LOW, OFFER_ADDER_HIGH))
             if nm not in self.current_actions:
                 self.current_actions[nm] = {
@@ -329,6 +383,15 @@ class BiddingEnv:
         except Exception:
             result = None
 
+        # Surface silent degradation: a fallback to the single-period solver
+        # bypasses the RL bidding mechanism; a None result zeroes rewards.
+        if result is not None and result.get("fell_back"):
+            print(f"[rl_env] WARNING: block {block} clear_market fell back to "
+                  f"single-period solver; RL bids bypassed.", flush=True)
+        elif result is None:
+            print(f"[rl_env] WARNING: block {block} clear_market returned "
+                  f"None; rewards set to 0.", flush=True)
+
         # ---- Extract committed-period rewards and SOC ----
         rewards = {}
         if result is not None:
@@ -341,6 +404,7 @@ class BiddingEnv:
                 lmp_node = result["lmp"][:, a.bus]
 
                 raw_reward = 0.0
+                cycle_cost = float(self.config.storage.cycle_cost)
                 for d in range(n_commit):
                     cons_val = a.bid_value * ws["served"][d]
                     gen_cost = a.offer_cost * (ws["pv_used"][d]
@@ -349,12 +413,26 @@ class BiddingEnv:
                                - ws["p_buy"][d] * lmp_node[d])
                     penalty = self.config.market_design.penalty_unserved \
                         * ws["unserved"][d]
-                    raw_reward += float(cons_val - gen_cost + mkt_pmt - penalty)
+                    step_reward = float(cons_val - gen_cost + mkt_pmt
+                                        - penalty)
+                    # Deduct storage cycle degradation (if applicable)
+                    if a.storage is not None:
+                        step_reward -= cycle_cost * (ws["p_ch"][d]
+                                                     + ws["p_dis"][d])
+                    # Deviation penalty — discourage saturation at action bounds
+                    if self.bid_dev_penalty > 0:
+                        bid_cur = self.current_actions[nm]["bid_mult"][
+                            t_start + d]
+                        step_reward -= self.bid_dev_penalty \
+                            * abs(bid_cur - 1.0)
+                    if self.offer_dev_penalty > 0:
+                        off_cur = self.current_actions[nm]["offer_adder"][
+                            t_start + d]
+                        step_reward -= self.offer_dev_penalty * off_cur
+                    raw_reward += step_reward
 
-                # Normalize reward through RunningMoments
-                norm = self.reward_norms[nm]
-                norm.update(raw_reward)
-                rewards[nm] = norm.normalize(raw_reward)
+                # Raw profit in CNY — no normalization
+                rewards[nm] = raw_reward
 
                 # Update forecaster and LMP history from committed period
                 block_lmp = float(np.mean(lmp_node[:n_commit]))

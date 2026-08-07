@@ -37,5 +37,6 @@ class RandomStrategy(BiddingStrategy):
             else:
                 actions[a.name] = {
                     "bid_mult": np.full(T, np.mean(config.market_design.bid_mult_range)),
+                    "offer_adder": np.zeros(T),
                 }
         return actions

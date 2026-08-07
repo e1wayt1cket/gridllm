@@ -28,10 +28,11 @@ class RLBiddingStrategy(BiddingStrategy):
             from rl_bidding import _TRAINED_POLICIES
             policies = _TRAINED_POLICIES
         if not policies:
-            # Try auto-loading from default path
+            # Try auto-loading from default path (skipped during training)
             import os as _os
             default_path = _os.path.join("policies", "default.pt")
-            if _os.path.exists(default_path):
+            if (_os.path.exists(default_path)
+                    and _os.environ.get("GRIDLLM_NO_POLICY_LOAD") != "1"):
                 from rl_env import BiddingEnv
                 _env = BiddingEnv(agents, config)
                 from rl_bidding import load_policies
@@ -40,8 +41,9 @@ class RLBiddingStrategy(BiddingStrategy):
                 from rl_bidding import _TRAINED_POLICIES as _p
                 policies = _p
         if not policies:
-            from strategies.random_bidding import RandomStrategy
-            return RandomStrategy().formulate(agents, config, market_history, T)
+            # No trained policies available — use fixed defaults for all agents
+            from strategies.fixed_bidding import FixedStrategy
+            return FixedStrategy().formulate(agents, config, market_history, T)
 
         from rl_env import (BiddingEnv, BID_MULT_LOW, BID_MULT_HIGH,
                             OFFER_ADDER_LOW, OFFER_ADDER_HIGH,
@@ -57,13 +59,10 @@ class RLBiddingStrategy(BiddingStrategy):
         actions = {}
         for a in agents:
             nm = a.name
-            if nm in policies or a.is_prosumer:
-                actions[nm] = {"bid_mult": np.full(T, 1.0),
-                               "offer_adder": np.full(T, 0.0)}
-            else:
-                actions[nm] = {"bid_mult": np.full(
-                    T, np.mean(config.market_design.bid_mult_range)),
-                    "offer_adder": np.full(T, 0.0)}
+            # All agents start with truthful defaults; trained policies
+            # overwrite their blocks in the loop below
+            actions[nm] = {"bid_mult": np.full(T, 1.0),
+                           "offer_adder": np.full(T, 0.0)}
 
         for block_idx in range(N_BLOCKS):
             t_start = block_idx * BLOCK_SIZE
@@ -89,14 +88,10 @@ class RLBiddingStrategy(BiddingStrategy):
 
             for a in agents:
                 nm = a.name
-                if nm in policies or not a.is_prosumer:
+                if nm in policies or nm in actions:
                     continue
-                rng = np.random.RandomState(
-                    hash(nm + str(block_idx)) % (2**31))
-                bid_m = rng.uniform(action_low, action_high)
-                offer_a = rng.uniform(OFFER_ADDER_LOW, OFFER_ADDER_HIGH)
-                if nm in actions:
-                    actions[nm]["bid_mult"][t_start:t_end] = bid_m
-                    actions[nm]["offer_adder"][t_start:t_end] = offer_a
+                # No policy and no action yet — use fixed defaults
+                actions[nm] = {"bid_mult": np.full(T, 1.0),
+                               "offer_adder": np.full(T, 0.0)}
 
         return actions

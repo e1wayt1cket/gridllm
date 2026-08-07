@@ -48,7 +48,7 @@ class MarketDesignConfig:
     default_offer_adder: float = 0.0
     emission_factor_grid: float = 0.58     # tCO2/MWh
     # Weighted-sum multi-objective
-    enable_multi_objective: bool = True
+    enable_multi_objective: bool = False
     lambda_re: float = 50.0                # RE incentive (CNY/MWh)
     lambda_curtail: float = 200.0          # curtailment penalty (CNY/MWh)
     lambda_carbon: float = 80.0            # carbon cost (CNY/tCO2)
