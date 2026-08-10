@@ -43,7 +43,8 @@ def list_agents_command():
               f"{has_stor:>8s} {has_wind:>5s} {str(a.is_prosumer):>10s}")
 
 
-def main():
+def build_parser():
+    """Construct the training CLI parser (testable in isolation)."""
     parser = argparse.ArgumentParser(
         description="Train independent TD3 bidding policies for all storage agents")
     parser.add_argument("--agent-names", type=str, default=None,
@@ -65,10 +66,10 @@ def main():
                         help="Learning rate for actor and critic")
     parser.add_argument("--noise-std", type=float, default=0.2,
                         help="Exploration noise standard deviation")
-    parser.add_argument("--bid-dev-penalty", type=float, default=0.0,
+    parser.add_argument("--bid-dev-penalty", type=float, default=5.0,
                         help="Penalty per unit |bid_mult - 1.0| per period "
                              "(0 = no penalty)")
-    parser.add_argument("--offer-dev-penalty", type=float, default=0.0,
+    parser.add_argument("--offer-dev-penalty", type=float, default=0.5,
                         help="Penalty per unit offer_adder per period "
                              "(0 = no penalty)")
     parser.add_argument("--bid-mult-low", type=float, default=0.6,
@@ -79,6 +80,11 @@ def main():
                         help="Random exploration steps before TD3 learning")
     parser.add_argument("--save-dir", type=str, default="policies/multi_agent",
                         help="Directory for saved policy files")
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
 
     if args.list_agents:
