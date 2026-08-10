@@ -153,7 +153,9 @@ class TD3:
                  noise_std: float = 0.2, target_noise: float = 0.2,
                  noise_clip: float = 0.5,
                  batch_size: int = 128, buffer_capacity: int = 100_000,
-                 start_steps: int = 500):
+                 start_steps: int = 500,
+                 bid_dev_penalty: float = 0.0,
+                 offer_dev_penalty: float = 0.0):
         self.obs_dim = obs_dim
         self.act_dim = act_dim
         self.gamma = gamma
@@ -164,6 +166,8 @@ class TD3:
         self.noise_clip = noise_clip
         self.batch_size = batch_size
         self.start_steps = start_steps
+        self.bid_dev_penalty = bid_dev_penalty
+        self.offer_dev_penalty = offer_dev_penalty
 
         self.action_low = action_bounds[0]
         self.action_high = action_bounds[1]
@@ -249,6 +253,17 @@ class TD3:
         if self.total_steps % self.policy_delay == 0:
             actor_action = self.actor(obs)
             actor_loss = -self.critic.q1_forward(obs, actor_action).mean()
+            # Deviation penalty: apply directly to the actor objective so the
+            # gradient toward moderate bids does not depend on the critic
+            # learning the penalty through the reward signal.
+            if self.bid_dev_penalty > 0:
+                bid = actor_action[:, 0]
+                actor_loss = actor_loss \
+                    + self.bid_dev_penalty * torch.abs(bid - 1.0).mean()
+            if self.offer_dev_penalty > 0:
+                offer = actor_action[:, 1]
+                actor_loss = actor_loss \
+                    + self.offer_dev_penalty * offer.mean()
 
             self.actor_opt.zero_grad()
             actor_loss.backward()

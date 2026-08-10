@@ -67,10 +67,12 @@ def build_parser():
     parser.add_argument("--noise-std", type=float, default=0.2,
                         help="Exploration noise standard deviation")
     parser.add_argument("--bid-dev-penalty", type=float, default=5.0,
-                        help="Penalty per unit |bid_mult - 1.0| per period "
+                        help="Actor-loss penalty per unit |bid_mult - 1.0| "
+                             "to keep bids away from action bounds "
                              "(0 = no penalty)")
     parser.add_argument("--offer-dev-penalty", type=float, default=0.5,
-                        help="Penalty per unit offer_adder per period "
+                        help="Actor-loss penalty per unit offer_adder to keep "
+                             "offers away from action bounds "
                              "(0 = no penalty)")
     parser.add_argument("--bid-mult-low", type=float, default=0.6,
                         help="Lower bound for bid_mult action space")
@@ -146,9 +148,10 @@ def main():
           f"Noise std: {args.noise_std}", flush=True)
 
     # ---- Create environment (all storage agents are RL) ----
+    # Reward is true market profit; the deviation penalty is applied directly
+    # to the actor loss in TD3, not to the environment reward, so the critic
+    # learns the real profit objective.
     env = BiddingEnv(agents, config, rl_agent_names=rl_agent_names,
-                     bid_dev_penalty=args.bid_dev_penalty,
-                     offer_dev_penalty=args.offer_dev_penalty,
                      bid_mult_low=args.bid_mult_low,
                      bid_mult_high=args.bid_mult_high)
     print(f"RL agents in env: {[a.name for a in env.rl_agents]}", flush=True)
@@ -159,7 +162,9 @@ def main():
 
     td3s = {name: TD3(obs_dim, act_dim, action_bounds,
                       lr=args.lr, noise_std=args.noise_std,
-                      start_steps=args.start_steps)
+                      start_steps=args.start_steps,
+                      bid_dev_penalty=args.bid_dev_penalty,
+                      offer_dev_penalty=args.offer_dev_penalty)
             for name in rl_agent_names}
 
     # ---- TensorBoard ----
