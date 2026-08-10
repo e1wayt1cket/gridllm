@@ -49,7 +49,7 @@ def test_actor_loss_increases_with_bid_penalty():
     _fill_buffer(penalized, np.array([1.4, 0.0]))
     loss_penalized = penalized.update()["actor_loss"]
 
-    # Penalty is strictly additive: 5.0 * |bid - 1.0| with bid saturated at 1.4.
+    # L2 penalty on the pre-tanh logit is strictly additive and non-negative.
     assert loss_penalized > loss_baseline
 
 
@@ -67,3 +67,37 @@ def test_actor_loss_increases_with_offer_penalty():
     loss_penalized = penalized.update()["actor_loss"]
 
     assert loss_penalized > loss_baseline
+
+
+def test_forward_logits_matches_forward():
+    """forward() and forward_logits() return the same action."""
+    actor = _make_td3().actor
+    obs = torch.zeros(1, OBS_DIM)
+    logits, action = actor.forward_logits(obs)
+    assert torch.allclose(action, actor(obs), atol=1e-6)
+    assert logits.shape == (1, ACT_DIM)
+    # action = mid + tanh(logit) * half
+    mid = (BOUNDS[0] + BOUNDS[1]) / 2.0
+    half = (BOUNDS[1] - BOUNDS[0]) / 2.0
+    expected = mid + torch.tanh(logits[0]) * half
+    assert torch.allclose(action[0], expected, atol=1e-6)
+
+
+def test_logit_penalty_survives_saturation():
+    """The L2 logit penalty keeps a nonzero gradient even when the actor is
+    saturated at the action bound, where d(tanh)/dx would vanish."""
+    random.seed(3)
+    torch.manual_seed(3)
+    td3 = _make_td3(bid_pen=5.0, offer_pen=0.0)
+    # Drive the actor's pre-tanh logits far from zero (saturated).
+    with torch.no_grad():
+        for p in td3.actor.net[4].parameters():
+            p.fill_(50.0)
+    obs = torch.zeros(8, OBS_DIM)
+    logits, _ = td3.actor.forward_logits(obs)
+    assert torch.all(torch.abs(logits[:, 0]) > 30.0)  # tanh fully saturated
+    loss = td3.bid_dev_penalty * (logits[:, 0] ** 2).mean()
+    loss.backward()
+    grads = [p.grad for p in td3.actor.net[4].parameters()
+             if p.grad is not None]
+    assert any(g.abs().sum().item() > 0 for g in grads)

@@ -67,13 +67,11 @@ def build_parser():
     parser.add_argument("--noise-std", type=float, default=0.2,
                         help="Exploration noise standard deviation")
     parser.add_argument("--bid-dev-penalty", type=float, default=5.0,
-                        help="Actor-loss penalty per unit |bid_mult - 1.0| "
-                             "to keep bids away from action bounds "
-                             "(0 = no penalty)")
+                        help="L2 penalty on the pre-tanh bid logit to keep "
+                             "bids away from action bounds (0 = no penalty)")
     parser.add_argument("--offer-dev-penalty", type=float, default=0.5,
-                        help="Actor-loss penalty per unit offer_adder to keep "
-                             "offers away from action bounds "
-                             "(0 = no penalty)")
+                        help="L2 penalty on the pre-tanh offer logit to keep "
+                             "offers away from action bounds (0 = no penalty)")
     parser.add_argument("--bid-mult-low", type=float, default=0.6,
                         help="Lower bound for bid_mult action space")
     parser.add_argument("--bid-mult-high", type=float, default=1.4,

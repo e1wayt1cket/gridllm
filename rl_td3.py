@@ -45,10 +45,23 @@ class Actor(nn.Module):
         self.register_buffer("action_high", action_bounds[1])
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        raw = self.net(obs)
+        _, action = self.forward_logits(obs)
+        return action
+
+    def forward_logits(self, obs: torch.Tensor) \
+            -> tuple[torch.Tensor, torch.Tensor]:
+        """Return (pre-tanh logits, final action) for the given obs.
+
+        The logits are the raw linear outputs before the final Tanh. A
+        deviation penalty applied to these logits keeps the policy from
+        saturating at the action bounds, because d(tanh)/dx vanishes at
+        saturation and would otherwise zero out any penalty gradient.
+        """
+        logits = self.net[:-1](obs)
+        raw = torch.tanh(logits)
         mid = (self.action_low + self.action_high) / 2.0
         half = (self.action_high - self.action_low) / 2.0
-        return mid + raw * half
+        return logits, mid + raw * half
 
 
 # ---------------------------------------------------------------------------
@@ -251,19 +264,19 @@ class TD3:
         # ---- Delayed actor update ----
         actor_loss = None
         if self.total_steps % self.policy_delay == 0:
-            actor_action = self.actor(obs)
+            logits, actor_action = self.actor.forward_logits(obs)
             actor_loss = -self.critic.q1_forward(obs, actor_action).mean()
-            # Deviation penalty: apply directly to the actor objective so the
-            # gradient toward moderate bids does not depend on the critic
-            # learning the penalty through the reward signal.
+            # Deviation penalty applied to the pre-tanh logits. Penalizing the
+            # squashed action fails because d(tanh)/dx -> 0 at the bounds, so
+            # the gradient vanishes exactly when the policy saturates. An L2
+            # term on the raw logits has gradient 2*coef*logit that survives
+            # saturation and pulls the policy back to moderate bids.
             if self.bid_dev_penalty > 0:
-                bid = actor_action[:, 0]
                 actor_loss = actor_loss \
-                    + self.bid_dev_penalty * torch.abs(bid - 1.0).mean()
+                    + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
             if self.offer_dev_penalty > 0:
-                offer = actor_action[:, 1]
                 actor_loss = actor_loss \
-                    + self.offer_dev_penalty * offer.mean()
+                    + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
 
             self.actor_opt.zero_grad()
             actor_loss.backward()
