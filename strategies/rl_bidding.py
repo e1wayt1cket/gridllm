@@ -36,8 +36,18 @@ class RLBiddingStrategy(BiddingStrategy):
                 from rl_env import BiddingEnv
                 _env = BiddingEnv(agents, config)
                 from rl_bidding import load_policies
-                load_policies(default_path, _env.get_state_dim(),
-                             _env.get_action_bounds())
+                try:
+                    load_policies(default_path, _env.get_state_dim(),
+                                  _env.get_action_bounds())
+                except Exception as e:
+                    # A saved checkpoint from an older observation space
+                    # (e.g. the 103-dim pre-V1 encoding) is incompatible;
+                    # fall back to fixed bidding rather than crashing.
+                    print(f"[strategies/rl] policy load failed ({e}); "
+                          f"falling back to fixed bidding", flush=True)
+                    from strategies.fixed_bidding import FixedStrategy
+                    return FixedStrategy().formulate(
+                        agents, config, market_history, T)
                 from rl_bidding import _TRAINED_POLICIES as _p
                 policies = _p
         if not policies:
@@ -75,7 +85,7 @@ class RLBiddingStrategy(BiddingStrategy):
                     continue
                 avg_oth, bid_std = env_temp._compute_opponent_features(nm)
                 obs = env_temp._get_agent_obs(
-                    a, block_idx, None, avg_price, slr, 0.0, avg_oth, bid_std)
+                    a, block_idx, None, avg_price, slr, avg_oth, bid_std)
                 obs_t = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
                 with torch.no_grad():
                     act_arr = policies[nm](obs_t).squeeze(0).numpy()

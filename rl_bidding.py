@@ -39,10 +39,23 @@ class Actor(nn.Module):
         self.register_buffer("action_high", action_bounds[1])
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        raw = self.net(obs)
+        _, action = self.forward_logits(obs)
+        return action
+
+    def forward_logits(self, obs: torch.Tensor) \
+            -> Tuple[torch.Tensor, torch.Tensor]:
+        """Return (pre-tanh logits, final action) for the given obs.
+
+        The logits are the raw linear outputs before the final Tanh. A
+        deviation penalty applied to these logits keeps the policy from
+        saturating at the action bounds, because d(tanh)/dx vanishes at
+        saturation and would otherwise zero out any penalty gradient.
+        """
+        logits = self.net[:-1](obs)
+        raw = torch.tanh(logits)
         mid = (self.action_low + self.action_high) / 2.0
         half = (self.action_high - self.action_low) / 2.0
-        return mid + raw * half
+        return logits, mid + raw * half
 
 
 # ---------------------------------------------------------------------------
@@ -63,13 +76,17 @@ class CentralizedCritic(nn.Module):
         self.critic_in = (obs_dim + unique_obs_dim * (n_agents - 1)
                           + act_dim * n_agents)
         h = 256 if n_agents <= 20 else 512
+        # Deeper critic with a drop layer; dropout only regularizes the
+        # online critic and must be off for the target networks (see MATD3).
         self.q1 = nn.Sequential(
-            nn.Linear(self.critic_in, h), nn.ReLU(),
+            nn.Linear(self.critic_in, h), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(h, h), nn.ReLU(),
             nn.Linear(h, h // 2), nn.ReLU(),
             nn.Linear(h // 2, 1),
         )
         self.q2 = nn.Sequential(
-            nn.Linear(self.critic_in, h), nn.ReLU(),
+            nn.Linear(self.critic_in, h), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(h, h), nn.ReLU(),
             nn.Linear(h, h // 2), nn.ReLU(),
             nn.Linear(h // 2, 1),
         )
@@ -135,7 +152,11 @@ class MATD3:
                  gamma: float = 0.99, tau: float = 0.005,
                  policy_delay: int = 2, noise_std: float = 0.2,
                  noise_clip: float = 0.5, batch_size: int = 128,
-                 buffer_capacity: int = 100_000, start_steps: int = 500):
+                 buffer_capacity: int = 100_000, start_steps: int = 500,
+                 bid_dev_penalty: float = 0.0,
+                 offer_dev_penalty: float = 0.0,
+                 final_noise_std: float = 0.05,
+                 noise_anneal_steps: int = 5000):
         self.env = env
         self.gamma = gamma
         self.tau = tau
@@ -144,6 +165,10 @@ class MATD3:
         self.noise_clip = noise_clip
         self.batch_size = batch_size
         self.start_steps = start_steps
+        self.bid_dev_penalty = bid_dev_penalty
+        self.offer_dev_penalty = offer_dev_penalty
+        self.final_noise_std = final_noise_std
+        self.noise_anneal_steps = max(1, noise_anneal_steps)
 
         obs_dim = env.get_state_dim()
         act_dim = 2
@@ -180,6 +205,9 @@ class MATD3:
                 n_agents, obs_dim, act_dim, unique_dim)
             self.critic_targets[a.name].load_state_dict(
                 self.critics[a.name].state_dict())
+            # Target networks must not apply dropout: stochastic targets would
+            # add noise to the Q-value regression targets and destabilize TD3.
+            self.critic_targets[a.name].eval()
             self.critic_opts[a.name] = optim.Adam(
                 self.critics[a.name].parameters(), lr=lr, weight_decay=1e-4)
 
@@ -216,7 +244,12 @@ class MATD3:
             obs_t = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
             action = self.actors[agent_name](obs_t).squeeze(0)
             if add_noise:
-                noise = torch.randn_like(action) * self.noise_std
+                # Anneal exploration noise from the initial to the final value
+                # over the first noise_anneal_steps updates, for convergence.
+                ratio = min(1.0, self.total_steps / self.noise_anneal_steps)
+                noise_std = (self.noise_std * (1 - ratio)
+                             + self.final_noise_std * ratio)
+                noise = torch.randn_like(action) * noise_std
                 noise = noise.clamp(-self.noise_clip, self.noise_clip)
                 action = (action + noise).clamp(self.action_low,
                                                 self.action_high)
@@ -282,10 +315,11 @@ class MATD3:
                 opt = self.actor_opts[nm]
 
                 # Current actions with this agent's actor
+                logits, new_act = actor.forward_logits(obs[:, i, :])
                 new_actions = []
                 for j, nm2 in enumerate(self.agent_names):
                     if j == i:
-                        new_actions.append(actor(obs[:, j, :]))
+                        new_actions.append(new_act)
                     else:
                         new_actions.append(act[:, j, :])
                 new_act_all = torch.stack(new_actions, dim=1)
@@ -293,6 +327,17 @@ class MATD3:
                 actor_loss = -critic.q1_forward(
                     self._build_global_state(obs, i),
                     new_act_all.view(self.batch_size, -1)).mean()
+                # Deviation penalty on the pre-tanh logits: penalizing the
+                # squashed action fails because d(tanh)/dx -> 0 at the bounds,
+                # so the gradient vanishes exactly when the policy saturates.
+                # An L2 term on the raw logits survives saturation and pulls
+                # the policy back to moderate bids.
+                if self.bid_dev_penalty > 0:
+                    actor_loss = actor_loss \
+                        + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
+                if self.offer_dev_penalty > 0:
+                    actor_loss = actor_loss \
+                        + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
 
                 opt.zero_grad()
                 actor_loss.backward()

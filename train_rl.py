@@ -1,14 +1,20 @@
 # train_rl.py
-"""Multi-agent RL training with TD3 for all storage agents.
+"""Multi-agent RL training for all storage agents.
 
-Each storage agent is an independent learner with its own TD3 policy. All
-policies are stepped together in one BiddingEnv each block; each agent
-updates from its own replay buffer (Independent Learner paradigm).
+Two algorithms:
+  - TD3 (default): independent learners, one policy and replay buffer per
+    agent.
+  - MATD3 (--algo matd3): centralized training with decentralized execution
+    (CTDE). One shared replay buffer; each agent has its own actor and a
+    centralized critic that sees all agents' unique observations and actions.
 
 RL controls the bid/offer PRICE (bid_mult, offer_adder). Storage SOC is
 dispatched by the market-clearing optimizer using the declared prices:
 self_schedule=False disables the MPC pre-scheduler so the OPF objective
 (which prices storage at the agent's declared bid/offer) steers storage.
+
+The per-block reward is raw profit minus the truthful-bidding baseline
+profit (differential reward, on by default; disable with --no-diff-reward).
 """
 
 import os
@@ -46,7 +52,12 @@ def list_agents_command():
 def build_parser():
     """Construct the training CLI parser (testable in isolation)."""
     parser = argparse.ArgumentParser(
-        description="Train independent TD3 bidding policies for all storage agents")
+        description="Train RL bidding policies for all storage agents "
+                    "(independent TD3 or MATD3/CTDE)")
+    parser.add_argument("--algo", type=str, default="td3",
+                        choices=["td3", "matd3"],
+                        help="Training algorithm: td3 (independent learners) "
+                             "or matd3 (centralized critic, CTDE)")
     parser.add_argument("--agent-names", type=str, default=None,
                         help="Comma-separated agent names to train. "
                              "Default: all agents with storage.")
@@ -72,15 +83,137 @@ def build_parser():
     parser.add_argument("--offer-dev-penalty", type=float, default=0.5,
                         help="L2 penalty on the pre-tanh offer logit to keep "
                              "offers away from action bounds (0 = no penalty)")
-    parser.add_argument("--bid-mult-low", type=float, default=0.6,
-                        help="Lower bound for bid_mult action space")
-    parser.add_argument("--bid-mult-high", type=float, default=1.4,
-                        help="Upper bound for bid_mult action space")
+    parser.add_argument("--bid-mult-low", type=float, default=None,
+                        help="Lower bound for bid_mult action space. "
+                             "Default: from config.market_design.bid_mult_range")
+    parser.add_argument("--bid-mult-high", type=float, default=None,
+                        help="Upper bound for bid_mult action space. "
+                             "Default: from config.market_design.bid_mult_range")
+    parser.add_argument("--no-diff-reward", action="store_false",
+                        dest="diff_reward", default=True,
+                        help="Disable differential reward (use raw profit "
+                             "instead of profit minus truthful baseline)")
+    parser.add_argument("--noise-anneal-steps", type=int, default=5000,
+                        help="Steps over which MATD3 exploration noise anneals "
+                             "from --noise-std to a floor of 0.05")
     parser.add_argument("--start-steps", type=int, default=500,
-                        help="Random exploration steps before TD3 learning")
+                        help="Random exploration steps before learning")
     parser.add_argument("--save-dir", type=str, default="policies/multi_agent",
                         help="Directory for saved policy files")
     return parser
+
+
+def _train_matd3(args, env, action_bounds, rl_agent_names,
+                 train_scenarios, writer):
+    """CTDE training loop: one MATD3 with a shared replay buffer.
+
+    Each agent keeps its own actor; a centralized critic per agent sees all
+    agents' unique observations plus all actions during training, which
+    resolves the non-stationarity that makes independent critics flat along
+    the action direction.
+    """
+    from rl_bidding import MATD3
+    from rl_td3 import save_policy
+
+    obs_dim = env.get_state_dim()
+    matd3 = MATD3(env, lr=args.lr, noise_std=args.noise_std,
+                  start_steps=args.start_steps,
+                  bid_dev_penalty=args.bid_dev_penalty,
+                  offer_dev_penalty=args.offer_dev_penalty,
+                  noise_anneal_steps=args.noise_anneal_steps)
+    low = action_bounds[0].numpy()
+    high = action_bounds[1].numpy()
+
+    t0 = time.time()
+    for ep in range(args.episodes):
+        sc_name = random.choice(train_scenarios)
+        config_copy = copy.deepcopy(env.config)
+        agents_sc, wholesale = get_scenario(sc_name, T=env.T,
+                                            config=config_copy)
+        env.set_agents(agents_sc, wholesale)
+        env.config = config_copy
+        obs = env.reset()
+
+        ep_rewards = {nm: 0.0 for nm in rl_agent_names}
+        ep_welfare = 0.0
+        ep_re_rate = 0.0
+
+        for _ in range(N_BLOCKS):
+            actions = {}
+            for nm in rl_agent_names:
+                if matd3.total_steps < matd3.start_steps:
+                    actions[nm] = np.random.uniform(low, high)
+                else:
+                    actions[nm] = matd3.select_action(
+                        obs[nm], nm, add_noise=True)
+
+            next_obs, rewards, done, info = env.step(actions)
+
+            obs_arr = np.stack([obs[nm] for nm in rl_agent_names])
+            act_arr = np.stack([actions[nm] for nm in rl_agent_names])
+            rew_arr = np.array([rewards.get(nm, 0.0) for nm in rl_agent_names])
+            next_obs_arr = np.stack([
+                next_obs.get(nm, np.zeros(obs_dim, dtype=np.float32))
+                for nm in rl_agent_names])
+            matd3.buffer.add(obs_arr, act_arr, rew_arr, next_obs_arr)
+            matd3.total_steps += 1
+
+            for nm in rl_agent_names:
+                ep_rewards[nm] += rewards.get(nm, 0.0)
+            ep_welfare = info.get("welfare", 0.0)
+            ep_re_rate = info.get("re_rate", 0.0)
+            obs = next_obs
+
+        # Post-episode updates
+        if matd3.total_steps >= matd3.start_steps:
+            c_losses, a_losses = [], []
+            for _ in range(N_BLOCKS):
+                li = matd3.update()
+                if li["critic_loss"] is not None:
+                    c_losses.append(li["critic_loss"])
+                if li["actor_loss"] is not None:
+                    a_losses.append(li["actor_loss"])
+            if c_losses:
+                writer.add_scalar("Loss/critic", np.mean(c_losses), ep)
+            if a_losses:
+                writer.add_scalar("Loss/actor", np.mean(a_losses), ep)
+
+        # TensorBoard
+        for nm in rl_agent_names:
+            writer.add_scalar(f"Reward/{nm}", ep_rewards[nm], ep)
+        writer.add_scalar("Welfare", ep_welfare, ep)
+        writer.add_scalar("RE_Rate", ep_re_rate, ep)
+        writer.add_scalar("Reward/mean",
+                          sum(ep_rewards.values()) / len(rl_agent_names), ep)
+
+        # Console logging
+        if (ep + 1) % max(1, args.episodes // 10) == 0 or ep == 0:
+            elapsed = time.time() - t0
+            mean_r = sum(ep_rewards.values()) / len(rl_agent_names)
+            print(f"Ep {ep+1}/{args.episodes} | mean_reward={mean_r:+.1f} | "
+                  f"welfare={ep_welfare:.0f} | RE={ep_re_rate:.1f}% | "
+                  f"sc={sc_name} | elapsed={elapsed:.0f}s | algo=matd3",
+                  flush=True)
+
+        # Checkpoint
+        if (ep + 1) % 50 == 0:
+            os.makedirs(args.save_dir, exist_ok=True)
+            for nm in rl_agent_names:
+                ckpt_path = os.path.join(
+                    args.save_dir, f"{nm}_ckpt_{ep+1}.pt")
+                save_policy(matd3.actors[nm], ckpt_path)
+            print(f"  -> checkpoint: {args.save_dir}", flush=True)
+
+    # ---- Save final policies ----
+    os.makedirs(args.save_dir, exist_ok=True)
+    for nm in rl_agent_names:
+        save_path = os.path.join(args.save_dir, f"{nm}.pt")
+        save_policy(matd3.actors[nm], save_path)
+    elapsed = time.time() - t0
+    print(f"MATD3 training complete: {args.episodes} episodes in "
+          f"{elapsed:.0f}s ({elapsed / args.episodes:.1f}s/ep)", flush=True)
+    print(f"Models saved: {args.save_dir}/{{name}}.pt "
+          f"({len(rl_agent_names)} agents)", flush=True)
 
 
 def main():
@@ -105,6 +238,11 @@ def main():
     # the MPC pre-scheduler and the nodal re-solve pass are disabled.
     config.storage.self_schedule = False
     config.storage.use_nodal_price = False
+
+    # ---- Action bounds: single source of truth in the market config ----
+    if args.bid_mult_low is None or args.bid_mult_high is None:
+        low, high = config.market_design.bid_mult_range
+        args.bid_mult_low, args.bid_mult_high = low, high
 
     # ---- Build initial agents from baseline scenario ----
     agents, _ = get_scenario("baseline", T=96, config=config)
@@ -146,10 +284,12 @@ def main():
           f"Noise std: {args.noise_std}", flush=True)
 
     # ---- Create environment (all storage agents are RL) ----
-    # Reward is true market profit; the deviation penalty is applied directly
-    # to the actor loss in TD3, not to the environment reward, so the critic
-    # learns the real profit objective.
+    # Reward is market profit, optionally shaped by subtracting the truthful-
+    # bidding baseline for the same block (differential reward). The deviation
+    # penalty lives in the actor loss, not the environment reward, so the
+    # critic learns the real profit objective.
     env = BiddingEnv(agents, config, rl_agent_names=rl_agent_names,
+                     use_differential_reward=args.diff_reward,
                      bid_mult_low=args.bid_mult_low,
                      bid_mult_high=args.bid_mult_high)
     print(f"RL agents in env: {[a.name for a in env.rl_agents]}", flush=True)
@@ -172,7 +312,18 @@ def main():
                            + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     writer = SummaryWriter(log_dir)
 
-    # ---- Training loop ----
+    # ---- CTDE path: MATD3 with a centralized critic ----
+    if args.algo == "matd3":
+        _train_matd3(args, env, action_bounds, rl_agent_names,
+                     train_scenarios, writer)
+        writer.close()
+        if eval_scenarios:
+            print(f"\nHeld-out scenarios: {eval_scenarios}")
+            print("Run `python eval_agents.py --policies "
+                  f"{args.save_dir}` for detailed evaluation.")
+        return
+
+    # ---- Independent TD3 training loop ----
     t0 = time.time()
     for ep in range(args.episodes):
         sc_name = random.choice(train_scenarios)

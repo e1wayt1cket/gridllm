@@ -22,11 +22,19 @@ RL 出价管线（`train_rl.py` + `dispatch_socp.py` + `rl_env.py`）已打通�
 
 **校准逻辑**：惩罚在 bid=0.6/1.4 处为 `5×0.4×4 = 8/块`。赢家 Bus23I 在 0.6 的边际收益 ~270/块 ≫ 8 → 0.6 策略保留；输家在 1.4 的边际收益为负，惩罚把 Q 在 1.4 处压低 → 被拉回 1.0 附近。惩罚只拦"边际收益 < 8/块"的偏离。
 
-## 改动范围
+## 改动范围（初版）
 
 - `train_rl.py`：`--bid-dev-penalty` 默认 `0 → 5`，`--offer-dev-penalty` 默认 `0 → 0.5`。
-- `rl_env.py`：惩罚代码已存在（`if self.bid_dev_penalty > 0` 守卫），无需改动。
 - `eval_agents.py`：不加惩罚。评估要真实市场利润；baseline（真实报价）也无惩罚，对比公平。训练带整形项、评估不带是标准做法。
+
+## 实现演进（现状，已偏离初版设计）
+
+- **惩罚载体三次演进**：reward 级 → actor loss 上对 squash 后 action 惩罚 → **actor loss 上对 pre-tanh logit 做 L2**（`rl_td3.py`、`rl_bidding.py` 的 actor 更新）。改到 logit 的原因：饱和处 d(tanh)/dx→0，对 squash 后 action 的惩罚梯度恰好消失；logit 的 L2 梯度 `2·coef·logit` 在饱和时仍存活。
+- **env reward 级惩罚已删除**：`rl_env.py` 不再含 `bid_dev_penalty`/`offer_dev_penalty` 参数与扣除逻辑，避免与 actor loss 惩罚重复。
+- **差分奖励**：`rl_env.py` 新增 `use_differential_reward`，每块 reward = 实际利润 − 同一窗口下"所有 RL 代理真实报价（bid=1.0/offer=0.0）"的基准利润（复用 `_make_window_agents` 二次 `clear_market`，不推进 SOC/forecaster）。把真实报价锚定为 0 优势，给平坦的 critic 一个可学梯度。
+- **观测降维 V1**：观测由 103 维（4 组 24 期序列）降为 9 维；`unique_obs_dim = 3`（load[0]/re_gen[0]/soc[0]，置于观测最前，供 MATD3 集中 critic 切分）。代价：丢失 24h 电价曲线形状与阻塞指数。
+- **CTDE（MATD3）路径**：`train_rl.py --algo matd3` 使用 `rl_bidding.py` 的 MATD3（集中 critic 看所有代理 unique 观测 + 所有动作），共享回放缓冲；`--noise-anneal-steps` 探索噪声退火；critic 扩为 [256,256,128]+Dropout(0.1)（target critic `.eval()`）。直接针对本 spec 诊断的"独立学习者 critic Q 平坦"根因。
+- **动作边界单一来源**：`train_rl.py --bid-mult-low/high` 默认 `None`，从 `config.market_design.bid_mult_range`（YAML `[0.3, 1.8]`）读取。
 
 ## 验证
 
@@ -37,9 +45,10 @@ RL 出价管线（`train_rl.py` + `dispatch_socp.py` + `rl_env.py`）已打通�
    - 总利润不再大幅为负
    - RE 消纳率变化（记录，不设硬指标）
 3. 若惩罚量级不当（赢家受损或输家仍亏），迭代调参（bid 2~10、offer 0.2~1）。
+4. CTDE 全量训练后（`--algo matd3`，200 ep）用 `eval_agents.py` 评估 5 场景，对照 `results/multi_logitreg_eval.csv`：profit_delta 显著 > 0、welfare 不降、`std_bid > 0.001`（不饱和）。
 
 ## 风险
 
 - 惩罚可能削掉部分真实偏离（量级迭代解决）。
 - RE 下降是独立问题，本方案不承诺改善。
-- 独立学习者的非平稳性仍在（惩罚只解决饱和，不解决协调），本方案不覆盖。
+- 独立学习者的非平稳性在独立 TD3 下仍在；CTDE（集中 critic）路径直接针对该根因，但差分奖励使训练成本约翻倍（每块二次 `clear_market`），可观测降维/`--no-diff-reward` 折衷。
