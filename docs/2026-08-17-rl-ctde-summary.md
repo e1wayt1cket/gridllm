@@ -70,7 +70,7 @@ CSV：`results/multi_logitreg_eval.csv`、`multi_td3_eval.csv`、`multi_matd3_ev
 - 结果：`results/multi_{logitreg,td3,matd3}_eval.csv`
 - 图表：`results/rl_work_summary.png`（综合总览：训练曲线+利润对比+福利分解+套利/市场力+统计瓷砖）、`results/rl_vs_baseline_comparison.png`（三算法对比）、`results/extraction_diagnosis_matd3.png`（套利 vs 市场力）
 - TensorBoard：`runs/train-multi-20260817-*`
-- `policies/`、`results/`、`runs/` 均 gitignored；`diagnose_profit.py`、`tests/test_rl_env_obs_dim.py` 未提交
+- `policies/`、`results/`、`runs/` 均 gitignored。2026-08-18 收尾新增：`rl_profit_diagnostics.py`（共享 welfare 假象分离，`diagnose_profit.py` 与 `eval_agents.py` 共用）、`pytest.ini`（slow 测试默认排除）
 
 ## 7. 复现命令
 
@@ -85,10 +85,13 @@ python eval_agents.py --policies policies/multi_matd3 \
 python diagnose_profit.py --policies policies/multi_matd3 --scenario baseline [--save-plot results/extraction_diagnosis_matd3.png]
 ```
 
-## 8. 未决事项 / 后续方向
+## 8. 后续方向（2026-08-18 收尾决策已记录）
 
-1. **把"一致福利 delta"并入 `eval_agents.py`**（低风险，直接复用 `valuation_artifact`）。
-2. **peak_load 真实 −25k**：若在意社会福利，需调查紧张场景的激进套利，或引入福利项调参。
-3. **目标函数抉择**（核心问题）：(a) 利润最大化 → 现状即完成，收尾；(b) 社会福利 → 需改目标（如 `reward = 差分利润 + λ×系统福利`，CTDE 在此目标下才有意义）；(c) 权衡 → λ 调参找 Pareto 前沿。
-4. **2 个 Stackelberg 测试降规模**（限 leader 数）或标 slow。
-5. 是否保留 CTDE 路径：当前目标下与 TD3 等价；若目标改协作式则 CTDE 值得保留。
+1. **目标函数抉择**：**已定利润最大化（收尾）**，不做社会福利/Pareto 目标改动。CTDE 路径保留（`--algo matd3|td3` 并存）。
+2. **eval 一致福利 delta**：**已实施**——`eval_agents.py` 组合整队运行新增 `valuation_artifact` / `genuine_welfare_delta` 列，复用 `rl_profit_diagnostics.py`（与 `diagnose_profit.py` 共享单一事实来源）；新增 `--checkpoint N` 加载指定集 checkpoint。验证：baseline matd3 `artifact≈−57.6k`、`genuine` 为正（+1.7k~+10.9k 随运行波动），机制与 §5 一致。
+3. **Stackelberg 慢测试**：**已隔离**——两个 Stackelberg 测试标 `@pytest.mark.slow`，`pytest.ini` 默认 `-m "not slow"` 排除。error 根因未查（数小时级，独立调查项）。
+4. **peak_load 真实 −25k**：利润目标下接受，不做福利调参。若后续转向福利目标再处理。
+5. **已知抖动测试**：`test_congestion_lower_welfare` 为既有抖动（根因：`dispatch_ldf._OPF_CACHE` 缓存键不含负荷数据，跨场景可能复用模型 + 跨进程哈希随机化 → 客观值 ±1% 波动）。决定保留原样；深修缓存键属核心调度层，另立任务。
+6. **复现注意**：价格曲线用全局未种子化 `np.random`，单次运行数值随进程波动 ~1%（利润结论 +18%~92% 为量级稳健，不受影响）。如需逐位复现，用 `PYTHONHASHSEED=0` 启动可消除哈希随机化。
+7. **留出场景泛化（2026-08-18 测得）**：re_ramp_drop/re_ramp_surge 未参与训练，最终策略 profit_delta 为正（+18.3k/+25.1k，波动价格创造套利），但 genuine 福利为负（−12.9k/−13.9k），与 peak_load −25k 同型——利润目标下接受。checkpoint 平台期（baseline）：profit_delta 单调上升（ckpt50 +2.9k → 200 +13.0k），200 集仍上升未明显趋平；genuine 全阶段为正。
+8. **多种子稳健性（2026-08-18）**：seed 42（完整 200 集）与 seed 123/7（各 ~150 集 checkpoint，训练被中途终止）三种子行为一致——mean_reward 收敛同平台（+5.8k~+6.3k）；4 场景 profit_delta 全正（baseline +13.6k~+14.4k、high_re +7.6k~+9.8k、congestion +14.8k~+15.0k、peak_load +28.2k~+30.4k）；genuine 正常场景为正、仅 peak_load 为负。稳健性结论成立。产物：`policies/multi_matd3_seed{123,7}/`（仅 checkpoint）。

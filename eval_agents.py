@@ -22,8 +22,9 @@ from typing import Dict, Optional
 
 from scenarios import get_scenario, list_scenarios
 from models import MarketConfig
-from rl_env import BiddingEnv, N_BLOCKS
+from rl_env import BiddingEnv, N_BLOCKS, BLOCK_SIZE
 from rl_td3 import Actor, load_policy
+from rl_profit_diagnostics import valuation_artifact
 
 
 def compute_agent_profit(schedule: dict, lmp_node: np.ndarray,
@@ -130,11 +131,14 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None) -> dict:
 
 
 def load_policies_from_dir(dir_path: str, obs_dim: int,
-                           action_bounds: torch.Tensor) \
+                           action_bounds: torch.Tensor,
+                           checkpoint: Optional[int] = None) \
         -> Dict[str, Actor]:
     """Load all .pt policy files from a directory.
 
-    Filename is used as agent name: "Agent_X.pt" → agent "Agent_X".
+    Filename is used as agent name: "Agent_X.pt" → agent "Agent_X". When
+    checkpoint is given, loads "{name}_ckpt_{N}.pt" for each agent instead
+    of the final policy files.
     """
     policies = {}
     if not os.path.isdir(dir_path):
@@ -142,10 +146,16 @@ def load_policies_from_dir(dir_path: str, obs_dim: int,
     for fname in sorted(os.listdir(dir_path)):
         if not fname.endswith(".pt"):
             continue
-        agent_name = fname.replace(".pt", "")
-        # Skip checkpoint files
-        if "_ckpt_" in agent_name:
-            continue
+        if checkpoint is not None:
+            if f"_ckpt_{checkpoint}." not in fname:
+                continue
+            agent_name = fname.replace(".pt", "")
+            agent_name = agent_name.replace(f"_ckpt_{checkpoint}", "")
+        else:
+            agent_name = fname.replace(".pt", "")
+            # Skip checkpoint files
+            if "_ckpt_" in agent_name:
+                continue
         path = os.path.join(dir_path, fname)
         try:
             net = load_policy(path, obs_dim, action_bounds)
@@ -171,6 +181,10 @@ def main():
     parser.add_argument("--combined-only", action="store_true",
                         help="Only run the combined all-policies evaluation, "
                              "skipping per-agent runs")
+    parser.add_argument("--checkpoint", type=int, default=None,
+                        help="Load {name}_ckpt_{N}.pt from --policies directory "
+                             "instead of the final {name}.pt files "
+                             "(requires --policies to be a directory)")
     parser.add_argument("--output", type=str, default=None,
                         help="CSV output path (default: print to console)")
     parser.add_argument("--seed", type=int, default=42,
@@ -203,8 +217,11 @@ def main():
 
     if os.path.isdir(args.policies):
         policies = load_policies_from_dir(
-            args.policies, obs_dim, action_bounds)
+            args.policies, obs_dim, action_bounds, checkpoint=args.checkpoint)
     else:
+        if args.checkpoint is not None:
+            print("--checkpoint requires --policies to be a directory")
+            return
         agent_name = os.path.splitext(os.path.basename(args.policies))[0]
         agent_name = agent_name.replace("_ckpt_", "").rsplit("_", 1)[0] \
             if "_ckpt_" in args.policies else agent_name
@@ -230,7 +247,8 @@ def main():
     results = []
     header = ["scenario", "agent", "baseline_profit", "rl_profit",
               "profit_delta", "welfare_baseline", "welfare_rl",
-              "welfare_delta", "re_rate_baseline", "re_rate_rl"]
+              "welfare_delta", "valuation_artifact", "genuine_welfare_delta",
+              "re_rate_baseline", "re_rate_rl"]
 
     for sc_name in eval_scenarios:
         print(f"--- {sc_name} ---")
@@ -301,11 +319,45 @@ def main():
                 comb_profits = {nm: 0.0 for nm in rl_names}
                 comb_welfare = 0.0
                 comb_re_rate = 0.0
-                for _ in range(N_BLOCKS):
+                # Stitch committed-period schedules and the DECLARED bid/offer
+                # so valuation_artifact can separate the genuine dispatch
+                # effect from the bid-shading welfare artifact (mirrors
+                # diagnose_profit.run_day).
+                T = env_comb.T
+                sched = {
+                    a.name: {k: np.zeros(T) for k in
+                             ["p_buy", "p_sell", "p_ch", "p_dis", "served",
+                              "unserved", "pv_used", "wind_used"]}
+                    for a in agents
+                }
+                declared = {nm: {"bid_mult": np.zeros(T),
+                                 "offer_adder": np.zeros(T)}
+                            for nm in rl_names}
+                for block in range(N_BLOCKS):
+                    t_start = block * BLOCK_SIZE
                     acts = {}
                     for nm in rl_names:
                         acts[nm] = actor_predict(policies[nm], obs[nm])
                     next_obs, rewards, done, info = env_comb.step(acts)
+                    res = env_comb._last_result
+                    n_commit = min(
+                        BLOCK_SIZE,
+                        min(t_start + env_comb.roll_horizon, T) - t_start)
+                    if res is not None:
+                        for nm in sched:
+                            ws = res["schedules"].get(nm)
+                            if ws is None:
+                                continue
+                            for key in sched[nm]:
+                                sched[nm][key][t_start:t_start + n_commit] = \
+                                    ws[key][:n_commit]
+                    for nm in rl_names:
+                        ca = env_comb.current_actions.get(nm)
+                        if ca is not None:
+                            declared[nm]["bid_mult"][t_start:t_start + n_commit] = \
+                                ca["bid_mult"][t_start:t_start + n_commit]
+                            declared[nm]["offer_adder"][t_start:t_start + n_commit] = \
+                                ca["offer_adder"][t_start:t_start + n_commit]
                     comb_welfare += info.get("welfare", 0.0)
                     comb_re_rate = info.get("re_rate", 0.0)
                     for nm in rl_names:
@@ -316,8 +368,13 @@ def main():
                     obs = next_obs
                 comb_welfare_delta = comb_welfare - base_result["welfare"]
                 comb_re_delta = comb_re_rate - base_result["re_rate"]
+                artifact = valuation_artifact(sched, declared, agents,
+                                              config_copy)
+                genuine = comb_welfare_delta - artifact
                 print(f"  Combined ({len(rl_names)} policies): "
                       f"welfare_delta={comb_welfare_delta:+.0f}  "
+                      f"artifact={artifact:+.0f}  "
+                      f"genuine={genuine:+.0f}  "
                       f"RE_delta={comb_re_delta:+.1f}pp")
                 for nm in rl_names:
                     print(f"    {nm}: profit={comb_profits[nm]:.1f}  "
@@ -335,6 +392,8 @@ def main():
                     "welfare_baseline": base_result["welfare"],
                     "welfare_rl": comb_welfare,
                     "welfare_delta": comb_welfare_delta,
+                    "valuation_artifact": artifact,
+                    "genuine_welfare_delta": genuine,
                     "re_rate_baseline": base_result["re_rate"],
                     "re_rate_rl": comb_re_rate,
                 })

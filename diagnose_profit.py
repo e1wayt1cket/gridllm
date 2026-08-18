@@ -29,6 +29,7 @@ from models import MarketConfig
 from scenarios import get_scenario
 from rl_env import BiddingEnv, N_BLOCKS, BLOCK_SIZE
 from rl_td3 import load_policy
+from rl_profit_diagnostics import valuation_artifact
 
 N_BUS = 33
 DEFAULT_ACTION = np.array([1.0, 0.0], dtype=np.float32)
@@ -99,35 +100,6 @@ def agent_profit(s: dict, lmp_node: np.ndarray, agent, config) -> float:
     pen = float(config.market_design.penalty_unserved * np.sum(s["unserved"]))
     cyc = float(config.storage.cycle_cost * np.sum(s["p_ch"] + s["p_dis"]))
     return mkt + cons - gen - pen - cyc
-
-
-def valuation_artifact(sched: dict, declared: dict, agents, config) -> float:
-    """Welfare (ObjVal) drop caused purely by RL bid shading.
-
-    The OPF objective values load ``served`` and storage charge/discharge at
-    the agent's DECLARED bid/offer. A shaded bid_mult<1 therefore understates
-    both the storage agent's load value and its charging value in the metric,
-    even when the real dispatch is unchanged. Revaluing the same RL dispatch
-    at truthful bid_value/offer_cost isolates that distortion.
-
-    Mirrors dispatch_socp.py: ``bid*served`` is undiscounted; the storage
-    ``bid*ch - offer*dis`` term carries the discount factor.
-    """
-    gamma = config.storage.discount_factor
-    A = 0.0
-    for a in agents:
-        if a.storage is None:
-            continue
-        s = sched[a.name]
-        bm = declared[a.name]["bid_mult"]
-        oa = declared[a.name]["offer_adder"]
-        # load-value (served) term: undiscounted
-        A += float(np.sum(a.bid_value * (bm - 1.0) * s["served"]))
-        # storage charge/discharge valuation: discounted
-        disc = gamma ** np.arange(len(s["p_ch"]))
-        A += float(np.sum(
-            disc * (a.bid_value * (bm - 1.0) * s["p_ch"] - oa * s["p_dis"])))
-    return A
 
 
 def decompose(rows: list, s_base, lmp_base, s_rl, lmp_rl,

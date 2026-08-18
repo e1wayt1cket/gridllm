@@ -97,8 +97,8 @@ Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, 
 | `batch_export.py` | Standalone batch runner: 4 scenarios with fast Nash testing |
 | `compare_methods.py` | Multi-objective method comparison: sweeps carbon caps and RE rate targets, outputs welfare/emission/shadow-price comparison table |
 | `stackelberg.py` | Supplier-prosumer leader-follower game model |
-| `rl_env.py` | Reinforcement learning environment: Gym-style interface for bidding strategy training (103-dim observation, 24 decision blocks/day) |
-| `rl_bidding.py` | MATD3 bidding strategy training: centralized critics, twin delayed Q-learning, L2 regularization |
+| `rl_env.py` | Reinforcement learning environment: Gym-style interface for bidding strategy training (9-dim compact observation, 24 decision blocks/day) |
+| `rl_bidding.py` | MATD3 (CTDE) bidding strategy training: centralized critics, twin delayed Q-learning, L2 regularization |
 | `price_forecaster.py` | Price forecasting: synthetic sinusoidal and supply-stack merit-order methods |
 | `export_analysis.py` | Data quality analysis: agent energy balance, SOC boundaries, anomaly detection |
 | `mpc_storage.py` | MPC storage self-scheduling: rolling-horizon optimization of storage charge/discharge plans |
@@ -111,7 +111,8 @@ Key dependencies: `gurobipy`, `pandapower`, `dash`, `plotly`, `numpy`, `scipy`, 
 
 - **Algorithm**: MATD3 with CTDE — one Actor (local observation → bid) and one centralized twin-Q Critic per agent
 - **Action space**: `(bid_mult ∈ [0.3, 1.8], offer_adder ∈ [0, 50])` per decision block; 24 blocks/day (15-min periods, 1-hour decisions)
-- **Observation**: 103-dim vector — 24-period lookahead load/RE generation, LMP history, price forecast, SOC, congestion index, opponent bid statistics
+- **Observation**: 9-dim compact vector — load, RE generation, SOC (per-agent) plus LMP history, block position, load/RE ratio, opponent bid statistics (shared)
+- **Reward**: differential reward — per-block profit minus the truthful-bidding baseline; an optional L2 deviation penalty on the pre-tanh logits keeps bids away from the action bounds
 - **Training**: `python train_rl.py` (200 episodes, ~7s/episode); TensorBoard logs under `runs/`
 
 ## Scenarios

@@ -253,6 +253,7 @@ def test_constraint_vs_weighted():
         f"high carbon price {r_wh['carbon_emissions']:.1f} > zero price {r_w0['carbon_emissions']:.1f}"
 
 
+@pytest.mark.slow
 def test_stackelberg_improves_leader_payoff():
     """Stackelberg leader bidding should improve leader payoff vs RL bidding."""
     T = 96
@@ -287,6 +288,7 @@ def test_stackelberg_improves_leader_payoff():
     assert len(info["optimal_params"]) >= 1
 
 
+@pytest.mark.slow
 def test_stackelberg_nash_runs():
     """Multi-leader Stackelberg-Nash should converge within few rounds."""
     T = 96

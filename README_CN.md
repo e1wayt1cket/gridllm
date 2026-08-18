@@ -31,7 +31,7 @@ run.py / dashboard.py / batch_export.py
 - **交互式仪表板**：Plotly Dash 应用（端口 8050），支持拓扑可视化、LMP 热力图、时序曲线、储能 SOC、KPI 卡片、结算表格和 AI 洞察面板
 - **伪实时仿真**：96 时段逐步执行，增量更新储能状态，可配置壁钟速度
 - **Stackelberg 博弈**：供电商作为领导者、产消者作为跟随者的主从博弈模型
-- **强化学习竞价**：基于 PPO 的竞价策略训练，Gym 式环境接口
+- **强化学习竞价**：MATD3（CTDE）/TD3 竞价策略训练，差分奖励，Gym 式环境接口
 
 ## 快速开始
 
@@ -94,8 +94,8 @@ python -m pytest tests/ -v
 | `batch_export.py` | 独立批量运行器：4 场景 + 快速纳什测试 |
 | `compare_methods.py` | 多目标方法对比：遍历不同碳排上限与 RE 占比，输出福利/排放/影子价格对比表 |
 | `stackelberg.py` | 供电商-产消者主从博弈模型 |
-| `rl_env.py` | 强化学习环境：Gym 式接口，用于训练竞价策略 |
-| `rl_bidding.py` | 强化学习竞价策略：基于 PPO 的智能体竞价训练 |
+| `rl_env.py` | 强化学习环境：Gym 式接口，用于训练竞价策略（9 维紧凑观测） |
+| `rl_bidding.py` | 强化学习竞价策略：MATD3（CTDE 集中 critic）智能体竞价训练 |
 | `price_forecaster.py` | 电价预测：合成正弦曲线法与基于供需栈的 merit-order 法 |
 | `export_analysis.py` | 数据质量分析：智能体能量平衡、SOC 边界、异常检测 |
 | `mpc_storage.py` | MPC 储能自调度：滚动时域优化储能充放电计划 |
