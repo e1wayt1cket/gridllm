@@ -1,10 +1,11 @@
-"""Tests for the compact V1 observation space in rl_env.
+"""Tests for the compact V2 observation space in rl_env.
 
 The observation was reduced from the original 103-dim (four 24-period
-sequences plus scalars) to a 9-dim vector whose first three entries are the
-per-agent features (load, re-gen, SOC). MATD3's centralized critic slices the
-leading `unique_obs_dim` entries of each other agent's observation, so the
-ordering is part of the contract under test.
+sequences plus scalars) to an 11-dim vector whose first three entries are the
+per-agent features (load, re-gen, SOC); the shared block adds LMP/system
+indicators and the two price-prediction features (EMA deviation, LMP trend).
+MATD3's centralized critic slices the leading `unique_obs_dim` entries of each
+other agent's observation, so the ordering is part of the contract under test.
 """
 
 import numpy as np
@@ -26,11 +27,11 @@ def _make_env(use_differential_reward: bool = False):
     return env, rl_names
 
 
-def test_obs_dim_is_compact_v1():
+def test_obs_dim_is_compact_v2():
     env, _ = _make_env()
-    assert env.get_state_dim() == 9
+    assert env.get_state_dim() == 11
     assert env.unique_obs_dim == 3
-    assert env.shared_obs_dim == 6
+    assert env.shared_obs_dim == 8
 
 
 def test_obs_shape_and_leading_per_agent_features():
@@ -38,11 +39,16 @@ def test_obs_shape_and_leading_per_agent_features():
     obs = env.reset()
     assert len(obs) > 0
     for o in obs.values():
-        assert o.shape == (9,)
+        assert o.shape == (11,)
         assert o.dtype == np.float32
         # Leading entries are the per-agent features: load[0], re_gen[0], soc
         assert o[0] >= 0.0          # load cannot be negative
         assert 0.0 <= o[2] <= 1.0   # SOC in [0, 1]
+        # Price-prediction features (EMA deviation, LMP trend) are bounded
+        # and finite; at reset the forecaster is empty, so both are zero.
+        assert -1.0 <= o[9] <= 1.0
+        assert -1.0 <= o[10] <= 1.0
+        assert np.isfinite(o[9]) and np.isfinite(o[10])
 
 
 def test_differential_reward_flag():

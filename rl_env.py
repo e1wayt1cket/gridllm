@@ -2,8 +2,9 @@
 """Gym-style RL environment for continuous-action agent bidding.
 
 Each episode = one 96-period day. Agents act on 4-period blocks (24 steps).
-Observation is a compact V1 vector: current load/RE/SOC, last LMP, block
-position, average LMP, load/RE ratio, and opponent-bid statistics.
+Observation is a compact V2 vector (11-dim): current load/RE/SOC, last LMP,
+block position, average LMP, load/RE ratio, opponent-bid statistics, plus
+price-prediction features (LMP deviation from EMA and recent LMP trend).
 Action is continuous: (bid_mult in [0.3, 1.8], offer_adder in [0, 50]).
 
 Optional differential reward: reward = raw profit - profit under truthful
@@ -98,6 +99,11 @@ class BiddingEnv:
         # for opponent-feature computation to avoid self-reference bias
         # when agents are evaluated sequentially within a block.
         self._prev_block_actions: Optional[Dict] = None
+        # Cumulative RE consumption over committed periods of the day, used
+        # to report a day-aggregate re_rate in step() info (not the last
+        # rolling-window value).
+        self._re_used = 0.0
+        self._re_avail = 0.0
 
     def get_action_bounds(self) -> torch.Tensor:
         """Return (low, high) bounds tensor for the 2-dim continuous action."""
@@ -121,14 +127,14 @@ class BiddingEnv:
     @property
     def shared_obs_dim(self) -> int:
         """Shared observation features (LMP, price, system indicators)."""
-        return self.obs_dim - self.unique_obs_dim  # 9 - 3 = 6
+        return self.obs_dim - self.unique_obs_dim  # 11 - 3 = 8
 
     def _compute_obs_dim(self) -> int:
-        """Flattened observation dimension per agent (compact V1)."""
+        """Flattened observation dimension per agent (compact V2)."""
         # unique(3): load[0], re_gen[0], soc[0]
-        # shared(6): last_lmp, block_pos, avg_lmp, load_re_ratio,
-        #            avg_other_bid, bid_std
-        return 9
+        # shared(8): last_lmp, block_pos, avg_lmp, load_re_ratio,
+        #            avg_other_bid, bid_std, ema_deviation, price_trend
+        return 11
 
     # ------------------------------------------------------------------
     # Default actions for non-RL agents
@@ -223,10 +229,28 @@ class BiddingEnv:
         # Positional encoding — normalize block index to [0, 1]
         block_pos = block_idx / float(N_BLOCKS - 1)
 
+        # Price-prediction features from the per-agent forecaster: how far the
+        # current LMP deviates from its EMA, and the recent LMP slope. Both are
+        # normalized to stay O(1) and clipped for stability; the forecaster's
+        # forecast() itself returns EMA persistence, so the deviation already
+        # carries that signal and only a history slope adds new information.
+        fc = self.forecasters[agent.name]
+        ema = fc._ema if fc._ema is not None else last_lmp
+        ema_dev = (last_lmp - ema) / ema if ema != 0 else 0.0
+        trend = 0.0
+        if len(fc._history) >= 2:
+            k = min(4, len(fc._history))
+            pts = fc._history[-k:]
+            slope = np.polyfit(np.arange(k), pts, 1)[0]
+            trend = slope / ema if ema != 0 else 0.0
+        ema_dev = float(np.clip(ema_dev, -1.0, 1.0))
+        trend = float(np.clip(trend, -1.0, 1.0))
+
         obs = np.array([
             float(load[0]), re_gen, soc,
             last_lmp, block_pos, avg_lmp, system_load_re_ratio,
             avg_other_bid, bid_std,
+            ema_dev, trend,
         ], dtype=np.float32)
         return obs
 
@@ -252,6 +276,31 @@ class BiddingEnv:
                     total_re += np.sum(np.maximum(
                         a.wind_real[t_start:t_end], 0))
         return float(total_load / max(total_re, 1e-6))
+
+    def _committed_re_avail(self, t_start: int, n_commit: int) -> float:
+        """RE energy available over the committed slice of the current window.
+
+        Mirrors the availability accounting in dispatch (sum pv/wind forecast
+        over prosumer and wind-capable agents), but only for the periods this
+        block commits, so the accumulated day-aggregate rate is exact.
+        """
+        avail = 0.0
+        for a in self.all_agents:
+            if self.stage == "DA":
+                if a.is_prosumer:
+                    avail += float(np.sum(np.maximum(
+                        a.pv_forecast[t_start:t_start + n_commit], 0)))
+                if a.has_wind:
+                    avail += float(np.sum(np.maximum(
+                        a.wind_forecast[t_start:t_start + n_commit], 0)))
+            else:
+                if a.is_prosumer:
+                    avail += float(np.sum(np.maximum(
+                        a.pv_real[t_start:t_start + n_commit], 0)))
+                if a.has_wind:
+                    avail += float(np.sum(np.maximum(
+                        a.wind_real[t_start:t_start + n_commit], 0)))
+        return avail * 0.25  # dt_h
 
     def _compute_opponent_features(self, agent_name: str) -> tuple:
         """Return (avg_other_bid_mult, bid_mult_std) from previous-block snapshot.
@@ -296,6 +345,8 @@ class BiddingEnv:
         self.block_idx = 0
         self.prev_soc = {}
         self.hist_lmp = deque(maxlen=96)
+        self._re_used = 0.0
+        self._re_avail = 0.0
         for fc in self.forecasters.values():
             fc._ema = None
             fc._history = []
@@ -489,6 +540,17 @@ class BiddingEnv:
             for a in self.rl_agents:
                 rewards[a.name] = 0.0
 
+        # ---- Accumulate committed-period RE for the day-aggregate rate ----
+        if result is not None:
+            for a in self.all_agents:
+                ws = result["schedules"].get(a.name)
+                if ws is None:
+                    continue
+                self._re_used += float(np.sum(
+                    (ws["pv_used"][:n_commit] + ws["wind_used"][:n_commit])
+                    * 0.25))
+            self._re_avail += self._committed_re_avail(t_start, n_commit)
+
         self.block_idx += 1
         done = self.block_idx >= N_BLOCKS
 
@@ -511,6 +573,7 @@ class BiddingEnv:
 
         info = {"lmp": result["lmp"] if result else None,
                 "welfare": result["welfare"] if result else 0.0,
-                "re_rate": result["re_consumption_rate"] if result else 0.0}
+                "re_rate": (self._re_used / self._re_avail * 100.0)
+                           if self._re_avail > 0 else 100.0}
 
         return obs, rewards, done, info

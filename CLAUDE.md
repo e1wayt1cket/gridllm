@@ -48,7 +48,7 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
 - **`market.py`**: Market clearing orchestration — `clear_market` builds the OPF problem and calls dispatch; bidding strategies (`random_actions`, `best_response_bidding`); `adaptive_bidding` dispatches by strategy name; `two_settlement` computes DA+RT settlement payments; `clear_rt_rolling` implements MPC-style rolling horizon real-time market.
 - **`scenarios.py`**: Six registered scenarios (`baseline`, `high_re`, `peak_load`, `congestion`, `re_ramp_drop`, `re_ramp_surge`) accessed via `get_scenario(name, T)`.
 - **`nash.py`**: Nash equilibrium testing via fictitious play with parallel multiprocessing (`Pool`). Tests unilateral deviation incentives; iterates to approximate equilibrium.
-- **`llm.py`**: `LLMAdvisor` calls local Ollama (`gemma4:e2b`) for natural language → scenario config parsing and post-simulation insight generation (rule-based fallback if unavailable).
+- **`llm.py`**: `LLMAdvisor` calls local Ollama (`qwen2.5:7b`) for natural language → scenario config parsing and post-simulation insight generation (rule-based fallback if unavailable).
 - **`pseudo_realtime.py`**: `PseudoRealTimeSimulator` — step-by-step RT execution with incremental storage state updates and configurable wall-clock speed.
 - **`dashboard.py`**: Plotly Dash app (port 8050) with scenario/OPF/strategy selectors, static analysis, pseudo-real-time controls, Nash trigger, LMP heatmap on bus topology, time-series charts, KPI cards, settlement tables, and AI insight panel.
 - **`compare_methods.py`**: Sweeps weighted-sum vs constraint-based multi-objective across varying carbon caps and RE rate targets, printing welfare/emission/shadow-price comparison table.
@@ -60,5 +60,6 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
 - **T=96 is the standard horizon** (24h at 15-min intervals, dt=0.25h). All modules assume this unless explicitly overridden.
 - **Result dict schema**: `clear_market` returns `{price, lmp (96×33), schedules (per-agent dicts with p_buy/p_sell/served/unserved/pv_used/wind_used/p_ch/p_dis/soc), welfare, re_consumption_rate, total_re_available, carbon_emissions, carbon_intensity, total_curtailment, shadow_prices}`.
 - **Bidding strategies** operate on `bid_mult` (scales willingness-to-pay) and `offer_adder` (added to marginal cost for prosumers). `best_response_bidding` adapts based on prior LMP signals.
-- **The `agent/` directory** contains an earlier standalone trading agent implementation (`agent_trading.py`) that is independent of the main simulation modules.
+- **The `raw/` directory** contains an earlier standalone trading agent implementation (`agent_trading.py`) that is independent of the main simulation modules.
+- **RL bidding (CTDE MATD3 / TD3)**: trains on a single fixed scenario by default (pass `--scenarios` a list to rotate); 11-dim compact observation (load/RE/SOC, LMP/system indicators, EMA-deviation and LMP-trend prediction features); differential reward (per-block profit minus the truthful-bidding baseline) with a pre-tanh-logit L2 deviation penalty in the actor loss.
 - **UI language**: Dashboard labels are in Chinese; physical quantities and abbreviations use English.

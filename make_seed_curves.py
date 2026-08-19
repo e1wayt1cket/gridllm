@@ -11,6 +11,7 @@ Usage:
 """
 
 import os
+import numpy as np
 from tensorboard.backend.event_processing.event_accumulator \
     import EventAccumulator
 import matplotlib
@@ -53,12 +54,21 @@ def main():
     finals = {}
     for label, path in RUNS.items():
         steps, vals = load_curve(path)
-        finals[label] = vals[-1]
+        vals = np.asarray(vals, dtype=float)
+        # Converged value: mean of the last 50 episodes, far less sensitive to
+        # per-episode environment noise than the last single value.
+        conv = float(vals[-50:].mean())
+        finals[label] = conv
         ax.plot(steps, vals, color=COLORS[label], lw=2, label=label)
-        # Direct end label: final converged value, in secondary ink (not the
-        # series color), offset past the last point.
-        ax.annotate(f"{vals[-1]:+,.0f}",
-                    xy=(steps[-1], vals[-1]),
+        # Rolling-mean (window 10) overlay in the same hue, thinner and
+        # lighter, so the convergence trend is visible through the noise.
+        if len(vals) >= 10:
+            roll = np.convolve(vals, np.ones(10) / 10, mode="valid")
+            ax.plot(steps[9:], roll, color=COLORS[label], lw=1.2, alpha=0.6)
+        # Direct end label: converged value (last-50 mean), in secondary ink
+        # (not the series color), offset past the last point.
+        ax.annotate(f"{conv:+,.0f}",
+                    xy=(steps[-1], conv),
                     xytext=(6, 0), textcoords="offset points",
                     color=SECONDARY, fontsize=9, va="center")
 
@@ -83,7 +93,7 @@ def main():
 
     # Convergence table caption (secondary encoding / relief for aqua).
     cap = "  ".join(f"{k}: {v:+,.0f}" for k, v in finals.items())
-    fig.text(0.06, 0.02, f"final mean reward — {cap}",
+    fig.text(0.06, 0.02, f"converged mean reward (last-50 eps) — {cap}",
              color=SECONDARY, fontsize=9)
 
     fig.tight_layout(rect=(0, 0.04, 1, 1))
