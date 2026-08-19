@@ -26,12 +26,16 @@ import copy
 import numpy as np
 import torch
 
-from scenarios import get_scenario, list_scenarios
+from scenarios import get_scenario
 from models import MarketConfig
 from rl_env import BiddingEnv, N_BLOCKS
 from rl_td3 import TD3, save_policy
 
 N_EPISODES = 200
+# Each training run trains on a single fixed scenario by default, so the
+# reward curve is free of scenario-rotation noise and per-run behavior is
+# scenario-specific. Pass --scenarios with a comma-separated list to rotate.
+DEFAULT_TRAIN_SCENARIO = "baseline"
 
 
 def list_agents_command():
@@ -65,7 +69,8 @@ def build_parser():
                         help="Print all available agent names and exit")
     parser.add_argument("--scenarios", type=str, default=None,
                         help="Comma-separated scenario names for training. "
-                             "Default: all scenarios except re_ramp variants")
+                             "Default: a single fixed scenario (baseline); "
+                             "pass a list to rotate across them")
     parser.add_argument("--eval-scenarios", type=str, default=None,
                         help="Comma-separated scenario names held out for "
                              "post-training evaluation")
@@ -101,6 +106,19 @@ def build_parser():
     parser.add_argument("--save-dir", type=str, default="policies/multi_agent",
                         help="Directory for saved policy files")
     return parser
+
+
+def _resolve_train_scenarios(scenarios_arg):
+    """Resolve the training scenario list from a --scenarios argument.
+
+    Default is a single fixed scenario (DEFAULT_TRAIN_SCENARIO) so that each
+    training run trains on one scenario only, keeping the reward curve free of
+    scenario-rotation noise. Passing an explicit comma-separated list restores
+    rotation across that subset.
+    """
+    if scenarios_arg:
+        return [s.strip() for s in scenarios_arg.split(",")]
+    return [DEFAULT_TRAIN_SCENARIO]
 
 
 def _train_matd3(args, env, action_bounds, rl_agent_names,
@@ -266,18 +284,14 @@ def main():
           f"{args.bid_mult_high}], offer_adder=[0, 50]", flush=True)
 
     # ---- Determine training and evaluation scenarios ----
-    all_scenarios = list_scenarios()
-    if args.scenarios:
-        train_scenarios = [s.strip() for s in args.scenarios.split(",")]
-    else:
-        train_scenarios = [s for s in all_scenarios
-                           if not s.startswith("re_ramp")]
+    train_scenarios = _resolve_train_scenarios(args.scenarios)
     if args.eval_scenarios:
         eval_scenarios = [s.strip() for s in args.eval_scenarios.split(",")]
     else:
         eval_scenarios = []
 
-    print(f"Training scenarios: {train_scenarios}")
+    sc_mode = "fixed" if len(train_scenarios) == 1 else "rotation"
+    print(f"Training scenario(s): {train_scenarios} ({sc_mode})")
     if eval_scenarios:
         print(f"Eval scenarios (held out): {eval_scenarios}")
     print(f"Episodes: {args.episodes}  |  LR: {args.lr}  |  "

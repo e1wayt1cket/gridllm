@@ -85,6 +85,8 @@ python eval_agents.py --policies policies/multi_matd3 \
 python diagnose_profit.py --policies policies/multi_matd3 --scenario baseline [--save-plot results/extraction_diagnosis_matd3.png]
 ```
 
+> 2026-08-19 起 `train_rl.py` 默认训练为**固定单场景（baseline）**，曲线无场景轮换噪声。复现本文 6 场景轮换结果需显式 `--scenarios baseline,high_re,peak_load,congestion,no_congestion,tight_bottleneck`。
+
 ## 8. 后续方向（2026-08-18 收尾决策已记录）
 
 1. **目标函数抉择**：**已定利润最大化（收尾）**，不做社会福利/Pareto 目标改动。CTDE 路径保留（`--algo matd3|td3` 并存）。
