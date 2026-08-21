@@ -104,24 +104,34 @@ class CentralizedCritic(nn.Module):
 # ---------------------------------------------------------------------------
 
 class ReplayBuffer:
-    """Fixed-size replay buffer storing (obs, action, reward, next_obs)."""
+    """Fixed-size replay buffer storing (obs, action, reward, next_obs, done)."""
 
     def __init__(self, capacity: int = 100_000):
         self.buffer = deque(maxlen=capacity)
 
-    def add(self, obs, action, reward, next_obs):
+    def add(self, obs, action, reward, next_obs, done):
         """obs/next_obs: (n_agents, obs_dim), action: (n_agents, act_dim),
-           reward: (n_agents,)"""
+           reward/done: (n_agents,)"""
         self.buffer.append((
-            obs.copy(), action.copy(), reward.copy(), next_obs.copy()))
+            obs.copy(), action.copy(), reward.copy(), next_obs.copy(),
+            np.asarray(done, dtype=np.float32).copy()))
 
     def sample(self, batch_size: int):
         batch = random.sample(self.buffer, min(batch_size, len(self.buffer)))
-        obs, act, rew, next_obs = zip(*batch)
+        obs, act, rew, next_obs, done = zip(*batch)
         return (torch.as_tensor(np.array(obs), dtype=torch.float32),
                 torch.as_tensor(np.array(act), dtype=torch.float32),
                 torch.as_tensor(np.array(rew), dtype=torch.float32),
-                torch.as_tensor(np.array(next_obs), dtype=torch.float32))
+                torch.as_tensor(np.array(next_obs), dtype=torch.float32),
+                torch.as_tensor(np.array(done), dtype=torch.float32))
+
+    def reward_std(self) -> float:
+        """Std of the rewards currently stored, used to normalize the critic
+        target scale so Q-values stay bounded over training."""
+        if not self.buffer:
+            return 1.0
+        s = float(np.std([t[2] for t in self.buffer]))
+        return s if s > 0 else 1.0
 
     def __len__(self):
         return len(self.buffer)
@@ -261,9 +271,16 @@ class MATD3:
         if len(self.buffer) < self.batch_size:
             return {"critic_loss": None, "actor_loss": None}
 
-        obs, act, rew, next_obs = self.buffer.sample(self.batch_size)
+        obs, act, rew, next_obs, done = self.buffer.sample(self.batch_size)
         # obs: (batch, n_agents, obs_dim), act: (batch, n_agents, act_dim)
         # rew: (batch, n_agents), next_obs: (batch, n_agents, obs_dim)
+        # done: (batch, n_agents)
+
+        # Normalize rewards to unit scale so the critic's Q-values stay bounded
+        # instead of inflating over training (Adam is scale-invariant, so the
+        # effective learning rate is unchanged).
+        scale = self.buffer.reward_std()
+        rew = rew / scale
 
         n = self.n_agents
         u_dim = self.unique_obs_dim
@@ -290,7 +307,10 @@ class MATD3:
                 target_q1, target_q2 = critic_target(
                     self._build_global_state(next_obs, i),
                     next_act_all.view(self.batch_size, -1))
+                # Terminal transitions (done) must not bootstrap off the
+                # all-zero next observation emitted at episode end.
                 target_q = rew[:, i].unsqueeze(1) + self.gamma * \
+                    (1.0 - done[:, i].unsqueeze(1)) * \
                     torch.min(target_q1, target_q2)
 
             current_q1, current_q2 = critic(
@@ -324,20 +344,28 @@ class MATD3:
                         new_actions.append(act[:, j, :])
                 new_act_all = torch.stack(new_actions, dim=1)
 
-                actor_loss = -critic.q1_forward(
+                # Maximize the MIN of the twin critics: an actor chasing a
+                # single (overestimated) Q1 drives the policy into regions
+                # where the critic inflates, and the target bootstrap inflates
+                # Q further. The conservative min cuts that feedback loop.
+                q1, q2 = critic(
                     self._build_global_state(obs, i),
-                    new_act_all.view(self.batch_size, -1)).mean()
+                    new_act_all.view(self.batch_size, -1))
+                actor_loss = -torch.min(q1, q2).mean()
                 # Deviation penalty on the pre-tanh logits: penalizing the
                 # squashed action fails because d(tanh)/dx -> 0 at the bounds,
                 # so the gradient vanishes exactly when the policy saturates.
                 # An L2 term on the raw logits survives saturation and pulls
-                # the policy back to moderate bids.
+                # the policy back to moderate bids. Rescaled by the same factor
+                # as the reward so its balance vs -min(Q) is preserved.
                 if self.bid_dev_penalty > 0:
                     actor_loss = actor_loss \
-                        + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
+                        + (self.bid_dev_penalty / scale) \
+                        * (logits[:, 0] ** 2).mean()
                 if self.offer_dev_penalty > 0:
                     actor_loss = actor_loss \
-                        + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
+                        + (self.offer_dev_penalty / scale) \
+                        * (logits[:, 1] ** 2).mean()
 
                 opt.zero_grad()
                 actor_loss.backward()
@@ -405,7 +433,9 @@ class MATD3:
                 next_obs_arr = np.stack(
                     [next_obs.get(nm, np.zeros(self.obs_dim))
                      for nm in self.agent_names])
-                self.buffer.add(obs_arr, act_arr, rew_arr, next_obs_arr)
+                done_arr = np.full(self.n_agents, done, dtype=np.float32)
+                self.buffer.add(obs_arr, act_arr, rew_arr, next_obs_arr,
+                                done_arr)
                 self.total_steps += 1
 
                 obs = next_obs

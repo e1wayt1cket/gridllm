@@ -13,7 +13,7 @@ def test_deviation_penalty_defaults():
 def test_algo_and_bounds_defaults():
     from train_rl import build_parser
     args = build_parser().parse_args([])
-    assert args.algo == "td3"
+    assert args.algo == "matd3"
     assert args.bid_mult_low is None
     assert args.bid_mult_high is None
     assert args.diff_reward is True

@@ -2,9 +2,11 @@
 """Gym-style RL environment for continuous-action agent bidding.
 
 Each episode = one 96-period day. Agents act on 4-period blocks (24 steps).
-Observation is a compact V2 vector (11-dim): current load/RE/SOC, last LMP,
-block position, average LMP, load/RE ratio, opponent-bid statistics, plus
-price-prediction features (LMP deviation from EMA and recent LMP trend).
+Observation is a compact V2 vector (12-dim): block-mean load/RE and SOC
+normalized to [0, 1], LMP expressed as ratios of the day-average price, block
+position, load/RE ratio, opponent-bid statistics, plus price-prediction
+features (LMP deviation from EMA, recent LMP trend, and a direct next-block
+price forecast).
 Action is continuous: (bid_mult in [0.3, 1.8], offer_adder in [0, 50]).
 
 Optional differential reward: reward = raw profit - profit under truthful
@@ -104,6 +106,10 @@ class BiddingEnv:
         # rolling-window value).
         self._re_used = 0.0
         self._re_avail = 0.0
+        # Per-agent (day-peak load, day-peak RE) for the stage, cached at reset
+        # so the normalized load/RE observation features stay in [0, 1] without
+        # recomputing the max every block.
+        self._agent_peaks: Dict[str, Tuple[float, float]] = {}
 
     def get_action_bounds(self) -> torch.Tensor:
         """Return (low, high) bounds tensor for the 2-dim continuous action."""
@@ -127,14 +133,15 @@ class BiddingEnv:
     @property
     def shared_obs_dim(self) -> int:
         """Shared observation features (LMP, price, system indicators)."""
-        return self.obs_dim - self.unique_obs_dim  # 11 - 3 = 8
+        return self.obs_dim - self.unique_obs_dim  # 12 - 3 = 9
 
     def _compute_obs_dim(self) -> int:
         """Flattened observation dimension per agent (compact V2)."""
-        # unique(3): load[0], re_gen[0], soc[0]
-        # shared(8): last_lmp, block_pos, avg_lmp, load_re_ratio,
-        #            avg_other_bid, bid_std, ema_deviation, price_trend
-        return 11
+        # unique(3): load, re_gen, soc
+        # shared(9): last_lmp, block_pos, avg_lmp, load_re_ratio,
+        #            avg_other_bid, bid_std, ema_deviation, price_trend,
+        #            pred_lmp (direct next-block price forecast)
+        return 12
 
     # ------------------------------------------------------------------
     # Default actions for non-RL agents
@@ -181,10 +188,29 @@ class BiddingEnv:
         }
         if wholesale is not None:
             self.wholesale = wholesale
+        self._agent_peaks = self._compute_agent_peaks()
 
     # ------------------------------------------------------------------
     # Observation helpers
     # ------------------------------------------------------------------
+
+    def _compute_agent_peaks(self) -> Dict[str, Tuple[float, float]]:
+        """Per-agent (day-peak load, day-peak RE) for the current stage.
+
+        Load and RE are normalized against their OWN day peaks: a prosumer's
+        PV/wind capacity can exceed its load several-fold, so normalizing RE by
+        the load peak would peg the RE feature at 1.0 for most daylight periods.
+        """
+        peaks = {}
+        for a in self.all_agents:
+            load_src = a.load_forecast if self.stage == "DA" else a.load_real
+            re_src = (a.pv_forecast if self.stage == "DA" else a.pv_real)
+            if a.has_wind:
+                re_src = re_src + (a.wind_forecast if self.stage == "DA"
+                                   else a.wind_real)
+            peaks[a.name] = (float(np.max(load_src)),
+                             float(np.max(re_src)))
+        return peaks
 
     def _get_agent_obs(self, agent: Agent, block_idx: int,
                        hist_lmp: np.ndarray | None,
@@ -192,27 +218,38 @@ class BiddingEnv:
                        system_load_re_ratio: float = 1.0,
                        avg_other_bid: float = 1.0,
                        bid_std: float = 0.0) -> np.ndarray:
-        """Build the compact V1 observation vector for one agent.
+        """Build the compact V2 observation vector for one agent.
 
-        Order matters: the per-agent features (load[0], re_gen[0], soc[0])
-        must be the first three entries so MATD3's centralized critic can
-        slice them out when building the global state.
+        Order matters: the per-agent features (load, re_gen, soc) must be the
+        first three entries so MATD3's centralized critic can slice them out
+        when building the global state.
+
+        Load/RE are the block means (the action commits a whole block), each
+        divided by its own day peak (load peak for load, RE peak for RE), so
+        they stay in [0, 1] without saturating; absolute LMP levels are
+        expressed as ratios of the day-average price so all features are O(1)
+        for the MLP.
         """
         t_start = block_idx * BLOCK_SIZE
-        n_actual = min(t_start + 1, self.T) - t_start  # current period only
+        t_block_end = min(t_start + BLOCK_SIZE, self.T)
+        n_block = t_block_end - t_start
 
         if self.stage == "DA":
-            load = agent.load_forecast[t_start:t_start + 1]
-            pv = agent.pv_forecast[t_start:t_start + 1]
-            wind = agent.get_wind_forecast()[t_start:t_start + 1] \
-                if agent.has_wind else np.zeros(n_actual)
+            load = agent.load_forecast[t_start:t_block_end]
+            pv = agent.pv_forecast[t_start:t_block_end]
+            wind = agent.get_wind_forecast()[t_start:t_block_end] \
+                if agent.has_wind else np.zeros(n_block)
         else:
-            load = agent.load_real[t_start:t_start + 1]
-            pv = agent.pv_real[t_start:t_start + 1]
-            wind = agent.get_wind_real()[t_start:t_start + 1] \
-                if agent.has_wind else np.zeros(n_actual)
+            load = agent.load_real[t_start:t_block_end]
+            pv = agent.pv_real[t_start:t_block_end]
+            wind = agent.get_wind_real()[t_start:t_block_end] \
+                if agent.has_wind else np.zeros(n_block)
 
-        re_gen = float(pv[0]) + float(wind[0])
+        load_peak, re_peak = self._agent_peaks.get(agent.name, (1.0, 1.0))
+        load_feat = float(np.clip(
+            np.mean(load) / max(load_peak, 1e-6), 0.0, 1.0))
+        re_feat = float(np.clip(
+            np.mean(pv + wind) / max(re_peak, 1e-6), 0.0, 1.0))
 
         # Last observed LMP, or the day average if none is available yet
         if hist_lmp is not None and len(hist_lmp) > 0:
@@ -246,11 +283,23 @@ class BiddingEnv:
         ema_dev = float(np.clip(ema_dev, -1.0, 1.0))
         trend = float(np.clip(trend, -1.0, 1.0))
 
+        # Absolute price levels as O(1) ratios of the day average; the
+        # negative tail (excess-RE prices) is preserved by a lower clip.
+        price_ref = avg_lmp if avg_lmp > 0 else 420.0
+        last_lmp_norm = float(np.clip(last_lmp / price_ref, -1.0, 3.0))
+        avg_lmp_norm = float(np.clip(avg_lmp / 420.0, 0.0, 3.0))
+        slr_norm = float(min(system_load_re_ratio, 5.0))
+
+        # Direct next-block price forecast (EMA persistence) from the same
+        # forecaster, normalized on the same scale as the realized LMP.
+        pred_lmp = fc.forecast(1)[0]
+        pred_lmp_norm = float(np.clip(pred_lmp / price_ref, -1.0, 3.0))
+
         obs = np.array([
-            float(load[0]), re_gen, soc,
-            last_lmp, block_pos, avg_lmp, system_load_re_ratio,
+            load_feat, re_feat, soc,
+            last_lmp_norm, block_pos, avg_lmp_norm, slr_norm,
             avg_other_bid, bid_std,
-            ema_dev, trend,
+            ema_dev, trend, pred_lmp_norm,
         ], dtype=np.float32)
         return obs
 
@@ -347,6 +396,7 @@ class BiddingEnv:
         self.hist_lmp = deque(maxlen=96)
         self._re_used = 0.0
         self._re_avail = 0.0
+        self._agent_peaks = self._compute_agent_peaks()
         for fc in self.forecasters.values():
             fc._ema = None
             fc._history = []
@@ -404,6 +454,7 @@ class BiddingEnv:
         obs, rewards, done, info
         """
         from market import _make_window_agents, clear_market
+        from grid import day_ahead_price_china
         import dataclasses
 
         block = self.block_idx
@@ -453,9 +504,17 @@ class BiddingEnv:
 
         window_config = dataclasses.replace(self.config, verbose=False)
 
+        # One wholesale curve per block, shared by the real clear and the
+        # differential-reward baseline re-clear. Regenerating it inside each
+        # clear_market call would draw different unseeded price noise for the
+        # two clears, corrupting reward = profit(price A) - profit(price B).
+        wholesale = day_ahead_price_china(
+            window_T, agents=window_agents, config=window_config)
+
         try:
             result = clear_market(window_agents, window_T, self.stage,
-                                  window_actions, window_config)
+                                  window_actions, window_config,
+                                  wholesale=wholesale)
         except Exception:
             result = None
         self._last_result = result
@@ -490,7 +549,7 @@ class BiddingEnv:
             try:
                 base_result = clear_market(
                     base_window_agents, window_T, self.stage,
-                    base_actions, window_config)
+                    base_actions, window_config, wholesale=wholesale)
             except Exception:
                 base_result = None
             if base_result is not None and not base_result.get("fell_back"):

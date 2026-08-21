@@ -58,10 +58,10 @@ def build_parser():
     parser = argparse.ArgumentParser(
         description="Train RL bidding policies for all storage agents "
                     "(independent TD3 or MATD3/CTDE)")
-    parser.add_argument("--algo", type=str, default="td3",
+    parser.add_argument("--algo", type=str, default="matd3",
                         choices=["td3", "matd3"],
-                        help="Training algorithm: td3 (independent learners) "
-                             "or matd3 (centralized critic, CTDE)")
+                        help="Training algorithm: matd3 (centralized critic, "
+                             "CTDE) or td3 (independent learners)")
     parser.add_argument("--agent-names", type=str, default=None,
                         help="Comma-separated agent names to train. "
                              "Default: all agents with storage.")
@@ -173,7 +173,8 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             next_obs_arr = np.stack([
                 next_obs.get(nm, np.zeros(obs_dim, dtype=np.float32))
                 for nm in rl_agent_names])
-            matd3.buffer.add(obs_arr, act_arr, rew_arr, next_obs_arr)
+            done_arr = np.full(len(rl_agent_names), done, dtype=np.float32)
+            matd3.buffer.add(obs_arr, act_arr, rew_arr, next_obs_arr, done_arr)
             matd3.total_steps += 1
 
             for nm in rl_agent_names:

@@ -14,7 +14,7 @@
 |---|---|
 | `rl_env.py` | ① 删 reward 级偏差惩罚死代码；② 新增 `use_differential_reward`：每块 reward = 实际利润 − 全真实报价基准（复用同一 `window_agents` 二次 `clear_market`，不推进 SOC/forecaster；失败回退无 shaping）；③ 观测降维 V1：103→**9 维** `[load0, re0, soc0, last_lmp, block_pos, avg_lmp, slr, avg_other_bid, bid_std]`，`unique_obs_dim=3`（unique 在最前，供集中 critic 切分）、`shared=6`；④ 移除 congestion_idx 与 `LOOKAHEAD_BLOCKS`；⑤ 加 `_last_result` 诊断钩子 |
 | `rl_bidding.py` | Actor 加 `forward_logits`；MATD3 加 `bid_dev_penalty/offer_dev_penalty`（actor 更新用 pre-tanh logit L2）；探索噪声退火 0.2→0.05（`noise_anneal_steps=5000`）；`CentralizedCritic` 扩为 `[256,256,128]`+Dropout(0.1)，target critic `.eval()` |
-| `train_rl.py` | `--algo {td3,matd3}`（默认 td3）；`--no-diff-reward`（差分奖励默认开）；`--noise-anneal-steps`；`--bid-mult-low/high` 默认 None → 从 `config.market_design.bid_mult_range`（`[0.3,1.8]`）读；新增 `_train_matd3` CTDE 主循环（共享 buffer） |
+| `train_rl.py` | `--algo {td3,matd3}`（默认 matd3）；`--no-diff-reward`（差分奖励默认开）；`--noise-anneal-steps`；`--bid-mult-low/high` 默认 None → 从 `config.market_design.bid_mult_range`（`[0.3,1.8]`）读；新增 `_train_matd3` CTDE 主循环（共享 buffer） |
 | `strategies/rl_bidding.py` | 适配 `_get_agent_obs` 新签名；旧 103 维 checkpoint 加载失败时回退 FixedStrategy（obs 降维的必然后果） |
 | `tests/test_rl_env_obs_dim.py` | 新增（obs_dim==9、unique==3、差分奖励开关） |
 | `tests/test_rl_defaults.py` | 追加 --algo/边界/差分奖励默认断言 |

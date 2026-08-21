@@ -131,6 +131,14 @@ class ReplayBuffer:
             torch.as_tensor(np.array(dones), dtype=torch.bool),
         )
 
+    def reward_std(self) -> float:
+        """Std of the rewards currently stored, used to normalize the critic
+        target scale so Q-values stay bounded over training."""
+        if not self.buffer:
+            return 1.0
+        s = float(np.std([t[2] for t in self.buffer]))
+        return s if s > 0 else 1.0
+
     def __len__(self):
         return len(self.buffer)
 
@@ -237,6 +245,12 @@ class TD3:
 
         obs, act, rew, next_obs, dones = self.buffer.sample(self.batch_size)
 
+        # Normalize rewards to unit scale so the critic's Q-values stay bounded
+        # instead of inflating over training (Adam is scale-invariant, so the
+        # effective learning rate is unchanged).
+        scale = self.buffer.reward_std()
+        rew = rew / scale
+
         # ---- Critic update ----
         with torch.no_grad():
             # Target actions with smoothing noise
@@ -265,18 +279,25 @@ class TD3:
         actor_loss = None
         if self.total_steps % self.policy_delay == 0:
             logits, actor_action = self.actor.forward_logits(obs)
-            actor_loss = -self.critic.q1_forward(obs, actor_action).mean()
+            # Maximize the MIN of the twin critics: chasing a single
+            # (overestimated) Q1 pushes the policy into regions where the
+            # critic inflates and the bootstrap inflates Q further.
+            q1, q2 = self.critic(obs, actor_action)
+            actor_loss = -torch.min(q1, q2).mean()
             # Deviation penalty applied to the pre-tanh logits. Penalizing the
             # squashed action fails because d(tanh)/dx -> 0 at the bounds, so
             # the gradient vanishes exactly when the policy saturates. An L2
             # term on the raw logits has gradient 2*coef*logit that survives
-            # saturation and pulls the policy back to moderate bids.
+            # saturation and pulls the policy back to moderate bids. Rescaled
+            # by the same factor as the reward so its balance vs -min(Q) holds.
             if self.bid_dev_penalty > 0:
                 actor_loss = actor_loss \
-                    + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
+                    + (self.bid_dev_penalty / scale) \
+                    * (logits[:, 0] ** 2).mean()
             if self.offer_dev_penalty > 0:
                 actor_loss = actor_loss \
-                    + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
+                    + (self.offer_dev_penalty / scale) \
+                    * (logits[:, 1] ** 2).mean()
 
             self.actor_opt.zero_grad()
             actor_loss.backward()

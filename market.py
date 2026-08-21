@@ -36,12 +36,18 @@ def two_settlement(agents, da, rt):
         breakdown[a.name] = {"da": float(da_cost), "rt": float(rt_cost)}
     return payments, breakdown
 
-def clear_market(agents, T, stage, action_params, config, storage_units=None):
+def clear_market(agents, T, stage, action_params, config, storage_units=None,
+                 wholesale=None):
     if stage == "DA" and config.rt.da_rolling_enabled:
-        return clear_da_rolling(agents, T, action_params, config, storage_units)
+        return clear_da_rolling(agents, T, action_params, config, storage_units,
+                                wholesale=wholesale)
 
     base_net = build_base_network(config)
-    wholesale = day_ahead_price_china(T, agents=agents, config=config)
+    # A caller may supply a fixed wholesale curve (e.g. so that a differential
+    # reward baseline re-clear sees the same prices as the real clear). When
+    # None, the curve is regenerated here, as before.
+    if wholesale is None:
+        wholesale = day_ahead_price_china(T, agents=agents, config=config)
 
     # ---- Multi-period joint optimization (LinDistFlow / SOCP) ----
     if config.opf_mode in ("lindistflow", "socp"):
@@ -152,7 +158,8 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None):
     }
 
 
-def clear_da_rolling(agents, T, action_params, config, storage_units=None):
+def clear_da_rolling(agents, T, action_params, config, storage_units=None,
+                     wholesale=None):
     """Rolling-horizon DA market clearing with limited price foresight.
 
     Replaces the single T-period batch solve with overlapping windows.
@@ -163,7 +170,8 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None):
     step = config.rt.da_window_step
     base_net = build_base_network(config)
     n_buses = len(base_net.bus)
-    wholesale = day_ahead_price_china(T, agents=agents, config=config)
+    if wholesale is None:
+        wholesale = day_ahead_price_china(T, agents=agents, config=config)
 
     lmp_da = np.zeros((T, n_buses))
     schedules_da = empty_schedules(agents, T)
