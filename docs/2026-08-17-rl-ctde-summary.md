@@ -98,3 +98,18 @@ python diagnose_profit.py --policies policies/multi_matd3 --scenario baseline [-
 7. **留出场景泛化（2026-08-18 测得）**：re_ramp_drop/re_ramp_surge 未参与训练，最终策略 profit_delta 为正（+18.3k/+25.1k，波动价格创造套利），但 genuine 福利为负（−12.9k/−13.9k），与 peak_load −25k 同型——利润目标下接受。checkpoint 平台期（baseline）：profit_delta 单调上升（ckpt50 +2.9k → 200 +13.0k），200 集仍上升未明显趋平；genuine 全阶段为正。
 8. **多种子稳健性（2026-08-19 完成）**：三个种子（42/123/7）均训练满 200 集，同一 4 场景对等评估（baseline/high_re/peak_load/congestion）。profit_delta 全场景为正且各场景量级跨种子一致——baseline +12.9k~+15.8k、high_re +9.1k~+10.2k、congestion +12.8k~+15.0k、peak_load +28.3k~+31.7k；genuine 正常场景为正（baseline +3.2k~+10.7k、high_re +29.1k~+29.9k、congestion +2.5k~+8.1k）、仅 peak_load 为负（−14.6k~−20.3k）。结论：利润提升与"福利下降是度量假象"均非单种子偶然。产物：`policies/multi_matd3_seed{123,7}/` 最终 .pt + checkpoint；`results/multi_matd3_seed{42,123,7}_eval.csv`。
 9. **观测 V2 与 RE 率修正（2026-08-19）**：① 修复 eval RE 率 bug——`rl_env.step` 的 `info["re_rate"]` 改为已提交时段的全天聚合值（此前为最后一块滚动窗口值，评估 CSV 的 re_rate 失真）；② 观测 9→11 维（新增 `ema_deviation`、`price_trend`，unique 保持 3），旧 9 维策略全部失效需重训；③ 固定 baseline 重训（seed 42, 200 集）进行中，完成后 4 场景评估对比 v1。peak_load 负福利维持方案 A（论文讨论）。
+
+## 10. 观测 V3 与机制修复、critic 发散修复（2026-08-20/21，v4 为当前基准）
+
+**改动（已提交 `ca4bdb8`）**：
+1. **差分奖励基准线共享单批发价曲线**：`clear_market`/`clear_da_rolling` 新增可选 `wholesale`；`rl_env.step` 每块只生成一次批发价，真实清与基准清复用同一曲线。此前两者各生成无种子价格曲线（σ=30），把噪声注入 `reward = 利润A − 利润B`（单块最高 ±366 CNY/智能体，Bus23I），且噪声随交易量增长。
+2. **MATD3 终止 done 掩码**：`ReplayBuffer` 存 done，`target_q = r + γ(1−done)·min(Q)`；此前 episode 末尾对全零 obs 自举。
+3. **观测 V3（12 维，unique 3 / shared 9）**：load/re 改为整块均值、各按自身日峰值归一（RE 不能按负荷峰值归一——prosumer 的 PV 峰值是负荷的 1.4~5.8 倍会饱和）；LMP 改为按日均价比值；shared 末尾新增 `pred_lmp`（`NodalPriceForecaster.forecast()` 直接电价预测）。旧 11 维策略失效。
+4. **critic overestimation 发散修复**：训练后期（策略收敛后 ep~45 起）critic loss 无界涨到 293k+（Reward 平稳，Q 值自举膨胀）。修复：actor 损失 `−Q1` → `−min(Q1,Q2)`（`rl_bidding.py`/`rl_td3.py`）；差分奖励除以 `buffer.reward_std()` 归一化（critic loss 降至 O(1)，Adam 尺度不变），logit 惩罚同除以 scale 保持平衡。
+5. **`train_rl.py` 默认算法改为 matd3**。
+
+**诊断结论**：
+- **RE 率恒定 59.84% 是物理/经济吸收上限，非 bug**：出价 bid_mult 0.3~1.0 得到完全相同的 59.844445；批发价只在第 8 位小数有差（float32 下坍缩）。`info["re_rate"]` 为全天累计（已提交时段铺满全天，逐块验证），RL 策略最大化利润、不优化 RE 率。
+- **critic loss "反弹" 是有界瞬态**：v4 200 集里 loss 地板 0.57 → 峰值 3.16（ep~140）→ 回落平台 ~2.3，非发散；策略 Reward/mean 全程 ~6200-7100 健康。
+
+**v4 结果（seed 42, 200 集, 4 场景整队评估）**：profit_delta 全场景为正（baseline +15.0k / high_re +10.0k / peak_load +30.7k / congestion +14.2k）；genuine 福利 baseline +6.4k、high_re +32.5k、congestion +9.9k 为正，peak_load −26.3k 为负（已知，利润目标下接受）。产物：`policies/multi_matd3_v4/`、`results/multi_matd3_v4_eval.csv`。多种子验证（seed 123/7）2026-08-21 进行中。
