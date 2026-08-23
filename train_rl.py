@@ -105,6 +105,26 @@ def build_parser():
                         help="Random exploration steps before learning")
     parser.add_argument("--save-dir", type=str, default="policies/multi_agent",
                         help="Directory for saved policy files")
+    parser.add_argument("--eval-interval", type=int, default=25,
+                        help="Evaluate policies every N episodes during "
+                             "training (0 disables in-training evaluation)")
+    parser.add_argument("--eval-episodes", type=int, default=1,
+                        help="Deterministic evaluation episodes per eval step")
+    parser.add_argument("--early-stop-steps", type=int, default=0,
+                        help="Early stop when the eval metric shows no "
+                             "relative improvement for this many consecutive "
+                             "evals (0 disables early stopping)")
+    parser.add_argument("--early-stop-threshold", type=float, default=0.05,
+                        help="Relative improvement required to avoid early "
+                             "stopping")
+    parser.add_argument("--eval-metric", type=str, default="mean_reward",
+                        help="Metric tracked for best-policy selection and "
+                             "early stopping")
+    parser.add_argument("--no-eval", action="store_true",
+                        help="Disable in-training evaluation entirely")
+    parser.add_argument("--eval-use-diff-reward", action="store_true",
+                        help="Use differential reward in evaluation episodes "
+                             "(default off: evaluates raw profit)")
     return parser
 
 
@@ -122,13 +142,15 @@ def _resolve_train_scenarios(scenarios_arg):
 
 
 def _train_matd3(args, env, action_bounds, rl_agent_names,
-                 train_scenarios, writer):
+                 train_scenarios, writer, tracker=None):
     """CTDE training loop: one MATD3 with a shared replay buffer.
 
     Each agent keeps its own actor; a centralized critic per agent sees all
     agents' unique observations plus all actions during training, which
     resolves the non-stationarity that makes independent critics flat along
     the action direction.
+
+    Returns True when the run was stopped early by the PolicyTracker.
     """
     from rl_bidding import MATD3
     from rl_td3 import save_policy
@@ -141,6 +163,10 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                   noise_anneal_steps=args.noise_anneal_steps)
     low = action_bounds[0].numpy()
     high = action_bounds[1].numpy()
+
+    stopped_early = False
+    eval_env = tracker.build_eval_env(env.config) if tracker is not None \
+        else None
 
     t0 = time.time()
     for ep in range(args.episodes):
@@ -221,6 +247,17 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         writer.add_scalar("Reward/mean",
                           sum(ep_rewards.values()) / len(rl_agent_names), ep)
 
+        # In-training evaluation + early stopping (opt-in via tracker)
+        if tracker is not None and args.eval_interval > 0 \
+                and (ep + 1) % args.eval_interval == 0:
+            metrics = tracker.evaluate(eval_env, matd3.actors)
+            writer.add_scalar("Eval/mean_reward", metrics["mean_reward"], ep)
+            writer.add_scalar("Eval/welfare", metrics["welfare"], ep)
+            if tracker.compare_and_save_policies(ep + 1, matd3.actors,
+                                                 metrics):
+                stopped_early = True
+                break
+
         # Console logging
         if (ep + 1) % max(1, args.episodes // 10) == 0 or ep == 0:
             elapsed = time.time() - t0
@@ -236,19 +273,27 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             for nm in rl_agent_names:
                 ckpt_path = os.path.join(
                     args.save_dir, f"{nm}_ckpt_{ep+1}.pt")
-                save_policy(matd3.actors[nm], ckpt_path)
+                save_policy(matd3.actors[nm], ckpt_path,
+                            obs_spec=env.obs_spec,
+                            action_spec=env.action_spec)
             print(f"  -> checkpoint: {args.save_dir}", flush=True)
 
     # ---- Save final policies ----
     os.makedirs(args.save_dir, exist_ok=True)
     for nm in rl_agent_names:
         save_path = os.path.join(args.save_dir, f"{nm}.pt")
-        save_policy(matd3.actors[nm], save_path)
+        save_policy(matd3.actors[nm], save_path,
+                    obs_spec=env.obs_spec, action_spec=env.action_spec)
+    if tracker is not None:
+        tracker.save_last(matd3.actors)
     elapsed = time.time() - t0
-    print(f"MATD3 training complete: {args.episodes} episodes in "
-          f"{elapsed:.0f}s ({elapsed / args.episodes:.1f}s/ep)", flush=True)
+    done_ep = ep + 1 if stopped_early else args.episodes
+    print(f"MATD3 training complete: {done_ep} episodes in "
+          f"{elapsed:.0f}s ({elapsed / max(done_ep, 1):.1f}s/ep)"
+          + (" (early stopped)" if stopped_early else ""), flush=True)
     print(f"Models saved: {args.save_dir}/{{name}}.pt "
           f"({len(rl_agent_names)} agents)", flush=True)
+    return stopped_early
 
 
 def main():
@@ -325,6 +370,25 @@ def main():
                      bid_mult_high=args.bid_mult_high)
     print(f"RL agents in env: {[a.name for a in env.rl_agents]}", flush=True)
 
+    # ---- In-training policy tracker (evaluation + best/last + early stop) ----
+    if args.no_eval or args.eval_interval <= 0:
+        tracker = None
+    else:
+        from rl_training import PolicyTracker
+        eval_sc = eval_scenarios[0] if eval_scenarios \
+            else DEFAULT_TRAIN_SCENARIO
+        tracker = PolicyTracker(
+            args.save_dir, rl_agent_names, eval_scenario=eval_sc,
+            metric=args.eval_metric, eval_episodes=args.eval_episodes,
+            early_stopping_steps=args.early_stop_steps,
+            early_stopping_threshold=args.early_stop_threshold,
+            use_differential_reward=args.eval_use_diff_reward,
+            obs_spec=env.obs_spec, action_spec=env.action_spec)
+        print(f"Tracker: eval every {args.eval_interval} eps on "
+              f"'{eval_sc}' | early stop: "
+              f"{'on' if args.early_stop_steps > 0 else 'off'}",
+              flush=True)
+
     action_bounds = env.get_action_bounds()
     obs_dim = env.get_state_dim()
     act_dim = 2
@@ -345,8 +409,9 @@ def main():
 
     # ---- CTDE path: MATD3 with a centralized critic ----
     if args.algo == "matd3":
-        _train_matd3(args, env, action_bounds, rl_agent_names,
-                     train_scenarios, writer)
+        stopped_early = _train_matd3(
+            args, env, action_bounds, rl_agent_names, train_scenarios,
+            writer, tracker)
         writer.close()
         if eval_scenarios:
             print(f"\nHeld-out scenarios: {eval_scenarios}")
@@ -355,6 +420,8 @@ def main():
         return
 
     # ---- Independent TD3 training loop ----
+    stopped_early = False
+    eval_env = tracker.build_eval_env(config) if tracker is not None else None
     t0 = time.time()
     for ep in range(args.episodes):
         sc_name = random.choice(train_scenarios)
@@ -412,6 +479,17 @@ def main():
         writer.add_scalar("Reward/mean",
                           sum(ep_rewards.values()) / len(rl_agent_names), ep)
 
+        # In-training evaluation + early stopping (opt-in via tracker)
+        if tracker is not None and args.eval_interval > 0 \
+                and (ep + 1) % args.eval_interval == 0:
+            actors = {name: td3s[name].actor for name in rl_agent_names}
+            metrics = tracker.evaluate(eval_env, actors)
+            writer.add_scalar("Eval/mean_reward", metrics["mean_reward"], ep)
+            writer.add_scalar("Eval/welfare", metrics["welfare"], ep)
+            if tracker.compare_and_save_policies(ep + 1, actors, metrics):
+                stopped_early = True
+                break
+
         # Console logging
         if (ep + 1) % max(1, args.episodes // 10) == 0 or ep == 0:
             elapsed = time.time() - t0
@@ -426,7 +504,9 @@ def main():
             for name, td3 in td3s.items():
                 ckpt_path = os.path.join(
                     args.save_dir, f"{name}_ckpt_{ep+1}.pt")
-                save_policy(td3.actor, ckpt_path)
+                save_policy(td3.actor, ckpt_path,
+                            obs_spec=env.obs_spec,
+                            action_spec=env.action_spec)
             print(f"  -> checkpoint: {args.save_dir}", flush=True)
 
     writer.close()
@@ -435,10 +515,16 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
     for name, td3 in td3s.items():
         save_path = os.path.join(args.save_dir, f"{name}.pt")
-        save_policy(td3.actor, save_path)
+        save_policy(td3.actor, save_path,
+                    obs_spec=env.obs_spec, action_spec=env.action_spec)
+    if tracker is not None:
+        actors = {name: td3s[name].actor for name in rl_agent_names}
+        tracker.save_last(actors)
     elapsed = time.time() - t0
-    print(f"Training complete: {args.episodes} episodes in {elapsed:.0f}s "
-          f"({elapsed / args.episodes:.1f}s/ep)", flush=True)
+    done_ep = ep + 1 if stopped_early else args.episodes
+    print(f"Training complete: {done_ep} episodes in {elapsed:.0f}s "
+          f"({elapsed / max(done_ep, 1):.1f}s/ep)"
+          + (" (early stopped)" if stopped_early else ""), flush=True)
     print(f"Models saved: {args.save_dir}/{{name}}.pt "
           f"({len(rl_agent_names)} agents)", flush=True)
     print(f"TensorBoard: {log_dir}", flush=True)
