@@ -169,6 +169,58 @@ def load_policies_from_dir(dir_path: str, obs_dim: int,
     return policies
 
 
+def run_regret_test(agents, config, declared: dict, T: int,
+                    output_path: str = None) -> dict:
+    """Run a best-response regret test against a trained bid profile.
+
+    Mirrors marl_clearing_and_bidding's test_for_ne_shared: each agent's
+    best-response payoff is compared with its payoff under the trained fleet
+    (declared), and the per-agent regret (best - base) is aggregated. Writes
+    final_regret.csv and returns compute_regret_summary.
+
+    Note: one best-response search per agent, so this is an explicit,
+    potentially slow post-training step.
+    """
+    from nash import NashEquilibriumTester, compute_regret_summary
+
+    base_strategy = {}
+    for a in agents:
+        if a.name in declared:
+            bid = np.asarray(declared[a.name]["bid_mult"], dtype=float)
+            offer = np.asarray(declared[a.name].get("offer_adder",
+                                                    np.zeros(T)),
+                               dtype=float)
+        else:
+            bid = np.full(T, 1.0, dtype=float)
+            offer = np.full(T, 0.0, dtype=float)
+        base_strategy[a.name] = {"bid_mult": bid, "offer_adder": offer}
+
+    tester = NashEquilibriumTester(agents, config, T=T, stage="DA")
+    is_nash, improvements = tester.test_nash_equilibrium(base_strategy)
+    summary = compute_regret_summary(improvements)
+
+    import csv
+    rows = [{
+        "agent": nm,
+        "base_payoff": imp["base_payoff"],
+        "best_payoff": imp["best_payoff"],
+        "regret": imp["regret"],
+        "relative_regret": imp["relative_regret"],
+        "profitable": imp["profitable"],
+    } for nm, imp in improvements.items()]
+    path = output_path or "final_regret.csv"
+    with open(path, "w", newline="") as f:
+        fieldnames = list(rows[0].keys()) if rows else ["agent"]
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        w.writerows(rows)
+    print(f"\nRegret test: {'NASH' if is_nash else 'NOT NASH'} | "
+          f"total_regret={summary['total_regret']:+.1f} | "
+          f"profitable={summary['n_profitable']}/{len(improvements)}")
+    print(f"Regret written to: {path}")
+    return summary
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Evaluate trained RL bidding policies")
@@ -192,6 +244,11 @@ def main():
                         help="CSV output path (default: print to console)")
     parser.add_argument("--seed", type=int, default=42,
                         help="RNG seed")
+    parser.add_argument("--nash-regret", action="store_true",
+                        help="After the combined fleet evaluation, run a "
+                             "best-response regret test against the trained "
+                             "bid profile and write final_regret.csv (may be "
+                             "slow: one best-response search per agent)")
     args = parser.parse_args()
 
     # ---- Determine scenarios ----
@@ -252,8 +309,9 @@ def main():
     header = ["scenario", "agent", "baseline_profit", "rl_profit",
               "profit_delta", "welfare_baseline", "welfare_rl",
               "welfare_delta", "valuation_artifact", "genuine_welfare_delta",
-              "re_rate_baseline", "re_rate_rl"]
+              "re_rate_baseline", "re_rate_rl", "total_regret"]
 
+    _regret_done = False  # regret test runs once, on the first combined fleet
     for sc_name in eval_scenarios:
         print(f"--- {sc_name} ---")
         config_copy = copy.deepcopy(config)
@@ -400,7 +458,17 @@ def main():
                     "genuine_welfare_delta": genuine,
                     "re_rate_baseline": base_result["re_rate"],
                     "re_rate_rl": comb_re_rate,
+                    "total_regret": "",
                 })
+                # Optional best-response regret test (once, explicit opt-in).
+                if args.nash_regret and not _regret_done:
+                    _regret_done = True
+                    out_dir = os.path.dirname(args.output) if args.output \
+                        else "."
+                    regret_path = os.path.join(out_dir, "final_regret.csv")
+                    regret = run_regret_test(agents, config_copy, declared,
+                                             T, output_path=regret_path)
+                    results[-1]["total_regret"] = regret["total_regret"]
 
     # ---- Output ----
     if args.output and results:

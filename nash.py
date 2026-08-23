@@ -206,6 +206,34 @@ def _evaluate_best_response(args):
     return name, best_pay, best_strat
 
 
+def compute_regret_summary(improvements: dict) -> dict:
+    """Aggregate per-agent regret (best-response payoff minus base payoff).
+
+    Regret per agent equals the profitable-deviation gain; total regret sums
+    across agents and quantifies how far the joint strategy profile is from a
+    Nash equilibrium (0 means no agent can unilaterally improve). Mirrors the
+    best-response regret reported by marl_clearing_and_bidding.
+    """
+    if not improvements:
+        return {"total_regret": 0.0, "mean_regret": 0.0, "max_regret": 0.0,
+                "n_profitable": 0, "regret_share": 0.0}
+    regrets = np.array([v.get("regret", v.get("gain", 0.0))
+                        for v in improvements.values()])
+    n_profitable = int(sum(1 for v in improvements.values()
+                           if v.get("profitable", False)))
+    total_base = sum(abs(v.get("base_payoff", 0.0))
+                     for v in improvements.values())
+    total_regret = float(regrets.sum())
+    return {
+        "total_regret": total_regret,
+        "mean_regret": float(regrets.mean()),
+        "max_regret": float(regrets.max()),
+        "n_profitable": n_profitable,
+        "regret_share": float(total_regret / total_base)
+        if total_base > 0 else 0.0,
+    }
+
+
 # ---------------------------------------------------------------------------
 # NashEquilibriumTester — detection only (no solving)
 # ---------------------------------------------------------------------------
@@ -356,7 +384,9 @@ class NashEquilibriumTester:
             profitable = rel_gain > threshold_rel
             improvements[name] = {
                 "gain": gain,
+                "regret": gain,          # regret = best - base payoff
                 "rel_gain": rel_gain,
+                "relative_regret": rel_gain,
                 "base_payoff": base_pay,
                 "best_payoff": best_pay,
                 "is_prosumer": agent.is_prosumer,
@@ -403,6 +433,9 @@ class NashEquilibriumTester:
               f"max={rel_gains.max():+.4f}")
         print(f"  Base  payoff: mean={base_pays.mean():,.0f}  median={np.median(base_pays):,.0f}")
         print(f"  Best  payoff: mean={best_pays.mean():,.0f}  median={np.median(best_pays):,.0f}")
+        reg = compute_regret_summary(improvements)
+        print(f"  Total regret: {reg['total_regret']:+.1f}  "
+              f"(share of base payoff: {reg['regret_share']:.1%})")
         print(f"{'='*60}\n")
 
         if n_profitable > 0:
