@@ -6,7 +6,10 @@ import numpy as np
 
 from models import Agent
 from grid import build_base_network, day_ahead_price_china
-from dispatch import solve_opf_gurobi, StorageConstraints, solve_lindist_opf_batch
+from dispatch import (
+    solve_opf_gurobi, StorageConstraints, get_clearing_mechanism,
+    solve_lindist_opf_batch,
+)
 from dispatch_core import empty_schedules, split_power
 from strategies import adaptive_bidding  # noqa: F401 — re-export
 
@@ -50,10 +53,11 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
         wholesale = day_ahead_price_china(T, agents=agents, config=config)
 
     # ---- Multi-period joint optimization (LinDistFlow / SOCP) ----
+    # Batch-capable engines are looked up from the clearing registry; a
+    # fallback to the per-period loop below preserves the pre-registry path.
     if config.opf_mode in ("lindistflow", "socp"):
-        from dispatch import solve_socp_opf_batch
-        solve_fn = solve_socp_opf_batch if config.opf_mode == "socp" else solve_lindist_opf_batch
-        result = solve_fn(base_net, agents, T, stage, config,
+        batch_fn = get_clearing_mechanism(config.opf_mode)["batch_fn"]
+        result = batch_fn(base_net, agents, T, stage, config,
                           action_params, wholesale, storage_units)
         if result is not None:
             return result
