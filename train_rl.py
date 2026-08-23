@@ -30,6 +30,7 @@ from scenarios import get_scenario
 from models import MarketConfig
 from rl_env import BiddingEnv, N_BLOCKS
 from rl_td3 import TD3, save_policy
+from run_artifacts import RunArtifacts
 
 N_EPISODES = 200
 # Each training run trains on a single fixed scenario by default, so the
@@ -125,6 +126,9 @@ def build_parser():
     parser.add_argument("--eval-use-diff-reward", action="store_true",
                         help="Use differential reward in evaluation episodes "
                              "(default off: evaluates raw profit)")
+    parser.add_argument("--no-artifacts", action="store_true",
+                        help="Disable structured run artifacts "
+                             "(outputs/rl/<run_id>/)")
     return parser
 
 
@@ -142,7 +146,7 @@ def _resolve_train_scenarios(scenarios_arg):
 
 
 def _train_matd3(args, env, action_bounds, rl_agent_names,
-                 train_scenarios, writer, tracker=None):
+                 train_scenarios, writer, tracker=None, artifacts=None):
     """CTDE training loop: one MATD3 with a shared replay buffer.
 
     Each agent keeps its own actor; a centralized critic per agent sees all
@@ -210,8 +214,8 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             obs = next_obs
 
         # Post-episode updates
+        c_losses, a_losses = [], []
         if matd3.total_steps >= matd3.start_steps:
-            c_losses, a_losses = [], []
             c_losses_by_agent = {nm: [] for nm in rl_agent_names}
             a_losses_by_agent = {nm: [] for nm in rl_agent_names}
             for _ in range(N_BLOCKS):
@@ -256,6 +260,12 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             if tracker.compare_and_save_policies(ep + 1, matd3.actors,
                                                  metrics):
                 stopped_early = True
+            if artifacts is not None:
+                artifacts.record_eval(
+                    ep + 1, metrics,
+                    is_best=(tracker.best_episode == ep + 1),
+                    stopped=stopped_early)
+            if stopped_early:
                 break
 
         # Console logging
@@ -267,15 +277,28 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                   f"sc={sc_name} | elapsed={elapsed:.0f}s | algo=matd3",
                   flush=True)
 
+        # Structured run artifacts
+        if artifacts is not None:
+            artifacts.record_episode(
+                ep + 1, sum(ep_rewards.values()) / len(rl_agent_names),
+                ep_welfare, ep_re_rate,
+                critic_loss=np.mean(c_losses) if c_losses else None,
+                actor_loss=np.mean(a_losses) if a_losses else None,
+                scenario=sc_name)
+
         # Checkpoint
         if (ep + 1) % 50 == 0:
             os.makedirs(args.save_dir, exist_ok=True)
+            ckpt_paths = []
             for nm in rl_agent_names:
                 ckpt_path = os.path.join(
                     args.save_dir, f"{nm}_ckpt_{ep+1}.pt")
                 save_policy(matd3.actors[nm], ckpt_path,
                             obs_spec=env.obs_spec,
                             action_spec=env.action_spec)
+                ckpt_paths.append(ckpt_path)
+            if artifacts is not None:
+                artifacts.add_policy_paths(f"ckpt_{ep+1}", ckpt_paths)
             print(f"  -> checkpoint: {args.save_dir}", flush=True)
 
     # ---- Save final policies ----
@@ -286,8 +309,37 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                     obs_spec=env.obs_spec, action_spec=env.action_spec)
     if tracker is not None:
         tracker.save_last(matd3.actors)
+
     elapsed = time.time() - t0
     done_ep = ep + 1 if stopped_early else args.episodes
+
+    if artifacts is not None:
+        final_paths = [os.path.join(args.save_dir, f"{nm}.pt")
+                       for nm in rl_agent_names]
+        artifacts.add_policy_paths("final", final_paths)
+        if tracker is not None:
+            artifacts.add_policy_paths(
+                "best", [os.path.join(tracker.best_dir, f"{nm}.pt")
+                         for nm in rl_agent_names])
+            artifacts.add_policy_paths(
+                "last", [os.path.join(tracker.last_dir, f"{nm}.pt")
+                         for nm in rl_agent_names])
+            best_welfare = max((e.get("welfare") or float("-inf"))
+                               for e in artifacts.evals) \
+                if artifacts.evals else None
+            final_mean_reward = artifacts.metrics[-1]["mean_reward"] \
+                if artifacts.metrics else None
+            artifacts.kpi = {
+                "final_mean_reward": final_mean_reward,
+                "best_mean_reward": tracker.max_eval.get(tracker.metric),
+                "best_welfare": best_welfare,
+                "best_episode": tracker.best_episode,
+                "early_stopped": stopped_early,
+                "n_episodes": done_ep,
+            }
+        root = artifacts.save()
+        print(f"Artifacts saved to: {root}", flush=True)
+
     print(f"MATD3 training complete: {done_ep} episodes in "
           f"{elapsed:.0f}s ({elapsed / max(done_ep, 1):.1f}s/ep)"
           + (" (early stopped)" if stopped_early else ""), flush=True)
@@ -389,6 +441,14 @@ def main():
               f"{'on' if args.early_stop_steps > 0 else 'off'}",
               flush=True)
 
+    # ---- Structured run artifacts ----
+    if args.no_artifacts:
+        artifacts = None
+    else:
+        artifacts = RunArtifacts.create(
+            config, vars(args), env.obs_spec.to_dict(),
+            env.action_spec.to_dict())
+
     action_bounds = env.get_action_bounds()
     obs_dim = env.get_state_dim()
     act_dim = 2
@@ -411,7 +471,7 @@ def main():
     if args.algo == "matd3":
         stopped_early = _train_matd3(
             args, env, action_bounds, rl_agent_names, train_scenarios,
-            writer, tracker)
+            writer, tracker, artifacts)
         writer.close()
         if eval_scenarios:
             print(f"\nHeld-out scenarios: {eval_scenarios}")
@@ -459,6 +519,7 @@ def main():
             obs = next_obs
 
         # Post-episode updates and loss stats per agent
+        c_losses, a_losses = [], []
         for name, td3 in td3s.items():
             if td3.total_steps >= td3.start_steps:
                 for _ in range(N_BLOCKS):
@@ -467,8 +528,10 @@ def main():
             c_loss = loss_info.get("critic_loss")
             a_loss = loss_info.get("actor_loss")
             if c_loss is not None:
+                c_losses.append(c_loss)
                 writer.add_scalar(f"Loss/critic/{name}", c_loss, ep)
             if a_loss is not None:
+                a_losses.append(a_loss)
                 writer.add_scalar(f"Loss/actor/{name}", a_loss, ep)
 
         # TensorBoard
@@ -488,6 +551,12 @@ def main():
             writer.add_scalar("Eval/welfare", metrics["welfare"], ep)
             if tracker.compare_and_save_policies(ep + 1, actors, metrics):
                 stopped_early = True
+            if artifacts is not None:
+                artifacts.record_eval(
+                    ep + 1, metrics,
+                    is_best=(tracker.best_episode == ep + 1),
+                    stopped=stopped_early)
+            if stopped_early:
                 break
 
         # Console logging
@@ -498,15 +567,28 @@ def main():
                   f"welfare={ep_welfare:.0f} | RE={ep_re_rate:.1f}% | "
                   f"sc={sc_name} | elapsed={elapsed:.0f}s", flush=True)
 
+        # Structured run artifacts
+        if artifacts is not None:
+            artifacts.record_episode(
+                ep + 1, sum(ep_rewards.values()) / len(rl_agent_names),
+                ep_welfare, ep_re_rate,
+                critic_loss=np.mean(c_losses) if c_losses else None,
+                actor_loss=np.mean(a_losses) if a_losses else None,
+                scenario=sc_name)
+
         # Checkpoint
         if (ep + 1) % 50 == 0:
             os.makedirs(args.save_dir, exist_ok=True)
+            ckpt_paths = []
             for name, td3 in td3s.items():
                 ckpt_path = os.path.join(
                     args.save_dir, f"{name}_ckpt_{ep+1}.pt")
                 save_policy(td3.actor, ckpt_path,
                             obs_spec=env.obs_spec,
                             action_spec=env.action_spec)
+                ckpt_paths.append(ckpt_path)
+            if artifacts is not None:
+                artifacts.add_policy_paths(f"ckpt_{ep+1}", ckpt_paths)
             print(f"  -> checkpoint: {args.save_dir}", flush=True)
 
     writer.close()
@@ -520,8 +602,37 @@ def main():
     if tracker is not None:
         actors = {name: td3s[name].actor for name in rl_agent_names}
         tracker.save_last(actors)
+
     elapsed = time.time() - t0
     done_ep = ep + 1 if stopped_early else args.episodes
+
+    if artifacts is not None:
+        final_paths = [os.path.join(args.save_dir, f"{name}.pt")
+                       for name in rl_agent_names]
+        artifacts.add_policy_paths("final", final_paths)
+        if tracker is not None:
+            artifacts.add_policy_paths(
+                "best", [os.path.join(tracker.best_dir, f"{name}.pt")
+                         for name in rl_agent_names])
+            artifacts.add_policy_paths(
+                "last", [os.path.join(tracker.last_dir, f"{name}.pt")
+                         for name in rl_agent_names])
+            best_welfare = max((e.get("welfare") or float("-inf"))
+                               for e in artifacts.evals) \
+                if artifacts.evals else None
+            final_mean_reward = artifacts.metrics[-1]["mean_reward"] \
+                if artifacts.metrics else None
+            artifacts.kpi = {
+                "final_mean_reward": final_mean_reward,
+                "best_mean_reward": tracker.max_eval.get(tracker.metric),
+                "best_welfare": best_welfare,
+                "best_episode": tracker.best_episode,
+                "early_stopped": stopped_early,
+                "n_episodes": done_ep,
+            }
+        root = artifacts.save()
+        print(f"Artifacts saved to: {root}", flush=True)
+
     print(f"Training complete: {done_ep} episodes in {elapsed:.0f}s "
           f"({elapsed / max(done_ep, 1):.1f}s/ep)"
           + (" (early stopped)" if stopped_early else ""), flush=True)
