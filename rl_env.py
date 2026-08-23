@@ -25,6 +25,7 @@ from collections import deque
 from models import Agent, MarketConfig
 from market import adaptive_bidding
 from price_forecaster import NodalPriceForecaster
+from rl_spec import OBS_V3, ACTION_BID_OFFER_V1, ObservationSpec, ActionSpec
 
 # Continuous action space bounds
 BID_MULT_LOW, BID_MULT_HIGH = 0.3, 1.8
@@ -65,7 +66,9 @@ class BiddingEnv:
                  rl_agent_names: Optional[List[str]] = None,
                  use_differential_reward: bool = False,
                  bid_mult_low: float = BID_MULT_LOW,
-                 bid_mult_high: float = BID_MULT_HIGH):
+                 bid_mult_high: float = BID_MULT_HIGH,
+                 obs_spec: Optional[ObservationSpec] = None,
+                 action_spec: Optional[ActionSpec] = None):
         self.all_agents = agents
         self.config = config
         self.T = 96
@@ -76,6 +79,20 @@ class BiddingEnv:
         # Per-agent action bounds (configurable per training run)
         self.bid_mult_low = bid_mult_low
         self.bid_mult_high = bid_mult_high
+
+        # Pluggable observation/action layout. Defaults reproduce the V3
+        # 12-dim observation and the (bid_mult, offer_adder) action space.
+        self.obs_spec = obs_spec if obs_spec is not None else OBS_V3
+        if action_spec is not None:
+            self.action_spec = action_spec
+        else:
+            self.action_spec = ActionSpec(
+                ACTION_BID_OFFER_V1.name,
+                ACTION_BID_OFFER_V1.version,
+                ACTION_BID_OFFER_V1.action_names,
+                {"bid_mult": (bid_mult_low, bid_mult_high),
+                 "offer_adder": ACTION_BID_OFFER_V1.bounds["offer_adder"]},
+            )
 
         # Differential reward: per-block reward = raw profit - baseline profit,
         # where the baseline is the same window under truthful bidding for all
@@ -93,7 +110,7 @@ class BiddingEnv:
             for a in self.rl_agents
         }
         self.prev_soc: Dict[str, float] = {}
-        self.obs_dim = self._compute_obs_dim()
+        self.obs_dim = self.obs_spec.total_dim
         # Last market-clearing result, exposed for post-hoc analysis (e.g.
         # profit decomposition); not used by the training loop itself.
         self._last_result = None
@@ -112,13 +129,15 @@ class BiddingEnv:
         self._agent_peaks: Dict[str, Tuple[float, float]] = {}
 
     def get_action_bounds(self) -> torch.Tensor:
-        """Return (low, high) bounds tensor for the 2-dim continuous action."""
-        return torch.tensor([[self.bid_mult_low, OFFER_ADDER_LOW],
-                             [self.bid_mult_high, OFFER_ADDER_HIGH]],
-                            dtype=torch.float32)
+        """Return (low, high) bounds tensor for the continuous action space."""
+        low = [self.action_spec.bounds[nm][0]
+               for nm in self.action_spec.action_names]
+        high = [self.action_spec.bounds[nm][1]
+                for nm in self.action_spec.action_names]
+        return torch.tensor([low, high], dtype=torch.float32)
 
     def get_state_dim(self) -> int:
-        return self.obs_dim
+        return self.obs_spec.total_dim
 
     @property
     def unique_obs_dim(self) -> int:
@@ -128,20 +147,16 @@ class BiddingEnv:
         of each other agent's observation to build the global state, so the
         per-agent features must be contiguous at position 0.
         """
-        return 3  # load[0], re_gen[0], soc[0]
+        return self.obs_spec.unique_dim
 
     @property
     def shared_obs_dim(self) -> int:
         """Shared observation features (LMP, price, system indicators)."""
-        return self.obs_dim - self.unique_obs_dim  # 12 - 3 = 9
+        return self.obs_spec.shared_dim
 
     def _compute_obs_dim(self) -> int:
-        """Flattened observation dimension per agent (compact V2)."""
-        # unique(3): load, re_gen, soc
-        # shared(9): last_lmp, block_pos, avg_lmp, load_re_ratio,
-        #            avg_other_bid, bid_std, ema_deviation, price_trend,
-        #            pred_lmp (direct next-block price forecast)
-        return 12
+        """Flattened observation dimension per agent (retained shim)."""
+        return self.obs_spec.total_dim
 
     # ------------------------------------------------------------------
     # Default actions for non-RL agents
@@ -212,23 +227,21 @@ class BiddingEnv:
                              float(np.max(re_src)))
         return peaks
 
-    def _get_agent_obs(self, agent: Agent, block_idx: int,
-                       hist_lmp: np.ndarray | None,
-                       avg_lmp: float,
-                       system_load_re_ratio: float = 1.0,
-                       avg_other_bid: float = 1.0,
-                       bid_std: float = 0.0) -> np.ndarray:
-        """Build the compact V2 observation vector for one agent.
+    def _compute_obs_features(self, agent: Agent, block_idx: int,
+                              hist_lmp: np.ndarray | None,
+                              avg_lmp: float,
+                              system_load_re_ratio: float = 1.0,
+                              avg_other_bid: float = 1.0,
+                              bid_std: float = 0.0) -> Dict[str, float]:
+        """Compute all named observation features for one agent.
 
-        Order matters: the per-agent features (load, re_gen, soc) must be the
-        first three entries so MATD3's centralized critic can slice them out
-        when building the global state.
-
-        Load/RE are the block means (the action commits a whole block), each
-        divided by its own day peak (load peak for load, RE peak for RE), so
-        they stay in [0, 1] without saturating; absolute LMP levels are
-        expressed as ratios of the day-average price so all features are O(1)
-        for the MLP.
+        Returns the superset of features known to the environment, keyed by
+        feature name; `_get_agent_obs` selects the subset the active
+        ObservationSpec declares. Load/RE are the block means (the action
+        commits a whole block), each divided by its own day peak (load peak
+        for load, RE peak for RE), so they stay in [0, 1] without saturating;
+        absolute LMP levels are expressed as ratios of the day-average price
+        so all features are O(1) for the MLP.
         """
         t_start = block_idx * BLOCK_SIZE
         t_block_end = min(t_start + BLOCK_SIZE, self.T)
@@ -295,13 +308,41 @@ class BiddingEnv:
         pred_lmp = fc.forecast(1)[0]
         pred_lmp_norm = float(np.clip(pred_lmp / price_ref, -1.0, 3.0))
 
-        obs = np.array([
-            load_feat, re_feat, soc,
-            last_lmp_norm, block_pos, avg_lmp_norm, slr_norm,
-            avg_other_bid, bid_std,
-            ema_dev, trend, pred_lmp_norm,
-        ], dtype=np.float32)
-        return obs
+        return {
+            "load_feat": load_feat,
+            "re_feat": re_feat,
+            "soc": soc,
+            "last_lmp_norm": last_lmp_norm,
+            "block_pos": block_pos,
+            "avg_lmp_norm": avg_lmp_norm,
+            "slr_norm": slr_norm,
+            "avg_other_bid": avg_other_bid,
+            "bid_std": bid_std,
+            "ema_dev": ema_dev,
+            "price_trend": trend,
+            "pred_lmp_norm": pred_lmp_norm,
+        }
+
+    def _get_agent_obs(self, agent: Agent, block_idx: int,
+                       hist_lmp: np.ndarray | None,
+                       avg_lmp: float,
+                       system_load_re_ratio: float = 1.0,
+                       avg_other_bid: float = 1.0,
+                       bid_std: float = 0.0) -> np.ndarray:
+        """Build the observation vector for one agent from the active spec.
+
+        Order matters: the per-agent features must be the first entries so
+        MATD3's centralized critic can slice them out when building the global
+        state.
+        """
+        feats = self._compute_obs_features(
+            agent, block_idx, hist_lmp, avg_lmp, system_load_re_ratio,
+            avg_other_bid, bid_std)
+        return np.array(
+            [feats[f.name]
+             for f in (*self.obs_spec.unique_features,
+                       *self.obs_spec.shared_features)],
+            dtype=np.float32)
 
     def _compute_system_load_re_ratio(self, t_start: int) -> float:
         t_end = min(t_start + BLOCK_SIZE, self.T)

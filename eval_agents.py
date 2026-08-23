@@ -132,13 +132,15 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None) -> dict:
 
 def load_policies_from_dir(dir_path: str, obs_dim: int,
                            action_bounds: torch.Tensor,
-                           checkpoint: Optional[int] = None) \
+                           checkpoint: Optional[int] = None,
+                           obs_spec=None, action_spec=None) \
         -> Dict[str, Actor]:
     """Load all .pt policy files from a directory.
 
     Filename is used as agent name: "Agent_X.pt" → agent "Agent_X". When
     checkpoint is given, loads "{name}_ckpt_{N}.pt" for each agent instead
-    of the final policy files.
+    of the final policy files. obs_spec/action_spec are forwarded to
+    load_policy for the metadata mismatch check.
     """
     policies = {}
     if not os.path.isdir(dir_path):
@@ -158,7 +160,8 @@ def load_policies_from_dir(dir_path: str, obs_dim: int,
                 continue
         path = os.path.join(dir_path, fname)
         try:
-            net = load_policy(path, obs_dim, action_bounds)
+            net = load_policy(path, obs_dim, action_bounds,
+                              obs_spec=obs_spec, action_spec=action_spec)
             policies[agent_name] = net
             print(f"  Loaded: {agent_name} from {path}")
         except Exception as e:
@@ -210,22 +213,23 @@ def main():
     action_bounds = torch.tensor(
         [[args.bid_mult_low, 0.0], [args.bid_mult_high, 50.0]],
         dtype=torch.float32)
-    # Use a temp env to get obs_dim
+    # Use a temp env to get obs_dim and the active observation/action spec
     temp_agents, _ = get_scenario("baseline", T=96, config=copy.deepcopy(config))
     temp_env = BiddingEnv(temp_agents, config)
     obs_dim = temp_env.get_state_dim()
+    obs_spec = temp_env.obs_spec
+    action_spec = temp_env.action_spec
 
     if os.path.isdir(args.policies):
         policies = load_policies_from_dir(
-            args.policies, obs_dim, action_bounds, checkpoint=args.checkpoint)
+            args.policies, obs_dim, action_bounds, checkpoint=args.checkpoint,
+            obs_spec=obs_spec, action_spec=action_spec)
     else:
         if args.checkpoint is not None:
             print("--checkpoint requires --policies to be a directory")
             return
-        agent_name = os.path.splitext(os.path.basename(args.policies))[0]
-        agent_name = agent_name.replace("_ckpt_", "").rsplit("_", 1)[0] \
-            if "_ckpt_" in args.policies else agent_name
-        policy = load_policy(args.policies, obs_dim, action_bounds)
+        policy = load_policy(args.policies, obs_dim, action_bounds,
+                             obs_spec=obs_spec, action_spec=action_spec)
         # Extract agent name from filename
         fname = os.path.splitext(os.path.basename(args.policies))[0]
         if "_ckpt_" in fname:

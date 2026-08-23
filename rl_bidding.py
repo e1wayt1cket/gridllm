@@ -503,19 +503,49 @@ def train_rl_agents(agents: List[Agent], config: MarketConfig,
     return matd3.actors, history
 
 
-def save_policies(policies: dict, path: str):
-    """Save trained Actor policies to disk."""
+def save_policies(policies: dict, path: str, obs_spec=None, action_spec=None):
+    """Save trained Actor policies to disk.
+
+    When a spec is supplied, the file is tagged with the observation/action
+    spec the policies were trained against (see rl_td3.save_policy).
+    """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     state = {nm: net.state_dict() for nm, net in policies.items()}
+    if obs_spec is not None or action_spec is not None:
+        first_actor = next(iter(policies.values()))
+        state["_meta"] = {
+            "obs_spec": obs_spec.to_dict() if obs_spec is not None else None,
+            "action_spec": action_spec.to_dict()
+                           if action_spec is not None else None,
+            "obs_dim": first_actor.net[0].in_features,
+        }
     torch.save(state, path)
 
 
 def load_policies(path: str, obs_dim: int,
-                  action_bounds: torch.Tensor) -> Dict[str, Actor]:
-    """Load trained Actor policies from disk."""
+                  action_bounds: torch.Tensor,
+                  obs_spec=None, action_spec=None) -> Dict[str, Actor]:
+    """Load trained Actor policies from disk.
+
+    Keys starting with '_' are treated as metadata and skipped, so the
+    '"_meta"' entry written by save_policies is never interpreted as an
+    agent name. When a recorded obs-spec name mismatches the caller's
+    expected spec, ValueError is raised.
+    """
     state = torch.load(path, map_location="cpu", weights_only=False)
+    meta = state.pop("_meta", None)
+    if meta is not None and obs_spec is not None:
+        saved = meta.get("obs_spec") or {}
+        if saved.get("name") != obs_spec.name:
+            raise ValueError(
+                f"Policy {path} was trained with observation spec "
+                f"'{saved.get('name')}' (v{saved.get('version')}) but the "
+                f"environment uses '{obs_spec.name}' "
+                f"(v{obs_spec.version}); refusing to load.")
     policies = {}
     for nm, sd in state.items():
+        if nm.startswith("_"):
+            continue
         net = Actor(obs_dim, 2, action_bounds)
         net.load_state_dict(sd)
         policies[nm] = net

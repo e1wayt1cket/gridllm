@@ -418,16 +418,47 @@ class TD3:
 # Policy persistence
 # ---------------------------------------------------------------------------
 
-def save_policy(actor: Actor, path: str):
-    """Save a single Actor network to disk."""
+_POLICY_META_KEY = "_makerb_policy_meta"
+
+
+def save_policy(actor: Actor, path: str, obs_spec=None, action_spec=None):
+    """Save a single Actor network to disk.
+
+    When a spec is supplied, the file is tagged with the observation/action
+    spec it was trained against so a later load can detect a mismatch instead
+    of silently loading weights into the wrong input width.
+    """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    torch.save(actor.state_dict(), path)
+    state = actor.state_dict()
+    if obs_spec is not None or action_spec is not None:
+        state[_POLICY_META_KEY] = {
+            "obs_spec": obs_spec.to_dict() if obs_spec is not None else None,
+            "action_spec": action_spec.to_dict()
+                           if action_spec is not None else None,
+            "obs_dim": actor.net[0].in_features,
+        }
+    torch.save(state, path)
 
 
 def load_policy(path: str, obs_dim: int,
-                action_bounds: torch.Tensor) -> Actor:
-    """Load a single Actor network from disk."""
-    net = Actor(obs_dim, 2, action_bounds)
+                action_bounds: torch.Tensor,
+                obs_spec=None, action_spec=None) -> Actor:
+    """Load a single Actor network from disk.
+
+    If the saved file carries a policy metadata header (see save_policy) and
+    the caller supplies the expected obs_spec, a name mismatch raises
+    ValueError. Legacy files without metadata load unchanged.
+    """
     state = torch.load(path, map_location="cpu", weights_only=False)
+    meta = state.pop(_POLICY_META_KEY, None)
+    if meta is not None and obs_spec is not None:
+        saved = meta.get("obs_spec") or {}
+        if saved.get("name") != obs_spec.name:
+            raise ValueError(
+                f"Policy {path} was trained with observation spec "
+                f"'{saved.get('name')}' (v{saved.get('version')}) but the "
+                f"environment uses '{obs_spec.name}' "
+                f"(v{obs_spec.version}); refusing to load.")
+    net = Actor(obs_dim, 2, action_bounds)
     net.load_state_dict(state)
     return net
