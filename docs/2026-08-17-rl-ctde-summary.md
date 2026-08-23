@@ -112,4 +112,28 @@ python diagnose_profit.py --policies policies/multi_matd3 --scenario baseline [-
 - **RE 率恒定 59.84% 是物理/经济吸收上限，非 bug**：出价 bid_mult 0.3~1.0 得到完全相同的 59.844445；批发价只在第 8 位小数有差（float32 下坍缩）。`info["re_rate"]` 为全天累计（已提交时段铺满全天，逐块验证），RL 策略最大化利润、不优化 RE 率。
 - **critic loss "反弹" 是有界瞬态**：v4 200 集里 loss 地板 0.57 → 峰值 3.16（ep~140）→ 回落平台 ~2.3，非发散；策略 Reward/mean 全程 ~6200-7100 健康。
 
-**v4 结果（seed 42, 200 集, 4 场景整队评估）**：profit_delta 全场景为正（baseline +15.0k / high_re +10.0k / peak_load +30.7k / congestion +14.2k）；genuine 福利 baseline +6.4k、high_re +32.5k、congestion +9.9k 为正，peak_load −26.3k 为负（已知，利润目标下接受）。产物：`policies/multi_matd3_v4/`、`results/multi_matd3_v4_eval.csv`。多种子验证（seed 123/7）2026-08-21 进行中。
+**v4 结果（seed 42, 200 集, 4 场景整队评估）**：profit_delta 全场景为正（baseline +15.0k / high_re +10.0k / peak_load +30.7k / congestion +14.2k）；genuine 福利 baseline +6.4k、high_re +32.5k、congestion +9.9k 为正，peak_load −26.3k 为负（已知，利润目标下接受）。产物：`policies/multi_matd3_v4/`、`results/multi_matd3_v4_eval.csv`。
+
+## 11. 训练编排移植、逐 agent loss 与多种子重训（2026-08-23）
+
+移植两个参考项目（ASSUME：训练编排/产物/可插拔接口/出清注册表；marl_clearing_and_bidding：regret 评估）的成熟能力。提交位于 `feature/multi-obj-llm-dashboard`。
+
+| 文件 | 内容 |
+|---|---|
+| `rl_spec.py`（新） | **P4 可插拔观测/动作空间**：`ObservationSpec`/`ActionSpec`/注册表，默认 `v3_12d`（12 维）；`save_policy`/`load_policy` 存 `_makerb_policy_meta`，obs-spec 名不匹配拒绝加载，旧 `.pt` 兼容 |
+| `dispatch.py` | **P5 出清机制注册表**：`CLEARING_MECHANISMS` + `register/get_clearing_mechanism`，dc/lindistflow/socp 注册化，行为不变（rolling 两路径保留原分支） |
+| `rl_training.py`（新） | **P2 训练编排**：`PolicyTracker`（确定性评估、best/last 策略、早停默认关）；`train_rl.py` 新 CLI `--eval-interval/--eval-episodes/--early-stop-steps/--early-stop-threshold/--eval-metric/--no-eval/--eval-use-diff-reward` |
+| `run_artifacts.py`（新） | **P3 结构化产物**：`RunArtifacts` → `outputs/rl/<run_id>/{manifest,config}.json, metrics.csv, eval.csv, kpi.json`；`--no-artifacts` 关闭 |
+| `nash.py`/`eval_agents.py` | **P7 regret**：improvements 加 `regret`/`relative_regret`，`compute_regret_summary`；`eval_agents --nash-regret` 写 `final_regret.csv` + `total_regret` 列 |
+| `rl_bidding.py`/`train_rl.py` | **逐 agent loss（commit `fb15d24`）**：`MATD3.update()` 返回 `critic_loss_by_agent`/`actor_loss_by_agent`，训练写 `Loss/critic/{name}`/`Loss/actor/{name}` |
+
+**多种子重训结果**（固定 baseline，200 集，14.5s/ep）：seed7 用新流程重训（`best`=ep100 评估峰值）；seed123 为 8-21 旧训练（用 final 策略评估，兼容旧 `.pt`）。
+
+| 场景 | seed7 profit_delta | seed123 profit_delta | seed7 genuine | seed123 genuine |
+|---|---|---|---|---|
+| baseline | +14.2k | +15.0k | +7.6k | +7.6k |
+| high_re | +9.4k | +10.8k | +26.7k | +33.0k |
+| peak_load | +29.4k | +29.3k | −18.0k | −23.2k |
+| congestion | +14.7k | +14.8k | +9.5k | +2.7k |
+
+**结论**：双种子 profit_delta 量级一致、genuine 正常场景均为正、仅 peak_load 为负（已知，利润目标下接受）——多种子稳健性成立，与 §10 v4 seed42 结论同型。产物：`policies/multi_matd3_v4_seed7/{best,last}/`、`outputs/rl/run-20260823-194546-9a1f29ce/`、`results/multi_matd3_v4_seed{7,123}_p2_eval.csv`、`runs/train-multi-20260823-194548/`（含逐 agent loss）。
