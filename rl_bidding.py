@@ -269,7 +269,8 @@ class MATD3:
         """Execute one TD3 update step. Returns critic_loss and actor_loss
         (actor_loss is None on steps without actor update)."""
         if len(self.buffer) < self.batch_size:
-            return {"critic_loss": None, "actor_loss": None}
+            return {"critic_loss": None, "actor_loss": None,
+                    "critic_loss_by_agent": {}, "actor_loss_by_agent": {}}
 
         obs, act, rew, next_obs, done = self.buffer.sample(self.batch_size)
         # obs: (batch, n_agents, obs_dim), act: (batch, n_agents, act_dim)
@@ -287,6 +288,7 @@ class MATD3:
 
         # ---- Update each agent's critic ----
         critic_losses = []
+        critic_loss_by_agent = {}
         for i, nm in enumerate(self.agent_names):
             critic = self.critics[nm]
             critic_target = self.critic_targets[nm]
@@ -325,9 +327,11 @@ class MATD3:
             nn.utils.clip_grad_norm_(critic.parameters(), 1.0)
             opt.step()
             critic_losses.append(critic_loss.detach().item())
+            critic_loss_by_agent[nm] = critic_loss.detach().item()
 
         # ---- Delayed actor update ----
         actor_losses = []
+        actor_loss_by_agent = {}
         if self.total_steps % self.policy_delay == 0:
             for i, nm in enumerate(self.agent_names):
                 actor = self.actors[nm]
@@ -372,6 +376,7 @@ class MATD3:
                 nn.utils.clip_grad_norm_(actor.parameters(), 1.0)
                 opt.step()
                 actor_losses.append(actor_loss.detach().item())
+                actor_loss_by_agent[nm] = actor_loss.detach().item()
 
         # ---- Polyak update target networks ----
         for nm in self.agent_names:
@@ -385,7 +390,9 @@ class MATD3:
 
         avg_critic = float(np.mean(critic_losses))
         avg_actor = float(np.mean(actor_losses)) if actor_losses else None
-        return {"critic_loss": avg_critic, "actor_loss": avg_actor}
+        return {"critic_loss": avg_critic, "actor_loss": avg_actor,
+                "critic_loss_by_agent": critic_loss_by_agent,
+                "actor_loss_by_agent": actor_loss_by_agent}
 
     def train(self, n_episodes: int = 100, verbose: bool = True) \
             -> Dict[str, list]:

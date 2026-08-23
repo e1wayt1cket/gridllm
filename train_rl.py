@@ -186,16 +186,32 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         # Post-episode updates
         if matd3.total_steps >= matd3.start_steps:
             c_losses, a_losses = [], []
+            c_losses_by_agent = {nm: [] for nm in rl_agent_names}
+            a_losses_by_agent = {nm: [] for nm in rl_agent_names}
             for _ in range(N_BLOCKS):
                 li = matd3.update()
                 if li["critic_loss"] is not None:
                     c_losses.append(li["critic_loss"])
                 if li["actor_loss"] is not None:
                     a_losses.append(li["actor_loss"])
+                for nm in rl_agent_names:
+                    cl = li["critic_loss_by_agent"].get(nm)
+                    if cl is not None:
+                        c_losses_by_agent[nm].append(cl)
+                    al = li["actor_loss_by_agent"].get(nm)
+                    if al is not None:
+                        a_losses_by_agent[nm].append(al)
             if c_losses:
                 writer.add_scalar("Loss/critic", np.mean(c_losses), ep)
             if a_losses:
                 writer.add_scalar("Loss/actor", np.mean(a_losses), ep)
+            for nm in rl_agent_names:
+                if c_losses_by_agent[nm]:
+                    writer.add_scalar(f"Loss/critic/{nm}",
+                                      np.mean(c_losses_by_agent[nm]), ep)
+                if a_losses_by_agent[nm]:
+                    writer.add_scalar(f"Loss/actor/{nm}",
+                                      np.mean(a_losses_by_agent[nm]), ep)
 
         # TensorBoard
         for nm in rl_agent_names:
