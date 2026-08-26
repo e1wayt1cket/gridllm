@@ -195,7 +195,13 @@ def run_regret_test(agents, config, declared: dict, T: int,
             offer = np.full(T, 0.0, dtype=float)
         base_strategy[a.name] = {"bid_mult": bid, "offer_adder": offer}
 
-    tester = NashEquilibriumTester(agents, config, T=T, stage="DA")
+    # On Windows the tester runs serial (parallel defaults to os.name != 'nt')
+    # and the COBYLA best-response search costs ~4-8h for the full fleet.
+    # Sampling-based BR with a process Pool gives a tractable first-pass
+    # regret check; the exhaustive COBYLA path stays available by
+    # constructing NashEquilibriumTester directly.
+    tester = NashEquilibriumTester(agents, config, T=T, stage="DA",
+                                   use_optimization=False, parallel=True)
     is_nash, improvements = tester.test_nash_equilibrium(base_strategy)
     summary = compute_regret_summary(improvements)
 
