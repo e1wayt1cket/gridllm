@@ -8,6 +8,7 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import numpy as np
+import os
 from datetime import datetime, timedelta
 
 from models import MarketConfig
@@ -18,6 +19,7 @@ from scenarios import get_scenario
 from llm import LLMAdvisor
 from nash import NashEquilibriumTester
 from topology_data import NODE_COORDS, LINES, REPRESENTATIVE_BUSES, SOC_COLORS
+from eval_agents import evaluate_policy_dir
 
 # ------------------------------
 # 场景名映射
@@ -31,6 +33,30 @@ SCENARIO_NAMES_CN = {
     "re_ramp_surge":   "新能源骤升",
 }
 CN_TO_EN = {v: k for k, v in SCENARIO_NAMES_CN.items()}
+
+# ------------------------------
+# RL 评估：4 个统一物理设施场景
+# ------------------------------
+RL_SCENARIOS = [
+    {"value": "baseline", "label": "基准 · 典型日",
+     "short": "基准"},
+    {"value": "high_re", "label": "高可再生 · PV/风出清 ×2",
+     "short": "高可再生"},
+    {"value": "peak_load", "label": "高峰负荷 · 负荷×1.5（储能/线路不变）",
+     "short": "高峰负荷"},
+    {"value": "congestion", "label": "空间阻塞 · 空间负荷重分布（共享线限）",
+     "short": "空间阻塞"},
+]
+RL_SCENARIO_OPTIONS = [{"label": s["label"], "value": s["value"]}
+                       for s in RL_SCENARIOS]
+RL_SCENARIO_DEFAULT = [s["value"] for s in RL_SCENARIOS]
+RL_SCENARIO_SHORT = {s["value"]: s["short"] for s in RL_SCENARIOS}
+RL_NBLOCKS_OPTIONS = [
+    {"label": "4 块（4 小时）", "value": 4},
+    {"label": "8 块（8 小时）", "value": 8},
+    {"label": "12 块（12 小时）", "value": 12},
+    {"label": "24 块（完整一天）", "value": 24},
+]
 
 # ------------------------------
 # 时间轴格式化
@@ -538,6 +564,103 @@ def create_payment_table(payment, agents):
     ], bordered=True, hover=True, responsive=True, size='sm',
        style={'fontSize': '13px'})
 
+
+# ------------------------------
+# RL 策略评估辅助函数
+# ------------------------------
+def _policies_root():
+    """Repo-root policies/ directory (sibling of src/)."""
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "policies")
+
+
+def policy_dir_options():
+    """Immediate subdirs of policies/ that hold at least one .pt file."""
+    root = _policies_root()
+    opts = []
+    if os.path.isdir(root):
+        for name in sorted(os.listdir(root)):
+            p = os.path.join(root, name)
+            if os.path.isdir(p) and any(f.endswith(".pt")
+                                        for f in os.listdir(p)):
+                opts.append({"label": name, "value": name})
+    return opts
+
+
+def _rl_field_style():
+    return {'fontSize': '13px', 'fontWeight': '600', 'color': C_MUTED,
+            'marginBottom': '6px', 'display': 'block'}
+
+
+def _rl_delta_color(v):
+    return "#ef4444" if v > 0 else "#10b981" if v < 0 else "#64748b"
+
+
+def _rl_agg_table(scenarios):
+    """One aggregate row per scenario (combined-fleet 'ALL' semantics)."""
+    rows = []
+    for s in scenarios:
+        rows.append(html.Tr([
+            html.Td(RL_SCENARIO_SHORT.get(s["scenario"], s["scenario"]),
+                    style={'fontWeight': '600', 'color': '#1e293b'}),
+            html.Td(str(s["n_rl"]), style={'textAlign': 'right'}),
+            html.Td(f"{s['baseline_profit']:,.0f}", style={
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(f"{s['rl_profit']:,.0f}", style={
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(f"{s['profit_delta']:+,.0f}", style={
+                'color': _rl_delta_color(s['profit_delta']), 'fontWeight': '700',
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(f"{s['welfare_delta']:+,.0f}", style={
+                'color': _rl_delta_color(s['welfare_delta']),
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(f"{s['genuine_welfare_delta']:+,.0f}", style={
+                'color': _rl_delta_color(s['genuine_welfare_delta']),
+                'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
+            html.Td(f"{s['re_rate_baseline']:.1f}% → {s['re_rate_rl']:.1f}%",
+                    style={'fontFamily': '"JetBrains Mono", monospace',
+                           'textAlign': 'right'}),
+        ]))
+    if not rows:
+        return _placeholder_text("尚无评估数据")
+    return dbc.Table([
+        html.Thead(html.Tr([
+            html.Th("场景"),
+            html.Th("策略数", style={'textAlign': 'right'}),
+            html.Th("基准利润", style={'textAlign': 'right'}),
+            html.Th("RL利润", style={'textAlign': 'right'}),
+            html.Th("利润增量", style={'textAlign': 'right'}),
+            html.Th("福利增量", style={'textAlign': 'right'}),
+            html.Th("真实福利增量", style={'textAlign': 'right'}),
+            html.Th("RE消纳率(基→RL)", style={'textAlign': 'right'}),
+        ])),
+        html.Tbody(rows),
+    ], bordered=True, hover=True, responsive=True, size='sm',
+       style={'fontSize': '13px'})
+
+
+def _rl_results_figure(scenarios):
+    """Grouped bars: profit delta and genuine welfare delta per scenario."""
+    x = [RL_SCENARIO_SHORT.get(s["scenario"], s["scenario"])
+         for s in scenarios]
+    prof = [s["profit_delta"] for s in scenarios]
+    genuine = [s["genuine_welfare_delta"] for s in scenarios]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=x, y=prof, name="利润增量 (RL−基准)",
+                         marker_color=C_PRIMARY))
+    fig.add_trace(go.Bar(x=x, y=genuine, name="真实福利增量",
+                         marker_color=C_SUCCESS))
+    fig.update_layout(
+        template="plotly_white", paper_bgcolor=C_SURFACE,
+        plot_bgcolor='#f8fafc', height=360, barmode='group',
+        legend=dict(orientation='h', yanchor='bottom', y=1.02,
+                    xanchor='right', x=1),
+        margin=dict(l=40, r=16, t=20, b=40),
+        yaxis_title="CNY",
+    )
+    return fig
+
+
 # ------------------------------
 # AI 分析曲线特征提取
 # ------------------------------
@@ -863,6 +986,52 @@ app.layout = dbc.Container([
         ),
     ]), className='mb-4 chart-card'),
 
+    # -- RL 策略评估 (controls) --
+    dbc.Card(dbc.CardBody([
+        html.H6("强化学习 (RL) 策略评估", className='fw-bold mb-1',
+                style={'color': C_PRIMARY}),
+        html.Div("对已训练策略目录运行整队评估：基准真实报价 vs RL 联合出清",
+                 className='mb-3', style={'fontSize': '13px', 'color': C_MUTED}),
+        dbc.Row([
+            dbc.Col([
+                html.Label("策略目录", style=_rl_field_style()),
+                dcc.Dropdown(id='rl-policy-dir', options=policy_dir_options(),
+                             placeholder='选择含 .pt 的策略目录', clearable=False),
+            ], md=5),
+            dbc.Col([
+                html.Label("评估场景", style=_rl_field_style()),
+                dcc.Dropdown(id='rl-scenarios', options=RL_SCENARIO_OPTIONS,
+                             value=RL_SCENARIO_DEFAULT, multi=True),
+            ], md=4),
+            dbc.Col([
+                html.Label("评估时长", style=_rl_field_style()),
+                dcc.Dropdown(id='rl-nblocks', options=RL_NBLOCKS_OPTIONS,
+                             value=24, clearable=False),
+            ], md=3),
+        ], className='g-3 mb-3'),
+        dbc.Button("运行 RL 评估", id='rl-eval-btn', n_clicks=0, color='success',
+                   style={'fontWeight': '600'}),
+    ]), className='mb-4 chart-card'),
+
+    # -- RL 评估结果 --
+    dbc.Card(dbc.CardBody([
+        html.H6("RL 评估结果", className='fw-bold text-secondary mb-3'),
+        dcc.Loading(
+            id="loading-rl-eval",
+            type="default",
+            children=[
+                html.Div(id='rl-status', children='就绪', className='mb-2',
+                         style={'color': C_MUTED, 'fontSize': '13px',
+                                'fontWeight': '500'}),
+                html.Div(id='rl-results-table',
+                         children=_placeholder_text("尚未运行 RL 评估")),
+                dcc.Graph(id='rl-results-fig', figure=_placeholder_fig("RL 评估 -- 等待运行"),
+                          config={'displayModeBar': 'hover'}),
+            ],
+        ),
+        dcc.Store(id='rl-eval-store', storage_type='memory'),
+    ]), className='mb-4 chart-card'),
+
     # -- 结算表格卡片 --
     dbc.Card(dbc.CardBody([
         html.H6("各节点结算结果 (CNY)", className='fw-bold text-secondary mb-3'),
@@ -1095,6 +1264,49 @@ def nash_callback(n_clicks, sim_state):
     ])
 
     return result
+
+
+# ------------------------------
+# RL 策略评估 callback
+# ------------------------------
+@app.callback(
+    Output('rl-status', 'children'),
+    Output('rl-results-table', 'children'),
+    Output('rl-results-fig', 'figure'),
+    Output('rl-eval-store', 'data'),
+    Input('rl-eval-btn', 'n_clicks'),
+    State('rl-policy-dir', 'value'),
+    State('rl-scenarios', 'value'),
+    State('rl-nblocks', 'value'),
+    prevent_initial_call=True,
+)
+def rl_eval_callback(n_clicks, policy_dir, scenarios, n_blocks):
+    if not n_clicks:
+        raise PreventUpdate
+    if not policy_dir or not scenarios:
+        return (dbc.Alert("请先选择策略目录与评估场景", color='warning',
+                          style={'borderRadius': '12px'}),
+                _placeholder_text("未选择参数"),
+                _placeholder_fig("未选择参数"),
+                None)
+    full_dir = os.path.join(_policies_root(), policy_dir)
+    try:
+        out = evaluate_policy_dir(full_dir, list(scenarios),
+                                  n_blocks=int(n_blocks or 24))
+    except Exception as exc:
+        return (dbc.Alert(f"RL 评估失败: {exc}", color='danger',
+                          style={'borderRadius': '12px'}),
+                _placeholder_text("评估失败"),
+                _placeholder_fig("评估失败"),
+                None)
+    status = html.Span(
+        f"完成: 加载策略 {out['loaded']} 个 | obs {out['obs_spec_name']} | "
+        f"{out['scenarios'][0]['n_blocks']} 块 × {len(out['scenarios'])} 场景",
+        style={'color': C_SUCCESS, 'fontWeight': '600', 'fontSize': '13px'})
+    return (status,
+            _rl_agg_table(out['scenarios']),
+            _rl_results_figure(out['scenarios']),
+            out)
 
 
 app.index_string = '''

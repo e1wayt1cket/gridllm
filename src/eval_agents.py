@@ -18,7 +18,7 @@ import argparse
 import copy
 import numpy as np
 import torch
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from scenarios import get_scenario, list_scenarios
 from models import MarketConfig
@@ -72,14 +72,19 @@ def actor_predict(actor: Actor, obs: np.ndarray) -> np.ndarray:
         return actor(obs_t).squeeze(0).numpy()
 
 
-def run_episode(env: BiddingEnv, policy: Optional[Actor] = None) -> dict:
-    """Run one episode (24 blocks) and return aggregate results.
+def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
+                n_blocks: int = N_BLOCKS) -> dict:
+    """Run an episode of up to *n_blocks* rolling-window blocks.
 
     Parameters
     ----------
     env : BiddingEnv
     policy : Actor or None
         If None, all agents use defaults (baseline run).
+    n_blocks : int
+        Number of blocks (BLOCK_SIZE periods each) to run, starting from the
+        beginning of the day. Must not exceed N_BLOCKS; the default is the
+        full day.
 
     Returns
     -------
@@ -89,9 +94,8 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None) -> dict:
     total_welfare = 0.0
     total_re_rate = 0.0
     agent_profits: Dict[str, float] = {}
-    n_blocks = 0
 
-    for _ in range(N_BLOCKS):
+    for _ in range(n_blocks):
         if policy is not None:
             # RL agent uses trained policy; others use defaults from env
             agent_name = env.rl_agents[0].name
@@ -106,14 +110,10 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None) -> dict:
         total_welfare += info.get("welfare", 0.0)
         total_re_rate = info.get("re_rate", 0.0)  # last block's value
 
-        # Accumulate per-agent profit from market schedules
+        # Accumulate per-agent profit from per-block rewards
         if info.get("lmp") is not None:
-            n_commit = min(4, info["lmp"].shape[0])
             for a in env.all_agents:
                 nm = a.name
-                sched = env.current_actions.get(nm)
-                # Get the actual schedule from the last market result
-                # We approximate by using rewards which include per-block profit
                 if nm in rewards:
                     agent_profits[nm] = agent_profits.get(nm, 0.0) \
                         + rewards.get(nm, 0.0)
@@ -121,13 +121,81 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None) -> dict:
         if done:
             break
         obs = next_obs
-        n_blocks += 1
 
     carbon = 0.0  # will be extracted from last info if available
     return {"welfare": total_welfare,
             "re_rate": total_re_rate,
             "carbon": carbon,
             "profits": agent_profits}
+
+
+def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
+                         n_blocks: int = N_BLOCKS) -> dict:
+    """Run a combined-fleet episode: every matched policy acts simultaneously.
+
+    Each block the trained actors pick bids/offers from their own observation,
+    and the market clears once for the whole fleet.
+
+    Parameters
+    ----------
+    env : BiddingEnv
+        Constructed with rl_agent_names covering the agents present in
+        *policies*; all other agents bid truthfully via the env defaults.
+    policies : dict  {agent_name: Actor}.
+    n_blocks : int  Number of blocks to run (default full day).
+
+    Returns
+    -------
+    dict with keys:
+      profits  per-rl-agent accumulated reward
+      welfare  accumulated system welfare
+      re_rate  renewable consumption rate from the last block
+      sched    per-agent committed schedules padded to length env.T
+      declared per-rl-agent bid_mult/offer_adder padded to length env.T
+    """
+    obs = env.reset()
+    rl_names = [a.name for a in env.rl_agents]
+    profits: Dict[str, float] = {nm: 0.0 for nm in rl_names}
+    welfare = 0.0
+    re_rate = 0.0
+    T = env.T
+    sched_keys = ["p_buy", "p_sell", "p_ch", "p_dis", "served",
+                  "unserved", "pv_used", "wind_used"]
+    sched = {a.name: {k: np.zeros(T) for k in sched_keys}
+             for a in env.all_agents}
+    declared = {nm: {"bid_mult": np.zeros(T), "offer_adder": np.zeros(T)}
+                for nm in rl_names}
+    for block in range(n_blocks):
+        t_start = block * BLOCK_SIZE
+        acts = {nm: actor_predict(policies[nm], obs[nm]) for nm in rl_names}
+        next_obs, rewards, done, info = env.step(acts)
+        res = env._last_result
+        n_commit = min(BLOCK_SIZE,
+                       min(t_start + env.roll_horizon, T) - t_start)
+        if res is not None:
+            for nm in sched:
+                ws = res["schedules"].get(nm)
+                if ws is None:
+                    continue
+                for key in sched[nm]:
+                    sched[nm][key][t_start:t_start + n_commit] = \
+                        ws[key][:n_commit]
+        for nm in rl_names:
+            ca = env.current_actions.get(nm)
+            if ca is not None:
+                declared[nm]["bid_mult"][t_start:t_start + n_commit] = \
+                    ca["bid_mult"][t_start:t_start + n_commit]
+                declared[nm]["offer_adder"][t_start:t_start + n_commit] = \
+                    ca["offer_adder"][t_start:t_start + n_commit]
+        welfare += info.get("welfare", 0.0)
+        re_rate = info.get("re_rate", 0.0)
+        for nm in rl_names:
+            profits[nm] = profits.get(nm, 0.0) + rewards.get(nm, 0.0)
+        if done:
+            break
+        obs = next_obs
+    return {"profits": profits, "welfare": welfare, "re_rate": re_rate,
+            "sched": sched, "declared": declared}
 
 
 def load_policies_from_dir(dir_path: str, obs_dim: int,
@@ -167,6 +235,121 @@ def load_policies_from_dir(dir_path: str, obs_dim: int,
         except Exception as e:
             print(f"  Failed to load {path}: {e}")
     return policies
+
+
+def default_eval_config() -> MarketConfig:
+    """Config recipe used for policy evaluation.
+
+    Storage is dispatched by the market optimizer using declared prices (same
+    mechanism as training); MPC pre-scheduling is disabled so that baseline
+    and RL runs are comparable.
+    """
+    config = MarketConfig(opf_mode="socp", verbose=False)
+    config.market_design.enable_multi_objective = False
+    config.storage.self_schedule = False
+    config.storage.use_nodal_price = False
+    return config
+
+
+def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
+                        n_blocks: int = N_BLOCKS, seed: int = 42) -> dict:
+    """Evaluate a directory of trained per-agent policies over scenarios.
+
+    Runs entirely in memory (writes no files). For each scenario a truthful
+    baseline episode and a combined-fleet episode are cleared, and the return
+    mirrors the "ALL" rows the CLI writes to CSV. Best-response regret is not
+    evaluated here.
+
+    Parameters
+    ----------
+    policy_dir : str  Directory of {agent_name}.pt policy files.
+    scenarios : list of str
+    n_blocks : int  Blocks per episode; reducing it cuts runtime roughly
+        linearly (a partial-day window with identical envs on both sides).
+    seed : int  Accepted for parity with the CLI; episodes are deterministic
+        given the scenario RNG state.
+
+    Returns
+    -------
+    dict with keys policy_dir, loaded, obs_spec_name and scenarios (one entry
+    per scenario). Each scenario entry carries the aggregate columns
+    baseline_profit / rl_profit / profit_delta / welfare_baseline /
+    welfare_rl / welfare_delta / valuation_artifact / genuine_welfare_delta /
+    re_rate_baseline / re_rate_rl and n_rl (matched policies).
+    """
+    config = default_eval_config()
+
+    # Recover the observation/action spec from a scratch baseline env so policy
+    # files are validated against the same spec they were saved with.
+    scratch_agents, _ = get_scenario("baseline", T=96,
+                                     config=copy.deepcopy(config))
+    scratch_env = BiddingEnv(scratch_agents, config)
+    obs_dim = scratch_env.get_state_dim()
+    obs_spec = scratch_env.obs_spec
+    action_spec = scratch_env.action_spec
+    bounds = scratch_env.get_action_bounds()
+    bid_mult_low = float(bounds[0, 0])
+    bid_mult_high = float(bounds[1, 0])
+
+    policies = load_policies_from_dir(policy_dir, obs_dim, bounds,
+                                      obs_spec=obs_spec,
+                                      action_spec=action_spec)
+    if not policies:
+        raise ValueError(
+            f"No compatible policy files loaded from '{policy_dir}' "
+            f"(obs spec '{getattr(obs_spec, 'name', '?')}').")
+
+    out = {
+        "policy_dir": policy_dir,
+        "loaded": len(policies),
+        "obs_spec_name": getattr(obs_spec, "name", ""),
+        "scenarios": [],
+    }
+    for sc_name in scenarios:
+        cfg = copy.deepcopy(config)
+        agents, _ = get_scenario(sc_name, T=96, config=cfg)
+        present = {a.name for a in agents}
+        rl_names = [nm for nm in policies if nm in present]
+        if not rl_names:
+            raise ValueError(
+                f"No policy agent is present in scenario '{sc_name}'. "
+                f"Loaded agents: {list(policies)}")
+
+        # Truthful baseline episode.
+        env_base = BiddingEnv(agents, cfg,
+                              bid_mult_low=bid_mult_low,
+                              bid_mult_high=bid_mult_high)
+        base = run_episode(env_base, policy=None, n_blocks=n_blocks)
+
+        # Combined-fleet episode (all matched policies act together).
+        env_comb = BiddingEnv(agents, cfg, rl_agent_names=rl_names,
+                              bid_mult_low=bid_mult_low,
+                              bid_mult_high=bid_mult_high)
+        comb = run_combined_episode(env_comb, policies, n_blocks=n_blocks)
+
+        artifact = valuation_artifact(comb["sched"], comb["declared"],
+                                      agents, cfg)
+        welfare_delta = comb["welfare"] - base["welfare"]
+        total_base_profit = sum(base["profits"].get(nm, 0.0)
+                                for nm in rl_names)
+        total_rl_profit = sum(comb["profits"].get(nm, 0.0)
+                              for nm in rl_names)
+        out["scenarios"].append({
+            "scenario": sc_name,
+            "n_rl": len(rl_names),
+            "baseline_profit": total_base_profit,
+            "rl_profit": total_rl_profit,
+            "profit_delta": total_rl_profit - total_base_profit,
+            "welfare_baseline": base["welfare"],
+            "welfare_rl": comb["welfare"],
+            "welfare_delta": welfare_delta,
+            "valuation_artifact": artifact,
+            "genuine_welfare_delta": welfare_delta - artifact,
+            "re_rate_baseline": base["re_rate"],
+            "re_rate_rl": comb["re_rate"],
+            "n_blocks": n_blocks,
+        })
+    return out
 
 
 def run_regret_test(agents, config, declared: dict, T: int,
@@ -264,13 +447,7 @@ def main():
         eval_scenarios = [s.strip() for s in args.scenarios.split(",")]
 
     # ---- Build config ----
-    config = MarketConfig(opf_mode="socp", verbose=False)
-    config.market_design.enable_multi_objective = False
-    # Storage is dispatched by the market optimizer using declared prices
-    # (same mechanism as training); MPC pre-scheduling is disabled so that
-    # baseline and RL runs are comparable.
-    config.storage.self_schedule = False
-    config.storage.use_nodal_price = False
+    config = default_eval_config()
 
     # ---- Load policies ----
     action_bounds = torch.tensor(
@@ -381,63 +558,14 @@ def main():
                                       rl_agent_names=rl_names,
                                       bid_mult_low=args.bid_mult_low,
                                       bid_mult_high=args.bid_mult_high)
-                # For combined mode, we iterate blocks and use each agent's
-                # policy simultaneously
-                obs = env_comb.reset()
-                comb_profits = {nm: 0.0 for nm in rl_names}
-                comb_welfare = 0.0
-                comb_re_rate = 0.0
-                # Stitch committed-period schedules and the DECLARED bid/offer
-                # so valuation_artifact can separate the genuine dispatch
-                # effect from the bid-shading welfare artifact (mirrors
-                # diagnose_profit.run_day).
-                T = env_comb.T
-                sched = {
-                    a.name: {k: np.zeros(T) for k in
-                             ["p_buy", "p_sell", "p_ch", "p_dis", "served",
-                              "unserved", "pv_used", "wind_used"]}
-                    for a in agents
-                }
-                declared = {nm: {"bid_mult": np.zeros(T),
-                                 "offer_adder": np.zeros(T)}
-                            for nm in rl_names}
-                for block in range(N_BLOCKS):
-                    t_start = block * BLOCK_SIZE
-                    acts = {}
-                    for nm in rl_names:
-                        acts[nm] = actor_predict(policies[nm], obs[nm])
-                    next_obs, rewards, done, info = env_comb.step(acts)
-                    res = env_comb._last_result
-                    n_commit = min(
-                        BLOCK_SIZE,
-                        min(t_start + env_comb.roll_horizon, T) - t_start)
-                    if res is not None:
-                        for nm in sched:
-                            ws = res["schedules"].get(nm)
-                            if ws is None:
-                                continue
-                            for key in sched[nm]:
-                                sched[nm][key][t_start:t_start + n_commit] = \
-                                    ws[key][:n_commit]
-                    for nm in rl_names:
-                        ca = env_comb.current_actions.get(nm)
-                        if ca is not None:
-                            declared[nm]["bid_mult"][t_start:t_start + n_commit] = \
-                                ca["bid_mult"][t_start:t_start + n_commit]
-                            declared[nm]["offer_adder"][t_start:t_start + n_commit] = \
-                                ca["offer_adder"][t_start:t_start + n_commit]
-                    comb_welfare += info.get("welfare", 0.0)
-                    comb_re_rate = info.get("re_rate", 0.0)
-                    for nm in rl_names:
-                        comb_profits[nm] = comb_profits.get(nm, 0.0) \
-                            + rewards.get(nm, 0.0)
-                    if done:
-                        break
-                    obs = next_obs
+                comb = run_combined_episode(env_comb, policies)
+                comb_welfare = comb["welfare"]
+                comb_re_rate = comb["re_rate"]
+                comb_profits = comb["profits"]
                 comb_welfare_delta = comb_welfare - base_result["welfare"]
                 comb_re_delta = comb_re_rate - base_result["re_rate"]
-                artifact = valuation_artifact(sched, declared, agents,
-                                              config_copy)
+                artifact = valuation_artifact(comb["sched"], comb["declared"],
+                                              agents, config_copy)
                 genuine = comb_welfare_delta - artifact
                 print(f"  Combined ({len(rl_names)} policies): "
                       f"welfare_delta={comb_welfare_delta:+.0f}  "
@@ -472,7 +600,7 @@ def main():
                     out_dir = os.path.dirname(args.output) if args.output \
                         else "."
                     regret_path = os.path.join(out_dir, "final_regret.csv")
-                    regret = run_regret_test(agents, config_copy, declared,
+                    regret = run_regret_test(agents, config_copy, comb["declared"],
                                              T, output_path=regret_path)
                     results[-1]["total_regret"] = regret["total_regret"]
 

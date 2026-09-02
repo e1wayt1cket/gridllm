@@ -3,28 +3,40 @@
 
 scenarios:
   baseline:
-    description: "Baseline: wind+solar+storage"
+    description: "Baseline: typical day, reference facilities"
     with_wind: true
+    override_config:
+      network.line_capacity_multiplier: 1.5
 
   high_re:
-    description: "High renewable: 2x PV and wind capacity"
+    description: "High renewable: 2x PV/wind output on a windy, sunny day"
     with_wind: true
     multipliers:
       pv: 2.0
       wind: 2.0
+    override_config:
+      network.line_capacity_multiplier: 1.5
 
   peak_load:
-    description: "Peak load: 1.5x all loads and storage"
+    description: "Heat-wave peak: 1.5x all loads, storage and line capacity unchanged"
     with_wind: true
     multipliers:
       load: 1.5
-      storage: 1.5
+    override_config:
+      network.line_capacity_multiplier: 1.5
 
   congestion:
-    description: "Network congestion: line capacity halved"
+    description: "Downstream load concentration: long-distance power flow against shared line limits"
     with_wind: true
     override_config:
-      network.line_capacity_multiplier: 0.5
+      network.line_capacity_multiplier: 1.5
+      custom_loads:
+        - buses: [11, 12, 13, 14, 15, 16, 17]
+          factor: 2.5
+        - buses: [18, 19, 20, 21]
+          factor: 1.8
+        - buses: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+          factor: 0.6
 
   no_congestion:
     description: "No congestion: 5x line capacity for algorithm validation"

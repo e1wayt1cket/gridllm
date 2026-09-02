@@ -12,7 +12,8 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
     Supported YAML keys per scenario:
       - with_wind: bool (default True)
       - multipliers: {pv, wind, load, storage} -> float factor applied to agent forecasts
-      - override_config: dict of MarketConfig field overrides
+      - override_config: dict of MarketConfig field overrides; may also carry
+        custom_loads: [{buses: [int], factor: float}] for per-bus load scaling
       - re_ramp: {type: sudden_drop|sudden_surge, multiplier: float}
         Transforms PV/wind forecasts at midpoint by the given multiplier.
 
@@ -25,7 +26,12 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
 
     with_wind = cfg.get("with_wind", True)
     multipliers = cfg.get("multipliers", {})
-    override = cfg.get("override_config", {})
+    override = dict(cfg.get("override_config", {}))
+    # custom_loads is a per-bus load scaling directive applied after agent
+    # creation; take it out so it never reaches MarketConfig construction
+    # (an unknown key would raise TypeError on the config=None path). Copy
+    # the dict first because get_scenario_cfg returns cached YAML state.
+    custom_loads = override.pop("custom_loads", [])
     re_ramp = cfg.get("re_ramp", None)
 
     if config is not None:
@@ -89,6 +95,19 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
             a.storage.e_max *= storage_mult
             a.storage.p_ch_max *= storage_mult
             a.storage.p_dis_max *= storage_mult
+
+    # --- apply per-bus custom load scaling (spatial redistribution) ---
+    # Runs after the global load multiplier so the factor acts on the
+    # already-scaled load profile. Same shape as llm.apply_llm_config_to_agents.
+    for cl in custom_loads:
+        buses = set(cl.get("buses", []))
+        factor = float(cl.get("factor", 1.0))
+        if factor == 1.0:
+            continue
+        for a in agents:
+            if a.bus in buses:
+                a.load_forecast = a.load_forecast * factor
+                a.load_real = a.load_real * factor
 
     # --- apply RE ramp event ---
     if re_ramp is not None:

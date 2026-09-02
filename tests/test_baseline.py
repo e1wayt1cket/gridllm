@@ -128,8 +128,12 @@ def test_constraint_mode_feasible():
     assert "shadow_prices" in results, "constraint mode should return shadow prices"
 
 
-def test_congestion_lower_welfare():
-    """Congestion should have lower or equal welfare vs baseline (weighted-sum mode)."""
+def test_congestion_widens_lmp_spread():
+    """Redesigned congestion: spatial load concentration against shared line
+    limits should widen nodal price divergence vs baseline. The former
+    'welfare no higher' invariant belonged to the old line-capacity-halved
+    definition; the unified-facility scenario now isolates a spatial-price
+    signal under identical storage and line capacity."""
     T = 96
     config_b = MarketConfig(opf_mode="lindistflow", verbose=False,
                             market_design=MarketDesignConfig(use_constraint_multi_obj=False))
@@ -141,8 +145,10 @@ def test_congestion_lower_welfare():
                        adaptive_bidding(agents_b, config_b, "rl"), config_b)
     r_c = clear_market(agents_c, T, "DA",
                        adaptive_bidding(agents_c, config_c, "rl"), config_c)
-    assert r_c["welfare"] <= r_b["welfare"] * 1.05, \
-        f"congestion welfare {r_c['welfare']:.0f} much higher than baseline {r_b['welfare']:.0f}"
+    spread_b = float(np.asarray(r_b["lmp"]).std(axis=1).mean())
+    spread_c = float(np.asarray(r_c["lmp"]).std(axis=1).mean())
+    assert spread_c > spread_b * 1.5, \
+        f"congestion LMP spatial spread {spread_c:.1f} not above baseline {spread_b:.1f}"
 
 
 def test_carbon_scales_with_dt():

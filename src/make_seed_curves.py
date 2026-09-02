@@ -19,15 +19,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 RUNS = {
-    "rotation · seed 42": "runs/train-multi-20260817-122650",
-    "rotation · seed 123": "runs/train-multi-20260818-151447",
-    "rotation · seed 7": "runs/train-multi-20260818-210651",
-    "fixed baseline · seed 42": "runs/train-multi-20260819-111944",
+    "rotation · seed 7": "runs/train-multi-20260902-151407",
+    "rotation · seed 42": "runs/train-multi-20260902-162229",
+    "rotation · seed 123": "runs/train-multi-20260902-162230",
 }
-COLORS = {"rotation · seed 42": "#2a78d6",
-          "rotation · seed 123": "#eb6834",
-          "rotation · seed 7": "#1baf7a",
-          "fixed baseline · seed 42": "#eda100"}
+COLORS = {"rotation · seed 7": "#1baf7a",
+          "rotation · seed 42": "#2a78d6",
+          "rotation · seed 123": "#eb6834"}
 SURFACE = "#fcfcfb"
 PRIMARY = "#0b0b0b"
 SECONDARY = "#52514e"
@@ -75,7 +73,7 @@ def main():
     ax.axhline(0, color=BASELINE, lw=1.2)
     ax.set_xlabel("episode", color=MUTED, fontsize=10)
     ax.set_ylabel("mean reward (differential)", color=MUTED, fontsize=10)
-    ax.set_title("MATD3 training: mean reward (rotation vs fixed baseline)",
+    ax.set_title("MATD3 training: mean reward (rotation over 4 unified scenarios)",
                  color=PRIMARY, fontsize=13, pad=12)
     ax.tick_params(colors=SECONDARY, labelsize=9)
     for s in ["top", "right"]:

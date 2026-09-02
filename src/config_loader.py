@@ -5,7 +5,28 @@ import yaml
 from typing import Any, Optional
 
 
-_CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
+def _find_config_dir() -> str:
+    """Return the nearest ancestor of this module that holds config/defaults.yaml
+    and config/scenarios.yaml.
+
+    Scripts run from src/ while the YAML files may live in a sibling repo-root
+    config/ directory, so a path fixed relative to __file__ would break.
+    Walking upward keeps both layouts working regardless of the current cwd.
+    """
+    start = os.path.dirname(os.path.abspath(__file__))
+    d = start
+    while True:
+        if (os.path.isfile(os.path.join(d, "config", "defaults.yaml"))
+                and os.path.isfile(os.path.join(d, "config", "scenarios.yaml"))):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return start
+
+
+_CONFIG_DIR = _find_config_dir()
 _DEFAULTS_PATH = os.path.join(_CONFIG_DIR, "config", "defaults.yaml")
 _SCENARIOS_PATH = os.path.join(_CONFIG_DIR, "config", "scenarios.yaml")
 
