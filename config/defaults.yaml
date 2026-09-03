@@ -161,7 +161,7 @@ storage:
   terminal_value: null
   cycle_cost: 100.0
   discount_factor: 0.997
-  self_schedule: true
+  self_schedule: false
   mpc_horizon: 64
   mpc_price_noise_pct: 5.0
   mpc_bus_markup_pct: 30.0

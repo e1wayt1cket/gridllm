@@ -29,7 +29,9 @@ class StorageConfig:
     terminal_value: Optional[float] = None  # None = use day-ahead mean price
     cycle_cost: float = 100.0              # cycling degradation cost (CNY/MWh per ch+dis)
     discount_factor: float = 0.997         # per-period discount on future storage revenue
-    self_schedule: bool = True             # MPC pre-computes schedule, OPF treats as fixed
+    self_schedule: bool = False            # MPC pre-computes schedule, OPF treats as fixed.
+                                           # Default False so storage is dispatched by the market
+                                           # on declared bids (the RL path); MPC flows opt in.
     mpc_horizon: int = 64                  # MPC look-ahead periods (16 hours)
     mpc_price_noise_pct: float = 5.0       # per-agent MPC price forecast noise (%)
     mpc_bus_markup_pct: float = 30.0       # max bus-distance markup for MPC prices (%)

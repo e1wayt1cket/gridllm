@@ -433,6 +433,20 @@ def main():
                         help="CSV output path (default: print to console)")
     parser.add_argument("--seed", type=int, default=42,
                         help="RNG seed")
+    parser.add_argument("--eval-episodes", type=int, default=1,
+                        help="Number of evaluation episodes per (policy, "
+                             "scenario). Each episode draws a different "
+                             "wholesale-price day and results are averaged. "
+                             "With >1 the truthful baseline and the RL fleet "
+                             "are re-seeded with the same seed per episode, so "
+                             "both clear against the same price day (paired).")
+    parser.add_argument("--eval-seed", type=int, default=None,
+                        help="Seed for multi-episode evaluation. When set, "
+                             "episode k re-seeds numpy with eval_seed + k "
+                             "before the baseline and again before the RL run, "
+                             "pairing them on the same wholesale price day. "
+                             "Default: None keeps the legacy unseeded behavior "
+                             "for a single episode.")
     parser.add_argument("--nash-regret", action="store_true",
                         help="After the combined fleet evaluation, run a "
                              "best-response regret test against the trained "
@@ -494,70 +508,101 @@ def main():
               "welfare_delta", "valuation_artifact", "genuine_welfare_delta",
               "re_rate_baseline", "re_rate_rl", "total_regret"]
 
+    # Multi-episode paired evaluation protocol: for each scenario and episode
+    # the truthful baseline and the RL fleet are re-seeded with the SAME seed
+    # so both clear against the same wholesale-price day; episodes then sweep
+    # the seed to average out wholesale-day noise. Single-episode runs without
+    # --eval-seed keep the legacy unseeded path unchanged.
+    n_eps = max(1, args.eval_episodes)
+    paired = (args.eval_seed is not None) or n_eps > 1
+    base_seed = args.eval_seed if args.eval_seed is not None else args.seed
+
     _regret_done = False  # regret test runs once, on the first combined fleet
     for sc_name in eval_scenarios:
         print(f"--- {sc_name} ---")
         config_copy = copy.deepcopy(config)
         agents, wholesale = get_scenario(sc_name, T=96, config=config_copy)
+        agent_names = [a.name for a in agents]
+        rl_names = [n for n in policies if n in agent_names]
 
-        # ---- Baseline run (all fixed) ----
         env_base = BiddingEnv(agents, config_copy,
                               bid_mult_low=args.bid_mult_low,
                               bid_mult_high=args.bid_mult_high)
-        base_result = run_episode(env_base, policy=None)
-        print(f"  Baseline: welfare={base_result['welfare']:.0f}  "
-              f"RE={base_result['re_rate']:.1f}%")
+        env_comb = None
+        if len(rl_names) > 1:
+            env_comb = BiddingEnv(agents, config_copy,
+                                  rl_agent_names=rl_names,
+                                  bid_mult_low=args.bid_mult_low,
+                                  bid_mult_high=args.bid_mult_high)
 
-        # ---- RL run (with trained policies) ----
-        # If multiple policies, run them separately or combined.
-        # --combined-only skips per-agent runs; the fleet run below is then
-        # the sole output.
-        for pol_agent_name, pol_net in policies.items():
-            if args.combined_only:
-                continue
-            # Check if this agent exists in the scenario
-            if pol_agent_name not in [a.name for a in agents]:
-                print(f"  Agent {pol_agent_name} not in scenario {sc_name}, "
-                      f"skipping")
-                continue
+        # Per-episode rows, averaged per agent/ALL across episodes below.
+        rows_ep: list = []
+        last_declared = None
 
-            env_rl = BiddingEnv(agents, config_copy,
-                                rl_agent_names=[pol_agent_name],
-                                bid_mult_low=args.bid_mult_low,
-                                bid_mult_high=args.bid_mult_high)
-            rl_result = run_episode(env_rl, policy=pol_net)
-            print(f"  RL ({pol_agent_name}): welfare={rl_result['welfare']:.0f}"
-                  f"  RE={rl_result['re_rate']:.1f}%")
+        for k in range(n_eps):
+            S = base_seed + k if paired else None
+            if S is not None:
+                np.random.seed(S)
 
-            base_profit = base_result["profits"].get(pol_agent_name, 0.0)
-            rl_profit = rl_result["profits"].get(pol_agent_name, 0.0)
-            profit_delta = rl_profit - base_profit
-            welfare_delta = rl_result["welfare"] - base_result["welfare"]
-            re_delta = rl_result["re_rate"] - base_result["re_rate"]
-            print(f"    Profit: baseline={base_profit:.1f}  "
-                  f"RL={rl_profit:.1f}  delta={profit_delta:+.1f}  "
-                  f"welfare_delta={welfare_delta:+.0f}  "
-                  f"RE_delta={re_delta:+.1f}pp")
+            # ---- Baseline run (all fixed) for this price day ----
+            base_result = run_episode(env_base, policy=None)
+            if k == 0:
+                print(f"  Baseline: welfare={base_result['welfare']:.0f}  "
+                      f"RE={base_result['re_rate']:.1f}%")
 
-            results.append({
-                "scenario": sc_name, "agent": pol_agent_name,
-                "baseline_profit": base_profit, "rl_profit": rl_profit,
-                "profit_delta": profit_delta,
-                "welfare_baseline": base_result["welfare"],
-                "welfare_rl": rl_result["welfare"],
-                "welfare_delta": welfare_delta,
-                "re_rate_baseline": base_result["re_rate"],
-                "re_rate_rl": rl_result["re_rate"],
-            })
+            # ---- RL run (with trained policies) ----
+            # If multiple policies, run them separately or combined.
+            # --combined-only skips per-agent runs; the fleet run below is
+            # then the sole output.
+            if not args.combined_only:
+                for pol_agent_name, pol_net in policies.items():
+                    # Check if this agent exists in the scenario
+                    if pol_agent_name not in agent_names:
+                        if k == 0:
+                            print(f"  Agent {pol_agent_name} not in scenario "
+                                  f"{sc_name}, skipping")
+                        continue
 
-        # ---- Combined run (all trained policies together) ----
-        if len(policies) > 1:
-            rl_names = [n for n in policies if n in [a.name for a in agents]]
-            if len(rl_names) > 1:
-                env_comb = BiddingEnv(agents, config_copy,
-                                      rl_agent_names=rl_names,
-                                      bid_mult_low=args.bid_mult_low,
-                                      bid_mult_high=args.bid_mult_high)
+                    # Re-seed so each per-agent run pairs with the same-price
+                    # baseline day as the combined run.
+                    if S is not None:
+                        np.random.seed(S)
+                    env_rl = BiddingEnv(agents, config_copy,
+                                        rl_agent_names=[pol_agent_name],
+                                        bid_mult_low=args.bid_mult_low,
+                                        bid_mult_high=args.bid_mult_high)
+                    rl_result = run_episode(env_rl, policy=pol_net)
+                    if k == 0:
+                        print(f"  RL ({pol_agent_name}): "
+                              f"welfare={rl_result['welfare']:.0f}  "
+                              f"RE={rl_result['re_rate']:.1f}%")
+
+                    base_profit = base_result["profits"].get(pol_agent_name, 0.0)
+                    rl_profit = rl_result["profits"].get(pol_agent_name, 0.0)
+                    profit_delta = rl_profit - base_profit
+                    welfare_delta = rl_result["welfare"] - base_result["welfare"]
+                    re_delta = rl_result["re_rate"] - base_result["re_rate"]
+                    if k == 0:
+                        print(f"    Profit: baseline={base_profit:.1f}  "
+                              f"RL={rl_profit:.1f}  delta={profit_delta:+.1f}  "
+                              f"welfare_delta={welfare_delta:+.0f}  "
+                              f"RE_delta={re_delta:+.1f}pp")
+
+                    rows_ep.append({
+                        "agent": pol_agent_name,
+                        "baseline_profit": base_profit, "rl_profit": rl_profit,
+                        "profit_delta": profit_delta,
+                        "welfare_baseline": base_result["welfare"],
+                        "welfare_rl": rl_result["welfare"],
+                        "welfare_delta": welfare_delta,
+                        "re_rate_baseline": base_result["re_rate"],
+                        "re_rate_rl": rl_result["re_rate"],
+                    })
+
+            # ---- Combined run (all trained policies together) ----
+            if env_comb is not None:
+                if S is not None:
+                    np.random.seed(S)
                 comb = run_combined_episode(env_comb, policies)
                 comb_welfare = comb["welfare"]
                 comb_re_rate = comb["re_rate"]
@@ -567,21 +612,22 @@ def main():
                 artifact = valuation_artifact(comb["sched"], comb["declared"],
                                               agents, config_copy)
                 genuine = comb_welfare_delta - artifact
-                print(f"  Combined ({len(rl_names)} policies): "
-                      f"welfare_delta={comb_welfare_delta:+.0f}  "
-                      f"artifact={artifact:+.0f}  "
-                      f"genuine={genuine:+.0f}  "
-                      f"RE_delta={comb_re_delta:+.1f}pp")
-                for nm in rl_names:
-                    print(f"    {nm}: profit={comb_profits[nm]:.1f}  "
-                          f"delta={comb_profits[nm] - base_result['profits'].get(nm, 0):+.1f}")
+                if k == 0:
+                    print(f"  Combined ({len(rl_names)} policies): "
+                          f"welfare_delta={comb_welfare_delta:+.0f}  "
+                          f"artifact={artifact:+.0f}  "
+                          f"genuine={genuine:+.0f}  "
+                          f"RE_delta={comb_re_delta:+.1f}pp")
+                    for nm in rl_names:
+                        print(f"    {nm}: profit={comb_profits[nm]:.1f}  "
+                              f"delta={comb_profits[nm] - base_result['profits'].get(nm, 0):+.1f}")
 
                 # Aggregate combined row for the CSV
                 total_base_profit = sum(base_result["profits"].get(nm, 0.0)
                                         for nm in rl_names)
                 total_rl_profit = sum(comb_profits[nm] for nm in rl_names)
-                results.append({
-                    "scenario": sc_name, "agent": "ALL",
+                rows_ep.append({
+                    "agent": "ALL",
                     "baseline_profit": total_base_profit,
                     "rl_profit": total_rl_profit,
                     "profit_delta": total_rl_profit - total_base_profit,
@@ -592,17 +638,35 @@ def main():
                     "genuine_welfare_delta": genuine,
                     "re_rate_baseline": base_result["re_rate"],
                     "re_rate_rl": comb_re_rate,
-                    "total_regret": "",
                 })
-                # Optional best-response regret test (once, explicit opt-in).
-                if args.nash_regret and not _regret_done:
-                    _regret_done = True
-                    out_dir = os.path.dirname(args.output) if args.output \
-                        else "."
-                    regret_path = os.path.join(out_dir, "final_regret.csv")
-                    regret = run_regret_test(agents, config_copy, comb["declared"],
-                                             T, output_path=regret_path)
-                    results[-1]["total_regret"] = regret["total_regret"]
+                last_declared = comb["declared"]
+
+        # ---- Average per-episode rows into one row per agent / ALL ----
+        by_agent: dict = {}
+        for r in rows_ep:
+            by_agent.setdefault(r["agent"], []).append(r)
+        num_keys = ["baseline_profit", "rl_profit", "profit_delta",
+                    "welfare_baseline", "welfare_rl", "welfare_delta",
+                    "valuation_artifact", "genuine_welfare_delta",
+                    "re_rate_baseline", "re_rate_rl"]
+        for agent, rows in by_agent.items():
+            agg = {"scenario": sc_name, "agent": agent,
+                   "total_regret": ""}
+            for key in num_keys:
+                vals = [r[key] for r in rows if r.get(key) is not None]
+                agg[key] = float(np.mean(vals)) if vals else None
+            results.append(agg)
+
+        # Optional best-response regret test (once, explicit opt-in).
+        if args.nash_regret and not _regret_done and last_declared is not None:
+            _regret_done = True
+            out_dir = os.path.dirname(args.output) if args.output else "."
+            regret_path = os.path.join(out_dir, "final_regret.csv")
+            regret = run_regret_test(agents, config_copy, last_declared,
+                                     T, output_path=regret_path)
+            for r in results:
+                if r.get("scenario") == sc_name and r.get("agent") == "ALL":
+                    r["total_regret"] = regret["total_regret"]
 
     # ---- Output ----
     if args.output and results:

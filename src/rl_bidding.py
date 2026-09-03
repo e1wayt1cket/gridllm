@@ -3,7 +3,7 @@
 
 Centralized Training with Decentralized Execution: each agent has an
 Actor (local obs → action) and a Centralized Critic (global obs+act → Q).
-The Critic sees all agents' unique observations and actions during training,
+The Critic sees all agents' full observations and actions during training,
 resolving the non-stationarity problem of independent learners.
 """
 
@@ -65,16 +65,16 @@ class Actor(nn.Module):
 class CentralizedCritic(nn.Module):
     """Twin Q-networks taking global state + global actions → Q-value.
 
-    Input: [agent_i_full_obs | all_other_unique_obs | all_actions]
+    Input: [all_agents_full_obs | all_actions]
     """
 
-    def __init__(self, n_agents: int, obs_dim: int, act_dim: int,
-                 unique_obs_dim: int):
+    def __init__(self, n_agents: int, obs_dim: int, act_dim: int):
         super().__init__()
-        # Total input: obs_dim (self) + unique_obs_dim*(n_agents-1) (others)
+        # Total input: obs_dim*n_agents (all agents' full observation, so the
+        # critic also sees each agent's per-agent shared features such as
+        # forecaster EMA/trend/prediction and opponent-bid statistics)
         #            + act_dim * n_agents (all actions)
-        self.critic_in = (obs_dim + unique_obs_dim * (n_agents - 1)
-                          + act_dim * n_agents)
+        self.critic_in = obs_dim * n_agents + act_dim * n_agents
         h = 256 if n_agents <= 20 else 512
         # Deeper critic with a drop layer; dropout only regularizes the
         # online critic and must be off for the target networks (see MATD3).
@@ -210,9 +210,9 @@ class MATD3:
         self.critic_opts: Dict[str, optim.Adam] = {}
         for a in env.rl_agents:
             self.critics[a.name] = CentralizedCritic(
-                n_agents, obs_dim, act_dim, unique_dim)
+                n_agents, obs_dim, act_dim)
             self.critic_targets[a.name] = CentralizedCritic(
-                n_agents, obs_dim, act_dim, unique_dim)
+                n_agents, obs_dim, act_dim)
             self.critic_targets[a.name].load_state_dict(
                 self.critics[a.name].state_dict())
             # Target networks must not apply dropout: stochastic targets would
@@ -226,27 +226,22 @@ class MATD3:
         self.action_low = action_bounds[0]
         self.action_high = action_bounds[1]
 
+    def remember(self, obs, act, rew, next_obs, done):
+        """Store a transition. Identity for MATD3 (rewards stored raw); the
+        diffusion trainer overrides this to apply its frozen standardization."""
+        self.buffer.add(obs, act, rew, next_obs, done)
+
     def _build_global_state(self, obs_batch, agent_idx):
         """Build centralized critic input for agent agent_idx.
 
         obs_batch: (batch, n_agents, obs_dim)
-        Returns: (batch, obs_dim + unique_dim*(n-1)) — full obs for self
-                 + unique parts from all others.
+        Returns: (batch, obs_dim * n_agents) — full observation of every
+                 agent in the fixed agent ordering. Each agent's per-agent
+                 shared features (forecaster EMA/trend/prediction, opponent
+                 bid statistics) reach the critic, not only its unique slice.
         """
         batch_size = obs_batch.shape[0]
-        n = self.n_agents
-        u_dim = self.unique_obs_dim
-        # Agent's own full observation
-        own = obs_batch[:, agent_idx, :]
-        # Other agents' unique observations
-        other_unique = []
-        for j in range(n):
-            if j != agent_idx:
-                # unique part is at the START of the observation
-                other_unique.append(obs_batch[:, j, :u_dim])
-        others = torch.cat(other_unique, dim=-1) if other_unique else \
-            torch.zeros(batch_size, 0, device=obs_batch.device)
-        return torch.cat([own, others], dim=-1)
+        return obs_batch.reshape(batch_size, -1)
 
     def select_action(self, obs: np.ndarray, agent_name: str,
                       add_noise: bool = False) -> np.ndarray:
@@ -282,9 +277,6 @@ class MATD3:
         # effective learning rate is unchanged).
         scale = self.buffer.reward_std()
         rew = rew / scale
-
-        n = self.n_agents
-        u_dim = self.unique_obs_dim
 
         # ---- Update each agent's critic ----
         critic_losses = []

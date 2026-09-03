@@ -60,7 +60,7 @@ def build_parser():
         description="Train RL bidding policies for all storage agents "
                     "(independent TD3 or MATD3/CTDE)")
     parser.add_argument("--algo", type=str, default="matd3",
-                        choices=["td3", "matd3"],
+                        choices=["td3", "matd3", "mad3pg"],
                         help="Training algorithm: matd3 (centralized critic, "
                              "CTDE) or td3 (independent learners)")
     parser.add_argument("--agent-names", type=str, default=None,
@@ -129,6 +129,13 @@ def build_parser():
     parser.add_argument("--no-artifacts", action="store_true",
                         help="Disable structured run artifacts "
                              "(outputs/rl/<run_id>/)")
+    parser.add_argument("--diff-steps", type=int, default=50,
+                        help="MAD3PG diffusion reverse steps T (default 50)")
+    parser.add_argument("--diff-k", type=int, default=4,
+                        help="MAD3PG K min-samples for the critic TD target "
+                             "(default 4)")
+    parser.add_argument("--batch-size", type=int, default=128,
+                        help="Replay batch size for critic/actor updates")
     return parser
 
 
@@ -146,7 +153,8 @@ def _resolve_train_scenarios(scenarios_arg):
 
 
 def _train_matd3(args, env, action_bounds, rl_agent_names,
-                 train_scenarios, writer, tracker=None, artifacts=None):
+                 train_scenarios, writer, tracker=None, artifacts=None,
+                 trainer=None):
     """CTDE training loop: one MATD3 with a shared replay buffer.
 
     Each agent keeps its own actor; a centralized critic per agent sees all
@@ -156,15 +164,19 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
 
     Returns True when the run was stopped early by the PolicyTracker.
     """
-    from rl_bidding import MATD3
     from rl_td3 import save_policy
 
+    # The CTDE trainer is injected by the mad3pg branch; the matd3 default is
+    # built here. The local alias keeps the shared loop body unchanged.
+    if trainer is None:
+        from rl_bidding import MATD3
+        trainer = MATD3(env, lr=args.lr, noise_std=args.noise_std,
+                        start_steps=args.start_steps,
+                        bid_dev_penalty=args.bid_dev_penalty,
+                        offer_dev_penalty=args.offer_dev_penalty,
+                        noise_anneal_steps=args.noise_anneal_steps)
+    matd3 = trainer
     obs_dim = env.get_state_dim()
-    matd3 = MATD3(env, lr=args.lr, noise_std=args.noise_std,
-                  start_steps=args.start_steps,
-                  bid_dev_penalty=args.bid_dev_penalty,
-                  offer_dev_penalty=args.offer_dev_penalty,
-                  noise_anneal_steps=args.noise_anneal_steps)
     low = action_bounds[0].numpy()
     high = action_bounds[1].numpy()
 
@@ -204,7 +216,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                 next_obs.get(nm, np.zeros(obs_dim, dtype=np.float32))
                 for nm in rl_agent_names])
             done_arr = np.full(len(rl_agent_names), done, dtype=np.float32)
-            matd3.buffer.add(obs_arr, act_arr, rew_arr, next_obs_arr, done_arr)
+            matd3.remember(obs_arr, act_arr, rew_arr, next_obs_arr, done_arr)
             matd3.total_steps += 1
 
             for nm in rl_agent_names:
@@ -274,7 +286,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             mean_r = sum(ep_rewards.values()) / len(rl_agent_names)
             print(f"Ep {ep+1}/{args.episodes} | mean_reward={mean_r:+.1f} | "
                   f"welfare={ep_welfare:.0f} | RE={ep_re_rate:.1f}% | "
-                  f"sc={sc_name} | elapsed={elapsed:.0f}s | algo=matd3",
+                  f"sc={sc_name} | elapsed={elapsed:.0f}s | algo={args.algo}",
                   flush=True)
 
         # Structured run artifacts
@@ -340,7 +352,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         root = artifacts.save()
         print(f"Artifacts saved to: {root}", flush=True)
 
-    print(f"MATD3 training complete: {done_ep} episodes in "
+    print(f"{args.algo.upper()} training complete: {done_ep} episodes in "
           f"{elapsed:.0f}s ({elapsed / max(done_ep, 1):.1f}s/ep)"
           + (" (early stopped)" if stopped_early else ""), flush=True)
     print(f"Models saved: {args.save_dir}/{{name}}.pt "
@@ -472,6 +484,27 @@ def main():
         stopped_early = _train_matd3(
             args, env, action_bounds, rl_agent_names, train_scenarios,
             writer, tracker, artifacts)
+        writer.close()
+        if eval_scenarios:
+            print(f"\nHeld-out scenarios: {eval_scenarios}")
+            print("Run `python eval_agents.py --policies "
+                  f"{args.save_dir}` for detailed evaluation.")
+        return
+
+    # ---- MAD3PG: diffusion value-distribution critic (same CTDE loop) ----
+    if args.algo == "mad3pg":
+        from rl_diffusion import MAD3PG
+        trainer = MAD3PG(
+            env, lr=args.lr, noise_std=args.noise_std,
+            start_steps=args.start_steps,
+            bid_dev_penalty=args.bid_dev_penalty,
+            offer_dev_penalty=args.offer_dev_penalty,
+            noise_anneal_steps=args.noise_anneal_steps,
+            batch_size=args.batch_size,
+            diff_steps=args.diff_steps, diff_k=args.diff_k)
+        stopped_early = _train_matd3(
+            args, env, action_bounds, rl_agent_names, train_scenarios,
+            writer, tracker, artifacts, trainer=trainer)
         writer.close()
         if eval_scenarios:
             print(f"\nHeld-out scenarios: {eval_scenarios}")

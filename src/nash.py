@@ -157,30 +157,72 @@ def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
 # Random-sampling best response (fallback)
 # ---------------------------------------------------------------------------
 
-def _generate_variations(base_strategy, agent, config, num_variations=150,
-                         exploration_scale=None):
-    """Generate perturbed strategy variants via random normal sampling."""
+def _generate_variations(base_strategy, agent, config, num_variations=300,
+                         exploration_scale=None, local_fraction=0.6):
+    """Generate best-response candidates by mixed sampling.
+
+    The old scheme only applied a small Gaussian perturbation around the
+    current strategy, so a far unilateral move (e.g. truthful 1.0 to an
+    aggressive 0.3 bid) was never sampled and regret was understated. Mixed
+    sampling keeps that local Gaussian, adds uniform draws across the whole
+    action range, and prepends a few deterministic boundary vertices, so near
+    and far deviations share one variant budget. Uses the global numpy RNG so
+    parallel workers each draw independent candidates.
+    """
+    bid_lo, bid_hi = config.market_design.bid_mult_range
+    offer_range = config.market_design.offer_adder_range
     variants = []
     base_bid = np.array(base_strategy[agent.name]["bid_mult"])
     is_prosumer = agent.is_prosumer
     if is_prosumer:
         base_offer = np.array(base_strategy[agent.name]["offer_adder"])
 
+    # Deterministic full-range vertices (low / mid / high bid; low & high offer).
+    for bm in (bid_lo, (bid_lo + bid_hi) / 2.0, bid_hi):
+        new_strat = copy.deepcopy(base_strategy)
+        if is_prosumer:
+            for oa in (offer_range[0], offer_range[1]):
+                new_strat = copy.deepcopy(base_strategy)
+                new_strat[agent.name] = {
+                    "bid_mult": np.full_like(base_bid, bm),
+                    "offer_adder": np.full_like(base_offer, oa)}
+                variants.append(new_strat)
+        else:
+            new_strat[agent.name] = {"bid_mult": np.full_like(base_bid, bm)}
+            variants.append(new_strat)
+
+    remaining = num_variations - len(variants)
+    n_local = max(0, int(remaining * (local_fraction if local_fraction else 0.0)))
+    n_uniform = max(0, remaining - n_local)
+
     bid_sigma = 0.08 * (exploration_scale or 1.0)
     offer_sigma = 3.0 * (exploration_scale or 1.0)
 
-    for _ in range(num_variations):
+    for _ in range(n_local):
         new_strat = copy.deepcopy(base_strategy)
         if is_prosumer:
             bid_mult = np.clip(np.random.normal(base_bid, bid_sigma),
-                               *config.market_design.bid_mult_range)
+                               bid_lo, bid_hi)
             offer_adder = np.clip(np.random.normal(base_offer, offer_sigma),
-                                  *config.market_design.offer_adder_range)
+                                  *offer_range)
             new_strat[agent.name] = {"bid_mult": bid_mult,
                                      "offer_adder": offer_adder}
         else:
             bid_mult = np.clip(np.random.normal(base_bid, bid_sigma),
-                               *config.market_design.bid_mult_range)
+                               bid_lo, bid_hi)
+            new_strat[agent.name] = {"bid_mult": bid_mult}
+        variants.append(new_strat)
+
+    for _ in range(n_uniform):
+        new_strat = copy.deepcopy(base_strategy)
+        if is_prosumer:
+            bid_mult = np.random.uniform(bid_lo, bid_hi, size=base_bid.shape)
+            offer_adder = np.random.uniform(*offer_range,
+                                            size=base_offer.shape)
+            new_strat[agent.name] = {"bid_mult": bid_mult,
+                                     "offer_adder": offer_adder}
+        else:
+            bid_mult = np.random.uniform(bid_lo, bid_hi, size=base_bid.shape)
             new_strat[agent.name] = {"bid_mult": bid_mult}
         variants.append(new_strat)
     return variants
@@ -280,7 +322,7 @@ class NashEquilibriumTester:
 
     # -- best response dispatch ---------------------------------------------
 
-    def _best_response(self, agent, base_strategy, num_variations=150):
+    def _best_response(self, agent, base_strategy, num_variations=300):
         """Dispatch: COBYLA optimization or random sampling."""
         cache_key = self._make_cache_key(agent.name, base_strategy)
         if cache_key in self._payoff_cache:
@@ -337,7 +379,7 @@ class NashEquilibriumTester:
     # Nash equilibrium test
     # ------------------------------------------------------------------
 
-    def test_nash_equilibrium(self, base_strategy, num_variations=150,
+    def test_nash_equilibrium(self, base_strategy, num_variations=300,
                               threshold_rel=0.01):
         """Test whether current strategy profile is a Nash equilibrium.
 

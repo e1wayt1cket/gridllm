@@ -165,6 +165,7 @@ python -m pytest tests/ -v
 | `docs/2026-08-27-rl-handoff.md`（本文） | 当前状态总交接 + 今日图表重设计 |
 | `docs/superpowers/specs/2026-08-07-mild-deviation-penalty-design.md` | 出价偏差惩罚设计（已实现演进记录） |
 | `docs/superpowers/plans/2026-08-07-mild-deviation-penalty.md` | 对应实施计划 |
+| `docs/2026-09-03-rl-eval-protocol-specialist-ablation.md` | 主张 A 定稿；评估协议落地（多 episode 配对种子化）；unified 三种子 final/best K=3 结果；seed123 final Bus31I 退化假象 |
 
 ## 10. Git 状态（2026-08-27）
 
