@@ -166,7 +166,11 @@ class MATD3:
                  bid_dev_penalty: float = 0.0,
                  offer_dev_penalty: float = 0.0,
                  final_noise_std: float = 0.05,
-                 noise_anneal_steps: int = 5000):
+                 noise_anneal_steps: int = 5000,
+                 critic_factory=None):
+        """critic_factory: optional (n_agents, obs_dim, act_dim, agent_idx)
+        -> nn.Module returning (q1, q2) in forward; used to inject a physics-
+        guided critic. None builds the default CentralizedCritic."""
         self.env = env
         self.gamma = gamma
         self.tau = tau
@@ -208,11 +212,13 @@ class MATD3:
         self.critics: Dict[str, CentralizedCritic] = {}
         self.critic_targets: Dict[str, CentralizedCritic] = {}
         self.critic_opts: Dict[str, optim.Adam] = {}
-        for a in env.rl_agents:
-            self.critics[a.name] = CentralizedCritic(
-                n_agents, obs_dim, act_dim)
-            self.critic_targets[a.name] = CentralizedCritic(
-                n_agents, obs_dim, act_dim)
+        def make_critic(idx: int):
+            if critic_factory is not None:
+                return critic_factory(n_agents, obs_dim, act_dim, idx)
+            return CentralizedCritic(n_agents, obs_dim, act_dim)
+        for idx, a in enumerate(env.rl_agents):
+            self.critics[a.name] = make_critic(idx)
+            self.critic_targets[a.name] = make_critic(idx)
             self.critic_targets[a.name].load_state_dict(
                 self.critics[a.name].state_dict())
             # Target networks must not apply dropout: stochastic targets would

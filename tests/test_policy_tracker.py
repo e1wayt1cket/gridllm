@@ -18,8 +18,9 @@ def _stub_actor(obs_dim=12):
 class _StubEnv:
     """Minimal BiddingEnv-like stub for episode aggregation tests."""
 
-    def __init__(self, rl_names):
+    def __init__(self, rl_names, reward: float = 10.0):
         self.rl_names = rl_names
+        self.reward = reward
         self.obs = {nm: np.zeros(12, dtype=np.float32) for nm in rl_names}
         self.step_count = 0
 
@@ -29,7 +30,7 @@ class _StubEnv:
 
     def step(self, actions):
         self.step_count += 1
-        rewards = {nm: 10.0 for nm in self.rl_names}
+        rewards = {nm: self.reward for nm in self.rl_names}
         info = {"welfare": 100.0, "re_rate": 50.0}
         done = self.step_count >= 1
         return dict(self.obs), rewards, done, info
@@ -67,6 +68,36 @@ def test_tracker_build_eval_env():
     env = tracker.build_eval_env(config)
     assert [a.name for a in env.rl_agents] == rl_names
     assert env.use_differential_reward is False
+
+
+def test_tracker_build_eval_envs_multi_scenario():
+    config = MarketConfig(opf_mode="socp", verbose=False)
+    config.market_design.enable_multi_objective = False
+    config.storage.self_schedule = False
+    config.storage.use_nodal_price = False
+    agents, _ = get_scenario("baseline", T=96, config=config)
+    rl_names = [a.name for a in agents if a.storage is not None]
+    tracker = PolicyTracker("policies/x", rl_names,
+                            eval_scenarios=["baseline", "peak_load"],
+                            obs_spec=None)
+    envs = tracker.build_eval_envs(config)
+    assert len(envs) == 2
+    for env in envs:
+        assert [a.name for a in env.rl_agents] == rl_names
+        assert env.use_differential_reward is False
+
+
+def test_tracker_evaluate_averages_across_scenarios():
+    rl_names = ["Bus5R", "Bus6R"]
+    actors = {nm: _stub_actor() for nm in rl_names}
+    tracker = PolicyTracker("policies/x", rl_names,
+                            eval_scenarios=["baseline", "peak_load"])
+    envs = [_StubEnv(rl_names, reward=10.0),
+            _StubEnv(rl_names, reward=30.0)]
+    out = tracker.evaluate(envs, actors)
+    assert out["mean_reward"] == pytest.approx(20.0)
+    assert out["by_scenario"]["baseline"]["mean_reward"] == pytest.approx(10.0)
+    assert out["by_scenario"]["peak_load"]["mean_reward"] == pytest.approx(30.0)
 
 
 def test_tracker_best_and_last_with_early_stop(tmp_path):

@@ -25,6 +25,23 @@ from models import MarketConfig
 from rl_env import BiddingEnv, N_BLOCKS, BLOCK_SIZE
 from rl_td3 import Actor, load_policy
 from rl_profit_diagnostics import valuation_artifact
+from surplus_metrics import (consumer_metrics, load_payment_weighted_markup,
+                             market_power_split)
+
+# Schedule keys stitched per day when capture=True (mirrors empty_schedules).
+_CAPTURE_KEYS = ["p_buy", "p_sell", "p_ch", "p_dis", "served", "unserved",
+                 "pv_used", "wind_used"]
+# CSV columns appended to the combined (ALL) row under --consumer-metrics.
+_CONSUMER_COLUMNS = ["cs_baseline", "cs_rl", "cs_delta",
+                     "cp_baseline", "cp_rl", "cp_delta",
+                     "lmp_markup_baseline", "lmp_markup_rl",
+                     "lmp_markup_delta", "market_power_arb",
+                     "market_power_power"]
+
+
+def _n_commit(env, t_start: int) -> int:
+    """Committed periods of the rolling window starting at t_start."""
+    return min(BLOCK_SIZE, min(t_start + env.roll_horizon, env.T) - t_start)
 
 
 def compute_agent_profit(schedule: dict, lmp_node: np.ndarray,
@@ -73,7 +90,7 @@ def actor_predict(actor: Actor, obs: np.ndarray) -> np.ndarray:
 
 
 def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
-                n_blocks: int = N_BLOCKS) -> dict:
+                n_blocks: int = N_BLOCKS, capture: bool = False) -> dict:
     """Run an episode of up to *n_blocks* rolling-window blocks.
 
     Parameters
@@ -85,17 +102,31 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
         Number of blocks (BLOCK_SIZE periods each) to run, starting from the
         beginning of the day. Must not exceed N_BLOCKS; the default is the
         full day.
+    capture : bool
+        When True, also stitch the committed-period schedules of every agent,
+        the (T, n_buses) nodal LMP and the per-block wholesale curve actually
+        fed to each clear into full-day arrays, returned under "sched",
+        "lmp", "wholesale". Default False keeps the legacy return unchanged.
 
     Returns
     -------
-    dict with keys: welfare, re_rate, carbon, profits (per-agent dict).
+    dict with keys: welfare, re_rate, carbon, profits (per-agent dict), plus
+    sched/lmp/wholesale when capture is True.
     """
     obs = env.reset()
     total_welfare = 0.0
     total_re_rate = 0.0
     agent_profits: Dict[str, float] = {}
+    sched = None
+    lmp = None
+    wholesale_day = None
+    if capture:
+        sched = {a.name: {k: np.zeros(env.T) for k in _CAPTURE_KEYS}
+                 for a in env.all_agents}
+        wholesale_day = np.zeros(env.T)
 
-    for _ in range(n_blocks):
+    for block in range(n_blocks):
+        t_start = block * BLOCK_SIZE
         if policy is not None:
             # RL agent uses trained policy; others use defaults from env
             agent_name = env.rl_agents[0].name
@@ -110,6 +141,22 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
         total_welfare += info.get("welfare", 0.0)
         total_re_rate = info.get("re_rate", 0.0)  # last block's value
 
+        res = env._last_result
+        if capture and res is not None:
+            n_commit = _n_commit(env, t_start)
+            for a in env.all_agents:
+                ws = res["schedules"].get(a.name)
+                if ws is None:
+                    continue
+                for key in sched[a.name]:
+                    sched[a.name][key][t_start:t_start + n_commit] = \
+                        ws[key][:n_commit]
+            if lmp is None:
+                lmp = np.zeros((env.T, res["lmp"].shape[1]))
+            lmp[t_start:t_start + n_commit, :] = res["lmp"][:n_commit, :]
+            wholesale_day[t_start:t_start + n_commit] = \
+                env._last_wholesale[:n_commit]
+
         # Accumulate per-agent profit from per-block rewards
         if info.get("lmp") is not None:
             for a in env.all_agents:
@@ -123,14 +170,20 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
         obs = next_obs
 
     carbon = 0.0  # will be extracted from last info if available
-    return {"welfare": total_welfare,
-            "re_rate": total_re_rate,
-            "carbon": carbon,
-            "profits": agent_profits}
+    out = {"welfare": total_welfare,
+           "re_rate": total_re_rate,
+           "carbon": carbon,
+           "profits": agent_profits}
+    if capture:
+        out["sched"] = sched
+        out["lmp"] = lmp
+        out["wholesale"] = wholesale_day
+    return out
 
 
 def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
-                         n_blocks: int = N_BLOCKS) -> dict:
+                         n_blocks: int = N_BLOCKS,
+                         capture: bool = False) -> dict:
     """Run a combined-fleet episode: every matched policy acts simultaneously.
 
     Each block the trained actors pick bids/offers from their own observation,
@@ -159,12 +212,12 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
     welfare = 0.0
     re_rate = 0.0
     T = env.T
-    sched_keys = ["p_buy", "p_sell", "p_ch", "p_dis", "served",
-                  "unserved", "pv_used", "wind_used"]
-    sched = {a.name: {k: np.zeros(T) for k in sched_keys}
+    sched = {a.name: {k: np.zeros(T) for k in _CAPTURE_KEYS}
              for a in env.all_agents}
     declared = {nm: {"bid_mult": np.zeros(T), "offer_adder": np.zeros(T)}
                 for nm in rl_names}
+    lmp = None
+    wholesale_day = np.zeros(T) if capture else None
     for block in range(n_blocks):
         t_start = block * BLOCK_SIZE
         acts = {nm: actor_predict(policies[nm], obs[nm]) for nm in rl_names}
@@ -180,6 +233,12 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
                 for key in sched[nm]:
                     sched[nm][key][t_start:t_start + n_commit] = \
                         ws[key][:n_commit]
+            if capture:
+                if lmp is None:
+                    lmp = np.zeros((T, res["lmp"].shape[1]))
+                lmp[t_start:t_start + n_commit, :] = res["lmp"][:n_commit, :]
+                wholesale_day[t_start:t_start + n_commit] = \
+                    env._last_wholesale[:n_commit]
         for nm in rl_names:
             ca = env.current_actions.get(nm)
             if ca is not None:
@@ -194,8 +253,12 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
         if done:
             break
         obs = next_obs
-    return {"profits": profits, "welfare": welfare, "re_rate": re_rate,
-            "sched": sched, "declared": declared}
+    out = {"profits": profits, "welfare": welfare, "re_rate": re_rate,
+           "sched": sched, "declared": declared}
+    if capture:
+        out["lmp"] = lmp
+        out["wholesale"] = wholesale_day
+    return out
 
 
 def load_policies_from_dir(dir_path: str, obs_dim: int,
@@ -452,6 +515,17 @@ def main():
                              "best-response regret test against the trained "
                              "bid profile and write final_regret.csv (may be "
                              "slow: one best-response search per agent)")
+    parser.add_argument("--consumer-metrics", action="store_true",
+                        help="Also compute and report the three-layer "
+                             "accounting metrics (consumer surplus / consumer "
+                             "payment / LMP markup / fleet market-power "
+                             "arbitrage split) on the combined fleet row. "
+                             "Appends cs_*/cp_*/lmp_markup_*/market_power_* "
+                             "columns to the CSV.")
+    parser.add_argument("--capacity", type=float, default=None,
+                        help="Override network.line_capacity_multiplier for "
+                             "the evaluated network (scenarios otherwise pin "
+                             "it to 1.5).")
     args = parser.parse_args()
 
     # ---- Determine scenarios ----
@@ -507,6 +581,8 @@ def main():
               "profit_delta", "welfare_baseline", "welfare_rl",
               "welfare_delta", "valuation_artifact", "genuine_welfare_delta",
               "re_rate_baseline", "re_rate_rl", "total_regret"]
+    if args.consumer_metrics:
+        header += _CONSUMER_COLUMNS
 
     # Multi-episode paired evaluation protocol: for each scenario and episode
     # the truthful baseline and the RL fleet are re-seeded with the SAME seed
@@ -522,6 +598,9 @@ def main():
         print(f"--- {sc_name} ---")
         config_copy = copy.deepcopy(config)
         agents, wholesale = get_scenario(sc_name, T=96, config=config_copy)
+        if args.capacity is not None:
+            # Re-apply after get_scenario: scenarios re-pin capacity to 1.5.
+            config_copy.network.line_capacity_multiplier = args.capacity
         agent_names = [a.name for a in agents]
         rl_names = [n for n in policies if n in agent_names]
 
@@ -545,7 +624,8 @@ def main():
                 np.random.seed(S)
 
             # ---- Baseline run (all fixed) for this price day ----
-            base_result = run_episode(env_base, policy=None)
+            base_result = run_episode(env_base, policy=None,
+                                      capture=args.consumer_metrics)
             if k == 0:
                 print(f"  Baseline: welfare={base_result['welfare']:.0f}  "
                       f"RE={base_result['re_rate']:.1f}%")
@@ -603,7 +683,8 @@ def main():
             if env_comb is not None:
                 if S is not None:
                     np.random.seed(S)
-                comb = run_combined_episode(env_comb, policies)
+                comb = run_combined_episode(env_comb, policies,
+                                            capture=args.consumer_metrics)
                 comb_welfare = comb["welfare"]
                 comb_re_rate = comb["re_rate"]
                 comb_profits = comb["profits"]
@@ -622,6 +703,49 @@ def main():
                         print(f"    {nm}: profit={comb_profits[nm]:.1f}  "
                               f"delta={comb_profits[nm] - base_result['profits'].get(nm, 0):+.1f}")
 
+                # Three-layer accounting metrics (only on the combined fleet,
+                # computed on the captured full-day schedule/LMP/wholesale).
+                metric = {}
+                if args.consumer_metrics and comb.get("lmp") is not None \
+                        and base_result.get("lmp") is not None:
+                    cm_b = consumer_metrics(base_result["sched"],
+                                            base_result["lmp"], agents)
+                    cm_r = consumer_metrics(comb["sched"], comb["lmp"], agents)
+                    mk_b = load_payment_weighted_markup(
+                        base_result["sched"], base_result["lmp"],
+                        base_result["wholesale"], agents)
+                    mk_r = load_payment_weighted_markup(
+                        comb["sched"], comb["lmp"], comb["wholesale"], agents)
+                    splits = market_power_split(
+                        base_result["sched"], comb["sched"],
+                        base_result["lmp"], comb["lmp"], agents, config_copy)
+                    mk_delta = (mk_r - mk_b) if (not np.isnan(mk_r)
+                                                 and not np.isnan(mk_b)) \
+                        else None
+                    metric = {
+                        "cs_baseline": cm_b["cs"], "cs_rl": cm_r["cs"],
+                        "cs_delta": cm_r["cs"] - cm_b["cs"],
+                        "cp_baseline": cm_b["cp"], "cp_rl": cm_r["cp"],
+                        "cp_delta": cm_r["cp"] - cm_b["cp"],
+                        "lmp_markup_baseline": mk_b, "lmp_markup_rl": mk_r,
+                        "lmp_markup_delta": mk_delta,
+                        "market_power_arb": sum(s["arb"] for s in splits),
+                        "market_power_power": sum(
+                            s["market_power"] for s in splits),
+                    }
+                    if k == 0:
+                        print(f"    CS delta={metric['cs_delta']:+.1f}  "
+                              f"CP delta={metric['cp_delta']:+.1f}  "
+                              f"markup {mk_b:.4f}->{mk_r:.4f}  "
+                              f"fleet arb/power="
+                              f"{metric['market_power_arb']:+.1f}/"
+                              f"{metric['market_power_power']:+.1f}")
+                        for s in splits:
+                            print(f"      {s['name']}: dp={s['profit_delta']:+.1f}"
+                                  f" arb={s['arb']:+.1f} "
+                                  f"power={s['market_power']:+.1f} "
+                                  f"other={s['other']:+.1f} net={s['net']:+.1f}")
+
                 # Aggregate combined row for the CSV
                 total_base_profit = sum(base_result["profits"].get(nm, 0.0)
                                         for nm in rl_names)
@@ -638,6 +762,7 @@ def main():
                     "genuine_welfare_delta": genuine,
                     "re_rate_baseline": base_result["re_rate"],
                     "re_rate_rl": comb_re_rate,
+                    **metric,
                 })
                 last_declared = comb["declared"]
 
@@ -649,6 +774,8 @@ def main():
                     "welfare_baseline", "welfare_rl", "welfare_delta",
                     "valuation_artifact", "genuine_welfare_delta",
                     "re_rate_baseline", "re_rate_rl"]
+        if args.consumer_metrics:
+            num_keys += _CONSUMER_COLUMNS
         for agent, rows in by_agent.items():
             agg = {"scenario": sc_name, "agent": agent,
                    "total_regret": ""}

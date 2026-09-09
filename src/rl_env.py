@@ -65,6 +65,7 @@ class BiddingEnv:
                  stage: str = "DA", roll_horizon: int = 16,
                  rl_agent_names: Optional[List[str]] = None,
                  use_differential_reward: bool = False,
+                 market_impact_penalty: float = 0.0,
                  bid_mult_low: float = BID_MULT_LOW,
                  bid_mult_high: float = BID_MULT_HIGH,
                  obs_spec: Optional[ObservationSpec] = None,
@@ -98,6 +99,13 @@ class BiddingEnv:
         # where the baseline is the same window under truthful bidding for all
         # RL agents. Anchors the truthful policy at zero advantage.
         self.use_differential_reward = use_differential_reward
+        # Market-impact penalty: per block, subtract
+        #   lambda * sum_t ((q_rl + q_base)/2 * (lmp_rl - lmp_base))_t
+        # (the agent's price-impact "power" term between its own clear and the
+        # truthful baseline clear in the same window). 0 = disabled (current
+        # differential-reward behavior). Only meaningful with the differential
+        # baseline available (use_differential_reward).
+        self.market_impact_penalty = float(market_impact_penalty)
 
         if rl_agent_names is not None:
             self.rl_agents = [a for a in agents if a.name in rl_agent_names]
@@ -432,6 +440,8 @@ class BiddingEnv:
         else:
             self.wholesale = wholesale
 
+        # Per-block wholesale actually fed to clear_market; set on each step.
+        self._last_wholesale = None
         self.block_idx = 0
         self.prev_soc = {}
         self.hist_lmp = deque(maxlen=96)
@@ -551,6 +561,7 @@ class BiddingEnv:
         # two clears, corrupting reward = profit(price A) - profit(price B).
         wholesale = day_ahead_price_china(
             window_T, agents=window_agents, config=window_config)
+        self._last_wholesale = wholesale
 
         try:
             result = clear_market(window_agents, window_T, self.stage,
@@ -622,6 +633,18 @@ class BiddingEnv:
 
                 # Differential reward: profit above the truthful baseline
                 rewards[nm] = raw_reward - base_rewards.get(nm, 0.0)
+
+                # Market-impact penalty on the same differential basis.
+                if self.market_impact_penalty > 0.0 \
+                        and base_result is not None \
+                        and nm in base_result.get("schedules", {}):
+                    bws = base_result["schedules"][nm]
+                    q_rl = (ws["p_sell"][:n_commit] - ws["p_buy"][:n_commit])
+                    q_bs = (bws["p_sell"][:n_commit] - bws["p_buy"][:n_commit])
+                    lmp_bs = base_result["lmp"][:n_commit, a.bus]
+                    power_i = float(np.sum(
+                        (q_rl + q_bs) / 2.0 * (lmp_node[:n_commit] - lmp_bs)))
+                    rewards[nm] -= self.market_impact_penalty * power_i
 
                 # Update forecaster and LMP history from committed period
                 block_lmp = float(np.mean(lmp_node[:n_commit]))

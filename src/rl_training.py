@@ -61,14 +61,15 @@ class PolicyTracker:
     """
 
     def __init__(self, save_dir: str, agent_names: list,
-                 eval_scenario: str = "baseline", metric: str = "mean_reward",
+                 eval_scenarios: list = None, metric: str = "mean_reward",
                  eval_episodes: int = 1, early_stopping_steps: int = 0,
                  early_stopping_threshold: float = 0.05,
                  use_differential_reward: bool = False,
                  obs_spec=None, action_spec=None):
         self.save_dir = save_dir
         self.agent_names = agent_names
-        self.eval_scenario = eval_scenario
+        self.eval_scenarios = list(eval_scenarios) if eval_scenarios \
+            else ["baseline"]
         self.metric = metric
         self.eval_episodes = eval_episodes
         self.early_stopping_steps = early_stopping_steps
@@ -83,25 +84,50 @@ class PolicyTracker:
         self.best_episode = None
         self.early_stopped = False
 
-    def build_eval_env(self, config):
-        """Build a fresh evaluation environment on the eval scenario."""
-        agents, _ = get_scenario(
-            self.eval_scenario, T=96, config=copy.deepcopy(config))
+    def _build_env(self, config, scenario: str) -> BiddingEnv:
+        """Build a fresh deterministic evaluation env on one scenario."""
+        agents, _ = get_scenario(scenario, T=96, config=copy.deepcopy(config))
         return BiddingEnv(
             agents, config, rl_agent_names=self.agent_names,
             use_differential_reward=self.use_differential_reward,
             obs_spec=self.obs_spec, action_spec=self.action_spec)
 
-    def evaluate(self, env: BiddingEnv, actors: dict) -> dict:
-        """Average deterministic_fleet_episode over eval_episodes."""
+    def build_eval_env(self, config) -> BiddingEnv:
+        """Backward-compatible single-env build on the first eval scenario."""
+        return self._build_env(config, self.eval_scenarios[0])
+
+    def build_eval_envs(self, config) -> list:
+        """Build one deterministic eval env per eval scenario (in order)."""
+        return [self._build_env(config, sc) for sc in self.eval_scenarios]
+
+    def evaluate(self, envs, actors: dict) -> dict:
+        """Average deterministic_fleet_episode over eval_episodes and scenarios.
+
+        envs may be a single BiddingEnv (legacy) or a list aligned with
+        eval_scenarios. Returns the tracked metric averaged across scenarios
+        plus a by_scenario breakdown.
+        """
+        env_list = list(envs) if isinstance(envs, (list, tuple)) else [envs]
         n = max(1, self.eval_episodes)
         agg = {"mean_reward": 0.0, "welfare": 0.0, "re_rate": 0.0}
-        for _ in range(n):
-            r = deterministic_fleet_episode(env, actors, self.agent_names)
-            agg["mean_reward"] += r["mean_reward"]
-            agg["welfare"] += r["welfare"]
-            agg["re_rate"] += r["re_rate"]
-        return {k: v / n for k, v in agg.items()}
+        by_scenario = {}
+        for idx, env in enumerate(env_list):
+            sc_name = self.eval_scenarios[idx] \
+                if idx < len(self.eval_scenarios) else str(idx)
+            acc = {"mean_reward": 0.0, "welfare": 0.0, "re_rate": 0.0}
+            for _ in range(n):
+                r = deterministic_fleet_episode(env, actors, self.agent_names)
+                for k in acc:
+                    acc[k] += r[k]
+            for k in acc:
+                acc[k] /= n
+            by_scenario[sc_name] = acc
+            for k in agg:
+                agg[k] += acc[k]
+        for k in agg:
+            agg[k] /= max(len(env_list), 1)
+        agg["by_scenario"] = by_scenario
+        return agg
 
     def compare_and_save_policies(self, episode: int, actors: dict,
                                   metrics: dict) -> bool:

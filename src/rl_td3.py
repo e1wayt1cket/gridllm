@@ -436,6 +436,7 @@ def save_policy(actor: Actor, path: str, obs_spec=None, action_spec=None):
             "action_spec": action_spec.to_dict()
                            if action_spec is not None else None,
             "obs_dim": actor.net[0].in_features,
+            "actor_type": type(actor).__name__,
         }
     torch.save(state, path)
 
@@ -459,6 +460,11 @@ def load_policy(path: str, obs_dim: int,
                 f"'{saved.get('name')}' (v{saved.get('version')}) but the "
                 f"environment uses '{obs_spec.name}' "
                 f"(v{obs_spec.version}); refusing to load.")
-    net = Actor(obs_dim, 2, action_bounds)
+    actor_type = (meta or {}).get("actor_type", "Actor")
+    if actor_type == "StochasticActor":
+        from rl_masac import StochasticActor  # lazy: avoids import cycle
+        net = StochasticActor(obs_dim, 2, action_bounds)
+    else:
+        net = Actor(obs_dim, 2, action_bounds)
     net.load_state_dict(state)
     return net

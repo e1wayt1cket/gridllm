@@ -60,9 +60,12 @@ def build_parser():
         description="Train RL bidding policies for all storage agents "
                     "(independent TD3 or MATD3/CTDE)")
     parser.add_argument("--algo", type=str, default="matd3",
-                        choices=["td3", "matd3", "mad3pg"],
+                        choices=["td3", "matd3", "mad3pg", "qmatd3", "masac"],
                         help="Training algorithm: matd3 (centralized critic, "
-                             "CTDE) or td3 (independent learners)")
+                             "CTDE), td3 (independent learners), "
+                             "mad3pg (diffusion value-distribution critic), "
+                             "qmatd3 (quantile distributional critic) "
+                             "or masac (multi-agent SAC, stochastic actors)")
     parser.add_argument("--agent-names", type=str, default=None,
                         help="Comma-separated agent names to train. "
                              "Default: all agents with storage.")
@@ -75,6 +78,11 @@ def build_parser():
     parser.add_argument("--eval-scenarios", type=str, default=None,
                         help="Comma-separated scenario names held out for "
                              "post-training evaluation")
+    parser.add_argument("--tracker-scenarios", type=str, default=None,
+                        help="Comma-separated scenario names used for the "
+                             "in-training best-checkpoint selection. Default: "
+                             "the training scenarios (rotation -> all four; "
+                             "fixed single -> that scenario).")
     parser.add_argument("--episodes", type=int, default=N_EPISODES,
                         help="Number of training episodes")
     parser.add_argument("--seed", type=int, default=42,
@@ -136,6 +144,29 @@ def build_parser():
                              "(default 4)")
     parser.add_argument("--batch-size", type=int, default=128,
                         help="Replay batch size for critic/actor updates")
+    parser.add_argument("--n-quantiles", type=int, default=32,
+                        help="qmatd3: number of fixed symmetric quantile "
+                             "heads per critic twin (default 32)")
+    parser.add_argument("--physics", action="store_true",
+                        help="Use a physics-guided centralized critic "
+                             "(fixed electrical-distance interaction between "
+                             "storage agents). Requires matd3/qmatd3; the "
+                             "critic is train-only, saved actors are unchanged.")
+    parser.add_argument("--capacity", type=float, default=None,
+                        help="Override network.line_capacity_multiplier "
+                             "(thermal headroom) for every episode. The four "
+                             "comparison scenarios otherwise pin it to 1.5.")
+    parser.add_argument("--market-impact-penalty", type=float, default=0.0,
+                        help="E9: subtract lambda * the agent's intra-block "
+                             "price-impact 'power' term from the differential "
+                             "reward (0 disables; training only, eval stays "
+                             "truthful).")
+    parser.add_argument("--alpha-init", type=float, default=0.1,
+                        help="masac: initial temperature alpha (on the "
+                             "normalized-Q scale); auto-tuned thereafter")
+    parser.add_argument("--target-entropy", type=float, default=-2.0,
+                        help="masac: target entropy per agent (default -2 = "
+                             "-act_dim in pre-tanh logit space)")
     return parser
 
 
@@ -181,7 +212,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
     high = action_bounds[1].numpy()
 
     stopped_early = False
-    eval_env = tracker.build_eval_env(env.config) if tracker is not None \
+    eval_envs = tracker.build_eval_envs(env.config) if tracker is not None \
         else None
 
     t0 = time.time()
@@ -190,6 +221,8 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         config_copy = copy.deepcopy(env.config)
         agents_sc, wholesale = get_scenario(sc_name, T=env.T,
                                             config=config_copy)
+        if args.capacity is not None:
+            config_copy.network.line_capacity_multiplier = args.capacity
         env.set_agents(agents_sc, wholesale)
         env.config = config_copy
         obs = env.reset()
@@ -266,9 +299,12 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         # In-training evaluation + early stopping (opt-in via tracker)
         if tracker is not None and args.eval_interval > 0 \
                 and (ep + 1) % args.eval_interval == 0:
-            metrics = tracker.evaluate(eval_env, matd3.actors)
+            metrics = tracker.evaluate(eval_envs, matd3.actors)
             writer.add_scalar("Eval/mean_reward", metrics["mean_reward"], ep)
             writer.add_scalar("Eval/welfare", metrics["welfare"], ep)
+            for sc_name2, sub in (metrics.get("by_scenario") or {}).items():
+                writer.add_scalar(f"Eval/mean_reward/{sc_name2}",
+                                  sub["mean_reward"], ep)
             if tracker.compare_and_save_policies(ep + 1, matd3.actors,
                                                  metrics):
                 stopped_early = True
@@ -390,6 +426,11 @@ def main():
 
     # ---- Build initial agents from baseline scenario ----
     agents, _ = get_scenario("baseline", T=96, config=config)
+    # Capacity override must be re-applied after every get_scenario (the
+    # comparison scenarios re-pin line_capacity_multiplier to 1.5 in place);
+    # the per-episode loops re-apply it below.
+    if args.capacity is not None:
+        config.network.line_capacity_multiplier = args.capacity
 
     # ---- Determine RL agents ----
     if args.agent_names:
@@ -430,6 +471,7 @@ def main():
     # critic learns the real profit objective.
     env = BiddingEnv(agents, config, rl_agent_names=rl_agent_names,
                      use_differential_reward=args.diff_reward,
+                     market_impact_penalty=args.market_impact_penalty,
                      bid_mult_low=args.bid_mult_low,
                      bid_mult_high=args.bid_mult_high)
     print(f"RL agents in env: {[a.name for a in env.rl_agents]}", flush=True)
@@ -439,17 +481,23 @@ def main():
         tracker = None
     else:
         from rl_training import PolicyTracker
-        eval_sc = eval_scenarios[0] if eval_scenarios \
-            else DEFAULT_TRAIN_SCENARIO
+        # In-training best is selected across the training scenarios (so a
+        # rotation run's best generalizes to all four); --tracker-scenarios
+        # overrides. For a fixed single-scenario run this is just that scenario.
+        if args.tracker_scenarios:
+            tracker_scs = [s.strip()
+                           for s in args.tracker_scenarios.split(",")]
+        else:
+            tracker_scs = list(train_scenarios)
         tracker = PolicyTracker(
-            args.save_dir, rl_agent_names, eval_scenario=eval_sc,
+            args.save_dir, rl_agent_names, eval_scenarios=tracker_scs,
             metric=args.eval_metric, eval_episodes=args.eval_episodes,
             early_stopping_steps=args.early_stop_steps,
             early_stopping_threshold=args.early_stop_threshold,
             use_differential_reward=args.eval_use_diff_reward,
             obs_spec=env.obs_spec, action_spec=env.action_spec)
         print(f"Tracker: eval every {args.eval_interval} eps on "
-              f"'{eval_sc}' | early stop: "
+              f"{tracker_scs} | early stop: "
               f"{'on' if args.early_stop_steps > 0 else 'off'}",
               flush=True)
 
@@ -479,11 +527,39 @@ def main():
                            + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     writer = SummaryWriter(log_dir)
 
+    # ---- Physics-guided critic factory (train-only; saved actors unaffected)
+    def _physics_factory(out_dim: int):
+        """Return a critic_factory injecting fixed electrical-distance weights,
+        or None when --physics is off."""
+        if not args.physics:
+            return None
+        from rl_physics import storage_interaction_weights, \
+            PhysicsCentralizedCritic
+        W = storage_interaction_weights(
+            env.config, [a.bus for a in env.rl_agents])
+        return (lambda n, od, ad, i: PhysicsCentralizedCritic(
+            n, od, ad, W, i, out_dim=out_dim))
+
+    if args.physics and args.algo in ("td3", "mad3pg"):
+        print("--physics needs a centralized-critic algo (matd3/qmatd3/masac); "
+              f"got '{args.algo}'.", flush=True)
+        return
+
     # ---- CTDE path: MATD3 with a centralized critic ----
     if args.algo == "matd3":
+        trainer = None
+        if args.physics:
+            from rl_bidding import MATD3
+            trainer = MATD3(
+                env, lr=args.lr, noise_std=args.noise_std,
+                start_steps=args.start_steps,
+                bid_dev_penalty=args.bid_dev_penalty,
+                offer_dev_penalty=args.offer_dev_penalty,
+                noise_anneal_steps=args.noise_anneal_steps,
+                critic_factory=_physics_factory(1))
         stopped_early = _train_matd3(
             args, env, action_bounds, rl_agent_names, train_scenarios,
-            writer, tracker, artifacts)
+            writer, tracker, artifacts, trainer=trainer)
         writer.close()
         if eval_scenarios:
             print(f"\nHeld-out scenarios: {eval_scenarios}")
@@ -512,14 +588,58 @@ def main():
                   f"{args.save_dir}` for detailed evaluation.")
         return
 
+    # ---- QuantileMATD3: fixed-grid quantile distributional critic ----
+    if args.algo == "qmatd3":
+        from rl_quantile import QuantileMATD3
+        trainer = QuantileMATD3(
+            env, lr=args.lr, noise_std=args.noise_std,
+            start_steps=args.start_steps,
+            bid_dev_penalty=args.bid_dev_penalty,
+            offer_dev_penalty=args.offer_dev_penalty,
+            noise_anneal_steps=args.noise_anneal_steps,
+            batch_size=args.batch_size,
+            n_quantiles=args.n_quantiles,
+            critic_factory=_physics_factory(args.n_quantiles))
+        stopped_early = _train_matd3(
+            args, env, action_bounds, rl_agent_names, train_scenarios,
+            writer, tracker, artifacts, trainer=trainer)
+        writer.close()
+        if eval_scenarios:
+            print(f"\nHeld-out scenarios: {eval_scenarios}")
+            print("Run `python eval_agents.py --policies "
+                  f"{args.save_dir}` for detailed evaluation.")
+        return
+
+    # ---- MASAC: multi-agent SAC (stochastic actors, entropy bonus) ----
+    if args.algo == "masac":
+        from rl_masac import MASAC
+        trainer = MASAC(
+            env, lr=args.lr, start_steps=args.start_steps,
+            bid_dev_penalty=args.bid_dev_penalty,
+            offer_dev_penalty=args.offer_dev_penalty,
+            batch_size=args.batch_size,
+            alpha_init=args.alpha_init, target_entropy=args.target_entropy,
+            critic_factory=_physics_factory(1))
+        stopped_early = _train_matd3(
+            args, env, action_bounds, rl_agent_names, train_scenarios,
+            writer, tracker, artifacts, trainer=trainer)
+        writer.close()
+        if eval_scenarios:
+            print(f"\nHeld-out scenarios: {eval_scenarios}")
+            print("Run `python eval_agents.py --policies "
+                  f"{args.save_dir}` for detailed evaluation.")
+        return
+
     # ---- Independent TD3 training loop ----
     stopped_early = False
-    eval_env = tracker.build_eval_env(config) if tracker is not None else None
+    eval_envs = tracker.build_eval_envs(config) if tracker is not None else None
     t0 = time.time()
     for ep in range(args.episodes):
         sc_name = random.choice(train_scenarios)
         config_copy = copy.deepcopy(config)
         agents_sc, wholesale = get_scenario(sc_name, T=96, config=config_copy)
+        if args.capacity is not None:
+            config_copy.network.line_capacity_multiplier = args.capacity
         env.set_agents(agents_sc, wholesale)
         env.config = config_copy
         obs = env.reset()
@@ -579,9 +699,12 @@ def main():
         if tracker is not None and args.eval_interval > 0 \
                 and (ep + 1) % args.eval_interval == 0:
             actors = {name: td3s[name].actor for name in rl_agent_names}
-            metrics = tracker.evaluate(eval_env, actors)
+            metrics = tracker.evaluate(eval_envs, actors)
             writer.add_scalar("Eval/mean_reward", metrics["mean_reward"], ep)
             writer.add_scalar("Eval/welfare", metrics["welfare"], ep)
+            for sc_name2, sub in (metrics.get("by_scenario") or {}).items():
+                writer.add_scalar(f"Eval/mean_reward/{sc_name2}",
+                                  sub["mean_reward"], ep)
             if tracker.compare_and_save_policies(ep + 1, actors, metrics):
                 stopped_early = True
             if artifacts is not None:
