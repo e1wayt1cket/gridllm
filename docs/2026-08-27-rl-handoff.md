@@ -17,6 +17,13 @@
 | 训练编排 + 结构化产物 | 完成 | `rl_training.py` / `run_artifacts.py` |
 | 对比图表生成 | 完成（今日重设计） | `make_rot_comparison_figures.py` |
 | regret/Nash 检查（V4 策略） | 未跑（见 §8） | `eval_agents.py --nash-regret` |
+| MAD3PG 10-run 矩阵 | **封存**（09-08 决策：不再烧算力；run 1 `matd3_cc_rot_seed42` 保留为新 baseline） | `docs/2026-09-08-mad3pg-diffusion-handoff.md` |
+| 三层指标体系（CS/CP/LMP markup/market power）+ full-obs MATD3 3-seed baseline 重测 | 完成（09-08） | `docs/2026-09-08-three-layer-metrics.md` |
+| qmatd3（Quantile Distributional Critic）3-seed head-to-head | 完成（09-08，结论≈MATD3 等价） | `docs/2026-09-08-qmatd3-vs-matd3.md` |
+| M1 多场景 best + M2 物理引导 critic + S1 MASAC V1 pilot | 完成（09-09，MASAC gated 暂不采纳；机制方向继续） | `docs/2026-09-09-masac-v1-pilot.md` |
+| MASAC / MATD3+Physics 200ep quickval + CS 口径修正（p_dis 不再抵消） | 完成（09-09：CS 符号翻转 → 消费者反而获益；两新 run 均不超 matd3） | `docs/2026-09-09-quickval-masac-phys.md` |
+| E8 capacity 消融（C 1.5/1.0/0.8 × matd3/matd3+physics，--capacity 代码） | 完成（09-09：耦合变紧→market power 与 CS 增益升；physics 先验不优于 plain matd3） | `docs/2026-09-09-e8-capacity.md` |
+| E9 market-impact reward 惩罚探针（--market-impact-penalty，λ=0.3） | 完成（09-09：未降 power，定义不成立，先不扫 λ） | `docs/2026-09-09-e9-market-impact.md` |
 
 ## 2. 核心逻辑
 
@@ -166,6 +173,14 @@ python -m pytest tests/ -v
 | `docs/superpowers/specs/2026-08-07-mild-deviation-penalty-design.md` | 出价偏差惩罚设计（已实现演进记录） |
 | `docs/superpowers/plans/2026-08-07-mild-deviation-penalty.md` | 对应实施计划 |
 | `docs/2026-09-03-rl-eval-protocol-specialist-ablation.md` | 主张 A 定稿；评估协议落地（多 episode 配对种子化）；unified 三种子 final/best K=3 结果；seed123 final Bus31I 退化假象 |
+| `docs/2026-09-08-mad3pg-vs-matd3-matrix.md` | 10-run 矩阵规范（MAD3PG + full-obs MATD3 × specialist/rotation） |
+| `docs/2026-09-08-mad3pg-diffusion-handoff.md` | MAD3PG 实验交接：pilot 结果、矩阵状态、后台任务被强停 + detached 对策、暂停与恢复（矩阵已封存） |
+| `docs/2026-09-08-three-layer-metrics.md` | 三层账口径/实现、full-obs MATD3 3-seed K3 结果表、reconciliation 实测、初读 |
+| `docs/2026-09-08-qmatd3-vs-matd3.md` | qmatd3（Quantile critic）实现、3-seed K3 三层结果、与 MATD3 等价结论、下一步方向 |
+| `docs/2026-09-09-masac-v1-pilot.md` | M1 多场景 best / M2 physics critic / S1 MASAC V1 pilot（gated：暂不采纳）+ 结果表与判据 |
+| `docs/2026-09-09-quickval-masac-phys.md` | MASAC & MATD3+Physics 200ep 验证；CS 口径修正（p_dis）后消费者侧符号翻转 |
+| `docs/2026-09-09-e8-capacity.md` | capacity 消融 2×3；coupling 变紧→power/CS 升；physics 先验不优于 matd3 |
+| `docs/2026-09-09-e9-market-impact.md` | λ·power 惩罚探针；未降 power、需重定义 |
 
 ## 10. Git 状态（2026-08-27）
 
