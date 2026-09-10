@@ -11,7 +11,8 @@ import pytest
 
 from surplus_metrics import (load_agents, consumer_metrics,
                              load_payment_weighted_markup, agent_profit,
-                             market_power_split, reconciliation)
+                             market_power_split, reconciliation,
+                             day_econ_metrics, DAY_ECON_COLUMNS)
 
 
 def _config():
@@ -186,6 +187,129 @@ def test_agent_profit_parity_with_eval_agents():
     mine = agent_profit(sa, lmp_node, a, cfg)
     theirs = compute_agent_profit(sa, lmp_node, a, cfg, n_periods=T)
     assert mine == pytest.approx(theirs)
+
+
+def _capture(sched, lmp, wholesale, usable=True, fell_backs=0,
+             n_periods=None):
+    """Minimal DayCapture.finish()-shaped dict for day_econ_metrics."""
+    n = len(wholesale) if n_periods is None else n_periods
+    return {"sched": sched, "lmp": lmp, "wholesale": wholesale,
+            "declared": {}, "fell_backs": fell_backs,
+            "n_blocks_captured": 1, "n_periods_captured": n,
+            "complete": usable and n == len(wholesale),
+            "usable": usable}
+
+
+def test_day_econ_columns_match_eval_consumer_columns():
+    # Training metrics and the eval CSV must speak one vocabulary, otherwise
+    # cross-run comparison needs a rename map that can silently drift.
+    from eval_agents import _CONSUMER_COLUMNS
+    assert list(DAY_ECON_COLUMNS) == _CONSUMER_COLUMNS
+
+
+def test_day_econ_metrics_toy_deltas():
+    # One consumer, two periods; RL clears at a higher LMP than truthful.
+    a = _agent("C", 0, 50.0, load=[5, 5])
+    agents = [a]
+    sched = {"C": _sched({"served": [5, 5], "p_buy": [5, 5]}, T=2)}
+    lmp_b = np.tile(np.array([[100.0, 100.0]]), (2, 1))
+    lmp_r = np.tile(np.array([[110.0, 100.0]]), (2, 1))
+    w = np.full(2, 100.0)
+    m = day_econ_metrics(_capture(sched, lmp_b, w),
+                         _capture(sched, lmp_r, w), agents, _config())
+    assert m["cp_baseline"] == pytest.approx(1000.0)   # 100 * 5 * 2
+    assert m["cp_rl"] == pytest.approx(1100.0)         # 110 * 5 * 2
+    assert m["cp_delta"] == pytest.approx(100.0)
+    assert m["cs_baseline"] == pytest.approx(50.0 * 10 - 1000.0)
+    assert m["cs_rl"] == pytest.approx(50.0 * 10 - 1100.0)
+    assert m["cs_delta"] == pytest.approx(-100.0)      # user pays more
+    assert m["lmp_markup_baseline"] == pytest.approx(0.0)
+    assert m["lmp_markup_rl"] == pytest.approx(0.1)    # (110-100)/100
+    assert m["lmp_markup_delta"] == pytest.approx(0.1)
+    # No storage agent in this population -> no market-power decomposition.
+    assert m["market_power_arb"] == pytest.approx(0.0)
+    assert m["market_power_power"] == pytest.approx(0.0)
+
+
+def test_day_econ_metrics_matches_component_calls():
+    # Parity: the composed dict must equal the individual metric calls it
+    # replaces, so converging eval onto it cannot move any published number.
+    aC = _agent("C", 0, 60.0, load=[8, 8])
+    aS = _agent("S", 1, 0.0, load=None, storage=True)
+    agents = [aC, aS]
+    sched_b = {"C": _sched({"served": [8, 8], "p_buy": [8, 8]}, T=2),
+               "S": _sched({"p_sell": [0, 2]}, T=2)}
+    sched_r = {"C": _sched({"served": [8, 8], "p_buy": [8, 8]}, T=2),
+               "S": _sched({"p_sell": [0, 3]}, T=2)}
+    lmp_b = np.tile(np.array([[100.0, 100.0]]), (2, 1))
+    lmp_r = np.tile(np.array([[108.0, 100.0]]), (2, 1))
+    w = np.full(2, 100.0)
+    cfg = _config()
+    m = day_econ_metrics(_capture(sched_b, lmp_b, w),
+                         _capture(sched_r, lmp_r, w), agents, cfg)
+
+    cm_b = consumer_metrics(sched_b, lmp_b, agents)
+    cm_r = consumer_metrics(sched_r, lmp_r, agents)
+    mk_b = load_payment_weighted_markup(sched_b, lmp_b, w, agents)
+    mk_r = load_payment_weighted_markup(sched_r, lmp_r, w, agents)
+    splits = market_power_split(sched_b, sched_r, lmp_b, lmp_r, agents, cfg)
+
+    assert m["cs_baseline"] == pytest.approx(cm_b["cs"])
+    assert m["cs_rl"] == pytest.approx(cm_r["cs"])
+    assert m["cs_delta"] == pytest.approx(cm_r["cs"] - cm_b["cs"])
+    assert m["cp_delta"] == pytest.approx(cm_r["cp"] - cm_b["cp"])
+    assert m["lmp_markup_baseline"] == pytest.approx(mk_b)
+    assert m["lmp_markup_delta"] == pytest.approx(mk_r - mk_b)
+    assert m["market_power_arb"] == pytest.approx(
+        sum(s["arb"] for s in splits))
+    assert m["market_power_power"] == pytest.approx(
+        sum(s["market_power"] for s in splits))
+    assert set(m) == set(DAY_ECON_COLUMNS)
+
+
+def test_day_econ_metrics_rejects_incomplete_capture():
+    # A capture with a fell-back or missing block holds zeros for the
+    # un-captured periods; returning a number built on those zeros would look
+    # plausible while being wrong, so it must refuse instead.
+    a = _agent("C", 0, 50.0, load=[5, 5])
+    sched = {"C": _sched({"served": [5, 5], "p_buy": [5, 5]}, T=2)}
+    lmp = np.tile(np.array([[100.0, 100.0]]), (2, 1))
+    w = np.full(2, 100.0)
+    good = _capture(sched, lmp, w)
+    with pytest.raises(ValueError):
+        day_econ_metrics(_capture(sched, lmp, w, usable=False),
+                         good, [a], _config())
+    with pytest.raises(ValueError):
+        day_econ_metrics(good, _capture(sched, lmp, w, fell_backs=1,
+                                        usable=False),
+                         [a], _config())
+
+
+def test_day_econ_metrics_accepts_a_short_but_clean_window():
+    # A partial evaluation episode (n_blocks < the full day) is deliberate and
+    # valid: nothing degraded, so the metrics are computable over the periods
+    # that were captured.
+    a = _agent("C", 0, 50.0, load=[5, 5])
+    sched = {"C": _sched({"served": [5, 5], "p_buy": [5, 5]}, T=2)}
+    lmp = np.tile(np.array([[100.0, 100.0]]), (2, 1))
+    w = np.full(2, 100.0)
+    short = _capture(sched, lmp, w, n_periods=2)
+    short["complete"] = False           # a two-block window of a longer day
+    m = day_econ_metrics(short, short, [a], _config())
+    assert m["cp_baseline"] == pytest.approx(1000.0)
+
+
+def test_day_econ_metrics_rejects_mismatched_horizons():
+    # Comparing a short RL window against a full baseline day would charge the
+    # strategy for periods it never acted in.
+    a = _agent("C", 0, 50.0, load=[5, 5])
+    sched = {"C": _sched({"served": [5, 5], "p_buy": [5, 5]}, T=2)}
+    lmp = np.tile(np.array([[100.0, 100.0]]), (2, 1))
+    w = np.full(2, 100.0)
+    with pytest.raises(ValueError):
+        day_econ_metrics(_capture(sched, lmp, w, n_periods=2),
+                         _capture(sched, lmp, w, n_periods=1),
+                         [a], _config())
 
 
 @pytest.mark.slow

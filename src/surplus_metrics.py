@@ -28,6 +28,15 @@ WHOLESALE_MIN = 1.0
 _SCHED_KEYS = ["p_buy", "p_sell", "p_ch", "p_dis", "served", "unserved",
                "pv_used", "wind_used"]
 
+# Day-level consumer/mechanism metrics for one RL-vs-truthful pair. These
+# names are shared verbatim by the evaluation CSV and the per-episode training
+# log: one vocabulary means the two can be concatenated without a rename map,
+# and a rename can never silently diverge between them.
+DAY_ECON_COLUMNS = ("cs_baseline", "cs_rl", "cs_delta",
+                    "cp_baseline", "cp_rl", "cp_delta",
+                    "lmp_markup_baseline", "lmp_markup_rl", "lmp_markup_delta",
+                    "market_power_arb", "market_power_power")
+
 
 def _has_load(agent: Agent) -> bool:
     """True when the agent carries a (possibly zero elsewhere) load profile."""
@@ -174,6 +183,67 @@ def market_power_split(s_base: dict, s_rl: dict, lmp_base: np.ndarray,
         rows.append({"name": a.name, "profit_delta": dp, "arb": arb,
                      "market_power": power, "other": other, "net": net})
     return rows
+
+
+def day_econ_metrics(base_capture: dict, rl_capture: dict, agents,
+                     config) -> dict:
+    """Compose the three-layer day metrics for one RL-vs-truthful pair.
+
+    Both captures come from `rl_env.DayCapture.finish()`: a stitched record of
+    committed schedules, nodal LMP and wholesale, one per clear. The result is
+    keyed by DAY_ECON_COLUMNS.
+
+    Training (per episode) and evaluation (per checkpoint) both build their
+    metrics through this function, so a delta computed during training is the
+    same quantity as the one written to the evaluation CSV rather than a second
+    implementation of it.
+
+    A capture with a failed or fallen-back block holds zeros for those periods;
+    a metric built on those zeros would look plausible while being wrong, so
+    this refuses it with ValueError. A deliberately partial window (a short
+    evaluation episode) is fine and is measured over the periods it captured.
+
+    Both captures must cover the same periods: comparing a partial RL window
+    against a full baseline day would attribute the missing periods to the
+    strategy.
+    """
+    for label, cap in (("baseline", base_capture), ("rl", rl_capture)):
+        if not cap.get("usable", False):
+            raise ValueError(
+                f"{label} capture is not usable "
+                f"({cap.get('n_periods_captured', 0)} periods captured, "
+                f"{cap.get('fell_backs', 0)} fallback clear(s)); "
+                "refusing to compute day metrics over zero-filled periods")
+    if base_capture.get("n_periods_captured") != \
+            rl_capture.get("n_periods_captured"):
+        raise ValueError(
+            "captures cover different horizons "
+            f"(baseline {base_capture.get('n_periods_captured')} vs "
+            f"rl {rl_capture.get('n_periods_captured')} periods); "
+            "the missing periods would be attributed to the strategy")
+
+    sched_b, lmp_b, w_b = (base_capture["sched"], base_capture["lmp"],
+                           base_capture["wholesale"])
+    sched_r, lmp_r, w_r = (rl_capture["sched"], rl_capture["lmp"],
+                           rl_capture["wholesale"])
+
+    cm_b = consumer_metrics(sched_b, lmp_b, agents)
+    cm_r = consumer_metrics(sched_r, lmp_r, agents)
+    mk_b = load_payment_weighted_markup(sched_b, lmp_b, w_b, agents)
+    mk_r = load_payment_weighted_markup(sched_r, lmp_r, w_r, agents)
+    splits = market_power_split(sched_b, sched_r, lmp_b, lmp_r, agents, config)
+    mk_delta = (mk_r - mk_b) if (not np.isnan(mk_r) and not np.isnan(mk_b)) \
+        else None
+    return {
+        "cs_baseline": cm_b["cs"], "cs_rl": cm_r["cs"],
+        "cs_delta": cm_r["cs"] - cm_b["cs"],
+        "cp_baseline": cm_b["cp"], "cp_rl": cm_r["cp"],
+        "cp_delta": cm_r["cp"] - cm_b["cp"],
+        "lmp_markup_baseline": mk_b, "lmp_markup_rl": mk_r,
+        "lmp_markup_delta": mk_delta,
+        "market_power_arb": sum(s["arb"] for s in splits),
+        "market_power_power": sum(s["market_power"] for s in splits),
+    }
 
 
 def reconciliation(sched: dict, lmp: np.ndarray, wholesale: np.ndarray,

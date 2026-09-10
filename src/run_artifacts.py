@@ -52,6 +52,45 @@ def _config_hash(config) -> str:
     return hashlib.md5(payload.encode()).hexdigest()
 
 
+# Base metrics columns, kept first and in this order so existing readers and
+# human diffing of metrics.csv across runs keep working.
+_BASE_METRIC_COLUMNS = ["episode", "mean_reward", "welfare", "re_rate",
+                        "critic_loss", "actor_loss", "scenario"]
+# Prefix for the per-agent reward columns ({prefix}{agent_name}).
+_AGENT_REWARD_PREFIX = "reward__"
+# Critique diagnostics, ordered before the day-level economics.
+_Q_COLUMNS = ["q1_mean", "q2_mean", "q_gap"]
+# Trailing integrity marker for the day-level economics.
+_CAPTURE_COLUMNS = ["capture_fellbacks"]
+
+
+def _ordered_columns(rows: List[dict]) -> List[str]:
+    """Stable metrics.csv column order over a possibly ragged row set.
+
+    The base columns come first, then per-agent rewards sorted by agent name,
+    then critic diagnostics, then the day-level economic columns (whose names
+    are owned by surplus_metrics), then the capture marker. Ragged rows - a
+    run that recorded economics on some episodes only - keep one header with
+    missing cells left blank.
+
+    Anything unrecognized lands at the end alphabetically, so a caller can add
+    a field without this function silently dropping it.
+    """
+    seen = set()
+    for r in rows:
+        seen.update(r.keys())
+    cols = [c for c in _BASE_METRIC_COLUMNS if c in seen]
+    cols += sorted(c for c in seen if c.startswith(_AGENT_REWARD_PREFIX))
+    cols += [c for c in _Q_COLUMNS if c in seen]
+    known = set(cols) | set(_BASE_METRIC_COLUMNS)
+    # Day-level economics and the capture marker: eval names first, then any
+    # other extra, alphabetically, so unknown additions are never dropped.
+    cols += sorted(c for c in seen
+                   if c not in known and c not in _CAPTURE_COLUMNS)
+    cols += [c for c in _CAPTURE_COLUMNS if c in seen]
+    return cols
+
+
 def _git_sha() -> Optional[str]:
     try:
         import subprocess
@@ -79,6 +118,10 @@ class RunArtifacts:
     kpi: dict
     git_sha: Optional[str] = None
     timestamp: str = ""
+    # TensorBoard log directory for this run, set by the trainer once the
+    # writer exists. Recorded so a consumer can find the per-agent scalar
+    # history by reading the manifest instead of guessing from timestamps.
+    log_dir: Optional[str] = None
 
     @classmethod
     def create(cls, config, cli_args, obs_spec, action_spec,
@@ -97,13 +140,42 @@ class RunArtifacts:
 
     def record_episode(self, ep: int, mean_reward: float, welfare: float,
                        re_rate: float, critic_loss=None, actor_loss=None,
-                       scenario=None):
-        """Append one training-episode metrics row."""
-        self.metrics.append({
+                       scenario=None, per_agent_reward: dict = None,
+                       q_stats: dict = None, econ: dict = None,
+                       capture_fellbacks: int = None):
+        """Append one training-episode metrics row.
+
+        Parameters
+        ----------
+        per_agent_reward : dict or None
+            {agent_name: episode reward}; written as reward__<agent> columns
+            so per-agent learning curves need no TensorBoard round trip.
+        q_stats : dict or None
+            Critic diagnostics (q1_mean / q2_mean / q_gap). q_gap is twin
+            disagreement, in the critic's normalized reward units.
+        econ : dict or None
+            Day-level consumer/mechanism metrics; the names are owned by
+            surplus_metrics.DAY_ECON_COLUMNS and shared verbatim with the
+            evaluation CSV.
+        capture_fellbacks : int or None
+            Blocks whose clearing degraded, making the econ columns unusable
+            for this episode. 0 means the day-level metrics are complete.
+        """
+        row = {
             "episode": ep, "mean_reward": mean_reward, "welfare": welfare,
             "re_rate": re_rate, "critic_loss": critic_loss,
             "actor_loss": actor_loss, "scenario": scenario,
-        })
+        }
+        if per_agent_reward:
+            row.update({f"{_AGENT_REWARD_PREFIX}{nm}": v
+                        for nm, v in per_agent_reward.items()})
+        if q_stats:
+            row.update(q_stats)
+        if econ:
+            row.update(econ)
+        if capture_fellbacks is not None:
+            row["capture_fellbacks"] = capture_fellbacks
+        self.metrics.append(row)
 
     def record_eval(self, ep: int, metrics: dict, is_best: bool = False,
                     stopped: bool = False):
@@ -130,12 +202,14 @@ class RunArtifacts:
             "git_sha": self.git_sha, "cli_args": self.cli_args,
             "obs_spec": self.obs_spec, "action_spec": self.action_spec,
             "policy_paths": self.policy_paths, "kpi": self.kpi,
+            "log_dir": self.log_dir,
         }
         with open(os.path.join(self.root_dir, "manifest.json"), "w") as f:
             json.dump(manifest, f, indent=2, default=str)
         with open(os.path.join(self.root_dir, "config.json"), "w") as f:
             json.dump(self.config, f, indent=2, default=str)
-        pd.DataFrame(self.metrics).to_csv(
+        pd.DataFrame(self.metrics,
+                     columns=_ordered_columns(self.metrics) or None).to_csv(
             os.path.join(self.root_dir, "metrics.csv"), index=False)
         pd.DataFrame(self.evals).to_csv(
             os.path.join(self.root_dir, "eval.csv"), index=False)
@@ -167,4 +241,5 @@ class RunArtifacts:
             metrics=metrics, evals=evals,
             policy_paths=manifest["policy_paths"], kpi=kpi,
             git_sha=manifest.get("git_sha"),
-            timestamp=manifest.get("timestamp", ""))
+            timestamp=manifest.get("timestamp", ""),
+            log_dir=manifest.get("log_dir"))

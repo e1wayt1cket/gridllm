@@ -28,9 +28,31 @@ import torch
 
 from scenarios import get_scenario
 from models import MarketConfig
-from rl_env import BiddingEnv, N_BLOCKS
+from rl_env import BiddingEnv, DayCapture, BLOCK_SIZE, N_BLOCKS
 from rl_td3 import TD3, save_policy
 from run_artifacts import RunArtifacts
+from surplus_metrics import day_econ_metrics
+
+
+def _episode_econ(day_base: dict, day_rl: dict, agents, config):
+    """Day-level consumer metrics for one training episode.
+
+    Returns (econ, fell_backs). econ is {} whenever either captured day is
+    incomplete, so a caller never records a metric built over the zero-filled
+    periods of a failed or degraded clear; fell_backs is always reported so the
+    gap is visible on the run artifacts rather than silent.
+
+    Note the baseline here is the differential-reward baseline, which bids
+    truthfully only over each window's committed periods; the look-ahead
+    periods keep RL prices. These deltas are therefore comparable across runs
+    of the same protocol, but not directly against the evaluation CSV, whose
+    baseline is a clean all-truthful day.
+    """
+    fell_backs = day_base["fell_backs"] + day_rl["fell_backs"]
+    try:
+        return day_econ_metrics(day_base, day_rl, agents, config), fell_backs
+    except ValueError:
+        return {}, fell_backs
 
 N_EPISODES = 200
 # Each training run trains on a single fixed scenario by default, so the
@@ -230,8 +252,14 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         ep_rewards = {nm: 0.0 for nm in rl_agent_names}
         ep_welfare = 0.0
         ep_re_rate = 0.0
+        # Per-episode day capture: the RL day and the truthful baseline day.
+        # The baseline clear already runs every block for the differential
+        # reward, so recording it costs bookkeeping rather than a solve.
+        cap_rl = DayCapture.from_env(env)
+        cap_base = DayCapture.from_env(env)
 
-        for _ in range(N_BLOCKS):
+        for block_idx in range(N_BLOCKS):
+            t_start = block_idx * BLOCK_SIZE
             actions = {}
             for nm in rl_agent_names:
                 if matd3.total_steps < matd3.start_steps:
@@ -252,6 +280,10 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             matd3.remember(obs_arr, act_arr, rew_arr, next_obs_arr, done_arr)
             matd3.total_steps += 1
 
+            cap_rl.add_block(env._last_result, t_start, env._last_wholesale)
+            cap_base.add_block(env._last_base_result, t_start,
+                               env._last_wholesale)
+
             for nm in rl_agent_names:
                 ep_rewards[nm] += rewards.get(nm, 0.0)
             ep_welfare = info.get("welfare", 0.0)
@@ -260,15 +292,21 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
 
         # Post-episode updates
         c_losses, a_losses = [], []
+        q_stats = {"q1_mean": None, "q2_mean": None, "q_gap": None}
         if matd3.total_steps >= matd3.start_steps:
             c_losses_by_agent = {nm: [] for nm in rl_agent_names}
             a_losses_by_agent = {nm: [] for nm in rl_agent_names}
+            q1s, q2s, qgaps = [], [], []
             for _ in range(N_BLOCKS):
                 li = matd3.update()
                 if li["critic_loss"] is not None:
                     c_losses.append(li["critic_loss"])
                 if li["actor_loss"] is not None:
                     a_losses.append(li["actor_loss"])
+                if li.get("q_gap") is not None:
+                    q1s.append(li["q1_mean"])
+                    q2s.append(li["q2_mean"])
+                    qgaps.append(li["q_gap"])
                 for nm in rl_agent_names:
                     cl = li["critic_loss_by_agent"].get(nm)
                     if cl is not None:
@@ -276,6 +314,10 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                     al = li["actor_loss_by_agent"].get(nm)
                     if al is not None:
                         a_losses_by_agent[nm].append(al)
+            if qgaps:
+                q_stats = {"q1_mean": float(np.mean(q1s)),
+                           "q2_mean": float(np.mean(q2s)),
+                           "q_gap": float(np.mean(qgaps))}
             if c_losses:
                 writer.add_scalar("Loss/critic", np.mean(c_losses), ep)
             if a_losses:
@@ -327,12 +369,18 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
 
         # Structured run artifacts
         if artifacts is not None:
+            day_rl, day_base = cap_rl.finish(), cap_base.finish()
+            econ, fell_backs = _episode_econ(day_base, day_rl, env.all_agents,
+                                             env.config)
             artifacts.record_episode(
                 ep + 1, sum(ep_rewards.values()) / len(rl_agent_names),
                 ep_welfare, ep_re_rate,
                 critic_loss=np.mean(c_losses) if c_losses else None,
                 actor_loss=np.mean(a_losses) if a_losses else None,
-                scenario=sc_name)
+                scenario=sc_name,
+                per_agent_reward=dict(ep_rewards),
+                q_stats=q_stats, econ=econ,
+                capture_fellbacks=fell_backs)
 
         # Checkpoint
         if (ep + 1) % 50 == 0:
@@ -526,6 +574,11 @@ def main():
                            f"train-multi-"
                            + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     writer = SummaryWriter(log_dir)
+    if artifacts is not None:
+        # Exact link from the run directory to its TensorBoard log. Without it,
+        # the log directory can only be guessed from timestamp proximity, which
+        # is ambiguous when two runs start within the same second.
+        artifacts.log_dir = log_dir
 
     # ---- Physics-guided critic factory (train-only; saved actors unaffected)
     def _physics_factory(out_dim: int):
@@ -647,8 +700,11 @@ def main():
         ep_rewards = {name: 0.0 for name in rl_agent_names}
         ep_welfare = 0.0
         ep_re_rate = 0.0
+        cap_rl = DayCapture.from_env(env)
+        cap_base = DayCapture.from_env(env)
 
-        for _ in range(N_BLOCKS):
+        for block_idx in range(N_BLOCKS):
+            t_start = block_idx * BLOCK_SIZE
             actions = {}
             for name, td3 in td3s.items():
                 if td3.total_steps < td3.start_steps:
@@ -667,12 +723,17 @@ def main():
                 td3.buffer.add(obs[name], actions[name], r, nxt, done)
                 td3.total_steps += 1
 
+            cap_rl.add_block(env._last_result, t_start, env._last_wholesale)
+            cap_base.add_block(env._last_base_result, t_start,
+                               env._last_wholesale)
+
             ep_welfare = info.get("welfare", 0.0)
             ep_re_rate = info.get("re_rate", 0.0)
             obs = next_obs
 
         # Post-episode updates and loss stats per agent
         c_losses, a_losses = [], []
+        q1s, q2s, qgaps = [], [], []
         for name, td3 in td3s.items():
             if td3.total_steps >= td3.start_steps:
                 for _ in range(N_BLOCKS):
@@ -686,6 +747,14 @@ def main():
             if a_loss is not None:
                 a_losses.append(a_loss)
                 writer.add_scalar(f"Loss/actor/{name}", a_loss, ep)
+            if loss_info.get("q_gap") is not None:
+                q1s.append(loss_info["q1_mean"])
+                q2s.append(loss_info["q2_mean"])
+                qgaps.append(loss_info["q_gap"])
+        q_stats = ({"q1_mean": float(np.mean(q1s)),
+                    "q2_mean": float(np.mean(q2s)),
+                    "q_gap": float(np.mean(qgaps))} if qgaps
+                   else {"q1_mean": None, "q2_mean": None, "q_gap": None})
 
         # TensorBoard
         for name in rl_agent_names:
@@ -725,12 +794,18 @@ def main():
 
         # Structured run artifacts
         if artifacts is not None:
+            day_rl, day_base = cap_rl.finish(), cap_base.finish()
+            econ, fell_backs = _episode_econ(day_base, day_rl, env.all_agents,
+                                             config)
             artifacts.record_episode(
                 ep + 1, sum(ep_rewards.values()) / len(rl_agent_names),
                 ep_welfare, ep_re_rate,
                 critic_loss=np.mean(c_losses) if c_losses else None,
                 actor_loss=np.mean(a_losses) if a_losses else None,
-                scenario=sc_name)
+                scenario=sc_name,
+                per_agent_reward=dict(ep_rewards),
+                q_stats=q_stats, econ=econ,
+                capture_fellbacks=fell_backs)
 
         # Checkpoint
         if (ep + 1) % 50 == 0:

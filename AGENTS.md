@@ -4,16 +4,27 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Development commands
 
+All modules live flat in `src/` and import each other by bare name, so scripts
+run with `src/` on `PYTHONPATH` (or from inside `src/`). `pytest.ini` sets
+`pythonpath = src`, so pytest works from the repository root.
+
 ```bash
 # Run a single scenario (CLI)
-python run.py --scenario baseline --strategy adaptive --opf-mode lindistflow
-python run.py --scenario high_re --nash --nash-iters 10
+PYTHONPATH=src python src/run.py --scenario baseline --strategy adaptive --opf-mode lindistflow
+PYTHONPATH=src python src/run.py --scenario high_re --nash --nash-iters 10
 
 # Compare weighted-sum vs constraint-based multi-objective methods
-python compare_methods.py
+PYTHONPATH=src python src/compare_methods.py
 
-# Launch interactive dashboard (port 8050)
-python dashboard.py
+# Launch interactive dashboard (port 8056)
+PYTHONPATH=src python src/dashboard.py
+
+# Train / evaluate a policy (see docs/2026-08-27-rl-handoff.md)
+PYTHONPATH=src python src/train_rl.py --algo matd3 --episodes 200 --save-dir policies/my_run
+PYTHONPATH=src python src/eval_agents.py --policies policies/my_run --scenarios all --consumer-metrics
+
+# Consolidate every run and evaluation on disk into summary tables
+PYTHONPATH=src python src/make_training_summary.py
 
 # Run all tests
 python -m pytest tests/ -v
@@ -22,7 +33,9 @@ python -m pytest tests/ -v
 python -m pytest tests/test_baseline.py::test_baseline_da_welfare -v
 ```
 
-No linter or formatter is configured for this project. Virtual environment is at `venv/`.
+No linter or formatter is configured for this project. The repository `venv/`
+is not usable (it was created under WSL); use a Python with the dependencies in
+`requirements.txt` installed and `PYTHONPATH=src`.
 
 ## Architecture
 
@@ -50,7 +63,10 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
 - **`nash.py`**: Nash equilibrium testing via fictitious play with parallel multiprocessing (`Pool`). Tests unilateral deviation incentives; iterates to approximate equilibrium.
 - **`llm.py`**: `LLMAdvisor` calls local Ollama (`qwen2.5:7b`) for natural language → scenario config parsing and post-simulation insight generation (rule-based fallback if unavailable).
 - **`pseudo_realtime.py`**: `PseudoRealTimeSimulator` — step-by-step RT execution with incremental storage state updates and configurable wall-clock speed.
-- **`dashboard.py`**: Plotly Dash app (port 8050) with scenario/OPF/strategy selectors, static analysis, pseudo-real-time controls, Nash trigger, LMP heatmap on bus topology, time-series charts, KPI cards, settlement tables, and AI insight panel.
+- **`dashboard.py`**: Thin entry point (port 8056) that builds the multi-page app and serves it. Pages live under `src/ui/`: `shell.py` (one Dash app, navbar, `dcc.Location` router), `theme.py` (shared colours and the injected stylesheet), `sim_page.py` (the original simulation dashboard: scenario/OPF/strategy selectors, Nash trigger, LMP heatmap, KPI cards, settlement tables, AI insights), `train_page.py` (training monitor), `user_page.py` (consumer payment/surplus), `exp_page.py` (experiment index).
+- **`data_aggregator.py`**: Read layer over everything on disk — `outputs/rl/<run>/` artifacts, TensorBoard logs, `results/*_eval.csv` and `policies/`. Every UI page reads through it rather than parsing files itself. Imports pandas lazily (Windows ortools/pandas load order).
+- **`surplus_metrics.py`**: Three-layer accounting (consumer payment/surplus, LMP markup, market-power split) plus `DAY_ECON_COLUMNS`/`day_econ_metrics`, shared verbatim by evaluation and the per-episode training log.
+- **`make_training_summary.py`**: Consolidates all runs and evaluations into `results/training_summary.md` plus two CSVs.
 - **`compare_methods.py`**: Sweeps weighted-sum vs constraint-based multi-objective across varying carbon caps and RE rate targets, printing welfare/emission/shadow-price comparison table.
 
 ### Key design points

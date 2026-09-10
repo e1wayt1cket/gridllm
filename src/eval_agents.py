@@ -22,26 +22,21 @@ from typing import Dict, List, Optional
 
 from scenarios import get_scenario, list_scenarios
 from models import MarketConfig
-from rl_env import BiddingEnv, N_BLOCKS, BLOCK_SIZE
+from rl_env import BiddingEnv, DayCapture, N_BLOCKS, BLOCK_SIZE
 from rl_td3 import Actor, load_policy
 from rl_profit_diagnostics import valuation_artifact
-from surplus_metrics import (consumer_metrics, load_payment_weighted_markup,
-                             market_power_split)
+from surplus_metrics import consumer_metrics, day_econ_metrics, \
+    DAY_ECON_COLUMNS
 
-# Schedule keys stitched per day when capture=True (mirrors empty_schedules).
-_CAPTURE_KEYS = ["p_buy", "p_sell", "p_ch", "p_dis", "served", "unserved",
-                 "pv_used", "wind_used"]
 # CSV columns appended to the combined (ALL) row under --consumer-metrics.
-_CONSUMER_COLUMNS = ["cs_baseline", "cs_rl", "cs_delta",
-                     "cp_baseline", "cp_rl", "cp_delta",
-                     "lmp_markup_baseline", "lmp_markup_rl",
-                     "lmp_markup_delta", "market_power_arb",
-                     "market_power_power"]
+# The names belong to the shared day-metric vocabulary so the evaluation CSV
+# and the per-episode training log can be read as one schema.
+_CONSUMER_COLUMNS = list(DAY_ECON_COLUMNS)
 
 
 def _n_commit(env, t_start: int) -> int:
     """Committed periods of the rolling window starting at t_start."""
-    return min(BLOCK_SIZE, min(t_start + env.roll_horizon, env.T) - t_start)
+    return DayCapture.committed_periods_for(env, t_start)
 
 
 def compute_agent_profit(schedule: dict, lmp_node: np.ndarray,
@@ -117,13 +112,7 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
     total_welfare = 0.0
     total_re_rate = 0.0
     agent_profits: Dict[str, float] = {}
-    sched = None
-    lmp = None
-    wholesale_day = None
-    if capture:
-        sched = {a.name: {k: np.zeros(env.T) for k in _CAPTURE_KEYS}
-                 for a in env.all_agents}
-        wholesale_day = np.zeros(env.T)
+    cap = DayCapture.from_env(env) if capture else None
 
     for block in range(n_blocks):
         t_start = block * BLOCK_SIZE
@@ -141,21 +130,8 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
         total_welfare += info.get("welfare", 0.0)
         total_re_rate = info.get("re_rate", 0.0)  # last block's value
 
-        res = env._last_result
-        if capture and res is not None:
-            n_commit = _n_commit(env, t_start)
-            for a in env.all_agents:
-                ws = res["schedules"].get(a.name)
-                if ws is None:
-                    continue
-                for key in sched[a.name]:
-                    sched[a.name][key][t_start:t_start + n_commit] = \
-                        ws[key][:n_commit]
-            if lmp is None:
-                lmp = np.zeros((env.T, res["lmp"].shape[1]))
-            lmp[t_start:t_start + n_commit, :] = res["lmp"][:n_commit, :]
-            wholesale_day[t_start:t_start + n_commit] = \
-                env._last_wholesale[:n_commit]
+        if cap is not None:
+            cap.add_block(env._last_result, t_start, env._last_wholesale)
 
         # Accumulate per-agent profit from per-block rewards
         if info.get("lmp") is not None:
@@ -174,10 +150,9 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
            "re_rate": total_re_rate,
            "carbon": carbon,
            "profits": agent_profits}
-    if capture:
-        out["sched"] = sched
-        out["lmp"] = lmp
-        out["wholesale"] = wholesale_day
+    if cap is not None:
+        out.update(cap.finish())
+        out["capture_complete"] = out["complete"]
     return out
 
 
@@ -211,41 +186,13 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
     profits: Dict[str, float] = {nm: 0.0 for nm in rl_names}
     welfare = 0.0
     re_rate = 0.0
-    T = env.T
-    sched = {a.name: {k: np.zeros(T) for k in _CAPTURE_KEYS}
-             for a in env.all_agents}
-    declared = {nm: {"bid_mult": np.zeros(T), "offer_adder": np.zeros(T)}
-                for nm in rl_names}
-    lmp = None
-    wholesale_day = np.zeros(T) if capture else None
+    cap = DayCapture.from_env(env)
     for block in range(n_blocks):
         t_start = block * BLOCK_SIZE
         acts = {nm: actor_predict(policies[nm], obs[nm]) for nm in rl_names}
         next_obs, rewards, done, info = env.step(acts)
-        res = env._last_result
-        n_commit = min(BLOCK_SIZE,
-                       min(t_start + env.roll_horizon, T) - t_start)
-        if res is not None:
-            for nm in sched:
-                ws = res["schedules"].get(nm)
-                if ws is None:
-                    continue
-                for key in sched[nm]:
-                    sched[nm][key][t_start:t_start + n_commit] = \
-                        ws[key][:n_commit]
-            if capture:
-                if lmp is None:
-                    lmp = np.zeros((T, res["lmp"].shape[1]))
-                lmp[t_start:t_start + n_commit, :] = res["lmp"][:n_commit, :]
-                wholesale_day[t_start:t_start + n_commit] = \
-                    env._last_wholesale[:n_commit]
-        for nm in rl_names:
-            ca = env.current_actions.get(nm)
-            if ca is not None:
-                declared[nm]["bid_mult"][t_start:t_start + n_commit] = \
-                    ca["bid_mult"][t_start:t_start + n_commit]
-                declared[nm]["offer_adder"][t_start:t_start + n_commit] = \
-                    ca["offer_adder"][t_start:t_start + n_commit]
+        cap.add_block(env._last_result, t_start, env._last_wholesale)
+        cap.add_declared(env.current_actions, t_start)
         welfare += info.get("welfare", 0.0)
         re_rate = info.get("re_rate", 0.0)
         for nm in rl_names:
@@ -253,11 +200,15 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
         if done:
             break
         obs = next_obs
-    out = {"profits": profits, "welfare": welfare, "re_rate": re_rate,
-           "sched": sched, "declared": declared}
-    if capture:
-        out["lmp"] = lmp
-        out["wholesale"] = wholesale_day
+    out = {"profits": profits, "welfare": welfare, "re_rate": re_rate}
+    out.update(cap.finish())
+    out["capture_complete"] = out["complete"]
+    if not capture:
+        # Capture is cheap (bookkeeping over already-solved blocks) and the
+        # caller may need the declared actions regardless; only the bulky
+        # day arrays are dropped.
+        for key in ("sched", "lmp", "wholesale", "declared"):
+            out.pop(key, None)
     return out
 
 
@@ -315,7 +266,9 @@ def default_eval_config() -> MarketConfig:
 
 
 def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
-                        n_blocks: int = N_BLOCKS, seed: int = 42) -> dict:
+                        n_blocks: int = N_BLOCKS, seed: int = 42,
+                        checkpoint: Optional[int] = None,
+                        consumer_metrics: bool = False) -> dict:
     """Evaluate a directory of trained per-agent policies over scenarios.
 
     Runs entirely in memory (writes no files). For each scenario a truthful
@@ -329,8 +282,17 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
     scenarios : list of str
     n_blocks : int  Blocks per episode; reducing it cuts runtime roughly
         linearly (a partial-day window with identical envs on both sides).
-    seed : int  Accepted for parity with the CLI; episodes are deterministic
-        given the scenario RNG state.
+    seed : int
+        Paired-evaluation seed. The baseline and the RL fleet are re-seeded
+        with the same value before each episode so both clear against the
+        identical wholesale-price day; without that, a delta mixes the
+        strategy effect with price-day noise.
+    checkpoint : int or None
+        Load {agent_name}_ckpt_{N}.pt instead of the final {agent_name}.pt
+        files, for comparing checkpoints of one run.
+    consumer_metrics : bool
+        Also compute the three-layer day metrics (cs_*/cp_*/lmp_markup_*/
+        market_power_*) for each scenario.
 
     Returns
     -------
@@ -338,7 +300,8 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
     per scenario). Each scenario entry carries the aggregate columns
     baseline_profit / rl_profit / profit_delta / welfare_baseline /
     welfare_rl / welfare_delta / valuation_artifact / genuine_welfare_delta /
-    re_rate_baseline / re_rate_rl and n_rl (matched policies).
+    re_rate_baseline / re_rate_rl and n_rl (matched policies), plus the
+    consumer columns when consumer_metrics is set.
     """
     config = default_eval_config()
 
@@ -355,12 +318,16 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
     bid_mult_high = float(bounds[1, 0])
 
     policies = load_policies_from_dir(policy_dir, obs_dim, bounds,
+                                      checkpoint=checkpoint,
                                       obs_spec=obs_spec,
                                       action_spec=action_spec)
     if not policies:
+        which = f"checkpoint {checkpoint}" if checkpoint is not None \
+            else "final policies"
         raise ValueError(
             f"No compatible policy files loaded from '{policy_dir}' "
-            f"(obs spec '{getattr(obs_spec, 'name', '?')}').")
+            f"({which}; obs spec '{getattr(obs_spec, 'name', '?')}'). "
+            f"The directory may lack {which} — check its available roles.")
 
     out = {
         "policy_dir": policy_dir,
@@ -378,17 +345,24 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
                 f"No policy agent is present in scenario '{sc_name}'. "
                 f"Loaded agents: {list(policies)}")
 
-        # Truthful baseline episode.
+        # Truthful baseline episode. Both episodes are re-seeded with the same
+        # value: grid.day_ahead_price_china adds unseeded noise, so without
+        # this the two clears see different wholesale days and every delta
+        # carries that spread.
+        np.random.seed(seed)
         env_base = BiddingEnv(agents, cfg,
                               bid_mult_low=bid_mult_low,
                               bid_mult_high=bid_mult_high)
-        base = run_episode(env_base, policy=None, n_blocks=n_blocks)
+        base = run_episode(env_base, policy=None, n_blocks=n_blocks,
+                           capture=consumer_metrics)
 
         # Combined-fleet episode (all matched policies act together).
+        np.random.seed(seed)
         env_comb = BiddingEnv(agents, cfg, rl_agent_names=rl_names,
                               bid_mult_low=bid_mult_low,
                               bid_mult_high=bid_mult_high)
-        comb = run_combined_episode(env_comb, policies, n_blocks=n_blocks)
+        comb = run_combined_episode(env_comb, policies, n_blocks=n_blocks,
+                                    capture=consumer_metrics)
 
         artifact = valuation_artifact(comb["sched"], comb["declared"],
                                       agents, cfg)
@@ -397,7 +371,7 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
                                 for nm in rl_names)
         total_rl_profit = sum(comb["profits"].get(nm, 0.0)
                               for nm in rl_names)
-        out["scenarios"].append({
+        row = {
             "scenario": sc_name,
             "n_rl": len(rl_names),
             "baseline_profit": total_base_profit,
@@ -411,7 +385,16 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
             "re_rate_baseline": base["re_rate"],
             "re_rate_rl": comb["re_rate"],
             "n_blocks": n_blocks,
-        })
+            "checkpoint": checkpoint,
+        }
+        if consumer_metrics:
+            try:
+                row.update(day_econ_metrics(base, comb, agents, cfg))
+            except ValueError:
+                # Incomplete capture (a fallback or failed block): report the
+                # gap rather than a number built on zero-filled periods.
+                row.update({c: None for c in DAY_ECON_COLUMNS})
+        out["scenarios"].append(row)
     return out
 
 
@@ -708,43 +691,16 @@ def main():
                 metric = {}
                 if args.consumer_metrics and comb.get("lmp") is not None \
                         and base_result.get("lmp") is not None:
-                    cm_b = consumer_metrics(base_result["sched"],
-                                            base_result["lmp"], agents)
-                    cm_r = consumer_metrics(comb["sched"], comb["lmp"], agents)
-                    mk_b = load_payment_weighted_markup(
-                        base_result["sched"], base_result["lmp"],
-                        base_result["wholesale"], agents)
-                    mk_r = load_payment_weighted_markup(
-                        comb["sched"], comb["lmp"], comb["wholesale"], agents)
-                    splits = market_power_split(
-                        base_result["sched"], comb["sched"],
-                        base_result["lmp"], comb["lmp"], agents, config_copy)
-                    mk_delta = (mk_r - mk_b) if (not np.isnan(mk_r)
-                                                 and not np.isnan(mk_b)) \
-                        else None
-                    metric = {
-                        "cs_baseline": cm_b["cs"], "cs_rl": cm_r["cs"],
-                        "cs_delta": cm_r["cs"] - cm_b["cs"],
-                        "cp_baseline": cm_b["cp"], "cp_rl": cm_r["cp"],
-                        "cp_delta": cm_r["cp"] - cm_b["cp"],
-                        "lmp_markup_baseline": mk_b, "lmp_markup_rl": mk_r,
-                        "lmp_markup_delta": mk_delta,
-                        "market_power_arb": sum(s["arb"] for s in splits),
-                        "market_power_power": sum(
-                            s["market_power"] for s in splits),
-                    }
+                    metric = day_econ_metrics(base_result, comb, agents,
+                                              config_copy)
                     if k == 0:
                         print(f"    CS delta={metric['cs_delta']:+.1f}  "
                               f"CP delta={metric['cp_delta']:+.1f}  "
-                              f"markup {mk_b:.4f}->{mk_r:.4f}  "
+                              f"markup {metric['lmp_markup_baseline']:.4f}"
+                              f"->{metric['lmp_markup_rl']:.4f}  "
                               f"fleet arb/power="
                               f"{metric['market_power_arb']:+.1f}/"
                               f"{metric['market_power_power']:+.1f}")
-                        for s in splits:
-                            print(f"      {s['name']}: dp={s['profit_delta']:+.1f}"
-                                  f" arb={s['arb']:+.1f} "
-                                  f"power={s['market_power']:+.1f} "
-                                  f"other={s['other']:+.1f} net={s['net']:+.1f}")
 
                 # Aggregate combined row for the CSV
                 total_base_profit = sum(base_result["profits"].get(nm, 0.0)

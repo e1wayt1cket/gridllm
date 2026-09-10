@@ -237,11 +237,14 @@ class TD3:
 
         Returns
         -------
-        dict with keys "critic_loss" (float or None) and "actor_loss"
-        (float or None).
+        dict with keys "critic_loss"/"actor_loss" (float or None) and the
+        twin-critic diagnostics q1_mean/q2_mean/q_gap (None before the buffer
+        holds a full batch). q_gap is twin disagreement in the critic's
+        normalized reward units, not an overestimation measure.
         """
         if len(self.buffer) < self.batch_size:
-            return {"critic_loss": None, "actor_loss": None}
+            return {"critic_loss": None, "actor_loss": None,
+                    "q1_mean": None, "q2_mean": None, "q_gap": None}
 
         obs, act, rew, next_obs, dones = self.buffer.sample(self.batch_size)
 
@@ -313,9 +316,14 @@ class TD3:
                     tp.data.copy_(self.tau * sp.data
                                   + (1 - self.tau) * tp.data)
 
+        with torch.no_grad():
+            q1_mean = float(current_q1.mean().item())
+            q2_mean = float(current_q2.mean().item())
+            q_gap = float((current_q1 - current_q2).abs().mean().item())
         return {"critic_loss": float(critic_loss.detach().item()),
                 "actor_loss": float(actor_loss.detach().item())
-                if actor_loss is not None else None}
+                if actor_loss is not None else None,
+                "q1_mean": q1_mean, "q2_mean": q2_mean, "q_gap": q_gap}
 
     def train(self, env: BiddingEnv, n_episodes: int = 200,
               scenario_names: Optional[List[str]] = None,

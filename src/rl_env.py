@@ -35,6 +35,117 @@ OFFER_ADDER_LOW, OFFER_ADDER_HIGH = 0.0, 50.0
 BLOCK_SIZE = 4        # periods per decision block
 N_BLOCKS = 24         # 96 / 4
 
+# Schedule keys stitched when assembling a captured day (mirrors the keys
+# every clear engine returns per agent).
+CAPTURE_SCHED_KEYS = ("p_buy", "p_sell", "p_ch", "p_dis", "served", "unserved",
+                      "pv_used", "wind_used")
+
+
+class DayCapture:
+    """Stitch the committed periods of successive rolling clears into one day.
+
+    A rolling-horizon episode solves a look-ahead window per block and commits
+    only its first ``BLOCK_SIZE`` periods; the rest are re-planned by the next
+    window. A captured day is therefore the concatenation of those committed
+    slices, not one joint optimization over the day.
+
+    Training (per episode) and evaluation (per checkpoint) both record through
+    this class, so a consumer metric computed during training is the same
+    quantity as the one written to the evaluation CSV rather than a second
+    implementation that can drift.
+
+    ``finish()`` reports ``complete`` and ``fell_backs`` so callers can refuse
+    to compute metrics over un-captured periods: a block whose solve returned
+    None leaves zeros, and a fallback clear solves single-period and bypasses
+    the RL bidding mechanism entirely.
+    """
+
+    def __init__(self, agents, T: int, roll_horizon: int):
+        self.T = int(T)
+        self.roll_horizon = int(roll_horizon)
+        names = [a.name for a in agents]
+        self.sched = {nm: {k: np.zeros(self.T) for k in CAPTURE_SCHED_KEYS}
+                      for nm in names}
+        self.lmp = None
+        self.wholesale = np.zeros(self.T)
+        self.declared = {}
+        self.fell_backs = 0
+        self.periods_captured = 0
+        self.blocks_captured = 0
+
+    @classmethod
+    def from_env(cls, env) -> "DayCapture":
+        return cls(env.all_agents, env.T, env.roll_horizon)
+
+    def committed_periods(self, t_start: int) -> int:
+        """Periods a window starting at ``t_start`` commits to the day."""
+        return min(BLOCK_SIZE, min(t_start + self.roll_horizon, self.T) - t_start)
+
+    @staticmethod
+    def committed_periods_for(env, t_start: int) -> int:
+        """Same count read off an env, for callers holding the env not a
+        capture. Keeps the arithmetic in one place."""
+        return min(BLOCK_SIZE, min(t_start + env.roll_horizon, env.T) - t_start)
+
+    def add_block(self, res, t_start: int, wholesale=None) -> bool:
+        """Record one cleared window's committed periods.
+
+        Returns False when the block contributed nothing usable (no result, or
+        a single-period fallback that bypassed the bidding mechanism).
+        """
+        if res is None:
+            return False
+        if res.get("fell_back"):
+            self.fell_backs += 1
+            return False
+
+        n = self.committed_periods(t_start)
+        for nm, day_sched in self.sched.items():
+            ws = res["schedules"].get(nm)
+            if ws is None:
+                continue
+            for key in day_sched:
+                day_sched[key][t_start:t_start + n] = ws[key][:n]
+        if self.lmp is None:
+            self.lmp = np.zeros((self.T, res["lmp"].shape[1]))
+        self.lmp[t_start:t_start + n, :] = res["lmp"][:n, :]
+        if wholesale is not None:
+            self.wholesale[t_start:t_start + n] = wholesale[:n]
+        self.periods_captured += n
+        self.blocks_captured += 1
+        return True
+
+    def add_declared(self, current_actions: dict, t_start: int) -> None:
+        """Record the actions actually declared over the committed periods."""
+        n = self.committed_periods(t_start)
+        for nm, act in (current_actions or {}).items():
+            slots = self.declared.setdefault(
+                nm, {k: np.zeros(self.T) for k in ("bid_mult", "offer_adder")})
+            for k, arr in act.items():
+                if k in slots:
+                    slots[k][t_start:t_start + n] = arr[t_start:t_start + n]
+
+    def finish(self) -> dict:
+        """Report the capture plus whether the recorded periods are sound.
+
+        ``complete`` means the whole horizon was captured; ``usable`` means
+        every captured block recorded real schedule data, ignoring how much of
+        the horizon was covered. A deliberately short episode (fewer blocks
+        than a full day) is usable but not complete, whereas a failed or
+        fallen-back block is neither.
+        """
+        return {"sched": self.sched,
+                "lmp": self.lmp,
+                "wholesale": self.wholesale,
+                "declared": self.declared,
+                "fell_backs": self.fell_backs,
+                "n_blocks_captured": self.blocks_captured,
+                "n_periods_captured": self.periods_captured,
+                "complete": (self.periods_captured == self.T
+                             and self.fell_backs == 0),
+                "usable": self.periods_captured == self.blocks_captured
+                          * BLOCK_SIZE and self.fell_backs == 0}
+
 
 class BiddingEnv:
     """Multi-agent bidding environment with continuous actions.
@@ -122,6 +233,12 @@ class BiddingEnv:
         # Last market-clearing result, exposed for post-hoc analysis (e.g.
         # profit decomposition); not used by the training loop itself.
         self._last_result = None
+        # Last differential-reward baseline clear (truthful bids for the
+        # committed block, opponents and SOC held identical). Exposed so
+        # per-episode accounting can read the truthful day without paying for
+        # a third clearing. None when differential reward is off: there is
+        # then no truthful baseline to compare against.
+        self._last_base_result = None
         # Snapshot of all agents' actions from the previous block, used
         # for opponent-feature computation to avoid self-reference bias
         # when agents are evaluated sequentially within a block.
@@ -442,6 +559,9 @@ class BiddingEnv:
 
         # Per-block wholesale actually fed to clear_market; set on each step.
         self._last_wholesale = None
+        # Clears from the previous episode must not leak into this one.
+        self._last_result = None
+        self._last_base_result = None
         self.block_idx = 0
         self.prev_soc = {}
         self.hist_lmp = deque(maxlen=96)
@@ -604,6 +724,7 @@ class BiddingEnv:
                     base_actions, window_config, wholesale=wholesale)
             except Exception:
                 base_result = None
+            self._last_base_result = base_result
             if base_result is not None and not base_result.get("fell_back"):
                 for a in self.rl_agents:
                     nm = a.name

@@ -11,6 +11,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+.pytest_cache/
 
 # 虚拟环境
 venv/
@@ -47,6 +48,10 @@ raw/
 plots/
 # 生成产物
 outputs/
+output/
 policies/
 runs/
 logs/
+
+# results/ 同时存放交付物与数据产物：数据类文件（*.csv / *.png 等）由上面
+# 的规则忽略，而汇总报告（*.md）保留在版本库内，便于交接与评审。

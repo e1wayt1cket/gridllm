@@ -54,6 +54,58 @@ def test_save_writes_expected_files(tmp_path):
     assert len(lines) == 3  # header + 2 rows
 
 
+def test_record_episode_carries_per_agent_q_and_econ_columns(tmp_path):
+    art = _make_artifacts(str(tmp_path))
+    art.record_episode(
+        2, 5857.0, 3370.0, 59.8, 0.9, -0.5, "baseline",
+        per_agent_reward={"Bus5R": 100.0, "Bus6R": 200.0},
+        q_stats={"q1_mean": 1.5, "q2_mean": 1.4, "q_gap": 0.1},
+        econ={"cs_delta": 3.0, "cp_delta": -3.0, "lmp_markup_delta": 0.01},
+        capture_fellbacks=0)
+    root = art.save()
+    with open(os.path.join(root, "metrics.csv")) as f:
+        header, *rows = [ln.strip() for ln in f if ln.strip()]
+    cols = header.split(",")
+    assert "reward__Bus5R" in cols
+    assert "reward__Bus6R" in cols
+    assert "q1_mean" in cols and "q2_mean" in cols and "q_gap" in cols
+    assert "cs_delta" in cols and "cp_delta" in cols
+    assert "capture_fellbacks" in cols
+    # Existing columns keep their names and positions.
+    assert cols[:7] == ["episode", "mean_reward", "welfare", "re_rate",
+                        "critic_loss", "actor_loss", "scenario"]
+    assert len(rows) == 3
+
+
+def test_metrics_columns_are_stable_across_rows_with_ragged_extras(tmp_path):
+    # Episode 1 has no econ (e.g. differential reward off) while episode 2
+    # does; the file still needs one header and NaN for the missing cells.
+    art = _make_artifacts(str(tmp_path))
+    art.record_episode(2, 5857.0, 3370.0, 59.8,
+                       per_agent_reward={"Bus5R": 100.0},
+                       econ={"cs_delta": 3.0}, capture_fellbacks=0)
+    root = art.save()
+    with open(os.path.join(root, "metrics.csv")) as f:
+        lines = [ln.strip() for ln in f if ln.strip()]
+    header = lines[0].split(",")
+    # Every row has the same field count as the header.
+    for ln in lines[1:]:
+        assert len(ln.split(",")) == len(header), ln
+
+
+def test_ordered_columns_puts_extras_after_the_base_columns():
+    from run_artifacts import _ordered_columns
+    rows = [{"episode": 1, "mean_reward": 1.0, "scenario": "baseline",
+             "cs_delta": 2.0, "reward__Bus6R": 5.0, "reward__Bus5R": 4.0,
+             "q_gap": 0.1, "capture_fellbacks": 0}]
+    cols = _ordered_columns(rows)
+    assert cols[:3] == ["episode", "mean_reward", "scenario"]
+    # Per-agent reward columns are sorted so cross-run diffs stay readable.
+    assert cols.index("reward__Bus5R") < cols.index("reward__Bus6R")
+    assert cols.index("q_gap") < cols.index("cs_delta")
+    assert cols[-1] == "capture_fellbacks"
+
+
 def test_json_safe_handles_config_with_tuples():
     config = MarketConfig(opf_mode="socp", verbose=False)
     safe = _json_safe(config)

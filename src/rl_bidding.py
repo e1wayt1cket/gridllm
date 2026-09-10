@@ -271,7 +271,8 @@ class MATD3:
         (actor_loss is None on steps without actor update)."""
         if len(self.buffer) < self.batch_size:
             return {"critic_loss": None, "actor_loss": None,
-                    "critic_loss_by_agent": {}, "actor_loss_by_agent": {}}
+                    "critic_loss_by_agent": {}, "actor_loss_by_agent": {},
+                    "q1_mean": None, "q2_mean": None, "q_gap": None}
 
         obs, act, rew, next_obs, done = self.buffer.sample(self.batch_size)
         # obs: (batch, n_agents, obs_dim), act: (batch, n_agents, act_dim)
@@ -287,6 +288,9 @@ class MATD3:
         # ---- Update each agent's critic ----
         critic_losses = []
         critic_loss_by_agent = {}
+        q1_means = []
+        q2_means = []
+        q_gaps = []
         for i, nm in enumerate(self.agent_names):
             critic = self.critics[nm]
             critic_target = self.critic_targets[nm]
@@ -319,6 +323,13 @@ class MATD3:
             critic_loss = nn.functional.mse_loss(
                 current_q1, target_q) + nn.functional.mse_loss(
                 current_q2, target_q)
+
+            # Twin disagreement, free to read here since both estimates were
+            # just computed. Reported in the critic's normalized reward units.
+            with torch.no_grad():
+                q1_means.append(float(current_q1.mean().item()))
+                q2_means.append(float(current_q2.mean().item()))
+                q_gaps.append(float((current_q1 - current_q2).abs().mean().item()))
 
             opt.zero_grad()
             critic_loss.backward()
@@ -390,7 +401,10 @@ class MATD3:
         avg_actor = float(np.mean(actor_losses)) if actor_losses else None
         return {"critic_loss": avg_critic, "actor_loss": avg_actor,
                 "critic_loss_by_agent": critic_loss_by_agent,
-                "actor_loss_by_agent": actor_loss_by_agent}
+                "actor_loss_by_agent": actor_loss_by_agent,
+                "q1_mean": float(np.mean(q1_means)),
+                "q2_mean": float(np.mean(q2_means)),
+                "q_gap": float(np.mean(q_gaps))}
 
     def train(self, n_episodes: int = 100, verbose: bool = True) \
             -> Dict[str, list]:
