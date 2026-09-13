@@ -94,7 +94,7 @@ class ArmSpec:
 
 def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
             rl_names: Sequence[str], day_seed: int, T: int = 96,
-            n_blocks: int = N_BLOCKS) -> dict:
+            n_blocks: int = N_BLOCKS, settle_full_day: bool = True) -> dict:
     """Run one policy over one day and return what each agent settled.
 
     ``day_seed`` is required and applied before anything else, so every arm of a
@@ -140,8 +140,67 @@ def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
         if done:
             break
 
-    return {"arm": arm.name, "profits": profits, "wholesale": wholesale,
+    rolling_profits = dict(profits)
+    if settle_full_day:
+        profits, settled = _settle_full_day(agents, config, rl_names,
+                                            env.current_actions, wholesale, T)
+        clean = clean and settled
+
+    return {"arm": arm.name, "profits": profits,
+            "rolling_profits": rolling_profits,
+            "settled": bool(settle_full_day), "wholesale": wholesale,
             "seed": day_seed, "clean": clean}
+
+
+def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
+                     T: int) -> tuple:
+    """Re-clear the whole day at once with the state of charge pinned.
+
+    A day that finishes with a fuller battery has banked energy it did not sell,
+    so settling each block's cash and adding them up rewards whichever policy
+    ran the battery down. Clearing the horizon in one go with the endpoints tied
+    makes the two arms comparable on the day itself, with no terminal price to
+    choose. The action sequence is the one the policy emitted causally, block by
+    block; only the settlement is joint.
+
+    Returns (per-agent profit, clean).
+    """
+    import dataclasses
+
+    import participant_payoff
+    from market import clear_market
+
+    settle_config = dataclasses.replace(
+        config,
+        storage=dataclasses.replace(config.storage, terminal_soc_equal=True))
+    settle_actions = {}
+    for nm in rl_names:
+        act = actions.get(nm)
+        if act is None:
+            continue
+        settle_actions[nm] = {
+            "bid_mult": np.asarray(act["bid_mult"], dtype=float)[:T],
+            "offer_adder": np.asarray(act["offer_adder"], dtype=float)[:T],
+        }
+
+    try:
+        result = clear_market(agents, T, "DA", settle_actions, settle_config,
+                              wholesale=wholesale)
+    except Exception:
+        result = None
+    if result is None or result.get("fell_back"):
+        return {nm: 0.0 for nm in rl_names}, False
+
+    profits = {}
+    for nm in rl_names:
+        agent = next((a for a in agents if a.name == nm), None)
+        sched = result["schedules"].get(nm)
+        if agent is None or sched is None:
+            profits[nm] = 0.0
+            continue
+        profits[nm] = participant_payoff.participant_payoff(
+            sched, result["lmp"][:, agent.bus], agent, settle_config).total
+    return profits, True
 
 
 def assert_paired(base: dict, ai: dict) -> None:

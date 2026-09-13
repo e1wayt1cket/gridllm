@@ -90,7 +90,12 @@ def build_parser():
                              "or masac (multi-agent SAC, stochastic actors)")
     parser.add_argument("--agent-names", type=str, default=None,
                         help="Comma-separated agent names to train. "
-                             "Default: all agents with storage.")
+                             "Default: the independent storage fleet.")
+    parser.add_argument("--all-storage", action="store_true",
+                        help="Train every agent that owns a battery, including "
+                             "the network's own prosumer and non-prosumer "
+                             "units, instead of only the independent storage "
+                             "fleet.")
     parser.add_argument("--list-agents", action="store_true",
                         help="Print all available agent names and exit")
     parser.add_argument("--scenarios", type=str, default=None,
@@ -493,16 +498,32 @@ def main():
         config.network.line_capacity_multiplier = args.capacity
 
     # ---- Determine RL agents ----
+    # The independent storage fleet is the case study, and it is the only
+    # participant with its own payoff model and its own bid anchor. The
+    # network's own batteries stay price-takers, so a policy's effect is not
+    # entangled with load-serving behaviour they do not have. --agent-names
+    # overrides, and --all-storage widens to every unit with a battery.
+    def _storage_agents():
+        if args.all_storage:
+            return [a for a in agents if a.storage is not None]
+        return [a for a in agents
+                if getattr(a, "participant_type", "prosumer") == "storage"]
+
     if args.agent_names:
         rl_agent_names = [s.strip() for s in args.agent_names.split(",")]
     else:
-        rl_agent_names = [a.name for a in agents if a.storage is not None]
+        rl_agent_names = [a.name for a in _storage_agents()]
     known = {a.name for a in agents}
     missing = [n for n in rl_agent_names if n not in known]
     if missing:
-        available = [a.name for a in agents if a.storage is not None]
+        available = [a.name for a in _storage_agents()]
         print(f"Agents not found: {missing}. Available storage agents: "
               f"{available}")
+        return
+    if not rl_agent_names:
+        print("No trainable agents: the independent storage fleet is disabled "
+              "and no --agent-names were given. Pass --all-storage to train "
+              "the network's own batteries.")
         return
 
     print(f"Training {len(rl_agent_names)} storage agents: {rl_agent_names}",
