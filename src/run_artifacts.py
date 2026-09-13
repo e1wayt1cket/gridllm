@@ -58,6 +58,12 @@ _BASE_METRIC_COLUMNS = ["episode", "mean_reward", "welfare", "re_rate",
                         "critic_loss", "actor_loss", "scenario"]
 # Prefix for the per-agent reward columns ({prefix}{agent_name}).
 _AGENT_REWARD_PREFIX = "reward__"
+# Fleet profit columns, reported next to the reward they are the basis of.
+# `mean_reward` is the learning signal; these are the settled money it is
+# measured against and the in-window truthful counterfactual it subtracts.
+# Neither is the paper's benefit, which uses a whole-day all-truthful baseline.
+_PROFIT_COLUMNS = ["raw_profit_mean", "local_baseline_profit_mean",
+                   "profit_delta_local_mean"]
 # Critique diagnostics, ordered before the day-level economics.
 _Q_COLUMNS = ["q1_mean", "q2_mean", "q_gap"]
 # Trailing integrity marker for the day-level economics.
@@ -142,7 +148,10 @@ class RunArtifacts:
                        re_rate: float, critic_loss=None, actor_loss=None,
                        scenario=None, per_agent_reward: dict = None,
                        q_stats: dict = None, econ: dict = None,
-                       capture_fellbacks: int = None):
+                       capture_fellbacks: int = None,
+                       raw_profit: float = None,
+                       local_baseline_profit: float = None,
+                       profit_delta_local: float = None):
         """Append one training-episode metrics row.
 
         Parameters
@@ -150,6 +159,13 @@ class RunArtifacts:
         per_agent_reward : dict or None
             {agent_name: episode reward}; written as reward__<agent> columns
             so per-agent learning curves need no TensorBoard round trip.
+        raw_profit, local_baseline_profit, profit_delta_local : float or None
+            The fleet's settled profit this episode, the truthful-bidding
+            counterfactual taken inside each training window, and the
+            difference between them. Recorded so a run reports the money
+            alongside the signal it is learning from: a falling actor loss with
+            a flat raw profit is a failed run, and that is only visible if the
+            profit is a column.
         q_stats : dict or None
             Critic diagnostics (q1_mean / q2_mean / q_gap). q_gap is twin
             disagreement, in the critic's normalized reward units.
@@ -169,6 +185,12 @@ class RunArtifacts:
         if per_agent_reward:
             row.update({f"{_AGENT_REWARD_PREFIX}{nm}": v
                         for nm, v in per_agent_reward.items()})
+        if raw_profit is not None:
+            row["raw_profit_mean"] = raw_profit
+        if local_baseline_profit is not None:
+            row["local_baseline_profit_mean"] = local_baseline_profit
+        if profit_delta_local is not None:
+            row["profit_delta_local_mean"] = profit_delta_local
         if q_stats:
             row.update(q_stats)
         if econ:

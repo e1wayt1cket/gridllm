@@ -250,6 +250,10 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         obs = env.reset()
 
         ep_rewards = {nm: 0.0 for nm in rl_agent_names}
+        # Settled money kept alongside the learning signal, so a run reports
+        # both; see RunArtifacts.record_episode.
+        ep_raw_profit = {nm: 0.0 for nm in rl_agent_names}
+        ep_local_base = {nm: 0.0 for nm in rl_agent_names}
         ep_welfare = 0.0
         ep_re_rate = 0.0
         # Per-episode day capture: the RL day and the truthful baseline day.
@@ -286,6 +290,9 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
 
             for nm in rl_agent_names:
                 ep_rewards[nm] += rewards.get(nm, 0.0)
+                ep_raw_profit[nm] += info.get("raw_profit", {}).get(nm, 0.0)
+                ep_local_base[nm] += info.get("local_baseline_profit", {}) \
+                    .get(nm, 0.0)
             ep_welfare = info.get("welfare", 0.0)
             ep_re_rate = info.get("re_rate", 0.0)
             obs = next_obs
@@ -379,6 +386,11 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                 actor_loss=np.mean(a_losses) if a_losses else None,
                 scenario=sc_name,
                 per_agent_reward=dict(ep_rewards),
+                raw_profit=sum(ep_raw_profit.values()) / len(rl_agent_names),
+                local_baseline_profit=(sum(ep_local_base.values())
+                                       / len(rl_agent_names)),
+                profit_delta_local=(sum(ep_rewards.values())
+                                    / len(rl_agent_names)),
                 q_stats=q_stats, econ=econ,
                 capture_fellbacks=fell_backs)
 
@@ -698,6 +710,10 @@ def main():
         obs = env.reset()
 
         ep_rewards = {name: 0.0 for name in rl_agent_names}
+        # Settled money kept alongside the learning signal, so a run reports
+        # both; see RunArtifacts.record_episode.
+        ep_raw_profit = {name: 0.0 for name in rl_agent_names}
+        ep_local_base = {name: 0.0 for name in rl_agent_names}
         ep_welfare = 0.0
         ep_re_rate = 0.0
         cap_rl = DayCapture.from_env(env)
@@ -719,6 +735,9 @@ def main():
             for name, td3 in td3s.items():
                 r = rewards.get(name, 0.0)
                 ep_rewards[name] += r
+                ep_raw_profit[name] += info.get("raw_profit", {}).get(name, 0.0)
+                ep_local_base[name] += info.get(
+                    "local_baseline_profit", {}).get(name, 0.0)
                 nxt = next_obs.get(name, np.zeros(obs_dim, dtype=np.float32))
                 td3.buffer.add(obs[name], actions[name], r, nxt, done)
                 td3.total_steps += 1
@@ -804,6 +823,11 @@ def main():
                 actor_loss=np.mean(a_losses) if a_losses else None,
                 scenario=sc_name,
                 per_agent_reward=dict(ep_rewards),
+                raw_profit=sum(ep_raw_profit.values()) / len(rl_agent_names),
+                local_baseline_profit=(sum(ep_local_base.values())
+                                       / len(rl_agent_names)),
+                profit_delta_local=(sum(ep_rewards.values())
+                                    / len(rl_agent_names)),
                 q_stats=q_stats, econ=econ,
                 capture_fellbacks=fell_backs)
 

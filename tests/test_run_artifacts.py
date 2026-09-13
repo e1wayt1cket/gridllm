@@ -125,3 +125,34 @@ def test_json_safe_numpy_values():
     assert _json_safe(np.float32(1.5)) == 1.5
     assert _json_safe(np.array([1, 2, 3])) == [1, 2, 3]
     assert _json_safe((1, "a")) == [1, "a"]
+
+
+def test_episode_log_reports_profit_alongside_the_reward(tmp_path):
+    """A run must report the money, not only the learning signal.
+
+    `mean_reward` is the differential signal the actor learns from; raw profit
+    and its in-window truthful counterfactual are what that signal is built out
+    of. A falling actor loss with a flat raw profit is a failed run, and that is
+    only visible if the profit is a column. Neither column is the paper's
+    benefit, which uses a whole-day all-truthful baseline instead.
+    """
+    art = _make_artifacts(str(tmp_path))
+    art.record_episode(2, 12.0, 1000.0, 50.0, None, None, "baseline",
+                       raw_profit=-151.8, local_baseline_profit=-20.0,
+                       profit_delta_local=-131.8)
+    row = art.metrics[-1]
+    assert row["raw_profit_mean"] == -151.8
+    assert row["local_baseline_profit_mean"] == -20.0
+    assert row["profit_delta_local_mean"] == -131.8
+    # The signal is the difference of the two, recorded rather than inferred.
+    assert row["profit_delta_local_mean"] == (
+        row["raw_profit_mean"] - row["local_baseline_profit_mean"])
+
+
+def test_episode_log_still_accepts_rows_without_profit_columns(tmp_path):
+    """An episode recorded without them keeps its old shape and stays readable."""
+    art = _make_artifacts(str(tmp_path))
+    art.record_episode(3, 1.0, 2.0, 3.0, None, None, "baseline")
+    assert "raw_profit_mean" not in art.metrics[-1]
+    loaded = RunArtifacts.load(art.save())
+    assert loaded.metrics[0]["mean_reward"] == -480.0
