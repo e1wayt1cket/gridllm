@@ -333,12 +333,17 @@ def test_consumer_metrics_end_to_end_capture(tmp_path):
     import torch
     config = default_eval_config()
     agents, _ = get_scenario("baseline", T=96, config=config)
-    rl_names = [a.name for a in agents if a.storage is not None]
     act_bounds = torch.tensor([[0.3, 0.0], [1.8, 50.0]], dtype=torch.float32)
     policy_dir = "policies/matd3_cc_rot_seed42/best"
     policies = load_policies_from_dir(policy_dir, 12, act_bounds,
                                       obs_spec=None, action_spec=None)
     assert len(policies) == 12, "expected 12 policies from seed42 best"
+    # Drive exactly the agents this policy set covers. The scenario's storage
+    # population has since grown to include the independent storage fleet,
+    # which this older checkpoint predates and has no policy for.
+    rl_names = [a.name for a in agents
+                if a.storage is not None and a.name in policies]
+    assert len(rl_names) == 12
     env_b = BiddingEnv(agents, config)
     base = run_episode(env_b, capture=True)
     env_c = BiddingEnv(agents, config, rl_agent_names=rl_names)
