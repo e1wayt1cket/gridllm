@@ -585,8 +585,43 @@ def _convention_of(frame) -> str:
             else "p_dis_offset_legacy")
 
 
+# Money-unit conventions that appear in results/ on disk.
+#
+# The 2026-09-13 unification made every monetary quantity an energy multiplied
+# by a price, so a period's power now carries the 0.25 h period length (see
+# money.py). Before it, the profit and payment ledger valued a period's power as
+# if a period were an hour, leaving every absolute money figure on disk at four
+# times the same quantity today. Pooling the generations compares a 4x larger
+# delta against a 4x smaller one, silently, because the sign and the ordering
+# survive. Unit-rate metrics (lmp_markup_*) and any ratio of two money figures
+# are invariant and stay comparable across generations; absolute money is not.
+MONEY_CONVENTIONS = ("mwh_dt", "period_power_legacy", "unknown")
+
+# When the unified convention first produced results on disk. The newest result
+# written before the change is dated 2026-09-10, so a date is a safe cutoff.
+MONEY_UNIT_FIX_TS = datetime.datetime(2026, 9, 13, 0, 0, 0).timestamp()
+
+
+def _money_convention_of(frame) -> str:
+    """Which money-unit convention produced these rows.
+
+    Same dated-generation mechanism as `_convention_of`: emission time
+    separates the generations, and a file that cannot be dated, or that carries
+    no money columns, is 'unknown' rather than guessed.
+    """
+    if "profit_delta" not in frame.columns \
+            or frame["profit_delta"].isna().all():
+        return "unknown"
+    path = frame.attrs.get("source_path")
+    if not path or not os.path.exists(path):
+        return "unknown"
+    return ("mwh_dt" if os.path.getmtime(path) >= MONEY_UNIT_FIX_TS
+            else "period_power_legacy")
+
+
 def fleet_rows(root: Optional[str] = None,
-               convention: Optional[str] = None):
+               convention: Optional[str] = None,
+               money_convention: Optional[str] = None):
     """One row per (evaluation file, scenario) for the fleet as a whole.
 
     Evaluation CSVs hold a per-agent row per scenario plus one ``agent="ALL"``
@@ -598,30 +633,40 @@ def fleet_rows(root: Optional[str] = None,
     ``cs_convention`` records which consumer-surplus convention produced the
     row (see CONSUMER_CONVENTIONS); pass ``convention`` to keep only that one,
     which is what a consumer-facing comparison should do.
+
+    ``money_convention`` does the same for the money unit (see
+    MONEY_CONVENTIONS). It defaults to None rather than to the current
+    convention because every result on disk predates the unification, so
+    filtering by default would empty every view; a comparison of absolute money
+    figures across policies should pass a convention explicitly.
     """
     pd = _pd()
     rows = list_eval_results(root)
     cols = ["source_file", "policy_label", "scenario", "agent",
-            "cs_convention"] + FLEET_METRIC_COLUMNS
+            "cs_convention", "money_convention"] + FLEET_METRIC_COLUMNS
     if not len(rows) or "agent" not in rows.columns:
         return pd.DataFrame(columns=cols)
     base = root or results_root()
     fleet = rows[rows["agent"] == "ALL"].copy()
     fleet["policy_label"] = fleet["source_file"].str.replace(
         r"_eval\.csv$", "", regex=True)
-    fleet["cs_convention"] = [
-        _convention_of(_peek(os.path.join(base, fn)))
-        for fn in fleet["source_file"]]
+    # One read per file: both conventions are decided from the same frame.
+    peeks = [_peek(os.path.join(base, fn)) for fn in fleet["source_file"]]
+    fleet["cs_convention"] = [_convention_of(f) for f in peeks]
+    fleet["money_convention"] = [_money_convention_of(f) for f in peeks]
     for col in FLEET_METRIC_COLUMNS:
         if col not in fleet.columns:
             fleet[col] = float("nan")
     if convention is not None:
         fleet = fleet[fleet["cs_convention"] == convention]
+    if money_convention is not None:
+        fleet = fleet[fleet["money_convention"] == money_convention]
     return fleet[cols]
 
 
 def pareto_pairs(root: Optional[str] = None,
-                 convention: Optional[str] = "p_dis_excluded"):
+                 convention: Optional[str] = "p_dis_excluded",
+                 money_convention: Optional[str] = None):
     """Profit against consumer surplus, one point per policy and scenario.
 
     Each row pairs a policy's profit gain with the change in consumer surplus
@@ -636,9 +681,10 @@ def pareto_pairs(root: Optional[str] = None,
     generation, with ``cs_convention`` marking each point.
     """
     pd = _pd()
-    fleet = fleet_rows(root, convention=convention)
-    cols = ["policy_label", "scenario", "cs_convention", "profit_delta",
-            "genuine_welfare_delta", "cs_delta", "cp_delta",
+    fleet = fleet_rows(root, convention=convention,
+                       money_convention=money_convention)
+    cols = ["policy_label", "scenario", "cs_convention", "money_convention",
+            "profit_delta", "genuine_welfare_delta", "cs_delta", "cp_delta",
             "lmp_markup_delta", "market_power_power",
             "profit_rises", "cs_rises", "conflict"]
     if not len(fleet):
@@ -800,14 +846,19 @@ def eval_summary(root: Optional[str] = None):
 
 
 def _peek(path: str):
-    """Read just the consumer columns of an evaluation file, tagged with its
-    path so the caller can date it."""
+    """Read just the columns that identify an evaluation file's conventions,
+    tagged with its path so the caller can date it.
+
+    ``cs_delta``/``cp_delta`` mark the consumer-surplus generation and
+    ``profit_delta`` marks the money-unit generation; a file that predates a
+    column simply will not carry it, which is how the 'unknown' case arises.
+    """
     pd = _pd()
     frame = pd.DataFrame()
     if os.path.exists(path):
         try:
             frame = pd.read_csv(path, usecols=lambda c: c in
-                                ("cs_delta", "cp_delta"))
+                                ("cs_delta", "cp_delta", "profit_delta"))
         except Exception:
             frame = pd.DataFrame()
     frame.attrs["source_path"] = path

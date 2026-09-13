@@ -56,8 +56,10 @@ def test_consumer_payment_surplus_pure_consumer():
     sched = {"C": _sched({"served": [5, 5, 5], "p_buy": [5, 5, 5]})}
     lmp = np.full((3, 2), 100.0)
     m = consumer_metrics(sched, lmp, [a])
-    assert m["cp"] == pytest.approx(100.0 * 15)      # sum lmp*served
-    assert m["cs"] == pytest.approx(50.0 * 15 - 1500.0)
+    # Money is an energy times a price, so every expectation carries the
+    # 0.25 h period length: 3 periods of 5 MW at 100 CNY/MWh is 375 CNY.
+    assert m["cp"] == pytest.approx(100.0 * 15 * 0.25)   # sum lmp*served
+    assert m["cs"] == pytest.approx((50.0 * 15 - 1500.0) * 0.25)
 
 
 def test_consumer_payment_excludes_storage_charge():
@@ -72,7 +74,7 @@ def test_consumer_payment_excludes_storage_charge():
     m2 = consumer_metrics({"P": with_charge}, lmp, [a])
     assert m1["cp"] == m2["cp"]
     assert m1["cs"] == m2["cs"]
-    assert m1["cp"] == pytest.approx(100.0 * 18)     # 3*6 load-import
+    assert m1["cp"] == pytest.approx(100.0 * 18 * 0.25)   # 3*6 load-import
 
 
 def test_consumer_payment_ignores_storage_discharge():
@@ -86,7 +88,8 @@ def test_consumer_payment_ignores_storage_discharge():
     lmp = np.full((3, 2), 100.0)
     m1 = consumer_metrics({"P": no_dis}, lmp, [a])
     m2 = consumer_metrics({"P": dis}, lmp, [a])
-    assert m1["cp"] == m2["cp"] == pytest.approx(100.0 * 18)  # 3*(10-4), p_dis ignored
+    # 3*(10-4) load-import, p_dis ignored, over the 0.25 h period.
+    assert m1["cp"] == m2["cp"] == pytest.approx(100.0 * 18 * 0.25)
     assert m1["cs"] == m2["cs"]
 
 
@@ -98,7 +101,7 @@ def test_consumer_surplus_uses_truthful_bid_value_and_served():
                           "p_buy": [6, 6]}, T=2)}
     lmp = np.full((2, 2), 100.0)
     m = consumer_metrics(sched, lmp, [a])
-    assert m["cs"] == pytest.approx(50.0 * 20 - 100.0 * 12)
+    assert m["cs"] == pytest.approx((50.0 * 20 - 100.0 * 12) * 0.25)
 
 
 def test_markup_guards_low_wholesale():
@@ -138,10 +141,11 @@ def test_reconciliation_identity_lossless_toy():
     }
     r = reconciliation(sched, lmp, w, [c, s])
     assert r["rent_total"] == pytest.approx(0.0, abs=1e-6)
-    # consumer bill 1500, seller business cash -600, import 9 units
-    assert r["cp_total"] == pytest.approx(1500.0)
-    assert r["bc_total"] == pytest.approx(-600.0)
-    assert r["bill_total"] == pytest.approx(900.0)
+    # consumer bill 1500, seller business cash -600, import 9 MW over 3
+    # periods; each money figure carries the 0.25 h period length.
+    assert r["cp_total"] == pytest.approx(1500.0 * 0.25)
+    assert r["bc_total"] == pytest.approx(-600.0 * 0.25)
+    assert r["bill_total"] == pytest.approx(900.0 * 0.25)
     assert r["max_identity_residual"] < 1e-6
 
 
@@ -167,10 +171,11 @@ def test_market_power_split_matches_diagnose_profit():
     assert row["market_power"] == pytest.approx(power)
     assert row["other"] == pytest.approx(other)
     assert row["net"] == pytest.approx(net)
-    # Hand-checked A: arb=210, power=30, dp=240, net=4.
-    assert row["arb"] == pytest.approx(210.0)
-    assert row["market_power"] == pytest.approx(30.0)
-    assert row["profit_delta"] == pytest.approx(240.0)
+    # Hand-checked A at the period-power level: arb=210, power=30, dp=240.
+    # Money carries the 0.25 h period length; `net` is a power in MW.
+    assert row["arb"] == pytest.approx(210.0 * 0.25)
+    assert row["market_power"] == pytest.approx(30.0 * 0.25)
+    assert row["profit_delta"] == pytest.approx(240.0 * 0.25)
     assert row["net"] == pytest.approx(4.0)
 
 
@@ -217,12 +222,14 @@ def test_day_econ_metrics_toy_deltas():
     w = np.full(2, 100.0)
     m = day_econ_metrics(_capture(sched, lmp_b, w),
                          _capture(sched, lmp_r, w), agents, _config())
-    assert m["cp_baseline"] == pytest.approx(1000.0)   # 100 * 5 * 2
-    assert m["cp_rl"] == pytest.approx(1100.0)         # 110 * 5 * 2
-    assert m["cp_delta"] == pytest.approx(100.0)
-    assert m["cs_baseline"] == pytest.approx(50.0 * 10 - 1000.0)
-    assert m["cs_rl"] == pytest.approx(50.0 * 10 - 1100.0)
-    assert m["cs_delta"] == pytest.approx(-100.0)      # user pays more
+    # Money carries the 0.25 h period length (100 * 5 * 2 periods * 0.25).
+    assert m["cp_baseline"] == pytest.approx(1000.0 * 0.25)
+    assert m["cp_rl"] == pytest.approx(1100.0 * 0.25)
+    assert m["cp_delta"] == pytest.approx(100.0 * 0.25)
+    assert m["cs_baseline"] == pytest.approx((50.0 * 10 - 1000.0) * 0.25)
+    assert m["cs_rl"] == pytest.approx((50.0 * 10 - 1100.0) * 0.25)
+    # The unit-rate metrics are ratios and stay invariant to the time scale.
+    assert m["cs_delta"] == pytest.approx(-100.0 * 0.25)   # user pays more
     assert m["lmp_markup_baseline"] == pytest.approx(0.0)
     assert m["lmp_markup_rl"] == pytest.approx(0.1)    # (110-100)/100
     assert m["lmp_markup_delta"] == pytest.approx(0.1)
@@ -296,7 +303,7 @@ def test_day_econ_metrics_accepts_a_short_but_clean_window():
     short = _capture(sched, lmp, w, n_periods=2)
     short["complete"] = False           # a two-block window of a longer day
     m = day_econ_metrics(short, short, [a], _config())
-    assert m["cp_baseline"] == pytest.approx(1000.0)
+    assert m["cp_baseline"] == pytest.approx(1000.0 * 0.25)
 
 
 def test_day_econ_metrics_rejects_mismatched_horizons():

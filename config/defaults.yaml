@@ -151,6 +151,22 @@ non_prosumer_storage:
   soc_min: 0.10
   soc_max: 0.95
 
+# Independent storage: a battery alone, with no load and no on-site generation.
+# Placed at buses without an existing prosumer or non-prosumer battery, one
+# upstream, one midstream and one downstream, so the node-location experiment
+# has a spread to sweep. Charging and discharging are priced from the day's mean
+# wholesale unless storage.bid_anchor overrides it.
+independent_storage:
+  enabled: true
+  buses: [2, 12, 24]
+  capacity_mwh: 6.0
+  power_ratio: 0.4
+  eta_ch: 0.92
+  eta_dis: 0.92
+  soc0: 0.5
+  soc_min: 0.10
+  soc_max: 0.90
+
 # Storage strategy parameters (map to StorageConfig fields)
 # These are separate from the prosumer storage specs above —
 # they control the OPF-level storage policy, not individual unit capacities.

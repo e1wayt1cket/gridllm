@@ -244,7 +244,8 @@ class TD3:
         """
         if len(self.buffer) < self.batch_size:
             return {"critic_loss": None, "actor_loss": None,
-                    "q1_mean": None, "q2_mean": None, "q_gap": None}
+                    "q1_mean": None, "q2_mean": None, "q_gap": None,
+                    "reward_scale": None}
 
         obs, act, rew, next_obs, dones = self.buffer.sample(self.batch_size)
 
@@ -291,16 +292,19 @@ class TD3:
             # squashed action fails because d(tanh)/dx -> 0 at the bounds, so
             # the gradient vanishes exactly when the policy saturates. An L2
             # term on the raw logits has gradient 2*coef*logit that survives
-            # saturation and pulls the policy back to moderate bids. Rescaled
-            # by the same factor as the reward so its balance vs -min(Q) holds.
+            # saturation and pulls the policy back to moderate bids.
+            #
+            # The weight is dimensionless because -min(q1, q2) is already in
+            # reward-standard-deviation units: the reward was divided by `scale`
+            # above. Dividing the penalty by `scale` as well made the effective
+            # regularization inversely proportional to the reward magnitude, so
+            # any rescaling of the reward silently re-tuned the actor.
             if self.bid_dev_penalty > 0:
                 actor_loss = actor_loss \
-                    + (self.bid_dev_penalty / scale) \
-                    * (logits[:, 0] ** 2).mean()
+                    + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
             if self.offer_dev_penalty > 0:
                 actor_loss = actor_loss \
-                    + (self.offer_dev_penalty / scale) \
-                    * (logits[:, 1] ** 2).mean()
+                    + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
 
             self.actor_opt.zero_grad()
             actor_loss.backward()
@@ -323,7 +327,11 @@ class TD3:
         return {"critic_loss": float(critic_loss.detach().item()),
                 "actor_loss": float(actor_loss.detach().item())
                 if actor_loss is not None else None,
-                "q1_mean": q1_mean, "q2_mean": q2_mean, "q_gap": q_gap}
+                "q1_mean": q1_mean, "q2_mean": q2_mean, "q_gap": q_gap,
+                # Running reward standard deviation: the unit Q-values and the
+                # critic loss are expressed in. Reported so the scale of the
+                # learning signal stays observable.
+                "reward_scale": float(scale)}
 
     def train(self, env: BiddingEnv, n_episodes: int = 200,
               scenario_names: Optional[List[str]] = None,

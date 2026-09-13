@@ -8,13 +8,14 @@ from collections import deque
 
 import numpy as np
 
+import money
 from models import MarketConfig, Agent
 
 # ===========================================================================
 # Constants
 # ===========================================================================
 
-DT_HOURS = 0.25  # 15-min period in hours
+DT_HOURS = money.DT_HOURS  # 15-min period in hours; see money.py for the unit rule
 STORAGE_MODE_THRESHOLD = 1e-6  # below this, ch/dis is treated as zero
 
 

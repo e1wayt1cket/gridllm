@@ -22,6 +22,9 @@ import torch
 from typing import Dict, List, Optional, Tuple
 from collections import deque
 
+import money
+import participant_payoff
+
 from models import Agent, MarketConfig
 from market import adaptive_bidding
 from price_forecaster import NodalPriceForecaster
@@ -586,27 +589,15 @@ class BiddingEnv:
 
     def _agent_block_profit(self, schedule: dict, lmp_node: np.ndarray,
                             agent: Agent, n_periods: int) -> float:
-        """Profit (CNY) for one agent summed over committed periods.
+        """Settled profit (CNY) for one agent over its committed periods.
 
-        consumer surplus - generation cost + net market payment
-        - unserved penalty - storage cycle cost.
+        This is the environment's view of what the agent earned — the quantity
+        the differential reward is built from — and it delegates to the
+        participant's own payoff model so the training signal and the reported
+        benefit are the same accounting.
         """
-        profit = 0.0
-        cycle_cost = float(self.config.storage.cycle_cost)
-        for d in range(n_periods):
-            cons_val = agent.bid_value * schedule["served"][d]
-            gen_cost = agent.offer_cost * (schedule["pv_used"][d]
-                                           + schedule["wind_used"][d])
-            mkt_pmt = (schedule["p_sell"][d] * lmp_node[d]
-                       - schedule["p_buy"][d] * lmp_node[d])
-            penalty = self.config.market_design.penalty_unserved \
-                * schedule["unserved"][d]
-            step_reward = float(cons_val - gen_cost + mkt_pmt - penalty)
-            if agent.storage is not None:
-                step_reward -= cycle_cost * (schedule["p_ch"][d]
-                                             + schedule["p_dis"][d])
-            profit += step_reward
-        return profit
+        return participant_payoff.participant_payoff(
+            schedule, lmp_node, agent, self.config, n_periods).total
 
     def step(self, actions: Dict[str, np.ndarray]) \
             -> Tuple[Dict[str, np.ndarray],
@@ -740,17 +731,35 @@ class BiddingEnv:
                       flush=True)
 
         # ---- Extract committed-period rewards and SOC ----
+        # Two quantities with different roles, kept apart on purpose:
+        #   raw_reward     the agent's settled profit this block (CNY)
+        #   local_baseline what it would have settled under truthful bidding in
+        #                  this same window, holding the other agents' bids at
+        #                  their RL values
+        #   reward         raw minus local baseline: the learning signal
+        # The signal is a *local* one, its counterfactual is inside the training
+        # window and depends on the other agents' concurrent actions. The
+        # benefit the paper reports is a different quantity on a different
+        # counterfactual: every agent truthful, over the whole day, both arms
+        # facing the same day. A reward is not a benefit and must never be
+        # logged or read as one.
         rewards = {}
+        raw_profits = {}
+        local_baselines = {}
         if result is not None:
             for a in self.rl_agents:
                 nm = a.name
                 ws = result["schedules"].get(nm)
                 if ws is None:
                     rewards[nm] = 0.0
+                    raw_profits[nm] = 0.0
+                    local_baselines[nm] = 0.0
                     continue
                 lmp_node = result["lmp"][:, a.bus]
 
                 raw_reward = self._agent_block_profit(ws, lmp_node, a, n_commit)
+                raw_profits[nm] = raw_reward
+                local_baselines[nm] = base_rewards.get(nm, 0.0)
 
                 # Differential reward: profit above the truthful baseline
                 rewards[nm] = raw_reward - base_rewards.get(nm, 0.0)
@@ -783,6 +792,14 @@ class BiddingEnv:
         else:
             for a in self.rl_agents:
                 rewards[a.name] = 0.0
+
+        # Every RL agent gets an entry in all three, so a training log can
+        # report profit and reward side by side rather than inferring one from
+        # the other.
+        for a in self.rl_agents:
+            rewards.setdefault(a.name, 0.0)
+            raw_profits.setdefault(a.name, 0.0)
+            local_baselines.setdefault(a.name, 0.0)
 
         # ---- Accumulate committed-period RE for the day-aggregate rate ----
         if result is not None:
@@ -817,6 +834,15 @@ class BiddingEnv:
 
         info = {"lmp": result["lmp"] if result else None,
                 "welfare": result["welfare"] if result else 0.0,
+                # Per-RL-agent block accounting, kept separate: `reward` is the
+                # learning signal, `raw_profit` the settled money it is measured
+                # against, `local_baseline_profit` the in-window truthful
+                # counterfactual it subtracts. None of these is the paper's
+                # benefit; see participant_payoff and the counterfactual
+                # evaluator for that.
+                "reward": dict(rewards),
+                "raw_profit": dict(raw_profits),
+                "local_baseline_profit": dict(local_baselines),
                 "re_rate": (self._re_used / self._re_avail * 100.0)
                            if self._re_avail > 0 else 100.0}
 

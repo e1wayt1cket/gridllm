@@ -472,6 +472,62 @@ def test_fleet_rows_can_restrict_to_one_convention(tmp_path):
 
 
 # --------------------------------------------------------------------------
+# Money units: the 2026-09-13 unification made every money figure an energy
+# times a price, so a period's power now carries the 0.25 h period length.
+# Absolute money from before it is four times the same quantity today.
+# --------------------------------------------------------------------------
+def test_fleet_rows_tags_the_unified_money_unit(tmp_path):
+    import os
+    import time
+    root = str(tmp_path / "results")
+    _write_eval_file(root, "after_fix_eval.csv", [
+        {"scenario": "baseline", "agent": "ALL", "profit_delta": 1509.0}])
+    _write_eval_file(root, "before_fix_eval.csv", [
+        {"scenario": "baseline", "agent": "ALL", "profit_delta": 6036.0}])
+    before = os.path.join(root, "before_fix_eval.csv")
+    stamp = time.mktime((2026, 9, 10, 16, 19, 0, 0, 0, -1))
+    os.utime(before, (stamp, stamp))
+
+    by = {r["policy_label"]: r["money_convention"]
+          for r in da.fleet_rows(root).to_dict("records")}
+    assert by["after_fix"] == "mwh_dt"
+    assert by["before_fix"] == "period_power_legacy"
+
+
+def test_fleet_rows_can_restrict_to_one_money_convention(tmp_path):
+    import os
+    import time
+    root = str(tmp_path / "results")
+    _write_eval_file(root, "new_eval.csv", [
+        {"scenario": "baseline", "agent": "ALL", "profit_delta": 1509.0}])
+    _write_eval_file(root, "legacy_eval.csv", [
+        {"scenario": "baseline", "agent": "ALL", "profit_delta": 6036.0}])
+    old = os.path.join(root, "legacy_eval.csv")
+    stamp = time.mktime((2026, 9, 10, 16, 19, 0, 0, 0, -1))
+    os.utime(old, (stamp, stamp))
+
+    assert list(da.fleet_rows(root, money_convention="mwh_dt")
+                ["policy_label"]) == ["new"]
+    assert list(da.fleet_rows(root, money_convention="period_power_legacy")
+                ["policy_label"]) == ["legacy"]
+    # Default is no filter: every result on disk predates the unification, so
+    # filtering by default would empty every view.
+    assert len(da.fleet_rows(root)) == 2
+    assert da.MONEY_CONVENTIONS == ("mwh_dt", "period_power_legacy", "unknown")
+
+
+def test_fleet_rows_marks_a_file_without_money_columns_as_unknown(tmp_path):
+    root = str(tmp_path / "results")
+    os.makedirs(root, exist_ok=True)
+    cols = ["scenario", "agent", "cs_delta"]
+    with open(os.path.join(root, "no_money_eval.csv"), "w") as f:
+        f.write(",".join(cols) + "\n")
+        f.write("baseline,ALL,428.7\n")
+    df = da.fleet_rows(root)
+    assert df.iloc[0]["money_convention"] == "unknown"
+
+
+# --------------------------------------------------------------------------
 # Profit / consumer-surplus trade-off pairing
 # --------------------------------------------------------------------------
 def test_pareto_pairs_joins_profit_and_surplus_per_policy_scenario(tmp_path):

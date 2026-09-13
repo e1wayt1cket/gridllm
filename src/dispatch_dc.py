@@ -11,7 +11,9 @@ except ImportError:
     gp = None  # type: ignore
     GRB = None  # type: ignore
 
+import money
 from dispatch_core import (
+    DT_HOURS,
     _build_line_params,
     _build_agent_info,
     _classify_storage_mode,
@@ -78,18 +80,21 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         m.addConstr(p_flow[l] <= limit[l], f"limit_pos_{l}")
         m.addConstr(p_flow[l] >= -limit[l], f"limit_neg_{l}")
 
+    # Money convention: scale the energy-valued terms by the period length.
+    # See money.py; dt_scale is 1.0 only under config.dt_scaled_money = False.
+    dt_scale = DT_HOURS if config.dt_scaled_money else 1.0
     obj = gp.LinExpr()
     for a in agents:
         nm = a.name
-        obj += agent_info[nm]['bid'] * served[nm]
+        obj += agent_info[nm]['bid'] * served[nm] * dt_scale
         if a.storage is not None:
-            obj += wholesale_t * (dis[nm] - ch[nm])
+            obj += wholesale_t * (dis[nm] - ch[nm]) * dt_scale
         else:
-            obj -= agent_info[nm]['offer'] * (pv[nm] + wind[nm] + dis[nm])
-        obj -= config.market_design.penalty_unserved * unserved[nm]
-    obj -= wholesale_t * (p_grid_import - p_grid_export)
+            obj -= agent_info[nm]['offer'] \
+                * (pv[nm] + wind[nm] + dis[nm]) * dt_scale
+        obj -= config.market_design.penalty_unserved * unserved[nm] * dt_scale
+    obj -= wholesale_t * (p_grid_import - p_grid_export) * dt_scale
     if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
-        from dispatch_core import DT_HOURS
         obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * p_grid_import * DT_HOURS
     m.setObjective(obj, GRB.MAXIMIZE)
     m.optimize()
@@ -101,7 +106,8 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
     for i, b in enumerate(buses):
         constr = m.getConstrByName(f"p_balance_{b}")
         if constr is not None:
-            lmp[i] = -constr.Pi
+            # The dual is per MW over a period; the de-scale makes it a price.
+            lmp[i] = money.price_from_balance_dual(constr.Pi, dt_scale)
         else:
             lmp[i] = wholesale_t
 
@@ -192,26 +198,28 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
                 flow_out -= p_flow[l]
         pbal[b] = solver.Add(net_inj[b] == flow_out)
 
-    # Objective: same structure as Gurobi version
+    # Objective: same structure as Gurobi version, and on the same money
+    # convention — each energy-valued coefficient carries the period length.
+    dt_scale = DT_HOURS if config.dt_scaled_money else 1.0
     obj = solver.Objective()
     for a in agents:
         nm = a.name
-        obj.SetCoefficient(served[nm], agent_info[nm]['bid'])
+        obj.SetCoefficient(served[nm], agent_info[nm]['bid'] * dt_scale)
         if a.storage is not None:
-            obj.SetCoefficient(dis_v[nm], wholesale_t)
-            obj.SetCoefficient(ch_v[nm], -wholesale_t)
+            obj.SetCoefficient(dis_v[nm], wholesale_t * dt_scale)
+            obj.SetCoefficient(ch_v[nm], -wholesale_t * dt_scale)
         else:
-            obj.SetCoefficient(pv_v[nm], -agent_info[nm]['offer'])
-            obj.SetCoefficient(wind_v[nm], -agent_info[nm]['offer'])
-            obj.SetCoefficient(dis_v[nm], -agent_info[nm]['offer'])
-        obj.SetCoefficient(unserved[nm], -config.market_design.penalty_unserved)
+            obj.SetCoefficient(pv_v[nm], -agent_info[nm]['offer'] * dt_scale)
+            obj.SetCoefficient(wind_v[nm], -agent_info[nm]['offer'] * dt_scale)
+            obj.SetCoefficient(dis_v[nm], -agent_info[nm]['offer'] * dt_scale)
+        obj.SetCoefficient(unserved[nm],
+                           -config.market_design.penalty_unserved * dt_scale)
 
-    grid_import_coef = -wholesale_t
+    grid_import_coef = -wholesale_t * dt_scale
     if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
-        from dispatch_core import DT_HOURS
         grid_import_coef -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * DT_HOURS
     obj.SetCoefficient(p_grid_import, grid_import_coef)
-    obj.SetCoefficient(p_grid_export, wholesale_t)
+    obj.SetCoefficient(p_grid_export, wholesale_t * dt_scale)
     obj.SetMaximization()
 
     status = solver.Solve()
@@ -221,7 +229,9 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
     lmp = np.zeros(len(buses))
     for i, b in enumerate(buses):
         try:
-            lmp[i] = pbal[b].DualValue()
+            # The dual is per MW over a period; the de-scale makes it a price.
+            lmp[i] = money.price_from_balance_dual(pbal[b].DualValue(),
+                                                   dt_scale)
         except AttributeError:
             lmp[i] = wholesale_t
 
@@ -238,7 +248,8 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         bus = info['bus']
         bus_idx = buses.index(bus) if bus in buses else bus
         node_lmp = lmp[bus_idx] if bus_idx < len(lmp) else wholesale_t
-        revenue = s_val * info['bid'] - (pv_val + w_val + dis_val) * info['offer']
+        revenue = (s_val * info['bid']
+                   - (pv_val + w_val + dis_val) * info['offer']) * dt_scale
         total_welfare += revenue
         agent_res[nm] = {
             'served': s_val, 'pv_used': pv_val, 'wind_used': w_val,

@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import numpy as np
 
+import money
 from models import Agent
 from grid import build_base_network, day_ahead_price_china
 from dispatch import (
@@ -15,6 +16,12 @@ from strategies import adaptive_bidding  # noqa: F401 — re-export
 
 
 def two_settlement(agents, da, rt):
+    """Two-settlement payment (CNY) per agent: day-ahead plus the real-time
+    deviation settled at the real-time price.
+
+    Both legs are energy times a price, so both go through the period length;
+    see money.py.
+    """
     T = len(da["price"])
     # Build bus→position map for nodal LMP lookup
     da_lmp = da.get("lmp", None)
@@ -33,8 +40,8 @@ def two_settlement(agents, da, rt):
 
         da_import = da["schedules"][a.name]["p_buy"] - da["schedules"][a.name]["p_sell"]
         rt_import = rt["schedules"][a.name]["p_buy"] - rt["schedules"][a.name]["p_sell"]
-        da_cost = np.sum(lmp_da * da_import)
-        rt_cost = np.sum(lmp_rt * (rt_import - da_import))
+        da_cost = money.total_money(lmp_da, da_import)
+        rt_cost = money.total_money(lmp_rt, rt_import - da_import)
         payments[a.name] = float(da_cost + rt_cost)
         breakdown[a.name] = {"da": float(da_cost), "rt": float(rt_cost)}
     return payments, breakdown

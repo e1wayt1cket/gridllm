@@ -11,6 +11,8 @@ Used by eval_agents.py (evaluation CSV) and diagnose_profit.py
 
 import numpy as np
 
+import money
+
 
 def valuation_artifact(sched: dict, declared: dict, agents, config) -> float:
     """Welfare (ObjVal) drop caused purely by RL bid shading.
@@ -21,8 +23,11 @@ def valuation_artifact(sched: dict, declared: dict, agents, config) -> float:
     even when the real dispatch is unchanged. Revaluing the same RL dispatch
     at truthful bid_value/offer_cost isolates that distortion.
 
-    Mirrors dispatch_socp.py: ``bid*served`` is undiscounted; the storage
-    ``bid*ch - offer*dis`` term carries the discount factor.
+    Mirrors the clearing objective: the ``bid*served`` term is undiscounted
+    while the storage ``bid*ch - offer*dis`` term carries the discount factor,
+    and both are energy-valued, so the whole artifact is scaled by the period
+    length. It does not model the no-crossing bid cap, so it overstates the
+    shading effect on storage charge by up to that cap.
 
     Parameters
     ----------
@@ -48,4 +53,4 @@ def valuation_artifact(sched: dict, declared: dict, agents, config) -> float:
         disc = gamma ** np.arange(len(s["p_ch"]))
         A += float(np.sum(
             disc * (a.bid_value * (bm - 1.0) * s["p_ch"] - oa * s["p_dis"])))
-    return A
+    return A * money.DT_HOURS

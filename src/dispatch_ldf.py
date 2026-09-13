@@ -13,6 +13,8 @@ except ImportError:
     gp = None  # type: ignore
     GRB = None  # type: ignore
 
+import money
+
 from dispatch_core import (
     DT_HOURS,
     _build_line_params_full,
@@ -156,16 +158,20 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
                 m.addConstr(q_re[nm] + p_total <= s_max, f"diamP_{nm}")
                 m.addConstr(-q_re[nm] + p_total <= s_max, f"diamN_{nm}")
 
+    # Money convention: scale the energy-valued terms by the period length.
+    # See money.py; dt_scale is 1.0 only under config.dt_scaled_money = False.
+    dt_scale = DT_HOURS if config.dt_scaled_money else 1.0
     obj = gp.LinExpr()
     for a in agents:
         nm = a.name
-        obj += agent_info[nm]['bid'] * served[nm]
+        obj += agent_info[nm]['bid'] * served[nm] * dt_scale
         if a.storage is not None:
-            obj += wholesale_t * (dis[nm] - ch[nm])
+            obj += wholesale_t * (dis[nm] - ch[nm]) * dt_scale
         else:
-            obj -= agent_info[nm]['offer'] * (pv[nm] + wind[nm] + dis[nm])
-        obj -= config.market_design.penalty_unserved * unserved[nm]
-    obj -= wholesale_t * (p_grid_import - p_grid_export)
+            obj -= agent_info[nm]['offer'] \
+                * (pv[nm] + wind[nm] + dis[nm]) * dt_scale
+        obj -= config.market_design.penalty_unserved * unserved[nm] * dt_scale
+    obj -= wholesale_t * (p_grid_import - p_grid_export) * dt_scale
     if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
         obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * p_grid_import * DT_HOURS
     m.setObjective(obj, GRB.MAXIMIZE)
@@ -193,7 +199,8 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
     for i, b in enumerate(buses):
         constr = m.getConstrByName(f"p_balance_{b}")
         if constr is not None:
-            lmp[i] = -constr.Pi
+            # The dual is per MW over a period; the de-scale makes it a price.
+            lmp[i] = money.price_from_balance_dual(constr.Pi, dt_scale)
         else:
             lmp[i] = wholesale_t
 
@@ -232,7 +239,14 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
     key = _opf_cache_key(len(net.bus.index), T,
                          [a.name for a in agents],
                          [su.name for su in su_list],
-                         e_maxes, lm)
+                         e_maxes, lm,
+                         model_flags=(
+                             config.storage.exclusive_mode,
+                             config.storage.churn_free_quotes,
+                             config.dt_scaled_money,
+                             config.storage.self_schedule,
+                             config.network.reactive_support,
+                         ))
     if key in _OPF_CACHE:
         cached = _OPF_CACHE[key]
         return cached.solve(agents, T, stage, config, action_params,
@@ -259,12 +273,47 @@ _OPF_CACHE: dict = {}  # key -> _CachedOPFModel
 _OPF_CACHE: dict = {}  # key -> _CachedOPFModel
 
 
+def _extract_lmp_batch(m, buses, T, wholesale, dt=DT_HOURS):
+    """Nodal prices (CNY/MWh) from the batch model's power-balance duals.
+
+    Returns ``(lmp, n_fallback)``. Mirrors ``dispatch_socp._extract_lmp``: a
+    constraint can be missing after presolve, and Gurobi reports no duals at all
+    for a model carrying integers, so both cases fall back to the wholesale
+    curve and are counted rather than silently pricing the day off it.
+
+    ``dt`` is the factor the objective's energy-valued terms were scaled by; the
+    dual is per MW over a period, so it has to come back out to yield a price.
+    """
+    lmp = np.zeros((T, len(buses)))
+    n_fallback = 0
+    for t in range(T):
+        for i, b in enumerate(buses):
+            constr = m.getConstrByName(f"p_bal_{t}_{b}")
+            if constr is not None:
+                try:
+                    lmp[t, i] = money.price_from_balance_dual(constr.Pi, dt)
+                    continue
+                except (AttributeError, gp.GurobiError):
+                    pass
+            lmp[t, i] = wholesale[t]
+            n_fallback += 1
+    return lmp, n_fallback
+
+
 def _opf_cache_key(n_buses, T, agent_names, su_names,
-                   storage_e_maxes=(), line_mult=1.0):
-    """Stable cache key including parameters that affect constraint structure."""
+                   storage_e_maxes=(), line_mult=1.0, model_flags=()):
+    """Stable cache key including parameters that affect constraint structure.
+
+    ``model_flags`` carries the configuration a cached model was built under:
+    two runs that differ only in one of these must not share a model, or the
+    first one's structure silently answers the second one's question. The
+    exclusivity mode decides whether the model carries binaries at all, and the
+    money-unit flag decides how its duals are read back.
+    """
     return (n_buses, T, tuple(sorted(agent_names)),
             tuple(sorted(su_names)),
-            tuple(sorted(storage_e_maxes)), line_mult)
+            tuple(sorted(storage_e_maxes)), line_mult,
+            tuple(repr(flag) for flag in model_flags))
 
 
 class _CachedOPFModel:
@@ -697,6 +746,12 @@ class _CachedOPFModel:
         gamma = config.storage.discount_factor
         disc_T = gamma ** T
 
+        # Money convention: scale the energy-valued terms by the period length
+        # so the objective is money rather than a mix of money and power per
+        # period. See money.py. `dt_scale` is 1.0 only under
+        # config.dt_scaled_money = False, which reproduces the pre-unification
+        # objective for verification.
+        dt_scale = DT_HOURS if config.dt_scaled_money else 1.0
         obj = gp.LinExpr()
         for t in range(T):
             discount_t = gamma ** t
@@ -704,15 +759,20 @@ class _CachedOPFModel:
                 nm = a.name
                 bid = bid_arr[nm][t]
                 offer = offer_arr[nm][t]
-                obj += bid * served[nm][t]
+                obj += bid * served[nm][t] * dt_scale
                 if a.storage is not None:
-                    obj += discount_t * wholesale[t] * (dis[nm][t] - ch[nm][t])
+                    obj += discount_t * wholesale[t] \
+                        * (dis[nm][t] - ch[nm][t]) * dt_scale
                     if config.storage.cycle_cost > 0:
-                        obj -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                        obj -= config.storage.cycle_cost \
+                            * (ch[nm][t] + dis[nm][t]) * dt_scale
                 else:
-                    obj -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
-                obj -= config.market_design.penalty_unserved * unserved[nm][t]
-            obj -= wholesale[t] * (p_grid_import[t] - p_grid_export[t])
+                    obj -= offer * (pv[nm][t] + wind[nm][t]
+                                    + dis[nm][t]) * dt_scale
+                obj -= config.market_design.penalty_unserved \
+                    * unserved[nm][t] * dt_scale
+            obj -= wholesale[t] * (p_grid_import[t]
+                                   - p_grid_export[t]) * dt_scale
             if config.market_design.enable_multi_objective:
                 if config.market_design.lambda_carbon > 0:
                     obj -= (config.market_design.lambda_carbon
@@ -746,10 +806,11 @@ class _CachedOPFModel:
             su_bid[nm] = np.full(T, su.bid_value)
             su_offer[nm] = np.full(T, su.offer_cost)
             for t in range(T):
-                obj += su_bid[nm][t] * ch[nm][t]
-                obj -= su_offer[nm][t] * dis[nm][t]
+                obj += su_bid[nm][t] * ch[nm][t] * dt_scale
+                obj -= su_offer[nm][t] * dis[nm][t] * dt_scale
                 if config.storage.cycle_cost > 0:
-                    obj -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                    obj -= config.storage.cycle_cost \
+                        * (ch[nm][t] + dis[nm][t]) * dt_scale
             obj += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
 
         m.setObjective(obj, GRB.MAXIMIZE)
@@ -782,10 +843,7 @@ class _CachedOPFModel:
         lmp = np.zeros((T, n_buses))
         if all_storage and config.storage.use_nodal_price:
             bus_to_idx = {b: i for i, b in enumerate(buses)}
-            nodal_lmp = np.zeros((T, n_buses))
-            for t in range(T):
-                for i, b in enumerate(buses):
-                    nodal_lmp[t, i] = -m.getConstrByName(f"p_bal_{t}_{b}").Pi
+            nodal_lmp, _ = _extract_lmp_batch(m, buses, T, wholesale, dt_scale)
 
             for nodal_iter in range(4):
                 obj2 = gp.LinExpr()
@@ -795,16 +853,21 @@ class _CachedOPFModel:
                         nm = a.name
                         bid = bid_arr[nm][t]
                         offer = offer_arr[nm][t]
-                        obj2 += bid * served[nm][t]
+                        obj2 += bid * served[nm][t] * dt_scale
                         if a.storage is not None:
                             price_t = nodal_lmp[t, bus_to_idx[a.bus]]
-                            obj2 += discount_t * price_t * (dis[nm][t] - ch[nm][t])
+                            obj2 += discount_t * price_t \
+                                * (dis[nm][t] - ch[nm][t]) * dt_scale
                             if config.storage.cycle_cost > 0:
-                                obj2 -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                                obj2 -= config.storage.cycle_cost \
+                                    * (ch[nm][t] + dis[nm][t]) * dt_scale
                         else:
-                            obj2 -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
-                        obj2 -= config.market_design.penalty_unserved * unserved[nm][t]
-                    obj2 -= wholesale[t] * (p_grid_import[t] - p_grid_export[t])
+                            obj2 -= offer * (pv[nm][t] + wind[nm][t]
+                                             + dis[nm][t]) * dt_scale
+                        obj2 -= config.market_design.penalty_unserved \
+                            * unserved[nm][t] * dt_scale
+                    obj2 -= wholesale[t] * (p_grid_import[t]
+                                            - p_grid_export[t]) * dt_scale
                     if config.market_design.enable_multi_objective:
                         if config.market_design.lambda_carbon > 0:
                             obj2 -= (config.market_design.lambda_carbon
@@ -827,10 +890,11 @@ class _CachedOPFModel:
                 for su in su_list:
                     nm = su.name
                     for t in range(T):
-                        obj2 += su_bid[nm][t] * ch[nm][t]
-                        obj2 -= su_offer[nm][t] * dis[nm][t]
+                        obj2 += su_bid[nm][t] * ch[nm][t] * dt_scale
+                        obj2 -= su_offer[nm][t] * dis[nm][t] * dt_scale
                         if config.storage.cycle_cost > 0:
-                            obj2 -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                            obj2 -= config.storage.cycle_cost \
+                                * (ch[nm][t] + dis[nm][t]) * dt_scale
                     obj2 += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
 
                 m.setObjective(obj2, GRB.MAXIMIZE)
@@ -838,10 +902,8 @@ class _CachedOPFModel:
                 if m.status != GRB.OPTIMAL:
                     break
 
-                new_lmp = np.zeros((T, n_buses))
-                for t in range(T):
-                    for i, b in enumerate(buses):
-                        new_lmp[t, i] = -m.getConstrByName(f"p_bal_{t}_{b}").Pi
+                new_lmp, _ = _extract_lmp_batch(m, buses, T, wholesale,
+                                                dt_scale)
                 max_change = np.max(np.abs(new_lmp - nodal_lmp))
                 nodal_lmp = new_lmp
                 if max_change < 1.0:
@@ -879,7 +941,7 @@ class _CachedOPFModel:
                 'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
                 'storage_mode': ['idle'] * T,
             }
-        total_welfare = m.ObjVal
+        market_objective = m.ObjVal
         total_re_avail = sum(
             (np.sum(a.pv_forecast if stage == "DA" else a.pv_real)
              + (np.sum(a.wind_forecast if stage == "DA"
@@ -908,14 +970,9 @@ class _CachedOPFModel:
                     parent_line[nb] = (b, l)
                     queue.append(nb)
 
+        lmp, lmp_fallbacks = _extract_lmp_batch(m, buses, T, wholesale,
+                                               dt_scale)
         for t in range(T):
-            for i, b in enumerate(buses):
-                constr = m.getConstrByName(f"p_bal_{t}_{b}")
-                if constr is not None:
-                    lmp[t, i] = -constr.Pi
-                else:
-                    lmp[t, i] = wholesale[t]
-
             slack_idx = list(buses).index(slack_bus)
             base_lmp = lmp[t, slack_idx]
             for i, b in enumerate(buses):
@@ -998,11 +1055,18 @@ class _CachedOPFModel:
             "price": lmp.mean(axis=1),
             "lmp": lmp,
             "schedules": schedules,
-            "welfare": total_welfare,
+            # The clearing model's own optimization objective, in CNY. It is
+            # neither a participant payoff nor social welfare; `welfare` is kept
+            # as an alias for existing readers, new code should use `objective`.
+            "objective": market_objective,
+            "welfare": market_objective,
             "re_consumption_rate": re_rate,
             "total_re_available": total_re_avail,
             "carbon_emissions": carbon_emissions,
             "carbon_intensity": carbon_intensity,
             "total_curtailment": total_curtailment,
             "shadow_prices": shadow_prices,
+            # Periods priced off the wholesale curve because no balance dual was
+            # available; non-zero means those prices are not nodal.
+            "lmp_fallbacks": lmp_fallbacks,
         }

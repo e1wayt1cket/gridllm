@@ -20,14 +20,21 @@ def _clear_opf_cache():
 
 
 def test_baseline_da_welfare():
-    """Baseline DA welfare should be in reasonable range."""
+    """Baseline DA clearing objective should be in a reasonable range.
+
+    The bound is the old one quartered: the objective is now money, because
+    every energy-valued term carries the 0.25 h period length (see money.py),
+    where it previously valued a period's power as if a period were an hour.
+    """
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     agents, _ = get_scenario("baseline", T=T)
     actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
-    welfare = results["welfare"]
-    assert 50000 < welfare < 200000, f"welfare {welfare:.0f} out of range"
+    objective = results["objective"]
+    assert 12500 < objective < 50000, f"objective {objective:.0f} out of range"
+    # `welfare` is kept as an alias for existing readers.
+    assert results["welfare"] == objective
 
 
 def test_baseline_re_rate():
@@ -222,7 +229,9 @@ def test_two_settlement_flow():
                   - da["schedules"][a.name]["p_sell"])
         rt_net = (rt["schedules"][a.name]["p_buy"]
                   - rt["schedules"][a.name]["p_sell"])
-        expected_p = np.sum(lmp_da * da_net) + np.sum(lmp_rt * (rt_net - da_net))
+        # Each leg is an energy times a price, so both carry the period length.
+        expected_p = (np.sum(lmp_da * da_net) * 0.25
+                      + np.sum(lmp_rt * (rt_net - da_net)) * 0.25)
         assert abs(p - expected_p) < 1e-4, \
             f"{a.name}: payment {p:.2f} vs expected {expected_p:.2f}"
 

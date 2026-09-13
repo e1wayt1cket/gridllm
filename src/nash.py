@@ -13,6 +13,8 @@ Fallback: random sampling when scipy is unavailable or use_optimization=False.
 import numpy as np
 import copy
 import os
+
+import money
 from multiprocessing import Pool
 from typing import Dict, List, Tuple, Optional
 
@@ -73,10 +75,13 @@ def _evaluate_payoffs(args):
     agent = next(a for a in agents if a.name == target_name)
     bus = agent.bus
     node_price = lmp[:, bus]
-    consumption_value = agent.bid_value * np.sum(sched["served"])
-    generation_cost = agent.offer_cost * np.sum(sched["pv_used"] + sched["wind_used"])
-    market_payment = np.sum(sched["p_sell"] * node_price) - np.sum(sched["p_buy"] * node_price)
-    penalty = config.market_design.penalty_unserved * np.sum(sched["unserved"])
+    consumption_value = money.total_money(agent.bid_value, sched["served"])
+    generation_cost = money.total_money(
+        agent.offer_cost, sched["pv_used"] + sched["wind_used"])
+    market_payment = money.total_money(node_price,
+                                       sched["p_sell"] - sched["p_buy"])
+    penalty = money.total_money(config.market_design.penalty_unserved,
+                                sched["unserved"])
     payoff = consumption_value - generation_cost + market_payment - penalty
     return target_name, float(payoff), action_variant.get(target_name)
 

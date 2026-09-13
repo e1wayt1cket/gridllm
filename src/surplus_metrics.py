@@ -8,19 +8,27 @@ existing system-level welfare, so profit gains can be traced to who pays.
 Pure numpy + models; no torch, no rl_env, no eval_agents at import time so the
 module stays lightweight and reusable from eval, diagnostics and reports.
 
-Accounting convention (load-bearing): the whole profit/price ledger values a
-period's power array as the energy of that period, WITHOUT the 0.25 h DT
-factor (matches `eval_agents.compute_agent_profit`, the env reward and the
-SOCP objective). New metrics follow the same convention (T_SCALE = 1.0), or
-they would not close against the profit layer.
+Accounting convention: every monetary quantity is an energy multiplied by a
+price, so a period's power is scaled by the period length before it is priced
+(see `money`). The whole ledger — this module, `eval_agents`, the environment
+reward, the payoff layer and the clearing objective — shares that one
+convention, so a delta computed in any of them closes against the others.
+
+Two families of metric are invariant to the time scale and comparable across
+generations of results: the unit-rate metrics (`lmp_markup_*`, a ratio of two
+power-weighted sums) and `benefit_rate` (a ratio of two money figures). Absolute
+money figures are not.
 """
 
 import numpy as np
 
+import money
+import participant_payoff
 from models import Agent, MarketConfig
 
-# Period-power accounting convention; matches profit/welfare. Keep at 1.0.
-T_SCALE = 1.0
+# The ledger's time scale, kept as a named alias because callers import it. The
+# value now comes from the project-wide convention rather than being restated.
+T_SCALE = money.DT_HOURS
 # Wholesale floor (CNY/MWh) for the LMP-markup denominator: periods at or
 # below this wholesale carry no meaningful bill weight and are dropped.
 WHOLESALE_MIN = 1.0
@@ -100,8 +108,8 @@ def consumer_metrics(sched: dict, lmp: np.ndarray, agents) -> dict:
         sa = sched[a.name]
         qbuy = _load_import(sa)
         lmp_node = _bus_lmp(lmp, a.bus)
-        cp_a = float(np.sum(lmp_node * qbuy)) * T_SCALE
-        cs_a = float(np.sum(a.bid_value * sa["served"])) * T_SCALE - cp_a
+        cp_a = money.total_money(lmp_node, qbuy)
+        cs_a = money.total_money(a.bid_value, sa["served"]) - cp_a
         cp_total += cp_a
         cs_total += cs_a
         cp_by[a.name] = cp_a
@@ -137,18 +145,15 @@ def load_payment_weighted_markup(sched: dict, lmp: np.ndarray,
 
 def agent_profit(sched_a: dict, lmp_node: np.ndarray, agent: Agent,
                  config: MarketConfig) -> float:
-    """Raw profit over a full day; matches `diagnose_profit.agent_profit` and
-    the env reward formula (mkt + cons - gen - pen - cyc)."""
-    mkt = float(np.sum(sched_a["p_sell"] * lmp_node
-                       - sched_a["p_buy"] * lmp_node))
-    cons = float(np.sum(agent.bid_value * sched_a["served"]))
-    gen = float(np.sum(agent.offer_cost * (sched_a["pv_used"]
-                                           + sched_a["wind_used"])))
-    pen = float(config.market_design.penalty_unserved
-                * np.sum(sched_a["unserved"]))
-    cyc = float(config.storage.cycle_cost
-                * np.sum(sched_a["p_ch"] + sched_a["p_dis"]))
-    return mkt + cons - gen - pen - cyc
+    """Raw profit (CNY) over a full day.
+
+    Delegates to the participant's own payoff model, which is the single
+    implementation of this formula; `diagnose_profit.agent_profit`,
+    `eval_agents.compute_agent_profit` and the environment's per-block reward
+    all route through the same place.
+    """
+    return participant_payoff.participant_payoff(
+        sched_a, lmp_node, agent, config).total
 
 
 def market_power_split(s_base: dict, s_rl: dict, lmp_base: np.ndarray,
@@ -174,11 +179,12 @@ def market_power_split(s_base: dict, s_rl: dict, lmp_base: np.ndarray,
         lmp_r = _bus_lmp(lmp_rl, a.bus)
         q_b = b["p_sell"] - b["p_buy"]
         q_r = r["p_sell"] - r["p_buy"]
-        arb = float(np.sum((q_r - q_b) * (lmp_b + lmp_r) / 2.0))
-        power = float(np.sum((q_b + q_r) / 2.0 * (lmp_r - lmp_b)))
+        arb = money.total_money((lmp_b + lmp_r) / 2.0, q_r - q_b)
+        power = money.total_money(lmp_r - lmp_b, (q_b + q_r) / 2.0)
         dp = (agent_profit(r, lmp_r, a, config)
               - agent_profit(b, lmp_b, a, config))
         other = dp - (arb + power)
+        # A net position in MW, not money, so it takes no time scale.
         net = float(np.sum(q_r))
         rows.append({"name": a.name, "profit_delta": dp, "arb": arb,
                      "market_power": power, "other": other, "net": net})
@@ -285,7 +291,13 @@ def reconciliation(sched: dict, lmp: np.ndarray, wholesale: np.ndarray,
             bc_t += lmp_node * d_a
     import_t = d_sum
     nodal_bill_t = cp_t + bc_t          # == sum_a lmp*d by partition
-    wholesale_bill_t = w * import_t
+    # Every bill is an energy times a price; the partition above is built from
+    # period powers, so the time scale is applied once here. import_t stays a
+    # power (MW) because it is a flow, not a quantity of money.
+    cp_t = cp_t * money.DT_HOURS
+    bc_t = bc_t * money.DT_HOURS
+    nodal_bill_t = nodal_bill_t * money.DT_HOURS
+    wholesale_bill_t = w * import_t * money.DT_HOURS
     rent_t = nodal_bill_t - wholesale_bill_t
     residual = nodal_bill_t - (wholesale_bill_t + rent_t)
     return {"rent": rent_t,

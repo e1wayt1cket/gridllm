@@ -16,6 +16,7 @@ import numpy as np
 import pandapower as pp
 from typing import List, Optional
 
+import money
 from models import Agent, MarketConfig
 from dispatch_core import _select_radial_lines, _compute_mpc_schedules, empty_schedules, split_power, DT_HOURS
 
@@ -27,6 +28,94 @@ except ImportError:
     _HAS_GUROBI = False
 
 DT_HOURS = 0.25
+
+# Storage charge/discharge exclusivity settings accepted by the batch solvers.
+#   "off"           no binaries anywhere; relies on the bid cap alone.
+#   "binary"        exact exclusive-or on every storage unit.
+#   "strategy_only" exact on the units a bidding policy controls, the bid cap
+#                   elsewhere. The cap also suppresses the arbitrage a battery
+#                   expresses by bidding to charge above what it asks to
+#                   discharge, so it is kept off the units being studied and on
+#                   the rest, where it is cheap and the units are price-takers.
+EXCLUSIVE_MODES = ("binary", "strategy_only", "off")
+
+
+def _validate_exclusive_mode(config):
+    """Reject an unknown storage exclusivity setting instead of silently
+    falling back to the permissive one."""
+    mode = config.storage.exclusive_mode
+    if mode not in EXCLUSIVE_MODES:
+        raise ValueError(
+            f"unknown storage.exclusive_mode {mode!r}; "
+            f"expected one of {EXCLUSIVE_MODES}")
+
+
+def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
+    """Nodal prices (CNY/MWh) from the power-balance duals.
+
+    Returns ``(lmp, n_fallback)``. A dual is unavailable when presolve eliminated
+    the constraint, and Gurobi also reports no duals at all for a model carrying
+    integers — raising rather than returning one. Both cases fall back to the
+    wholesale curve. The count comes back so the caller can surface a partial
+    fallback rather than silently pricing a whole day off the wrong curve.
+
+    The dual is converted with ``money.price_from_balance_dual`` because the
+    balance constrains power, not energy; see that function for why the period
+    length has to come back out here. ``dt`` is the factor the objective's
+    energy-valued terms were scaled by, so the two stay consistent.
+    """
+    lmp = np.zeros((T, len(buses)))
+    n_fallback = 0
+    for t in range(T):
+        for i, b in enumerate(buses):
+            try:
+                lmp[t, i] = money.price_from_balance_dual(
+                    p_bal_constr[(t, b)].Pi, dt)
+            except (AttributeError, gp.GurobiError):
+                lmp[t, i] = wholesale[t]
+                n_fallback += 1
+    return lmp, n_fallback
+
+
+def _needs_binaries(config, agent) -> bool:
+    """Whether this storage unit gets an explicit exclusive-or.
+
+    Under "strategy_only" only the units a bidding policy acts on, which are
+    the ones whose declared prices the cap in the objective would otherwise
+    restrict.
+    """
+    mode = config.storage.exclusive_mode
+    if mode == "binary":
+        return True
+    if mode == "strategy_only":
+        return getattr(agent, "participant_type", "prosumer") == "storage"
+    return False
+
+
+def _freeze_exclusive_directions(ch, dis, is_ch, is_dis):
+    """Pin each unit's charge/discharge direction and drop the binaries.
+
+    Exclusivity needs a disjunction, which makes the clearing model a MIQCP,
+    and Gurobi reports no duals for a MIP — so the power-balance duals that
+    every LMP is read from would be unavailable, silently degrading all nodal
+    prices to the wholesale curve. Once the MIP has chosen a dispatch the
+    direction of each unit is known, so pinning it and relaxing the binaries
+    back to continuous leaves the feasible set and the optimal value unchanged
+    (the pinned point is itself optimal) while restoring the duals.
+    """
+    for nm, per_period in is_ch.items():
+        for t, ic in per_period.items():
+            idis = is_dis[nm][t]
+            charge_on = ic.X > 0.5
+            discharge_on = idis.X > 0.5
+            if not charge_on:
+                ch[nm][t].UB = 0.0
+            if not discharge_on:
+                dis[nm][t].UB = 0.0
+            ic.VType = GRB.CONTINUOUS
+            idis.VType = GRB.CONTINUOUS
+            ic.LB = ic.UB = 1.0 if charge_on else 0.0
+            idis.LB = idis.UB = 1.0 if discharge_on else 0.0
 
 
 def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale,
@@ -120,6 +209,24 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             for t in range(T):
                 ch[a.name][t].UB = 0
                 dis[a.name][t].UB = 0
+
+    # One battery has one power flow, so charging and discharging the same unit
+    # in the same period is physically impossible. Charge and discharge are
+    # independent continuous variables, and the objective credits the declared
+    # charge bid and debits the declared discharge offer, so without this a
+    # declared bid above the offer plus the degradation charge buys objective
+    # value with a dispatch that cancels out in the power balance. Units whose
+    # schedule the MPC pre-solve fixes are skipped: their trajectory is given,
+    # not decided by the market.
+    _validate_exclusive_mode(config)
+    is_ch, is_dis = {}, {}
+    for a in storage_agents:
+        if a.name in mpc_schedules or not _needs_binaries(config, a):
+            continue
+        is_ch[a.name] = m.addVars(T, vtype=GRB.BINARY,
+                                  name=f"is_ch_{a.name}")
+        is_dis[a.name] = m.addVars(T, vtype=GRB.BINARY,
+                                   name=f"is_dis_{a.name}")
 
     # Fix storage variables to MPC pre-computed schedules
     if mpc_schedules:
@@ -243,6 +350,16 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 dis_max = a.storage.p_dis_max
                 m.addConstr(ch[nm][t] <= ch_max, f"ch_ub_{nm}_{t}")
                 m.addConstr(dis[nm][t] <= dis_max, f"dis_ub_{nm}_{t}")
+                # Exclusive charge/discharge: at most one direction per period.
+                # The indicator upper bounds are the power caps themselves, so
+                # no looser big-M is introduced.
+                if nm in is_ch:
+                    m.addConstr(is_ch[nm][t] + is_dis[nm][t] <= 1,
+                                f"chdis_excl_{nm}_{t}")
+                    m.addConstr(ch[nm][t] <= ch_max * is_ch[nm][t],
+                                f"ch_ind_{nm}_{t}")
+                    m.addConstr(dis[nm][t] <= dis_max * is_dis[nm][t],
+                                f"dis_ind_{nm}_{t}")
 
             # Reactive power limits per DER inverter
             if config.network.reactive_support and nm in q_re:
@@ -284,6 +401,13 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             if stor.ramp_down_dis is not None and t > 0:
                 m.addConstr(dis[nm][t - 1] - dis[nm][t] <= stor.ramp_down_dis,
                             f"ramp_down_dis_{nm}_{t}")
+
+    # Terminal state of charge pinned to the initial one, so a whole-horizon
+    # comparison does not reward a unit for finishing with banked energy.
+    if config.storage.terminal_soc_equal:
+        for a in storage_agents:
+            m.addConstr(soc[a.name][T] == soc[a.name][0],
+                        f"terminal_soc_{a.name}")
 
     # Grid ramping constraint (peak shaving): limit net exchange change rate
     if config.network.ramp_limit_mw_per_period is not None:
@@ -342,6 +466,31 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             offer_arr[nm] = a.offer_cost + oa
         else:
             offer_arr[nm] = np.full(T, a.offer_cost + oa)
+        # A storage unit may not declare a charge bid above its discharge offer.
+        #
+        # Capping the spread at twice the degradation cost would be the correct
+        # no-churn condition on its own (the overlap then nets at most
+        # `discount_t * 2 * cycle_cost - 2 * cycle_cost <= 0`), but it is not
+        # sufficient in this objective: the `+bid * ch` term credits charging at
+        # the declared bid, so a unit whose bid sits above the energy's true cost
+        # charges to its power cap purely to collect that credit and must then
+        # discharge to free SOC headroom. Measured on the baseline scenario with
+        # a shaded bid, the spread cap alone leaves 39.5 MW of that overlap where
+        # this cap leaves none.
+        #
+        # The cost of this cap is that storage cannot bid to charge above what it
+        # asks to discharge, which is how a battery expresses arbitrage, so under
+        # it storage never discharges. Removing the credit itself — so charging
+        # is costed rather than rewarded in the objective — would address both
+        # at once and is an open design decision.
+        #
+        # Applies to storage only: for a load agent the bid is a genuine
+        # consumption valuation and must not be capped. A unit carrying the
+        # exact exclusive-or above is already kept from the overlap, and the cap
+        # would cost it the arbitrage it expresses through its price spread.
+        if a.storage is not None and config.storage.churn_free_quotes \
+                and nm not in is_ch:
+            bid_arr[nm] = np.minimum(bid_arr[nm], offer_arr[nm])
         pv_max_arr[nm] = a.pv_forecast if stage == "DA" else a.pv_real
         wind_max_arr[nm] = (a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else np.zeros(T)
 
@@ -351,6 +500,14 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         terminal_value = float(np.mean(wholesale))
 
     gamma = config.storage.discount_factor
+    # Money convention: a power term becomes money only once it is scaled by the
+    # period length (see money.py). The carbon, RE and curtailment terms below
+    # already carry DT_HOURS, as does the terminal SOC value (which is an energy
+    # times a price); scaling the terms here brings them onto the same footing
+    # instead of leaving the objective in a mix of power-per-period and money.
+    # `dt_scale` is 1.0 only under config.dt_scaled_money = False, which exists
+    # to reproduce the pre-unification objective for verification.
+    dt_scale = DT_HOURS if config.dt_scaled_money else 1.0
     obj = gp.LinExpr()
     for t in range(T):
         discount_t = gamma ** t
@@ -358,17 +515,26 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             nm = a.name
             bid = bid_arr[nm][t]
             offer = offer_arr[nm][t]
-            obj += bid * served[nm][t]
+            obj += bid * served[nm][t] * dt_scale
             if a.storage is not None:
-                # Storage is valued at the agent's declared bid/offer, so the
-                # RL agent's bid_mult/offer_adder steer charge/discharge.
-                obj += discount_t * (bid * ch[nm][t] - offer * dis[nm][t])
+                # The declared bid is what the unit will pay to charge and the
+                # declared offer what it asks to discharge, so the bidding
+                # action steers charge/discharge through them. This is the
+                # clearing objective, not the unit's cash payoff: settlement
+                # happens at the nodal LMP when the day is accounted, and the
+                # two are different quantities by construction.
+                obj += discount_t * (bid * ch[nm][t]
+                                     - offer * dis[nm][t]) * dt_scale
                 if config.storage.cycle_cost > 0:
-                    obj -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                    obj -= config.storage.cycle_cost \
+                        * (ch[nm][t] + dis[nm][t]) * dt_scale
             else:
-                obj -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
-            obj -= config.market_design.penalty_unserved * unserved[nm][t]
-        obj -= wholesale[t] * (p_grid_import[t] - p_grid_export[t])
+                obj -= offer * (pv[nm][t] + wind[nm][t]
+                                + dis[nm][t]) * dt_scale
+            obj -= config.market_design.penalty_unserved \
+                * unserved[nm][t] * dt_scale
+        obj -= wholesale[t] * (p_grid_import[t]
+                               - p_grid_export[t]) * dt_scale
         if config.market_design.enable_multi_objective:
             if config.market_design.lambda_carbon > 0:
                 obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid \
@@ -389,16 +555,19 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         if config.market_design.re_min_rate is not None:
             obj -= config.market_design.penalty_re_slack * slack_re
     disc_T = gamma ** T
+    # Terminal SOC is an energy (MWh) times a price, so it is already money and
+    # is not scaled again.
     for a in storage_agents:
         obj += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
 
     for su in storage_units:
         nm = su.name
         for t in range(T):
-            obj += su.bid_value * ch[nm][t]
-            obj -= su.offer_cost * dis[nm][t]
+            obj += su.bid_value * ch[nm][t] * dt_scale
+            obj -= su.offer_cost * dis[nm][t] * dt_scale
             if config.storage.cycle_cost > 0:
-                obj -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                obj -= config.storage.cycle_cost \
+                    * (ch[nm][t] + dis[nm][t]) * dt_scale
         obj += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
 
     m.setObjective(obj, GRB.MAXIMIZE)
@@ -413,6 +582,16 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             m.write("socp_infeasible.ilp")
         return None
 
+    # Recover the duals the LMPs are read from; see the helper's docstring.
+    if is_ch:
+        _freeze_exclusive_directions(ch, dis, is_ch, is_dis)
+        m.optimize()
+        if m.status != GRB.OPTIMAL:
+            if config.verbose:
+                print("SOCP re-solve after freezing storage directions "
+                      f"failed, status: {m.status}")
+            return None
+
     # --- Nodal re-solve: re-run with the same objective to stabilize LMPs ---
     # Storage is valued at the agent's declared bid/offer (not nodal LMP), so
     # this loop converges in one iteration. It is skipped entirely when
@@ -420,13 +599,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     all_storage = storage_agents + storage_units
     if all_storage and config.storage.use_nodal_price:
         # Extract first-pass nodal LMPs
-        nodal_lmp = np.zeros((T, n_buses))
-        for t in range(T):
-            for i, b in enumerate(buses):
-                try:
-                    nodal_lmp[t, i] = -p_bal_constr[(t, b)].Pi
-                except AttributeError:
-                    nodal_lmp[t, i] = wholesale[t]
+        nodal_lmp, _ = _extract_lmp(p_bal_constr, buses, T, wholesale, dt_scale)
 
         max_iters = 4
         for nodal_iter in range(max_iters):
@@ -437,15 +610,20 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                     nm = a.name
                     bid = bid_arr[nm][t]
                     offer = offer_arr[nm][t]
-                    obj2 += bid * served[nm][t]
+                    obj2 += bid * served[nm][t] * dt_scale
                     if a.storage is not None:
-                        obj2 += discount_t * (bid * ch[nm][t] - offer * dis[nm][t])
+                        obj2 += discount_t * (bid * ch[nm][t]
+                                              - offer * dis[nm][t]) * dt_scale
                         if config.storage.cycle_cost > 0:
-                            obj2 -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                            obj2 -= config.storage.cycle_cost \
+                                * (ch[nm][t] + dis[nm][t]) * dt_scale
                     else:
-                        obj2 -= offer * (pv[nm][t] + wind[nm][t] + dis[nm][t])
-                    obj2 -= config.market_design.penalty_unserved * unserved[nm][t]
-                obj2 -= wholesale[t] * (p_grid_import[t] - p_grid_export[t])
+                        obj2 -= offer * (pv[nm][t] + wind[nm][t]
+                                         + dis[nm][t]) * dt_scale
+                    obj2 -= config.market_design.penalty_unserved \
+                        * unserved[nm][t] * dt_scale
+                obj2 -= wholesale[t] * (p_grid_import[t]
+                                        - p_grid_export[t]) * dt_scale
                 if config.market_design.enable_multi_objective:
                     if config.market_design.lambda_carbon > 0:
                         obj2 -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid \
@@ -464,10 +642,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             for su in storage_units:
                 nm = su.name
                 for t in range(T):
-                    obj2 += su.bid_value * ch[nm][t]
-                    obj2 -= su.offer_cost * dis[nm][t]
+                    obj2 += su.bid_value * ch[nm][t] * dt_scale
+                    obj2 -= su.offer_cost * dis[nm][t] * dt_scale
                     if config.storage.cycle_cost > 0:
-                        obj2 -= config.storage.cycle_cost * (ch[nm][t] + dis[nm][t])
+                        obj2 -= config.storage.cycle_cost \
+                            * (ch[nm][t] + dis[nm][t]) * dt_scale
                 obj2 += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
 
             m.setObjective(obj2, GRB.MAXIMIZE)
@@ -475,13 +654,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             if m.status != GRB.OPTIMAL:
                 break
 
-            new_lmp = np.zeros((T, n_buses))
-            for t in range(T):
-                for i, b in enumerate(buses):
-                    try:
-                        new_lmp[t, i] = -p_bal_constr[(t, b)].Pi
-                    except AttributeError:
-                        new_lmp[t, i] = wholesale[t]
+            new_lmp, _ = _extract_lmp(p_bal_constr, buses, T, wholesale, dt_scale)
 
             max_change = np.max(np.abs(new_lmp - nodal_lmp))
             nodal_lmp = new_lmp
@@ -489,13 +662,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 break
 
     # --- Extract LMP from duals ---
-    lmp = np.zeros((T, n_buses))
-    for t in range(T):
-        for i, b in enumerate(buses):
-            try:
-                lmp[t, i] = -p_bal_constr[(t, b)].Pi
-            except AttributeError:
-                lmp[t, i] = wholesale[t]  # dual unavailable (presolve eliminated constraint)
+    lmp, lmp_fallbacks = _extract_lmp(p_bal_constr, buses, T, wholesale,
+                                      dt_scale)
 
     # Extract shadow prices from constraint-based multi-objective
     shadow_prices = {}
@@ -528,7 +696,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
             'storage_mode': ['idle'] * T,
         }
-    total_welfare = m.ObjVal
+    market_objective = m.ObjVal
     total_re_avail = sum(
         (np.sum(a.pv_forecast if stage == "DA" else a.pv_real)
          + (np.sum(a.wind_forecast if stage == "DA" else a.wind_real)
@@ -583,13 +751,22 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         "price": lmp.mean(axis=1),
         "lmp": lmp,
         "schedules": schedules,
-        "welfare": total_welfare,
+        # The clearing model's own optimization objective, in CNY. It is neither
+        # a participant payoff nor social welfare: it values each storage unit
+        # at that unit's declared bid and offer rather than at the settlement
+        # price, so it cannot be read as anyone's profit. `welfare` is kept as
+        # an alias for existing readers; new code should use `objective`.
+        "objective": market_objective,
+        "welfare": market_objective,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_avail,
         "carbon_emissions": carbon_emissions,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
         "shadow_prices": shadow_prices,
+        # Periods whose nodal price came from the wholesale fallback because no
+        # balance dual was available. Non-zero means those prices are not nodal.
+        "lmp_fallbacks": lmp_fallbacks,
     }
     return result
 

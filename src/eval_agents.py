@@ -20,6 +20,9 @@ import numpy as np
 import torch
 from typing import Dict, List, Optional
 
+import money
+import participant_payoff
+
 from scenarios import get_scenario, list_scenarios
 from models import MarketConfig
 from rl_env import BiddingEnv, DayCapture, N_BLOCKS, BLOCK_SIZE
@@ -59,22 +62,8 @@ def compute_agent_profit(schedule: dict, lmp_node: np.ndarray,
     -------
     float  Total profit in CNY.
     """
-    profit = 0.0
-    cycle_cost = float(config.storage.cycle_cost)
-    for d in range(n_periods):
-        cons_val = agent.bid_value * schedule["served"][d]
-        gen_cost = agent.offer_cost * (schedule["pv_used"][d]
-                                       + schedule["wind_used"][d])
-        mkt_pmt = (schedule["p_sell"][d] * lmp_node[d]
-                   - schedule["p_buy"][d] * lmp_node[d])
-        penalty = config.market_design.penalty_unserved \
-            * schedule["unserved"][d]
-        step = float(cons_val - gen_cost + mkt_pmt - penalty)
-        if agent.storage is not None:
-            step -= cycle_cost * (schedule["p_ch"][d]
-                                  + schedule["p_dis"][d])
-        profit += step
-    return profit
+    return participant_payoff.participant_payoff(
+        schedule, lmp_node, agent, config, n_periods).total
 
 
 def actor_predict(actor: Actor, obs: np.ndarray) -> np.ndarray:
@@ -361,8 +350,11 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
         env_comb = BiddingEnv(agents, cfg, rl_agent_names=rl_names,
                               bid_mult_low=bid_mult_low,
                               bid_mult_high=bid_mult_high)
+# The welfare artifact is revalued from the captured day schedule, so
+        # the combined run must always capture it; `consumer_metrics`
+        # controls only the consumer accounting columns below.
         comb = run_combined_episode(env_comb, policies, n_blocks=n_blocks,
-                                    capture=consumer_metrics)
+                                    capture=True)
 
         artifact = valuation_artifact(comb["sched"], comb["declared"],
                                       agents, cfg)
@@ -666,8 +658,12 @@ def main():
             if env_comb is not None:
                 if S is not None:
                     np.random.seed(S)
+                # Always capture: the welfare artifact below is revalued from
+                # the captured day schedule, and valuation_artifact cannot be
+                # computed without it. `consumer_metrics` controls only the
+                # consumer accounting columns.
                 comb = run_combined_episode(env_comb, policies,
-                                            capture=args.consumer_metrics)
+                                            capture=True)
                 comb_welfare = comb["welfare"]
                 comb_re_rate = comb["re_rate"]
                 comb_profits = comb["profits"]

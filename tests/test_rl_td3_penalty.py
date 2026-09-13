@@ -69,6 +69,34 @@ def test_actor_loss_increases_with_offer_penalty():
     assert loss_penalized > loss_baseline
 
 
+def test_actor_loss_is_invariant_to_a_uniform_reward_rescale():
+    """Rescaling the reward must not change the actor update.
+
+    The reward is divided by its running standard deviation before the critic
+    target, so a uniform rescale cancels out. That is what lets a change in the
+    reward's magnitude — such as the money-unit unification, which divides every
+    economic term by four — leave the actor's effective learning problem alone.
+
+    It only holds while the deviation penalty carries a dimensionless weight.
+    Dividing the penalty by the reward standard deviation as well made the
+    effective regularization scale with the reward, so this catches a
+    reintroduction of that coupling.
+    """
+    def actor_loss_at(reward_scale: float) -> float:
+        random.seed(5)
+        torch.manual_seed(5)
+        td3 = _make_td3(bid_pen=5.0, offer_pen=0.5)
+        obs = np.zeros(OBS_DIM, dtype=np.float32)
+        for i in range(16):
+            td3.buffer.add(obs, np.array([1.2, 20.0], dtype=np.float32),
+                           reward_scale * (1.0 + i % 3), obs, False)
+        loss = td3.update()["actor_loss"]
+        assert loss is not None
+        return loss
+
+    assert actor_loss_at(1.0) == pytest.approx(actor_loss_at(100.0), rel=1e-5)
+
+
 def test_forward_logits_matches_forward():
     """forward() and forward_logits() return the same action."""
     actor = _make_td3().actor

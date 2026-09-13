@@ -272,7 +272,8 @@ class MATD3:
         if len(self.buffer) < self.batch_size:
             return {"critic_loss": None, "actor_loss": None,
                     "critic_loss_by_agent": {}, "actor_loss_by_agent": {},
-                    "q1_mean": None, "q2_mean": None, "q_gap": None}
+                    "q1_mean": None, "q2_mean": None, "q_gap": None,
+                    "reward_scale": None}
 
         obs, act, rew, next_obs, done = self.buffer.sample(self.batch_size)
         # obs: (batch, n_agents, obs_dim), act: (batch, n_agents, act_dim)
@@ -368,17 +369,21 @@ class MATD3:
                 # Deviation penalty on the pre-tanh logits: penalizing the
                 # squashed action fails because d(tanh)/dx -> 0 at the bounds,
                 # so the gradient vanishes exactly when the policy saturates.
-                # An L2 term on the raw logits survives saturation and pulls
-                # the policy back to moderate bids. Rescaled by the same factor
-                # as the reward so its balance vs -min(Q) is preserved.
+                # An L2 term on the raw logits survives saturation and pulls the
+                # policy back to moderate bids.
+                #
+                # The weight is dimensionless because -min(q1, q2) is already in
+                # reward-standard-deviation units: the reward was divided by
+                # `scale` above. Dividing the penalty by `scale` as well made
+                # the effective regularization inversely proportional to the
+                # reward magnitude, so any rescaling of the reward silently
+                # re-tuned the actor. Coefficients carry their full meaning now.
                 if self.bid_dev_penalty > 0:
                     actor_loss = actor_loss \
-                        + (self.bid_dev_penalty / scale) \
-                        * (logits[:, 0] ** 2).mean()
+                        + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
                 if self.offer_dev_penalty > 0:
                     actor_loss = actor_loss \
-                        + (self.offer_dev_penalty / scale) \
-                        * (logits[:, 1] ** 2).mean()
+                        + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
 
                 opt.zero_grad()
                 actor_loss.backward()
@@ -404,7 +409,12 @@ class MATD3:
                 "actor_loss_by_agent": actor_loss_by_agent,
                 "q1_mean": float(np.mean(q1_means)),
                 "q2_mean": float(np.mean(q2_means)),
-                "q_gap": float(np.mean(q_gaps))}
+                "q_gap": float(np.mean(q_gaps)),
+                # Running reward standard deviation, i.e. the unit Q-values and
+                # the critic loss are expressed in. Reported so the scale of the
+                # learning signal stays observable across reward-definition
+                # changes rather than being absorbed silently.
+                "reward_scale": float(scale)}
 
     def train(self, n_episodes: int = 100, verbose: bool = True) \
             -> Dict[str, list]:

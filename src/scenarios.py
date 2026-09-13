@@ -2,6 +2,7 @@
 import numpy as np
 from typing import List, Tuple
 from models import MarketConfig, Agent
+from ess import build_ess_fleet
 from grid import build_base_network, create_agents_from_network, day_ahead_price_china
 from config_loader import get_scenario_cfg
 
@@ -82,6 +83,12 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
     load_mult = multipliers.get("load", 1.0)
     storage_mult = multipliers.get("storage", 1.0)
 
+    # The network's own batteries shrink or grow with the scenario multiplier
+    # and with `storage.prosumer_storage_scale`, so an experiment can make the
+    # independent storage fleet a material arbitrageur instead of a marginal
+    # one. The fleet itself is built after this and is not affected.
+    fleet_storage_mult = storage_mult * float(config.storage.prosumer_storage_scale)
+
     for a in agents:
         a.load_forecast = a.load_forecast * load_mult
         a.load_real = a.load_real * load_mult
@@ -91,10 +98,26 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
         if a.has_wind:
             a.wind_forecast = a.wind_forecast * wind_mult  # type: ignore[operator]
             a.wind_real = a.wind_real * wind_mult  # type: ignore[operator]
-        if a.storage is not None and storage_mult != 1.0:
-            a.storage.e_max *= storage_mult
-            a.storage.p_ch_max *= storage_mult
-            a.storage.p_dis_max *= storage_mult
+        if a.storage is not None and fleet_storage_mult != 1.0:
+            a.storage.e_max *= fleet_storage_mult
+            a.storage.p_ch_max *= fleet_storage_mult
+            a.storage.p_dis_max *= fleet_storage_mult
+
+    # --- anchor storage bid prices ---
+    # A battery's willingness to pay to charge is not the local load type's
+    # willingness to pay for consumption; the two describe different things.
+    # Inheriting the load bid (650-850 CNY/MWh) prices charging well above what
+    # the energy costs, and the clearing objective books that gap as surplus.
+    # Storage units are priced from a single anchor instead - storage.bid_anchor
+    # when set, otherwise the scenario's mean wholesale price - and the bidding
+    # action shades around it.
+    anchor = config.storage.bid_anchor
+    if anchor is None:
+        anchor = float(np.mean(wholesale))
+    for a in agents:
+        if a.storage is not None:
+            a.bid_value = float(anchor)
+            a.offer_cost = float(anchor)
 
     # --- apply per-bus custom load scaling (spatial redistribution) ---
     # Runs after the global load multiplier so the factor acts on the
@@ -138,6 +161,12 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
             if a.has_wind:
                 a.wind_forecast = wind_new
                 a.wind_real = wind_new * 0.95
+
+    # --- independent storage fleet ---
+    # Appended last so the load, RE-ramp and storage-scaling steps above apply
+    # only to the network's own participants: the fleet carries no load and no
+    # generation for those steps to act on, and its capacity is its own knob.
+    agents.extend(build_ess_fleet(T, config, wholesale=wholesale))
 
     return agents, wholesale
 

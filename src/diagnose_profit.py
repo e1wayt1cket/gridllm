@@ -25,6 +25,8 @@ import os
 import numpy as np
 import torch
 
+import money
+import participant_payoff
 from models import MarketConfig
 from scenarios import get_scenario
 from rl_env import BiddingEnv, N_BLOCKS, BLOCK_SIZE
@@ -94,12 +96,8 @@ def run_day(env: BiddingEnv, rl_names, action_provider) -> tuple:
 
 def agent_profit(s: dict, lmp_node: np.ndarray, agent, config) -> float:
     """Raw profit (CNY) over a full day, matching the env reward formula."""
-    mkt = np.sum(s["p_sell"] * lmp_node - s["p_buy"] * lmp_node)
-    cons = float(np.sum(agent.bid_value * s["served"]))
-    gen = float(np.sum(agent.offer_cost * (s["pv_used"] + s["wind_used"])))
-    pen = float(config.market_design.penalty_unserved * np.sum(s["unserved"]))
-    cyc = float(config.storage.cycle_cost * np.sum(s["p_ch"] + s["p_dis"]))
-    return mkt + cons - gen - pen - cyc
+    return participant_payoff.participant_payoff(s, lmp_node, agent,
+                                                 config).total
 
 
 def decompose(rows: list, s_base, lmp_base, s_rl, lmp_rl,
@@ -113,10 +111,11 @@ def decompose(rows: list, s_base, lmp_base, s_rl, lmp_rl,
         lmp_r = lmp_rl[:, a.bus]
         q_b = b["p_sell"] - b["p_buy"]
         q_r = r["p_sell"] - r["p_buy"]
-        arb = float(np.sum((q_r - q_b) * (lmp_b + lmp_r) / 2.0))
-        pow_t = float(np.sum((q_b + q_r) / 2.0 * (lmp_r - lmp_b)))
+        arb = money.total_money((lmp_b + lmp_r) / 2.0, q_r - q_b)
+        pow_t = money.total_money(lmp_r - lmp_b, (q_b + q_r) / 2.0)
         other = dp - (arb + pow_t)
-        # net position over the RL day: >0 net seller, <0 net buyer
+        # net position over the RL day: >0 net seller, <0 net buyer. A power
+        # sum, not money, so it takes no time scale.
         net = float(np.sum(q_r))
         row.extend([arb, pow_t, other, net])
     return rows
