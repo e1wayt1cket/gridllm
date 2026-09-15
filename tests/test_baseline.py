@@ -8,6 +8,7 @@ import pytest
 from models import MarketConfig, MarketDesignConfig
 from market import clear_market, adaptive_bidding, two_settlement
 from scenarios import get_scenario
+import surplus_metrics
 
 
 @pytest.fixture(autouse=True)
@@ -20,21 +21,38 @@ def _clear_opf_cache():
 
 
 def test_baseline_da_welfare():
-    """Baseline DA clearing objective should be in a reasonable range.
+    """The baseline day clears into a coherent market.
 
-    The bound is the old one quartered: the objective is now money, because
-    every energy-valued term carries the 0.25 h period length (see money.py),
-    where it previously valued a period's power as if a period were an hour.
+    This used to pin the clearing objective inside a fitted band. A band on that
+    quantity encodes one configuration's scale and nothing else: the objective is
+    the clearing model's own value, not social welfare, because it prices each
+    storage unit at that unit's declared quotes rather than at the settlement
+    price (see dispatch_socp). What is worth pinning are the properties that make
+    the day a market rather than a number: the prices are nodal, the horizon is
+    the whole day, and the money that changes hands balances.
     """
     T = 96
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
-    agents, _ = get_scenario("baseline", T=T)
+    agents, wholesale = get_scenario("baseline", T=T)
     actions = adaptive_bidding(agents, config, strategy="rl")
-    results = clear_market(agents, T, "DA", actions, config)
+    results = clear_market(agents, T, "DA", actions, config, wholesale=wholesale)
+
     objective = results["objective"]
-    assert 12500 < objective < 50000, f"objective {objective:.0f} out of range"
+    assert np.isfinite(objective), f"objective {objective} is not finite"
     # `welfare` is kept as an alias for existing readers.
     assert results["welfare"] == objective
+
+    assert results["lmp"].shape == (T, 33)
+    assert results.get("lmp_fallbacks") == 0, \
+        f"{results.get('lmp_fallbacks')} periods priced off the wholesale curve"
+
+    recon = surplus_metrics.reconciliation(results["schedules"], results["lmp"],
+                                           wholesale, agents)
+    assert recon["max_identity_residual"] < 1.0, \
+        f"funds-flow identity off by {recon['max_identity_residual']:.3f}"
+    assert recon["rent_total"] >= -1.0, \
+        f"merchandising surplus {recon['rent_total']:.1f} is negative"
+    assert recon["bill_total"] > 0.0
 
 
 def test_baseline_re_rate():
@@ -99,8 +117,17 @@ def test_baseline_schedule_keys():
             assert len(sched[key]) == T, f"agent {a.name} {key} length {len(sched[key])} != {T}"
 
 
-def test_peak_load_higher_welfare():
-    """Peak load should have higher DA welfare than baseline (weighted-sum mode)."""
+def test_peak_load_stresses_the_feeder():
+    """A heat-wave peak on an unchanged network is met by shedding load.
+
+    This used to assert that peak_load cleared to a higher objective than the
+    baseline. That held while the base load was small enough for 1.5x to stay
+    inside what the feeder can deliver. At the current base load the feeder is
+    voltage-limited well below 1.5x peak, so the extra demand cannot be carried:
+    it appears as unserved energy, which the clearing prices at the value of
+    lost load and which therefore drives the objective down rather than up. The
+    invariant that survives the change is the physical one.
+    """
     T = 96
     md = MarketDesignConfig(use_constraint_multi_obj=False)
     config_b = MarketConfig(opf_mode="lindistflow", verbose=False,
@@ -113,8 +140,19 @@ def test_peak_load_higher_welfare():
                        adaptive_bidding(agents_b, config_b, "rl"), config_b)
     r_p = clear_market(agents_p, T, "DA",
                        adaptive_bidding(agents_p, config_p, "rl"), config_p)
-    assert r_p["welfare"] > r_b["welfare"], \
-        f"peak_load welfare {r_p['welfare']:.0f} <= baseline {r_b['welfare']:.0f}"
+
+    def _unserved(result, agents):
+        return sum(float(np.sum(result["schedules"][a.name]["unserved"]))
+                   for a in agents) * 0.25
+
+    uns_b = _unserved(r_b, agents_b)
+    uns_p = _unserved(r_p, agents_p)
+    assert uns_p > uns_b * 2, \
+        f"peak_load shed {uns_p:.3f} MWh, baseline {uns_b:.3f} MWh: the peak is " \
+        f"no longer stressing the feeder"
+    assert r_p["welfare"] < r_b["welfare"], \
+        f"peak_load objective {r_p['welfare']:.0f} not below baseline " \
+        f"{r_b['welfare']:.0f} despite shedding more load"
 
 
 def test_constraint_mode_feasible():

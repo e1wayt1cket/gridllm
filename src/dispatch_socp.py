@@ -18,7 +18,11 @@ from typing import List, Optional
 
 import money
 from models import Agent, MarketConfig
-from dispatch_core import _select_radial_lines, _compute_mpc_schedules, empty_schedules, split_power, DT_HOURS
+from dispatch_core import (
+    _select_radial_lines, _compute_mpc_schedules, empty_schedules, split_power,
+    add_grid_exchange, add_storage_net_power, check_storage_quote_signs,
+    grid_import_export, grid_carbon_tco2, pins_terminal_soc, DT_HOURS,
+)
 
 try:
     import gurobipy as gp
@@ -119,7 +123,7 @@ def _freeze_exclusive_directions(ch, dis, is_ch, is_dis):
 
 
 def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale,
-                         storage_units=None):
+                         storage_units=None, horizon_type="auto"):
     """Multi-period SOCP-OPF with storage SOC transition and carbon cost.
 
     Uses rotated second-order cone relaxation of the DistFlow equations.
@@ -153,6 +157,18 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     m.setParam('OutputFlag', 0)
     m.setParam('Method', 2)  # barrier (interior point)
     m.setParam('QCPDual', 1)  # enable dual values for QCP constraints
+    # Homogeneous self-dual barrier. Every price this clears is a power-balance
+    # dual, and on this model the plain barrier returns OPTIMAL on some price
+    # realizations while leaving those duals unavailable -- Gurobi then refuses
+    # `Pi` and every bus silently falls back to the wholesale curve, which looks
+    # like a flat nodal price field rather than like a failure. It is
+    # realization-dependent: at four fixed price seeds, two returned no duals at
+    # all and two returned all of them, on an identical model with no integers.
+    # The homogeneous variant is built for exactly this degenerate ill-scaled
+    # case: measured across those same four seeds it returns every dual, and
+    # costs about 0.2 s per clear. NumericFocus=3 was also tried and is both
+    # slower (2.2-3.1 s) and still fails on two of the four.
+    m.setParam('BarHomogeneous', 1)
 
     # --- Network variables ---
     v = m.addVars(T, buses, lb=config.network.v_min_pu ** 2, ub=config.network.v_max_pu ** 2,
@@ -160,8 +176,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     P = m.addVars(T, lines, lb=-GRB.INFINITY, name="P")
     Q = m.addVars(T, lines, lb=-GRB.INFINITY, name="Q")
     I_sq = m.addVars(T, lines, lb=0, ub=GRB.INFINITY, name="I_sq")
-    p_grid_import = m.addVars(T, lb=0, ub=GRB.INFINITY, name="p_grid_import")
-    p_grid_export = m.addVars(T, lb=0, ub=config.network.reverse_power_limit_mw, name="p_grid_export")
+    p_grid, imp_aux = add_grid_exchange(m, T, config)
     q_grid = m.addVars(T, lb=-GRB.INFINITY, name="q_grid")
 
     # --- Agent variables ---
@@ -202,6 +217,13 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                             name=f"soc_{nm}")
         m.addConstr(soc[nm][0] == su.storage.soc0, f"init_soc_{nm}")
 
+    # One net flow per storage unit; charge and discharge become its parts.
+    net = {}
+    for a in storage_agents:
+        net[a.name] = add_storage_net_power(m, a.name, a.storage, T, ch, dis)
+    for su in storage_units:
+        net[su.name] = add_storage_net_power(m, su.name, su.storage, T, ch, dis)
+
     # Non-storage agents: ch = dis = 0
     stor_names = {a.name for a in storage_agents} | {su.name for su in storage_units}
     for a in agents_list:
@@ -210,14 +232,12 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 ch[a.name][t].UB = 0
                 dis[a.name][t].UB = 0
 
-    # One battery has one power flow, so charging and discharging the same unit
-    # in the same period is physically impossible. Charge and discharge are
-    # independent continuous variables, and the objective credits the declared
-    # charge bid and debits the declared discharge offer, so without this a
-    # declared bid above the offer plus the degradation charge buys objective
-    # value with a dispatch that cancels out in the power balance. Units whose
-    # schedule the MPC pre-solve fixes are skipped: their trajectory is given,
-    # not decided by the market.
+    # The explicit exclusive-or is now a reference model rather than the way
+    # overlap is prevented: charge and discharge are the parts of one net flow,
+    # so overlap cannot be represented at all. It is kept because comparing the
+    # two is how the reformulation is checked, and because a unit whose
+    # schedule the MPC pre-solve fixes keeps the binaries. See exclusive_mode
+    # in models.StorageConfig.
     _validate_exclusive_mode(config)
     is_ch, is_dis = {}, {}
     for a in storage_agents:
@@ -254,7 +274,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             # Power balance: injection + flows = 0
             inj = gp.LinExpr()
             if b == slack_bus:
-                inj += p_grid_import[t] - p_grid_export[t]
+                inj += p_grid[t]
             for a in agents_list:
                 if a.bus == b:
                     nm = a.name
@@ -363,9 +383,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
             # Reactive power limits per DER inverter
             if config.network.reactive_support and nm in q_re:
-                s_max = a.pv_capacity + a.wind_capacity
+                s_max = (a.pv_capacity + a.wind_capacity) \
+                    * config.network.inverter_smax_multiplier
                 if a.storage:
-                    s_max += a.storage.p_dis_max
+                    s_max += a.storage.p_dis_max \
+                        * config.network.inverter_smax_multiplier
                 q_re[nm][t].LB = -s_max
                 q_re[nm][t].UB = s_max
                 p_total = pv[nm][t] + wind[nm][t] + dis[nm][t]
@@ -403,18 +425,24 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                             f"ramp_down_dis_{nm}_{t}")
 
     # Terminal state of charge pinned to the initial one, so a whole-horizon
-    # comparison does not reward a unit for finishing with banked energy.
-    if config.storage.terminal_soc_equal:
+    # comparison does not reward a unit for finishing with banked energy. Only a
+    # whole-day clear can carry this: on a rolling window the pin would forbid
+    # the trajectory the window was opened to choose, and the day is what is
+    # being settled.
+    if pins_terminal_soc(config, T, horizon_type):
         for a in storage_agents:
             m.addConstr(soc[a.name][T] == soc[a.name][0],
                         f"terminal_soc_{a.name}")
+        for su in storage_units:
+            m.addConstr(soc[su.name][T] == soc[su.name][0],
+                        f"terminal_soc_{su.name}")
 
     # Grid ramping constraint (peak shaving): limit net exchange change rate
     if config.network.ramp_limit_mw_per_period is not None:
         for t in range(1, T):
             ramp = config.network.ramp_limit_mw_per_period
-            net_t = p_grid_import[t] - p_grid_export[t]
-            net_tm1 = p_grid_import[t-1] - p_grid_export[t-1]
+            net_t = p_grid[t]
+            net_tm1 = p_grid[t-1]
             m.addConstr(net_t - net_tm1 <= ramp, f"ramp_up_grid_{t}")
             m.addConstr(net_tm1 - net_t <= ramp, f"ramp_down_grid_{t}")
 
@@ -433,7 +461,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         if config.market_design.carbon_cap_tco2 is not None:
             carbon_expr = gp.LinExpr()
             for t in range(T):
-                carbon_expr += config.market_design.emission_factor_grid * p_grid_import[t] * DT_HOURS
+                carbon_expr += config.market_design.emission_factor_grid * imp_aux[t] * DT_HOURS
             carbon_constr = m.addConstr(carbon_expr - slack_carbon
                                         <= config.market_design.carbon_cap_tco2,
                                         "carbon_cap")
@@ -466,31 +494,16 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             offer_arr[nm] = a.offer_cost + oa
         else:
             offer_arr[nm] = np.full(T, a.offer_cost + oa)
-        # A storage unit may not declare a charge bid above its discharge offer.
-        #
-        # Capping the spread at twice the degradation cost would be the correct
-        # no-churn condition on its own (the overlap then nets at most
-        # `discount_t * 2 * cycle_cost - 2 * cycle_cost <= 0`), but it is not
-        # sufficient in this objective: the `+bid * ch` term credits charging at
-        # the declared bid, so a unit whose bid sits above the energy's true cost
-        # charges to its power cap purely to collect that credit and must then
-        # discharge to free SOC headroom. Measured on the baseline scenario with
-        # a shaded bid, the spread cap alone leaves 39.5 MW of that overlap where
-        # this cap leaves none.
-        #
-        # The cost of this cap is that storage cannot bid to charge above what it
-        # asks to discharge, which is how a battery expresses arbitrage, so under
-        # it storage never discharges. Removing the credit itself — so charging
-        # is costed rather than rewarded in the objective — would address both
-        # at once and is an open design decision.
-        #
-        # Applies to storage only: for a load agent the bid is a genuine
-        # consumption valuation and must not be capped. A unit carrying the
-        # exact exclusive-or above is already kept from the overlap, and the cap
-        # would cost it the arbitrage it expresses through its price spread.
-        if a.storage is not None and config.storage.churn_free_quotes \
-                and nm not in is_ch:
-            bid_arr[nm] = np.minimum(bid_arr[nm], offer_arr[nm])
+        if a.storage is not None:
+            # Charging is costed, so a unit's two quotes are reservations it
+            # will not cross in either direction, and they are free to cross
+            # each other: the net flow decides which one applies, not a cap.
+            # The quotes only have to be non-negative, or the objective
+            # coefficient on one leg turns positive and stops pinning the
+            # charge/discharge split to the net flow (see dispatch_core).
+            check_storage_quote_signs(
+                float(np.min(bid_arr[nm])), float(np.min(offer_arr[nm])),
+                config.storage.cycle_cost, f"storage {nm}")
         pv_max_arr[nm] = a.pv_forecast if stage == "DA" else a.pv_real
         wind_max_arr[nm] = (a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else np.zeros(T)
 
@@ -517,14 +530,16 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             offer = offer_arr[nm][t]
             obj += bid * served[nm][t] * dt_scale
             if a.storage is not None:
-                # The declared bid is what the unit will pay to charge and the
-                # declared offer what it asks to discharge, so the bidding
-                # action steers charge/discharge through them. This is the
-                # clearing objective, not the unit's cash payoff: settlement
-                # happens at the nodal LMP when the day is accounted, and the
-                # two are different quantities by construction.
-                obj += discount_t * (bid * ch[nm][t]
-                                     - offer * dis[nm][t]) * dt_scale
+                # Both legs are costs of the unit's own declared prices: the bid
+                # is what it asks to be paid before it will charge and the offer
+                # what it must receive before it will discharge. Charging is
+                # costed rather than rewarded, which is what lets the objective
+                # be concave for any pair of quotes and lets the quotes cross.
+                # This is the clearing objective, not the unit's cash payoff:
+                # settlement happens at the nodal LMP when the day is accounted,
+                # and the two are different quantities by construction.
+                obj -= discount_t * (bid * ch[nm][t]
+                                     + offer * dis[nm][t]) * dt_scale
                 if config.storage.cycle_cost > 0:
                     obj -= config.storage.cycle_cost \
                         * (ch[nm][t] + dis[nm][t]) * dt_scale
@@ -533,12 +548,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                                 + dis[nm][t]) * dt_scale
             obj -= config.market_design.penalty_unserved \
                 * unserved[nm][t] * dt_scale
-        obj -= wholesale[t] * (p_grid_import[t]
-                               - p_grid_export[t]) * dt_scale
+        obj -= wholesale[t] * p_grid[t] * dt_scale
         if config.market_design.enable_multi_objective:
             if config.market_design.lambda_carbon > 0:
                 obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid \
-                       * p_grid_import[t] * DT_HOURS
+                       * imp_aux[t] * DT_HOURS
             if config.market_design.lambda_re > 0:
                 for a in agents_list:
                     nm = a.name
@@ -562,8 +576,10 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
     for su in storage_units:
         nm = su.name
+        check_storage_quote_signs(su.bid_value, su.offer_cost,
+                                  config.storage.cycle_cost, f"storage {nm}")
         for t in range(T):
-            obj += su.bid_value * ch[nm][t] * dt_scale
+            obj -= su.bid_value * ch[nm][t] * dt_scale
             obj -= su.offer_cost * dis[nm][t] * dt_scale
             if config.storage.cycle_cost > 0:
                 obj -= config.storage.cycle_cost \
@@ -612,8 +628,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                     offer = offer_arr[nm][t]
                     obj2 += bid * served[nm][t] * dt_scale
                     if a.storage is not None:
-                        obj2 += discount_t * (bid * ch[nm][t]
-                                              - offer * dis[nm][t]) * dt_scale
+                        obj2 -= discount_t * (bid * ch[nm][t]
+                                              + offer * dis[nm][t]) * dt_scale
                         if config.storage.cycle_cost > 0:
                             obj2 -= config.storage.cycle_cost \
                                 * (ch[nm][t] + dis[nm][t]) * dt_scale
@@ -622,12 +638,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                                          + dis[nm][t]) * dt_scale
                     obj2 -= config.market_design.penalty_unserved \
                         * unserved[nm][t] * dt_scale
-                obj2 -= wholesale[t] * (p_grid_import[t]
-                                        - p_grid_export[t]) * dt_scale
+                obj2 -= wholesale[t] * p_grid[t] * dt_scale
                 if config.market_design.enable_multi_objective:
                     if config.market_design.lambda_carbon > 0:
                         obj2 -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid \
-                                * p_grid_import[t] * DT_HOURS
+                                * imp_aux[t] * DT_HOURS
                     if config.market_design.lambda_re > 0:
                         for a in agents_list:
                             nm = a.name
@@ -705,14 +720,17 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     )
     total_re_used = 0.0
     total_curtailment = 0.0
-    carbon_emissions = 0.0
     total_served_mwh = 0.0
 
-    for t in range(T):
-        p_import_val = p_grid_import[t].X
-        if p_import_val > 0:
-            carbon_emissions += config.market_design.emission_factor_grid * p_import_val * DT_HOURS
+    # Carbon over the horizon, charged on the import part of the net exchange.
+    # Read off the exchange rather than off the model's import auxiliary: the
+    # auxiliary is only pinned to max(exchange, 0) where a carbon term is
+    # active, so reading it back would report zero on the paths that have none.
+    p_grid_mw = np.array([float(p_grid[t].X) for t in range(T)])
+    carbon_emissions = grid_carbon_tco2(
+        p_grid_mw, config.market_design.emission_factor_grid)
 
+    for t in range(T):
         for a in agents_list:
             nm = a.name
             s = schedules[nm]
@@ -745,6 +763,21 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     for su in storage_units:
         schedules[su.name]['soc'][T - 1] = soc[su.name][T].X
 
+    # Network-state readouts. Voltage, line current and line flow are already
+    # variables of this model; they were simply never surfaced, so nothing
+    # downstream could report how loaded a line was or how far a bus voltage had
+    # sagged. Utilization is |I| over the line's own thermal limit (1.0 is the
+    # limit), and the arrays follow the solver's line order — `line_indices`
+    # carries it, because it is the radial-line order, not `net.line.index`.
+    bus_voltage = np.array([[float(np.sqrt(max(v[t, b].X, 0.0))) for b in buses]
+                            for t in range(T)])
+    line_utilization = np.array(
+        [[float(np.sqrt(max(I_sq[t, l].X, 0.0)) / limit[l]) for l in lines]
+         for t in range(T)])
+    line_flow_mw = np.array([[float(P[t, l].X) for l in lines]
+                             for t in range(T)])
+    grid_import_mw, grid_export_mw = grid_import_export(p_grid_mw)
+
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
     result = {
@@ -767,6 +800,19 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         # Periods whose nodal price came from the wholesale fallback because no
         # balance dual was available. Non-zero means those prices are not nodal.
         "lmp_fallbacks": lmp_fallbacks,
+        # Network state. Purely additive; no existing key changes meaning.
+        # Absent under `lindistflow`, which has no current variable and whose
+        # line limit is a diamond bound on P and Q rather than a thermal limit,
+        # so readers must treat them as optional.
+        "bus_voltage": bus_voltage,
+        "bus_indices": list(buses),
+        "line_utilization": line_utilization,
+        "line_indices": list(lines),
+        "line_flow_mw": line_flow_mw,
+        # The SOCP path never fills schedules['GRID']['g_grid'], so grid
+        # exchange is only available from here.
+        "grid_import_mw": grid_import_mw,
+        "grid_export_mw": grid_export_mw,
     }
     return result
 

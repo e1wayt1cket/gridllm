@@ -185,7 +185,7 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
 
     try:
         result = clear_market(agents, T, "DA", settle_actions, settle_config,
-                              wholesale=wholesale)
+                              wholesale=wholesale, horizon_type="full_day")
     except Exception:
         result = None
     if result is None or result.get("fell_back"):

@@ -4,7 +4,7 @@
 network:
   name: case33bw
   # Ampacity formula: max_i_ka = clip(base_ka / sqrt(R_ohm), min_ka, max_ka)
-  base_ampacity_ka: 0.22
+  base_ampacity_ka: 0.25
   min_line_ka: 0.08
   max_line_ka: 0.80
   ramp_limit_mw_per_period: null
@@ -25,6 +25,21 @@ profiles:
     noise_std: 0.15
     peak_hour: 3.0
   load:
+    # Fleet-wide load level, stated as the quantity it is meant to be: the
+    # coincident peak, which is the largest the whole network draws in any one
+    # period. The scale factor that produces it is derived from the unscaled
+    # profiles at build time, so the target stays true when the profile shapes,
+    # the per-bus ratings or the noise seeds change. It multiplies the load
+    # profiles only, so it sets the energy the network serves without resizing
+    # the PV, wind and batteries whose capacity is derived from `base_load`.
+    #
+    # The peak quoted in the baseline report used to be the sum of each agent's
+    # own maximum, which is a larger number reached at no single instant (11.0
+    # MW against 9.77 MW coincident) and is reported separately as a diagnostic.
+    target_peak_mw: 10.0
+    # Explicit override. Set, it wins over `target_peak_mw`; null derives the
+    # scale from the target. This is what the parameter sweeps drive.
+    load_scale: null
     forecast_noise_sigma: 0.06
     real_noise_sigma: 0.12
     morning_peak_hour: 8.0
@@ -66,6 +81,7 @@ prosumers:
     pv_forecast_noise: 0.35
     pv_real_noise: 0.40
     storage:
+      enabled: false
       capacity_factor: 3.5
       power_ratio: 0.35
       eta_ch: 0.93
@@ -77,12 +93,15 @@ prosumers:
     offer_cost: 180.0
     bus_overrides:
       5:
+        pv_capacity_scale: 0.0
         storage:
           soc0: 0.3
           soc_min: 0.05
           soc_max: 0.95
           power_ratio_mult: 1.5
       21:
+        # 2.0 MW against a 0.081 MW load at pv_capacity_factor 3.5
+        pv_capacity_scale: 7.054674
         storage:
           soc0: 0.75
           eta_ch: 0.90
@@ -97,6 +116,7 @@ prosumers:
     pv_forecast_noise: 0.35
     pv_real_noise: 0.40
     storage:
+      enabled: false
       capacity_factor: 3.5
       power_ratio: 0.35
       eta_ch: 0.94
@@ -114,15 +134,16 @@ prosumers:
           soc0: 0.5
           soc_max: 0.95
           power_ratio_mult: 1.2
-        wind_capacity_scale: 2.5
+        wind_capacity_scale: 0.0
       23:
         storage:
           eta_ch: 0.96
           eta_dis: 0.96
           soc_max: 0.98
         pv: true
-        pv_capacity_scale: 0.35
-        wind_capacity_scale: 0.45
+        # 1.5 MW against a 0.462 MW load at pv_capacity_factor 2.5
+        pv_capacity_scale: 1.298701
+        wind_capacity_scale: 0.0
       25:
         storage:
           eta_ch: 0.78
@@ -131,6 +152,8 @@ prosumers:
           soc_max: 0.85
           power_ratio_mult: 1.5
         pv: true
+        pv_capacity_scale: 0.0
+        wind_capacity_scale: 0.0
       30:
         storage:
           eta_ch: 0.85
@@ -139,9 +162,12 @@ prosumers:
           soc_max: 0.88
           power_ratio_mult: 0.7
         pv: true
-        pv_capacity_scale: 1.3
+        pv_capacity_scale: 0.0
+        # 1.5 MW against a 0.165 MW load at wind_capacity_factor 3.5
+        wind_capacity_scale: 2.597403
 
 non_prosumer_storage:
+  enabled: false
   buses: [6, 13, 15, 17, 29, 31]
   capacity_factor: 4.0
   power_ratio: 0.45
@@ -152,15 +178,22 @@ non_prosumer_storage:
   soc_max: 0.95
 
 # Independent storage: a battery alone, with no load and no on-site generation.
-# Placed at buses without an existing prosumer or non-prosumer battery, one
-# upstream, one midstream and one downstream, so the node-location experiment
-# has a spread to sweep. Charging and discharging are priced from the day's mean
-# wholesale unless storage.bid_anchor overrides it.
+# Four identical units, one to a region, so the node-location experiment has a
+# spread to sweep: bus 20 on the residential branch beside the PV site, bus 6
+# mid-feeder, bus 24 beside the largest load, bus 31 at the end of the longest
+# radial spur. The deep main feeder (buses 14-17) is left without a battery: its
+# price floor is set by the losses of the flow passing through it rather than by
+# the time of day, so a unit there would be paid for where it sits rather than
+# for when it cycles. Each battery returns to its starting state of charge at
+# the end of the day (storage.terminal_soc_equal), so a unit cannot be paid for
+# finishing with banked energy. Charging and discharging are priced from the
+# day's mean wholesale unless storage.bid_anchor overrides it.
 independent_storage:
   enabled: true
-  buses: [2, 12, 24]
-  capacity_mwh: 6.0
-  power_ratio: 0.4
+  buses: [6, 20, 24, 31]
+  capacity_mwh: 4.0
+  # Power follows from capacity: 4.0 MWh at 0.25 gives the 1.0 MW rating.
+  power_ratio: 0.25
   eta_ch: 0.92
   eta_dis: 0.92
   soc0: 0.5
@@ -222,9 +255,34 @@ price_curve:
   noon_dip_width: 8
   min_price: -200.0
   max_price: 800.0
-  merit_order_price_elasticity: 0.35
+  # How steeply the day-ahead curve responds to net load. Storage arbitrage is
+  # only reachable when the peak-to-valley price ratio covers the round trip,
+  # which for a 0.92/0.92 battery at cycle_cost 100 needs a ratio near 1.7; a
+  # flatter curve never opens that window and every battery charges without ever
+  # discharging.
+  # How steeply the day-ahead curve responds to net load. Storage arbitrage is
+  # only reachable when the peak-to-valley window covers the round trip, which
+  # for a 0.92/0.92 battery at cycle_cost 100 needs a spread near 1.5; a flatter
+  # curve never opens that window and every battery charges without ever
+  # discharging. This used to be raised to 1.4 to force that window open, which
+  # was the wrong lever: measured across 0.6-1.4, the *nodal* peak-to-valley
+  # ratio barely moves (2.32-2.40) because most of the spread at this load level
+  # is marginal line loss rather than the curve's own slope. What the slope does
+  # move is the price level, and with it whether the fleet clears its round trip
+  # at all: at 0.6 the worst per-bus margin turns negative and the fleet stops
+  # cycling entirely. 1.0 is the curve's own elastic response and clears the
+  # window with margin.
+  merit_order_price_elasticity: 1.0
   merit_order_min_price: 50.0
   merit_order_max_price: 900.0
+  # Seed for the price noise and spikes. Draws used to come from the global
+  # NumPy generator, so the same configuration cleared to a different curve on
+  # every run and a second draw in the same process depended on how many draws
+  # preceded it: at fixed settings the fleet's net over one day moved between
+  # +486 and +665 CNY and the LMP system ratio between 2.24 and 2.52. Money
+  # figures are only comparable across runs once this is set. `null` keeps the
+  # legacy unseeded behaviour, for reproducing results recorded before it.
+  seed: 20260915
   noise_sigma: 30.0
   hard_min: -200.0
   hard_max: 1200.0

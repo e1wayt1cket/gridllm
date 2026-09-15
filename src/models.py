@@ -17,6 +17,14 @@ class NetworkConfig:
     ramp_limit_mw_per_period: Optional[float] = None  # max MW change per 15-min, None=disabled
     reactive_support: bool = True    # PV/storage inverters provide reactive power
     load_power_factor: float = 0.9   # lagging, for reactive load allocation
+    # Inverter apparent-power rating as a multiple of the real-power rating it
+    # is sized from. At 1.0 the inverter's two outputs share one circle exactly,
+    # so every MVar it supplies for voltage support is a MWh of real output it
+    # cannot deliver -- which is where this network's renewable curtailment
+    # comes from, not from the price. Real inverters are commonly rated a little
+    # above their panels for exactly this reason. See the headroom sweep in
+    # diagnose_typical_day.
+    inverter_smax_multiplier: float = 1.0
     n_loss_iters: int = 3            # I²R loss linearization iterations (0=no losses)
 
 
@@ -38,20 +46,14 @@ class StorageConfig:
     use_nodal_price: bool = True           # two-pass: re-solve with storage at nodal LMP
     mpc_fast_heuristic: bool = False      # use O(H) threshold heuristic instead of LP for MPC
     mpc_congestion_pass: bool = False     # enable second congestion-aware MPC pass
-    # Market rule: a storage unit's declared charge bid may not exceed its
-    # declared discharge offer within a period. Simultaneous charge and
-    # discharge cancels in the power balance but not in the objective, where it
-    # nets `discount_t * (bid - offer) - 2 * cycle_cost` per unit; with the bid
-    # capped at the offer that coefficient is at most `-2 * cycle_cost`, so a
-    # continuous optimum never takes a physically impossible dispatch.
-    #
-    # This also caps the charge bid itself, and with it the `+bid * ch` credit
-    # the objective pays for charging. That is what makes the rule sufficient:
-    # capping only the spread leaves a unit free to bid its way into charging to
-    # the power cap for the credit and discharging to free headroom. See
-    # dispatch_socp for the measurement. The cost is that storage cannot bid to
-    # charge above what it asks to discharge, which is how a battery expresses
-    # arbitrage, so under this rule storage does not discharge.
+    # Retired. This capped a storage unit's declared charge bid at its declared
+    # discharge offer, which was what kept the objective concave and stopped a
+    # unit bidding its way into a simultaneous charge and discharge. Charge and
+    # discharge are now the parts of one net power flow, so the overlap is not
+    # representable and no quote needs capping; the flag is kept because
+    # callers and tests still pass it, and it no longer changes any dispatch.
+    # The cap was also what made storage charge without ever discharging, by
+    # forbidding the price spread a battery uses to express arbitrage.
     churn_free_quotes: bool = True
     # "off": rely on churn_free_quotes, which keeps the model a QCP.
     # "binary": additionally impose an explicit per-period exclusive-or on
@@ -74,12 +76,15 @@ class StorageConfig:
     # whichever one ran the battery down; pinning the endpoints makes the
     # comparison like for like without needing a terminal price at all. It is
     # expressible only on a whole-horizon clear, so it belongs to evaluation
-    # rather than to the rolling window the policy acts through.
-    terminal_soc_equal: bool = False
+    # rather than to the rolling window the policy acts through. This is the
+    # outer switch; whether a given clear is the settled horizon is the
+    # caller's `horizon_type` argument, because a window that happens to be a
+    # whole day long is still a window. See dispatch_core.pins_terminal_soc.
+    terminal_soc_equal: bool = True
     # Storage units price their charge and discharge from this anchor rather
     # than inheriting the bid_value of the local load type, whose willingness to
-    # pay for consumption has no meaning for a battery. None = the scenario's
-    # mean wholesale price.
+    # pay for consumption has no meaning for a battery. An explicit value wins;
+    # see `quote_anchor` for what is used otherwise and why.
     bid_anchor: Optional[float] = None
     # Scale applied to every battery already in the network, prosumer and
     # non-prosumer alike, when a scenario is built. The independent-storage
@@ -87,6 +92,24 @@ class StorageConfig:
     # a marginal one; it is part of the config snapshot, so a run records the
     # market it was cleared in. 1.0 leaves the existing fleet unchanged.
     prosumer_storage_scale: float = 1.0
+
+    def quote_anchor(self) -> float:
+        """The level a storage unit's charge bid and discharge offer start from.
+
+        A battery's two quotes are reservation prices, and the clearing costs
+        charging at the bid and discharging at the offer, so a unit cycles only
+        when the day's price spread exceeds `bid + offer + 2 * cycle_cost`. That
+        makes the anchor a claim about the spread the day offers, and it has to
+        sit far below it: anchored instead to the mean wholesale price, the two
+        quotes alone demand roughly three times the spread this network's day
+        produces and the fleet sits idle for the whole horizon. Anchoring to the
+        unit's own degradation cost keeps the claim physical -- the quotes are
+        then a margin on top of what a cycle already costs, of the same order as
+        the cost itself, rather than a restatement of the market price.
+        """
+        if self.bid_anchor is not None:
+            return float(self.bid_anchor)
+        return float(self.cycle_cost) / 2.0
 
 
 @dataclass

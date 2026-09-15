@@ -22,7 +22,12 @@ from dispatch_core import (
     _classify_storage_mode,
     _select_radial_lines,
     _compute_mpc_schedules,
+    add_grid_exchange,
+    add_storage_net_power,
+    check_storage_quote_signs,
     empty_schedules,
+    grid_carbon_tco2,
+    pins_terminal_soc,
     split_power,
 )
 
@@ -74,8 +79,10 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         else:
             ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
-    p_grid_import = m.addVar(lb=0, ub=GRB.INFINITY, name="p_grid_import")
-    p_grid_export = m.addVar(lb=0, ub=config.network.reverse_power_limit_mw, name="p_grid_export")
+    # One period, so the shared helper's tupledicts are indexed by a single key.
+    p_grid_periods, imp_aux_periods = add_grid_exchange(m, 1, config)
+    p_grid = p_grid_periods[0]
+    imp_aux = imp_aux_periods[0]
 
     # Reactive power from DER inverters (single-period)
     q_re = {}
@@ -91,7 +98,7 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 
     # Active power balance (with losses)
     inj_p = {b: gp.LinExpr() for b in buses}
-    inj_p[slack_bus] += p_grid_import - p_grid_export
+    inj_p[slack_bus] += p_grid
     for a in agents:
         nm = a.name
         bus = agent_info[nm]['bus']
@@ -148,9 +155,10 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             if nm not in q_re:
                 continue
             info = agent_info[nm]
-            s_max = a.pv_capacity + a.wind_capacity
+            s_max = (a.pv_capacity + a.wind_capacity) \
+                * config.network.inverter_smax_multiplier
             if info['has_storage']:
-                s_max += info['dis_max']
+                s_max += info['dis_max'] * config.network.inverter_smax_multiplier
             if s_max > 0:
                 q_re[nm].LB = -s_max
                 q_re[nm].UB = s_max
@@ -171,9 +179,9 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             obj -= agent_info[nm]['offer'] \
                 * (pv[nm] + wind[nm] + dis[nm]) * dt_scale
         obj -= config.market_design.penalty_unserved * unserved[nm] * dt_scale
-    obj -= wholesale_t * (p_grid_import - p_grid_export) * dt_scale
+    obj -= wholesale_t * p_grid * dt_scale
     if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
-        obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * p_grid_import * DT_HOURS
+        obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * imp_aux * DT_HOURS
     m.setObjective(obj, GRB.MAXIMIZE)
 
     # I2R loss iteration
@@ -214,14 +222,14 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             'p_ch': ch_val, 'p_dis': dis_val,
             'storage_mode': _classify_storage_mode(ch_val, dis_val),
         }
-    return True, lmp, m.ObjVal, agent_res, p_grid_import.X - p_grid_export.X
+    return True, lmp, m.ObjVal, agent_res, p_grid.X
 
 
 # ===========================================================================
 # Multi-period joint optimization (batch LinDistFlow)
 # ===========================================================================
 def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholesale,
-                            storage_units=None):
+                            storage_units=None, horizon_type="auto"):
     """
     Multi-period joint LinDistFlow with storage SOC transition and terminal value.
     Uses a persistent model cache to avoid rebuilding Gurobi model on repeated calls.
@@ -246,6 +254,10 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                              config.dt_scaled_money,
                              config.storage.self_schedule,
                              config.network.reactive_support,
+                             # Decides whether the model carries the terminal
+                             # state-of-charge pin, so a cached model built for
+                             # one kind of horizon must not answer the other.
+                             horizon_type,
                          ))
     if key in _OPF_CACHE:
         cached = _OPF_CACHE[key]
@@ -254,7 +266,7 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                            mpc_schedules=mpc_schedules_ldf)
 
     # First call: build and cache the model
-    cached = _CachedOPFModel(net, agents, T, config, su_list)
+    cached = _CachedOPFModel(net, agents, T, config, su_list, horizon_type)
     _OPF_CACHE[key] = cached
     return cached.solve(agents, T, stage, config, action_params,
                        wholesale, su_list,
@@ -324,9 +336,11 @@ class _CachedOPFModel:
     updating only variable bounds and rebuilding the objective expression.
     """
 
-    def __init__(self, net, agents, T, config, storage_units):
+    def __init__(self, net, agents, T, config, storage_units,
+                 horizon_type="auto"):
         self.net = net
         self.T = T
+        self.horizon_type = horizon_type
         self.n_buses = len(net.bus.index)
         self.buses = list(net.bus.index)
         self.lines = _select_radial_lines(net)
@@ -354,11 +368,7 @@ class _CachedOPFModel:
                            ub=config.network.v_max_pu, name="V")
         self.P = m.addVars(T, lines, lb=-GRB.INFINITY, name="P")
         self.Q = m.addVars(T, lines, lb=-GRB.INFINITY, name="Q")
-        self.p_grid_import = m.addVars(T, lb=0, ub=GRB.INFINITY,
-                                       name="p_grid_import")
-        self.p_grid_export = m.addVars(T, lb=0,
-                                       ub=config.network.reverse_power_limit_mw,
-                                       name="p_grid_export")
+        self.p_grid, self.imp_aux = add_grid_exchange(m, T, config)
         self.q_grid = m.addVars(T, lb=-GRB.INFINITY, name="q_grid")
         self.p_loss = m.addVars(T, buses, lb=0, ub=GRB.INFINITY, name="p_loss")
 
@@ -407,6 +417,9 @@ class _CachedOPFModel:
                                      ub=su.storage.soc_max, name=f"soc_{nm}")
             self.soc[nm][0].LB = su.storage.soc0
             self.soc[nm][0].UB = su.storage.soc0
+            # One net flow per unit, with charge and discharge as its parts;
+            # see dispatch_core.add_storage_net_power.
+            add_storage_net_power(m, nm, su.storage, T, self.ch, self.dis)
 
         # Zero-out ch/dis for non-storage agents
         stor_names = {a.name for a in storage_agents} | {su.name for su in su_list}
@@ -440,8 +453,7 @@ class _CachedOPFModel:
         pv = self.pv; wind = self.wind; ch = self.ch; dis = self.dis
         soc = self.soc; q_re = self.q_re
         V = self.V; P = self.P; Q = self.Q
-        p_grid_import = self.p_grid_import
-        p_grid_export = self.p_grid_export
+        p_grid = self.p_grid
         q_grid_var = self.q_grid
         p_loss = self.p_loss
 
@@ -458,7 +470,7 @@ class _CachedOPFModel:
             for b in buses:
                 inj = gp.LinExpr()
                 if b == slack_bus:
-                    inj += p_grid_import[t] - p_grid_export[t]
+                    inj += p_grid[t]
                 for a in agents_list:
                     if a.bus == b:
                         nm = a.name
@@ -577,12 +589,24 @@ class _CachedOPFModel:
 
             if config.network.ramp_limit_mw_per_period is not None and t > 0:
                 ramp = config.network.ramp_limit_mw_per_period
-                net_t = p_grid_import[t] - p_grid_export[t]
-                net_tm1 = p_grid_import[t - 1] - p_grid_export[t - 1]
+                net_t = p_grid[t]
+                net_tm1 = p_grid[t - 1]
                 m.addConstr(net_t - net_tm1 <= ramp,
                             f"ramp_up_grid_{t}")
                 m.addConstr(net_tm1 - net_t <= ramp,
                             f"ramp_down_grid_{t}")
+
+        # Terminal state of charge pinned to the initial one on a settled
+        # horizon; see dispatch_core.pins_terminal_soc for what decides that.
+        # Without this the flag is silently ignored here while SOCP honours it,
+        # and the two engines would answer the same request differently.
+        if pins_terminal_soc(config, T, self.horizon_type):
+            for a in storage_agents:
+                m.addConstr(soc[a.name][T] == soc[a.name][0],
+                            f"terminal_soc_{a.name}")
+            for su in su_list:
+                m.addConstr(soc[su.name][T] == soc[su.name][0],
+                            f"terminal_soc_{su.name}")
 
     def solve(self, agents, T, stage, config, action_params, wholesale,
               storage_units, mpc_schedules=None):
@@ -602,8 +626,8 @@ class _CachedOPFModel:
         pv = self.pv; wind = self.wind; ch = self.ch; dis = self.dis
         soc = self.soc; q_re = self.q_re
         V = self.V; P_line = self.P; Q_line = self.Q
-        p_grid_import = self.p_grid_import
-        p_grid_export = self.p_grid_export
+        p_grid = self.p_grid
+        imp_aux = self.imp_aux
         p_loss = self.p_loss
 
         # ---- Update variable bounds ----
@@ -647,9 +671,11 @@ class _CachedOPFModel:
                 nm = a.name
                 if nm not in q_re:
                     continue
-                s_max = a.pv_capacity + a.wind_capacity
+                s_max = (a.pv_capacity + a.wind_capacity) \
+                    * config.network.inverter_smax_multiplier
                 if a.storage:
-                    s_max += a.storage.p_dis_max
+                    s_max += a.storage.p_dis_max \
+                        * config.network.inverter_smax_multiplier
                 for t in range(T):
                     q_re[nm][t].LB = -s_max
                     q_re[nm][t].UB = s_max
@@ -686,7 +712,7 @@ class _CachedOPFModel:
                 carbon_expr = gp.LinExpr()
                 for t in range(T):
                     carbon_expr += (config.market_design.emission_factor_grid
-                                    * p_grid_import[t] * DT_HOURS)
+                                    * imp_aux[t] * DT_HOURS)
                 try:
                     cc = m.getConstrByName("carbon_cap")
                     if cc is not None:
@@ -771,13 +797,12 @@ class _CachedOPFModel:
                                     + dis[nm][t]) * dt_scale
                 obj -= config.market_design.penalty_unserved \
                     * unserved[nm][t] * dt_scale
-            obj -= wholesale[t] * (p_grid_import[t]
-                                   - p_grid_export[t]) * dt_scale
+            obj -= wholesale[t] * p_grid[t] * dt_scale
             if config.market_design.enable_multi_objective:
                 if config.market_design.lambda_carbon > 0:
                     obj -= (config.market_design.lambda_carbon
                             * config.market_design.emission_factor_grid
-                            * p_grid_import[t] * DT_HOURS)
+                            * imp_aux[t] * DT_HOURS)
                 if config.market_design.lambda_re > 0:
                     for a in agents_list:
                         nm = a.name
@@ -805,8 +830,14 @@ class _CachedOPFModel:
             nm = su.name
             su_bid[nm] = np.full(T, su.bid_value)
             su_offer[nm] = np.full(T, su.offer_cost)
+            check_storage_quote_signs(su.bid_value, su.offer_cost,
+                                      config.storage.cycle_cost,
+                                      f"storage {nm}")
             for t in range(T):
-                obj += su_bid[nm][t] * ch[nm][t] * dt_scale
+                # Both legs costed: charging is not rewarded, so the two
+                # declared prices are the reservations between which the unit
+                # will cycle. See dispatch_core.add_storage_net_power.
+                obj -= su_bid[nm][t] * ch[nm][t] * dt_scale
                 obj -= su_offer[nm][t] * dis[nm][t] * dt_scale
                 if config.storage.cycle_cost > 0:
                     obj -= config.storage.cycle_cost \
@@ -866,13 +897,12 @@ class _CachedOPFModel:
                                              + dis[nm][t]) * dt_scale
                         obj2 -= config.market_design.penalty_unserved \
                             * unserved[nm][t] * dt_scale
-                    obj2 -= wholesale[t] * (p_grid_import[t]
-                                            - p_grid_export[t]) * dt_scale
+                    obj2 -= wholesale[t] * p_grid[t] * dt_scale
                     if config.market_design.enable_multi_objective:
                         if config.market_design.lambda_carbon > 0:
                             obj2 -= (config.market_design.lambda_carbon
                                      * config.market_design.emission_factor_grid
-                                     * p_grid_import[t] * DT_HOURS)
+                                     * imp_aux[t] * DT_HOURS)
                         if config.market_design.lambda_re > 0:
                             for a in agents_list:
                                 nm = a.name
@@ -890,7 +920,7 @@ class _CachedOPFModel:
                 for su in su_list:
                     nm = su.name
                     for t in range(T):
-                        obj2 += su_bid[nm][t] * ch[nm][t] * dt_scale
+                        obj2 -= su_bid[nm][t] * ch[nm][t] * dt_scale
                         obj2 -= su_offer[nm][t] * dis[nm][t] * dt_scale
                         if config.storage.cycle_cost > 0:
                             obj2 -= config.storage.cycle_cost \
@@ -949,8 +979,14 @@ class _CachedOPFModel:
             * DT_HOURS for a in agents_list)
         total_re_used = 0.0
         total_curtailment = 0.0
-        carbon_emissions = 0.0
         total_served_mwh = 0.0
+
+        # Carbon over the horizon, charged on the import part of the net
+        # exchange rather than on a separate import variable the objective was
+        # free to inflate alongside an equal export.
+        carbon_emissions = grid_carbon_tco2(
+            [p_grid[t].X for t in range(T)],
+            config.market_design.emission_factor_grid)
 
         # Build radial path tree
         parent_line = {}
@@ -989,12 +1025,7 @@ class _CachedOPFModel:
                     cur = parent_b
                 lmp[t, i] = base_lmp * (1.0 + mlf)
 
-            pgi = p_grid_import[t].X
-            if pgi > 0:
-                carbon_emissions += (config.market_design.emission_factor_grid
-                                     * pgi * DT_HOURS)
-            schedules['GRID']['g_grid'][t] = (p_grid_import[t].X
-                                              - p_grid_export[t].X)
+            schedules['GRID']['g_grid'][t] = p_grid[t].X
 
             for a in agents_list:
                 nm = a.name

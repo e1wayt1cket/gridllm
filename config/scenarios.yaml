@@ -2,6 +2,18 @@
 # Adding a new scenario only requires adding a YAML entry — no Python changes.
 
 scenarios:
+  # The physical baseline the research scenarios are measured against: 11 MW
+  # peak load, 3.5 MW PV and 1.5 MW wind on separate branches, and four
+  # identical 1 MW / 4 MWh batteries as the only storage. Its parameters live in
+  # config/defaults.yaml, so this entry carries no multipliers of its own — a
+  # scenario-scoped multiplier would not be inherited by the other scenarios,
+  # and the device fleet is meant to be shared.
+  typical_day:
+    description: "Typical day physical baseline: 11 MW peak, 3.5 MW PV / 1.5 MW wind, 4 independent ESS"
+    with_wind: true
+    override_config:
+      network.line_capacity_multiplier: 1.5
+
   baseline:
     description: "Baseline: typical day, reference facilities"
     with_wind: true

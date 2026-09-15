@@ -677,7 +677,7 @@ class BiddingEnv:
         try:
             result = clear_market(window_agents, window_T, self.stage,
                                   window_actions, window_config,
-                                  wholesale=wholesale)
+                                  wholesale=wholesale, horizon_type="window")
         except Exception:
             result = None
         self._last_result = result
@@ -712,7 +712,8 @@ class BiddingEnv:
             try:
                 base_result = clear_market(
                     base_window_agents, window_T, self.stage,
-                    base_actions, window_config, wholesale=wholesale)
+                    base_actions, window_config, wholesale=wholesale,
+                    horizon_type="window")
             except Exception:
                 base_result = None
             self._last_base_result = base_result

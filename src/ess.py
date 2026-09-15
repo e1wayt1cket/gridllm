@@ -11,7 +11,11 @@ declares what it will pay to charge and what it asks to discharge; the clearing
 decides whether to take either, and settlement happens at the nodal price. The
 declared prices are anchored to an economically meaningful level rather than
 inherited from the local load type, whose willingness to pay for consumption has
-no meaning for a battery.
+no meaning for a battery. That level is a margin on the unit's own degradation
+cost, not the market price: the clearing costs charging at the declared bid, so
+a unit cycles only when the day's spread covers both quotes and the round trip,
+and an anchor set to the mean wholesale price demands a spread no day offers.
+See `StorageConfig.quote_anchor`.
 """
 
 from typing import List, Optional
@@ -67,13 +71,7 @@ def build_ess_fleet(T: int, config: MarketConfig,
     power_ratio = float(cfg.get("power_ratio", 0.4))
     power = capacity * power_ratio
 
-    anchor = config.storage.bid_anchor
-    if anchor is None:
-        if wholesale is None or len(wholesale) == 0:
-            raise ValueError(
-                "no storage bid anchor: config.storage.bid_anchor is unset and "
-                "no wholesale curve was given to derive one from")
-        anchor = float(np.mean(np.asarray(wholesale, dtype=float)))
+    anchor = config.storage.quote_anchor()
 
     zeros = np.zeros(T)
     fleet = []

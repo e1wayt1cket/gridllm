@@ -47,7 +47,14 @@ def two_settlement(agents, da, rt):
     return payments, breakdown
 
 def clear_market(agents, T, stage, action_params, config, storage_units=None,
-                 wholesale=None):
+                 wholesale=None, horizon_type="auto"):
+    """Clear one market.
+
+    `horizon_type` says whether this call settles a whole day or clears a
+    rolling window; it decides whether storage's final state of charge is
+    pinned (see dispatch_core.pins_terminal_soc). The default infers it from
+    the horizon length, which is what callers did before the parameter existed.
+    """
     if stage == "DA" and config.rt.da_rolling_enabled:
         return clear_da_rolling(agents, T, action_params, config, storage_units,
                                 wholesale=wholesale)
@@ -65,7 +72,8 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
     if config.opf_mode in ("lindistflow", "socp"):
         batch_fn = get_clearing_mechanism(config.opf_mode)["batch_fn"]
         result = batch_fn(base_net, agents, T, stage, config,
-                          action_params, wholesale, storage_units)
+                          action_params, wholesale, storage_units,
+                          horizon_type=horizon_type)
         if result is not None:
             return result
         else:
@@ -260,11 +268,13 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
             from dispatch_socp import solve_socp_opf_batch
             result = solve_socp_opf_batch(
                 base_net, window_agents, window_T, "DA", window_config,
-                action_params, price_slice, window_storage_units)
+                action_params, price_slice, window_storage_units,
+                horizon_type="window")
         else:
             result = solve_lindist_opf_batch(
                 base_net, window_agents, window_T, "DA", window_config,
-                action_params, price_slice, window_storage_units)
+                action_params, price_slice, window_storage_units,
+                horizon_type="window")
 
         n_commit = min(step, window_T)
         if result is not None:
@@ -344,7 +354,17 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
 
 def _make_window_agents(agents, t_start, t_end, prev_soc, action_params):
     """Create copies of agents with sliced data arrays and updated storage SOC for
-    a rolling-horizon window [t_start, t_end)."""
+    a rolling-horizon window [t_start, t_end).
+
+    Everything attached to the participant travels with it, not only the
+    profiles. Installed capacity is read inside the clearing solver to size the
+    inverter's apparent-power limit, so an agent sliced without it has an
+    inverter that cannot supply reactive power and, through the coupling
+    between the two, loses real output as well; and the participant type is
+    what selects the settlement ledger, so a unit that lost it would be paid on
+    someone else's books. The sliced arrays are what makes a window a window;
+    the rest is the participant, and slicing must not quietly redefine it.
+    """
     from models import Agent as AgentCls
     window_agents = []
     for a in agents:
@@ -359,6 +379,9 @@ def _make_window_agents(agents, t_start, t_end, prev_soc, action_params):
             wind_real=a.wind_real[t_start:t_end].copy() if a.has_wind else None,
             storage=deepcopy(a.storage) if a.storage else None,
             load_type=a.load_type,
+            pv_capacity=a.pv_capacity,
+            wind_capacity=a.wind_capacity,
+            participant_type=getattr(a, "participant_type", "prosumer"),
         )
         if wa.storage is not None and wa.name in prev_soc:
             wa.storage.soc0 = prev_soc[wa.name]
@@ -423,12 +446,14 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
             from dispatch_socp import solve_socp_opf_batch
             result = solve_socp_opf_batch(
                 base_net, window_agents, window_T, "RT", window_config,
-                action_params_base, forecast, window_storage_units
+                action_params_base, forecast, window_storage_units,
+                horizon_type="window",
             )
         else:
             result = solve_lindist_opf_batch(
                 base_net, window_agents, window_T, "RT", window_config,
-                action_params_base, forecast, window_storage_units
+                action_params_base, forecast, window_storage_units,
+                horizon_type="window",
             )
 
         n_commit = min(rt_step, window_T)

@@ -24,6 +24,7 @@ import pytest
 
 from models import MarketConfig
 from market import clear_market
+from participant_payoff import participant_payoff
 from scenarios import get_scenario
 
 # Solver output is a float; anything below this is numerical noise rather than
@@ -132,10 +133,11 @@ def test_no_simultaneous_charge_discharge_rl_path():
 def test_no_simultaneous_charge_discharge_under_shaded_bid():
     """A shaded bid must not open a simultaneity incentive.
 
-    The clearing objective credits the agent's declared charge bid, so the
-    incentive to cycle one battery both ways scales with `bid_mult`. This is the
-    range the RL action space reaches, so exclusivity has to hold here and not
-    only at truthful bidding.
+    The action space reaches ``bid_mult`` up to 1.8, so exclusivity has to hold
+    across the range the policy explores and not only at the anchor. The bid is
+    a reservation price on charging now rather than a credit, so shading it up
+    makes the unit more reluctant to charge, but the pair is still the widest
+    spread the action can declare and is worth checking here.
     """
     agents, _, result = _clear(96, _rl_path_config(), bid_mult=1.8)
     assert result is not None, "baseline SOCP clear should succeed"
@@ -143,45 +145,70 @@ def test_no_simultaneous_charge_discharge_under_shaded_bid():
 
 
 @pytest.mark.slow
-def test_market_rule_is_what_prevents_simultaneity():
-    """Controlled comparison: the market rule, not the bid anchor, is the guard.
+def test_simultaneity_is_unrepresentable_rather_than_forbidden():
+    """Charge and discharge are the parts of one flow, so they cannot overlap.
 
-    Two mechanisms independently suppress simultaneity. Pricing storage from an
-    economic anchor leaves the truthful bid non-crossing, so at ``bid_mult=1``
-    the defect is already gone and a control at that setting would test the
-    anchor rather than the rule. Shading the bid defeats the anchor, which is
-    what isolates the rule: without it the defect returns, with it the dispatch
-    stays physically possible.
+    This used to assert the opposite: that switching off the no-crossing rule
+    let a shaded bid induce simultaneity, which is what made that rule load
+    bearing. The two directions are now the positive and negative parts of a
+    single variable, so the overlap is not something a rule suppresses -- it is
+    a dispatch the model cannot express, and the flag that used to control it
+    is inert. The check is run with the flag off and a crossing quote, the two
+    conditions under which the old defect was reachable, and it has to find
+    both legs in use, or "no overlap" would be satisfied by a parked battery.
     """
-    T = 16
-    agents_off, _, result_off = _clear(
+    T = 96
+    agents, _, result = _clear(
         T, _rl_path_config(churn_free_quotes=False), bid_mult=1.8)
-    assert result_off is not None
-    rows_off = simultaneity_rows(agents_off, result_off)
-    total_off = total_simultaneous(rows_off)
-    assert total_off > EXCLUSIVITY_TOL, (
-        "expected a simultaneous charge/discharge without the market rule, but "
-        "found none; the invariant tests can no longer detect the defect:\n"
-        f"{format_report(rows_off)}")
+    assert result is not None, "baseline SOCP clear should succeed"
 
-    agents_on, _, result_on = _clear(
-        T, _rl_path_config(churn_free_quotes=True), bid_mult=1.8)
-    assert result_on is not None
-    total_on = total_simultaneous(simultaneity_rows(agents_on, result_on))
-    assert total_on < EXCLUSIVITY_TOL, (
-        f"the market rule should remove the {total_off:.4f} MW of simultaneity "
-        f"the shaded bid induces, but {total_on:.4f} MW remains")
+    rows = simultaneity_rows(agents, result)
+    assert total_simultaneous(rows) < EXCLUSIVITY_TOL, format_report(rows)
+    assert any(r["charge_mw"] > 0 for r in rows), \
+        "no unit charged, so the exclusivity check is vacuous"
+    assert any(r["discharge_mw"] > 0 for r in rows), \
+        "no unit discharged, so the exclusivity check is vacuous"
+
+
+@pytest.mark.slow
+def test_a_crossing_quote_is_accepted_and_still_exclusive():
+    """A unit may declare a charge bid above its discharge offer.
+
+    That pair is how a battery says it will buy dearer than it is currently
+    asking to sell, and it is exactly the case the old rule forbade: the
+    effective bid was capped at the offer, which left storage unable to charge
+    above what it asked to discharge and therefore never discharging. It is
+    now the case the decomposition is built to accept -- the net flow decides
+    which leg applies, not a cap on the quotes -- so the crossing pair must
+    clear, must use both legs, and must still produce no overlap.
+    """
+    for mode in ("socp", "lindistflow"):
+        config = _rl_path_config()
+        config.opf_mode = mode
+        agents, _, result = _clear(96, config, bid_mult=1.8)
+        assert result is not None, f"{mode} clear should succeed"
+
+        storage = [a for a in agents if a.storage is not None]
+        crossing = [a for a in storage if a.bid_value * 1.8 > a.offer_cost]
+        assert crossing, f"{mode}: the shaded bid did not cross the offer"
+
+        rows = simultaneity_rows(agents, result)
+        assert total_simultaneous(rows) < EXCLUSIVITY_TOL, \
+            f"{mode} with a crossing quote:\n{format_report(rows)}"
+        assert any(r["charge_mw"] > 0 and r["discharge_mw"] > 0 for r in rows), \
+            f"{mode}: a crossing quote left every unit on one leg only"
 
 
 @pytest.mark.slow
 def test_lindistflow_is_structurally_churn_free():
     """Pin that the LinDistFlow solver needs no exclusivity rule.
 
-    LinDistFlow values storage as ``wholesale * (dis - ch)`` — symmetric
-    opposite coefficients — so its objective coefficient for simultaneous
-    charge/discharge is ``-2 * cycle_cost`` and the defect cannot arise. The
-    no-crossing rule is therefore SOCP-only; this records that difference
-    between the two batch solvers so it cannot drift unnoticed.
+    Its prosumer batteries are valued at ``wholesale * (dis - ch)`` — symmetric
+    opposite coefficients — so their objective coefficient for simultaneous
+    charge/discharge is ``-2 * cycle_cost`` and the defect cannot arise; and
+    the independent fleet, which is valued at declared quotes, has charge and
+    discharge tied to one net flow. This records that both batch solvers reach
+    the same guarantee by different means so the difference cannot drift.
     """
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     config.storage.self_schedule = False
@@ -191,12 +218,90 @@ def test_lindistflow_is_structurally_churn_free():
 
 
 @pytest.mark.slow
+def test_the_continuous_relaxation_is_validated_against_the_exact_model():
+    """A whole day, cleared both ways, compared on what the day is quoted for.
+
+    The claim the reformulation rests on is that charge and discharge are the
+    positive and negative parts of one net flow once their objective
+    coefficients are negative, so the relaxation is exact and no exclusive-or
+    is needed. That claim is checkable: the exact model is the same problem
+    with an explicit binary per unit-period, and if the argument is right the
+    two must agree on everything the baseline reports.
+
+    Two limits on what this can show, stated rather than buried. Per-period
+    charge and discharge are not compared, because the optimum is degenerate --
+    four identical units arbitrage one spread against a state of charge that has
+    to close, so whole families of schedules attain the same value and the two
+    solves may land on different members of the same family. And the exact
+    model's nodal prices come from re-solving it continuously with the chosen
+    directions frozen, because a MIP has no duals; the prices compared here are
+    therefore a property of that re-solve, not of the integer program.
+    """
+    T = 96
+    agents_rule, _, result_rule = _clear(T, _rl_path_config())
+    agents_bin, _, result_bin = _clear(
+        T, _rl_path_config(exclusive_mode="binary"))
+    assert result_rule is not None and result_bin is not None
+
+    _assert_no_simultaneity(agents_bin, result_bin, "exact binary model")
+
+    # The objective is the claim itself, so it is held tightest.
+    assert result_bin["objective"] == pytest.approx(
+        result_rule["objective"], rel=1e-5), (
+        f"the relaxation is not exact: objective {result_rule['objective']:.4f} "
+        f"against the exact model's {result_bin['objective']:.4f}")
+
+    for a_rule, a_bin in zip(agents_rule, agents_bin):
+        if a_rule.storage is None:
+            continue
+        s_rule = result_rule["schedules"][a_rule.name]
+        s_bin = result_bin["schedules"][a_bin.name]
+
+        # State of charge is the physical state, so it is compared per period.
+        assert np.allclose(s_rule["soc"], s_bin["soc"], atol=1e-4), (
+            f"{a_rule.name}: state of charge differs by "
+            f"{np.abs(np.asarray(s_rule['soc']) - np.asarray(s_bin['soc'])).max():.2e}")
+
+        # Day totals rather than per-period, for the degeneracy above.
+        for key in ("p_ch", "p_dis"):
+            got = float(np.sum(s_bin[key])) * 0.25
+            want = float(np.sum(s_rule[key])) * 0.25
+            assert abs(got - want) <= 1e-3, (
+                f"{a_rule.name}: daily {key} {got:.6f} MWh against "
+                f"{want:.6f} MWh in the relaxation")
+
+    lmp_rule = np.asarray(result_rule["lmp"], dtype=float)
+    lmp_bin = np.asarray(result_bin["lmp"], dtype=float)
+    assert np.allclose(lmp_bin, lmp_rule, rtol=5e-3, atol=0.05), (
+        "nodal prices differ beyond a fraction of a percent (worst "
+        f"{np.abs(lmp_bin - lmp_rule).max():.2f} CNY/MWh), which is the shape "
+        "a wholesale fallback would take")
+    assert (lmp_bin.max(axis=1) - lmp_bin.min(axis=1)).max() > 1.0, \
+        "every bus shares one price within a period"
+
+    # And the money, which is what the model is finally for.
+    def fleet_profit(agents, result, config):
+        return sum(participant_payoff(
+            result["schedules"][a.name], np.asarray(result["lmp"])[:, a.bus],
+            a, config).total for a in agents if a.storage is not None)
+
+    profit_rule = fleet_profit(agents_rule, result_rule, _rl_path_config())
+    profit_bin = fleet_profit(agents_bin, result_bin,
+                              _rl_path_config(exclusive_mode="binary"))
+    assert abs(profit_bin - profit_rule) <= 1.0, (
+        f"settled profit differs by {abs(profit_bin - profit_rule):.4f} CNY "
+        f"({profit_rule:.2f} against {profit_bin:.2f})")
+
+
+@pytest.mark.slow
 def test_binary_exclusivity_agrees_with_the_market_rule():
     """Cross-check: the exact binary form reaches the same clearing outcome.
 
-    The market rule is an incentive argument, so it is worth confirming that an
-    explicit exclusive-or on charge/discharge — exact by construction — leaves
-    the dispatch, the nodal prices and the objective value unchanged.
+    The decomposition of charge and discharge into the parts of one net flow is
+    exact by an argument about objective coefficient signs, so it is worth
+    confirming that an explicit exclusive-or on charge/discharge — exact by
+    construction — leaves the dispatch, the nodal prices and the objective
+    value unchanged. This is the comparison that makes the argument falsifiable.
     """
     T = 16
     config_rule = _rl_path_config(churn_free_quotes=True)

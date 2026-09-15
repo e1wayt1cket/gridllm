@@ -20,6 +20,165 @@ STORAGE_MODE_THRESHOLD = 1e-6  # below this, ch/dis is treated as zero
 
 
 # ===========================================================================
+# Horizon semantics
+# ===========================================================================
+HORIZON_TYPES = ("auto", "full_day", "window")
+
+
+def pins_terminal_soc(config, T: int, horizon_type: str = "auto") -> bool:
+    """Whether this clear pins every storage unit's final state of charge.
+
+    Pinning makes a comparison like for like: a day that finishes with a fuller
+    battery has banked energy it never sold, so cash alone would reward
+    whichever policy ran the battery down. It belongs to the settled horizon
+    and not to a rolling window, where the pin would forbid the trajectory the
+    window was opened to choose.
+
+    "auto" keeps the inference this used to make from the horizon length. That
+    inference is a guess about the caller's intent, and it is wrong both for a
+    window that happens to be a whole day long and for a whole day at any other
+    period length, so a caller that knows which one it is passing should say.
+    """
+    if horizon_type not in HORIZON_TYPES:
+        raise ValueError(
+            f"unknown horizon_type {horizon_type!r}; expected one of "
+            f"{HORIZON_TYPES}")
+    if not config.storage.terminal_soc_equal:
+        return False
+    if horizon_type == "full_day":
+        return True
+    if horizon_type == "window":
+        return False
+    return T == money.PERIODS_PER_DAY
+
+
+# ===========================================================================
+# Storage: one power flow, decomposed into charging and discharging
+# ===========================================================================
+def add_storage_net_power(m, nm: str, storage, T: int, ch, dis):
+    """Give a storage unit one net power flow and tie charge/discharge to it.
+
+    A battery has one power flow. Modelling it as two independent variables
+    needs something extra to stop both being positive at once, and every such
+    device so far has been an artificial rule bolted onto the quotes: a charge
+    bid capped at the discharge offer, or a binary per unit-period. The cap
+    worked, but it worked by forbidding exactly the price spread a battery uses
+    to express arbitrage, so under it storage charged and never discharged.
+
+    Here the two directions are the parts of one variable. `net` is free over
+    the unit's own envelope, positive meaning discharge, and charge and
+    discharge are held at or above its negative and positive parts. Both are
+    pushed down to those parts by their objective coefficients, which are
+    negative on every leg the clearing pays (the declared charge bid, the
+    declared discharge offer, and the degradation charge), so at any optimum
+    `ch = max(-net, 0)` and `dis = max(net, 0)`. Two non-negative numbers
+    cannot both be the parts of one number, so overlapping charge and discharge
+    is not forbidden by a rule -- it cannot be written down.
+
+    This also makes the unit's arbitrage expressible: charging is costed at the
+    declared bid and discharging at the declared offer, so the two quotes are
+    the prices between which the unit will cycle, and they may cross. The cost
+    is that a higher charge bid makes a unit *less* willing to charge, which is
+    the opposite of what the same quote meant when charging was rewarded.
+
+    Returns the net variable, a Gurobi tupledict indexed by period. Callers keep
+    their existing charge/discharge expressions: at an optimum `dis - ch` is
+    exactly `net`, so the power balance and the state-of-charge transition need
+    no rewriting.
+    """
+    net = m.addVars(T, lb=-storage.p_ch_max, ub=storage.p_dis_max,
+                    name=f"net_{nm}")
+    for t in range(T):
+        m.addConstr(ch[nm][t] >= -net[t], f"net_ch_{nm}_{t}")
+        m.addConstr(dis[nm][t] >= net[t], f"net_dis_{nm}_{t}")
+    return net
+
+
+def check_storage_quote_signs(bid: float, offer: float, cycle_cost: float,
+                              where: str):
+    """Refuse quotes under which the decomposition above is not exact.
+
+    The parts are pinned to the net flow by their objective coefficients being
+    negative. A negative quote flips one of them positive, and the optimizer
+    then drives that auxiliary to its *upper* bound instead -- buying objective
+    value with a dispatch that cancels in the power balance. A zero quote is
+    only safe while something else on the same leg stays negative.
+    """
+    if bid < 0 or offer < 0:
+        raise ValueError(
+            f"{where}: storage quotes must be non-negative, got bid={bid}, "
+            f"offer={offer}")
+    if bid + cycle_cost <= 0 or offer + cycle_cost <= 0:
+        raise ValueError(
+            f"{where}: storage needs a strictly negative objective coefficient "
+            f"on both legs to pin charge and discharge to the net flow; with "
+            f"bid={bid}, offer={offer}, cycle_cost={cycle_cost} one leg is not")
+
+
+# ===========================================================================
+# Grid exchange
+# ===========================================================================
+def grid_import_export(net_mw):
+    """Split a net exchange into non-negative import and export.
+
+    Positive draws from the upper grid, negative is a reverse flow. The two are
+    the positive and negative parts of one quantity, so they cannot both be
+    non-zero -- that used to be a property the solution happened to have, and is
+    now a property of the representation.
+
+    Returns (import_mw, export_mw), each matching the shape of the input.
+    """
+    net = np.asarray(net_mw, dtype=float)
+    return np.maximum(net, 0.0), np.maximum(-net, 0.0)
+
+
+def grid_carbon_tco2(net_mw, emission_factor: float) -> float:
+    """Carbon over a horizon from the import part of the net exchange.
+
+    Charging on the gross import of a model that carries import and export as
+    two variables overstates this by the amount by which the solver inflated
+    both together, which it was free to do because they shared a price.
+    """
+    imported, _ = grid_import_export(net_mw)
+    return float(np.sum(imported) * DT_HOURS * emission_factor)
+
+
+def add_grid_exchange(m, T, config, prefix: str = "p_grid"):
+    """A single free net-exchange variable plus the import auxiliary.
+
+    Import is unbounded and reverse flow is capped by
+    `reverse_power_limit_mw`, which for one variable is the same statement as
+    bounding it below. Pricing a single variable at the wholesale price removes
+    the direction the objective used to be flat in: with import and export
+    separate and equally priced, raising both by the same amount changed
+    nothing, so the solver parked export at its cap in every period and
+    inflated import to match.
+
+    The auxiliary carries the carbon charge. It is bounded below by the
+    exchange and by zero, and every objective coefficient it appears under is
+    non-positive (a carbon price, or the penalty on a carbon-cap slack that is
+    driven to zero), so the optimizer drives it down to exactly
+    `max(exchange, 0)` without needing a binary variable. Where no carbon term
+    is active at all the auxiliary is unused and may sit anywhere at or above
+    its lower bound, which is why reported carbon is computed from the exchange
+    in `grid_carbon_tco2` rather than read back off this variable.
+
+    Returns (p_grid, imp_aux), both Gurobi tupledicts indexed by period.
+    """
+    # Imported here rather than at module scope: this module is also loaded on
+    # paths that run without Gurobi, and the callers of this helper are the only
+    # ones that need it.
+    import gurobipy as gp
+
+    p_grid = m.addVars(T, lb=-config.network.reverse_power_limit_mw,
+                       ub=gp.GRB.INFINITY, name=prefix)
+    imp_aux = m.addVars(T, lb=0, ub=gp.GRB.INFINITY, name=f"{prefix}_import")
+    for t in range(T):
+        m.addConstr(imp_aux[t] >= p_grid[t], f"{prefix}_import_lb_{t}")
+    return p_grid, imp_aux
+
+
+# ===========================================================================
 # Storage constraint engine
 # ===========================================================================
 class StorageConstraints:

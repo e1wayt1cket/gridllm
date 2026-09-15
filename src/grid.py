@@ -107,6 +107,17 @@ def create_agents_from_network(
     load_cfg = cfg["profiles"]["load"]
     load_fcast_sigma = load_cfg.get("forecast_noise_sigma", 0.06)
     load_real_sigma = load_cfg.get("real_noise_sigma", 0.12)
+    # Fleet-wide load level. Applied to the finished load profiles only, so it
+    # sets how much energy the network serves without touching the per-bus
+    # `base_load` that sizes PV, wind and batteries.
+    #
+    # An explicit `load_scale` is used as given. Otherwise the scale is derived
+    # once the profiles exist, from the coincident peak they actually produce;
+    # that derivation needs every bus, so it happens after the loop below and
+    # the profiles are built unscaled in the meantime.
+    target_peak_mw = load_cfg.get("target_peak_mw")
+    explicit_scale = load_cfg.get("load_scale")
+    load_scale = float(explicit_scale) if explicit_scale is not None else 1.0
 
     # ---- Build bus → load_type map from config ----
     bus_to_type: Dict[int, str] = {}
@@ -131,11 +142,15 @@ def create_agents_from_network(
 
         load_type = bus_to_type.get(bus, "industrial")
         lt_cfg = get_load_type_cfg(load_type)
+        # Sizing basis for this bus: the rated load scaled by the load type's
+        # multiplier. Deliberately NOT scaled by `load_scale` — PV, wind and
+        # storage capacity are read off this quantity, so scaling it would make
+        # the load level inflate every device on the bus as well.
         base_load = p_mw * lt_cfg.get("load_multiplier", 1.0)
         diurnal = _make_load_profile(hours, load_type, load_cfg)
 
-        load_forecast = _noisy_load(diurnal * base_load, load_fcast_sigma, seed=bus * 10 + 0)
-        load_real = _noisy_load(diurnal * base_load, load_real_sigma, seed=bus * 10 + 1)
+        load_forecast = _noisy_load(diurnal * base_load, load_fcast_sigma, seed=bus * 10 + 0) * load_scale
+        load_real = _noisy_load(diurnal * base_load, load_real_sigma, seed=bus * 10 + 1) * load_scale
 
         is_prosumer = bus in prosumer_buses.get(load_type, set())
         pv_cap_installed = 0.0
@@ -178,30 +193,40 @@ def create_agents_from_network(
                 wind_forecast = _noisy_load(bus_wind * wind_cap, wind_fcast_noise, seed=bus * 10 + 4)
                 wind_real = _noisy_load(bus_wind * wind_cap, wind_real_noise, seed=bus * 10 + 5)
 
-            st_cfg = ps_cfg.get("storage", {})
-            storage_capacity = base_load * st_cfg.get("capacity_factor", 2.0)
-            storage_power = storage_capacity * st_cfg.get("power_ratio", 0.2)
-            storage = StorageSpec(
-                e_max=storage_capacity,
-                p_ch_max=storage_power,
-                p_dis_max=storage_power,
-                eta_ch=st_cfg.get("eta_ch", 0.93),
-                eta_dis=st_cfg.get("eta_dis", 0.93),
-                soc0=st_cfg.get("soc0", 0.5),
-                soc_min=st_cfg.get("soc_min", 0.10),
-                soc_max=st_cfg.get("soc_max", 1.0),
-            )
-
-            # Apply per-bus overrides from YAML config
             bus_ov = ps_cfg.get("bus_overrides", {}).get(bus, {})
-            st_ov = bus_ov.get("storage", {})
-            for attr in ("soc0", "soc_min", "soc_max", "eta_ch", "eta_dis"):
-                if attr in st_ov:
-                    setattr(storage, attr, st_ov[attr])
-            pr_mult = st_ov.get("power_ratio_mult", 1.0)
-            if pr_mult != 1.0:
-                storage.p_ch_max = storage_power * pr_mult
-                storage.p_dis_max = storage_power * pr_mult
+            st_cfg = ps_cfg.get("storage", {})
+            # A prosumer battery the configuration does not carry. It is skipped
+            # rather than sized down to zero: the SOC transition divides by
+            # e_max, so a zero-energy battery is not a model of "no battery".
+            # The skip belongs here, inside agent creation, because the bidding
+            # anchor is applied to whatever carries storage after this point —
+            # a battery-less prosumer must keep its own load type's willingness
+            # to pay and its own offer cost instead of inheriting the battery
+            # anchor, which is what decides whether its renewable output is
+            # worth dispatching.
+            if st_cfg.get("enabled", True):
+                storage_capacity = base_load * st_cfg.get("capacity_factor", 2.0)
+                storage_power = storage_capacity * st_cfg.get("power_ratio", 0.2)
+                storage = StorageSpec(
+                    e_max=storage_capacity,
+                    p_ch_max=storage_power,
+                    p_dis_max=storage_power,
+                    eta_ch=st_cfg.get("eta_ch", 0.93),
+                    eta_dis=st_cfg.get("eta_dis", 0.93),
+                    soc0=st_cfg.get("soc0", 0.5),
+                    soc_min=st_cfg.get("soc_min", 0.10),
+                    soc_max=st_cfg.get("soc_max", 1.0),
+                )
+
+                # Apply per-bus overrides from YAML config
+                st_ov = bus_ov.get("storage", {})
+                for attr in ("soc0", "soc_min", "soc_max", "eta_ch", "eta_dis"):
+                    if attr in st_ov:
+                        setattr(storage, attr, st_ov[attr])
+                pr_mult = st_ov.get("power_ratio_mult", 1.0)
+                if pr_mult != 1.0:
+                    storage.p_ch_max = storage_power * pr_mult
+                    storage.p_dis_max = storage_power * pr_mult
 
             # Assign PV to industrial prosumer buses that have pv:true in override
             if load_type == "industrial" and bus_ov.get("pv", False):
@@ -220,7 +245,7 @@ def create_agents_from_network(
             bid_val = lt_cfg.get("bid_value", 580.0)
             offer_cost = 999.0
             # Attach standalone storage to selected non-prosumer nodes
-            if bus in nps_buses and nps_cfg:
+            if bus in nps_buses and nps_cfg and nps_cfg.get("enabled", True):
                 nps_storage = StorageSpec(
                     e_max=base_load * nps_cfg.get("capacity_factor", 2.5),
                     p_ch_max=base_load * nps_cfg.get("capacity_factor", 2.5)
@@ -254,7 +279,52 @@ def create_agents_from_network(
         )
         agents.append(agent)
 
+    # --- derive the load scale from the target coincident peak ---
+    # The coincident peak is what the network actually draws at its busiest
+    # period, and it is the quantity worth stating: the sum of each bus's own
+    # maximum is larger and is reached at no single instant, so a target set on
+    # it would not bound the flow the feeder has to carry. Derived rather than
+    # hand-tuned so it survives a change to the profile shapes or the seeds.
+    if explicit_scale is None:
+        if target_peak_mw is None:
+            raise ValueError(
+                "no load level configured: set profiles.load.target_peak_mw, "
+                "or profiles.load.load_scale for an explicit factor")
+        raw_peak = _coincident_peak(agents)
+        if raw_peak <= 0:
+            raise ValueError(
+                "the unscaled load profiles peak at zero, so no scale can "
+                f"reach a target of {target_peak_mw} MW")
+        load_scale = float(target_peak_mw) / raw_peak
+        for a in agents:
+            a.load_forecast = a.load_forecast * load_scale
+            a.load_real = a.load_real * load_scale
+
     return agents
+
+
+def _coincident_peak(agents) -> float:
+    """The largest total load the fleet draws in any one period.
+
+    Distinct from the sum of each agent's own maximum, which is larger whenever
+    the buses peak at different times and is never actually drawn.
+    """
+    if not agents:
+        return 0.0
+    total = np.sum([np.asarray(a.load_forecast, dtype=float) for a in agents],
+                   axis=0)
+    return float(np.max(total))
+
+
+def _price_rng(cfg: dict):
+    """The generator the day-ahead price noise is drawn from.
+
+    Seeded when `price_curve.seed` is set, so that one configuration clears to
+    one curve. Returns the global generator when the seed is null, which is the
+    behaviour every result recorded before the seed existed was produced under.
+    """
+    seed = cfg.get("seed")
+    return np.random.RandomState(int(seed)) if seed is not None else np.random
 
 
 def day_ahead_price_china(T: int = 96, agents=None, config=None) -> np.ndarray:
@@ -299,13 +369,14 @@ def _forecast_price_synthetic(T: int, cfg: dict) -> np.ndarray:
     hard_max = cfg.get("hard_max", 1200.0)
 
     price = np.clip(price, min_p, max_p)
-    price = price + np.random.normal(0, noise_sigma, size=T)
+    rng = _price_rng(cfg)
+    price = price + rng.normal(0, noise_sigma, size=T)
 
     spike_prob = cfg.get("spike_probability", 0.05)
     spike_mag = cfg.get("spike_magnitude", 300.0)
     if spike_prob > 0:
-        spike_mask = np.random.random(T) < spike_prob
-        spike_signs = np.random.choice([-1, 1], size=T)
+        spike_mask = rng.random(T) < spike_prob
+        spike_signs = rng.choice([-1, 1], size=T)
         price += spike_mask * spike_signs * spike_mag
 
     price = np.clip(price, hard_min, hard_max)
@@ -356,14 +427,15 @@ def _forecast_price_merit_order(agents, T: int, config, cfg: dict) -> np.ndarray
     price = base * (1.0 + elasticity * net_load / max_demand)
     price = np.clip(price, floor, cap)
 
+    rng = _price_rng(cfg)
     if noise_sigma > 0:
-        price = price + np.random.normal(0, noise_sigma, size=T)
+        price = price + rng.normal(0, noise_sigma, size=T)
 
     spike_prob = cfg.get("spike_probability", 0.0)
     spike_mag = cfg.get("spike_magnitude", 300.0)
     if spike_prob > 0:
-        spike_mask = np.random.random(T) < spike_prob
-        spike_signs = np.random.choice([-1, 1], size=T)
+        spike_mask = rng.random(T) < spike_prob
+        spike_signs = rng.choice([-1, 1], size=T)
         price += spike_mask * spike_signs * spike_mag
 
     price = np.clip(price, hard_min, hard_max)

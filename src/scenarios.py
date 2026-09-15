@@ -1,6 +1,7 @@
 # scenarios.py
 import numpy as np
 from typing import List, Tuple
+import money
 from models import MarketConfig, Agent
 from ess import build_ess_fleet
 from grid import build_base_network, create_agents_from_network, day_ahead_price_china
@@ -108,12 +109,9 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
     # willingness to pay for consumption; the two describe different things.
     # Inheriting the load bid (650-850 CNY/MWh) prices charging well above what
     # the energy costs, and the clearing objective books that gap as surplus.
-    # Storage units are priced from a single anchor instead - storage.bid_anchor
-    # when set, otherwise the scenario's mean wholesale price - and the bidding
-    # action shades around it.
-    anchor = config.storage.bid_anchor
-    if anchor is None:
-        anchor = float(np.mean(wholesale))
+    # Storage units are priced from a single anchor instead - see
+    # StorageConfig.quote_anchor - and the bidding action shades around it.
+    anchor = config.storage.quote_anchor()
     for a in agents:
         if a.storage is not None:
             a.bid_value = float(anchor)
@@ -168,7 +166,47 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
     # generation for those steps to act on, and its capacity is its own knob.
     agents.extend(build_ess_fleet(T, config, wholesale=wholesale))
 
+    # Two agents sharing a name silently corrupt the clearing model: the batch
+    # solvers key charge, discharge and state of charge by agent name, so a
+    # second unit with the same name overwrites the first unit's variables and
+    # that unit then reports zero dispatch for the whole horizon without any
+    # error being raised. Refusing up front is cheaper than finding it later.
+    names = [a.name for a in agents]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    if duplicates:
+        raise ValueError(
+            f"duplicate agent names in scenario {name!r}: {duplicates}")
+
     return agents, wholesale
+
+
+def typical_day_config(T: int = money.PERIODS_PER_DAY) -> MarketConfig:
+    """The configuration the typical-day physical baseline is defined against.
+
+    Makes the canonical entry point executable rather than a description. The
+    horizon is checked instead of coerced because the terminal state of charge
+    is pinned only on a whole day: at any other T this would quietly be a
+    different model, and the baselines are all quoted for the whole day.
+    """
+    if T != money.PERIODS_PER_DAY:
+        raise ValueError(
+            f"the typical day is {money.PERIODS_PER_DAY} periods; got T={T}")
+    config = MarketConfig(opf_mode="socp")
+    config.market_design.enable_multi_objective = False
+    config.storage.self_schedule = False
+    config.storage.terminal_soc_equal = True
+    # Inverters rated a little above their arrays, which is how they are built:
+    # an inverter's real and reactive outputs share one apparent-power circle,
+    # so at parity every MVar spent holding the feeder inside its voltage band
+    # is a MWh of renewable output that cannot be delivered. Measured over
+    # 1.00-2.50, curtailment falls 1.64 to 0.00 MWh and load shedding 1.22 to
+    # 0.00 MWh, but shedding reaches zero only at 2.50 -- a 1 MW array behind a
+    # 2.5 MVA inverter, which is not a device anyone installs. At 1.10 both are
+    # roughly a third lower than at parity, and the remaining ~1.0 MWh of shed
+    # load is accepted rather than bought with an unphysical rating. See the
+    # headroom sweep in diagnose_typical_day.
+    config.network.inverter_smax_multiplier = 1.10
+    return config
 
 
 # ---- registry ----

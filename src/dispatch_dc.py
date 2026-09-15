@@ -17,6 +17,7 @@ from dispatch_core import (
     _build_line_params,
     _build_agent_info,
     _classify_storage_mode,
+    add_grid_exchange,
 )
 
 
@@ -55,11 +56,12 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         else:
             ch[nm] = m.addVar(lb=0, ub=0, name=f"ch_{nm}")
             dis[nm] = m.addVar(lb=0, ub=0, name=f"dis_{nm}")
-    p_grid_import = m.addVar(lb=0, ub=GRB.INFINITY, name="p_grid_import")
-    p_grid_export = m.addVar(lb=0, ub=config.network.reverse_power_limit_mw, name="p_grid_export")
+    p_grid_periods, imp_aux_periods = add_grid_exchange(m, 1, config)
+    p_grid = p_grid_periods[0]
+    imp_aux = imp_aux_periods[0]
 
     net_inj = {b: gp.LinExpr() for b in buses}
-    net_inj[slack_bus] += p_grid_import - p_grid_export
+    net_inj[slack_bus] += p_grid
     for a in agents:
         bus = agent_info[a.name]['bus']
         nm = a.name
@@ -93,9 +95,9 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             obj -= agent_info[nm]['offer'] \
                 * (pv[nm] + wind[nm] + dis[nm]) * dt_scale
         obj -= config.market_design.penalty_unserved * unserved[nm] * dt_scale
-    obj -= wholesale_t * (p_grid_import - p_grid_export) * dt_scale
+    obj -= wholesale_t * p_grid * dt_scale
     if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
-        obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * p_grid_import * DT_HOURS
+        obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * imp_aux * DT_HOURS
     m.setObjective(obj, GRB.MAXIMIZE)
     m.optimize()
 
@@ -121,7 +123,7 @@ def solve_dc_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             'p_ch': ch_val, 'p_dis': dis_val,
             'storage_mode': _classify_storage_mode(ch_val, dis_val),
         }
-    return True, lmp, m.ObjVal, agent_res, p_grid_import.X - p_grid_export.X
+    return True, lmp, m.ObjVal, agent_res, p_grid.X
 
 
 def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
@@ -156,8 +158,13 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         t_b = net.line.at[l, 'to_bus']
         solver.Add(p_flow[l] == (theta[f] - theta[t_b]) / x[l])
 
-    p_grid_import = solver.NumVar(0, INF, "p_grid_import")
-    p_grid_export = solver.NumVar(0, config.network.reverse_power_limit_mw, "p_grid_export")
+    # One free net exchange, matching the Gurobi path: import unbounded, reverse
+    # flow capped below. The HiGHS solver object has its own variable API, so
+    # the helper that builds the Gurobi version does not apply here; the
+    # readout and carbon formulas below are the shared ones.
+    p_grid = solver.NumVar(-config.network.reverse_power_limit_mw, INF, "p_grid")
+    imp_aux = solver.NumVar(0, INF, "p_grid_import")
+    solver.Add(imp_aux >= p_grid)
 
     served = {}; unserved = {}; pv_v = {}; wind_v = {}; ch_v = {}; dis_v = {}
     for a in agents:
@@ -181,8 +188,7 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
             dis_v[nm] = solver.NumVar(0, 0, f"dis_{nm}")
 
     # Power balance
-    p_grid_net = p_grid_import - p_grid_export
-    net_inj = {b: p_grid_net if b == slack_bus else solver.Sum() for b in buses}
+    net_inj = {b: p_grid if b == slack_bus else solver.Sum() for b in buses}
     for a in agents:
         nm = a.name
         bus = agent_info[nm]['bus']
@@ -215,11 +221,12 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         obj.SetCoefficient(unserved[nm],
                            -config.market_design.penalty_unserved * dt_scale)
 
-    grid_import_coef = -wholesale_t * dt_scale
+    obj.SetCoefficient(p_grid, -wholesale_t * dt_scale)
     if config.market_design.enable_multi_objective and config.market_design.lambda_carbon > 0:
-        grid_import_coef -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * DT_HOURS
-    obj.SetCoefficient(p_grid_import, grid_import_coef)
-    obj.SetCoefficient(p_grid_export, wholesale_t * dt_scale)
+        obj.SetCoefficient(
+            imp_aux,
+            -config.market_design.lambda_carbon
+            * config.market_design.emission_factor_grid * DT_HOURS)
     obj.SetMaximization()
 
     status = solver.Solve()
@@ -256,4 +263,4 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
             'p_ch': ch_val, 'p_dis': dis_val,
         }
 
-    return True, lmp, total_welfare, agent_res, p_grid_import.SolutionValue() - p_grid_export.SolutionValue()
+    return True, lmp, total_welfare, agent_res, p_grid.SolutionValue()
