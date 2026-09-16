@@ -91,9 +91,12 @@ def consumer_metrics(sched: dict, lmp: np.ndarray, agents) -> dict:
         CP_a[t]     = lmp[t, a.bus] * qbuy_a[t]        (bill for load import)
         CS_a[t]     = a.bid_value * served_a[t] - CP_a[t]
 
-    Value uses the TRUTHFUL scalar bid_value (RL never touches bid_value, only
-    bid_mult at clearing) so consumer surplus is not contaminated by RL bid
-    self-depreciation.
+    Value uses the TRUTHFUL scalar bid_value, which the bidding action never
+    touches, so consumer surplus is not contaminated by the load self-
+    depreciating its own declared willingness to pay. That applies to the
+    whole prosumer action space, not to one component of it; a battery alone
+    declares reservation prices and carries no load, so it contributes
+    nothing here whichever prices it declares.
 
     Returns
     -------

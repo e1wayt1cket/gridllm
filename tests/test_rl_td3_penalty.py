@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import torch
 
-from rl_td3 import TD3
+from rl_td3 import TD3, truthful_logits
 
 OBS_DIM = 4
 ACT_DIM = 2
@@ -117,15 +117,70 @@ def test_logit_penalty_survives_saturation():
     random.seed(3)
     torch.manual_seed(3)
     td3 = _make_td3(bid_pen=5.0, offer_pen=0.0)
-    # Drive the actor's pre-tanh logits far from zero (saturated).
+    # Drive the actor's pre-tanh logits far from the reference (saturated).
     with torch.no_grad():
         for p in td3.actor.net[4].parameters():
             p.fill_(50.0)
     obs = torch.zeros(8, OBS_DIM)
     logits, _ = td3.actor.forward_logits(obs)
     assert torch.all(torch.abs(logits[:, 0]) > 30.0)  # tanh fully saturated
-    loss = td3.bid_dev_penalty * (logits[:, 0] ** 2).mean()
+    loss = td3.bid_dev_penalty * (
+        (logits[:, 0] - td3.deviation_reference[0]) ** 2).mean()
     loss.backward()
     grads = [p.grad for p in td3.actor.net[4].parameters()
              if p.grad is not None]
     assert any(g.abs().sum().item() > 0 for g in grads)
+
+
+def test_truthful_logit_reproduces_the_truthful_action():
+    """The penalty reference is a logit, but it must stand for an action.
+
+    `atanh` round-trips through the actor's own parameterization, so this is
+    what ties the reference to the spec's truthful point rather than to a
+    convention held here.
+    """
+    from rl_spec import ACTION_STORAGE_QUOTE_V2, ACTION_BID_OFFER_V1
+
+    for spec in (ACTION_STORAGE_QUOTE_V2, ACTION_BID_OFFER_V1):
+        low = torch.tensor([spec.bounds[n][0] for n in spec.action_names],
+                           dtype=torch.float32)
+        high = torch.tensor([spec.bounds[n][1] for n in spec.action_names],
+                            dtype=torch.float32)
+        bounds = torch.stack([low, high])
+        ref = truthful_logits(torch.as_tensor(spec.truthful_array()), bounds)
+        mid = (low + high) / 2.0
+        half = (high - low) / 2.0
+        recovered = mid + torch.tanh(ref) * half
+        assert torch.allclose(recovered, torch.as_tensor(spec.truthful_array()),
+                              atol=0.5)
+
+
+def test_deviation_reference_is_not_the_box_midpoint_for_storage():
+    """The regression this reference exists for.
+
+    Anchoring the storage penalty at the logit zero means anchoring it at
+    "charge at 75 CNY/MWh, discharge at 150", which is the one region of the
+    box where the three thin-margin batteries cannot trade at all.
+    """
+    from rl_spec import ACTION_STORAGE_QUOTE_V2
+
+    spec = ACTION_STORAGE_QUOTE_V2
+    low = torch.tensor([spec.bounds[n][0] for n in spec.action_names],
+                       dtype=torch.float32)
+    high = torch.tensor([spec.bounds[n][1] for n in spec.action_names],
+                        dtype=torch.float32)
+    bounds = torch.stack([low, high])
+    ref = truthful_logits(torch.as_tensor(spec.truthful_array()), bounds)
+
+    assert torch.all(ref < -3.0), "the truthful point is a corner, not the middle"
+    mid = (low + high) / 2.0
+    half = (high - low) / 2.0
+    recovered = mid + torch.tanh(ref) * half
+    assert torch.all(recovered < 1.0), "and the clamp keeps it finite"
+
+
+def test_td3_defaults_to_the_box_midpoint_reference():
+    """No truthful action given -> logit zero, as every checkpoint on disk was
+    trained against."""
+    td3 = _make_td3(bid_pen=5.0)
+    assert torch.all(td3.deviation_reference == 0.0)

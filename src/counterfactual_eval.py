@@ -143,7 +143,8 @@ def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
     rolling_profits = dict(profits)
     if settle_full_day:
         profits, settled = _settle_full_day(agents, config, rl_names,
-                                            env.current_actions, wholesale, T)
+                                            env.current_actions, wholesale, T,
+                                            spec_for=env.spec_for)
         clean = clean and settled
 
     return {"arm": arm.name, "profits": profits,
@@ -153,7 +154,7 @@ def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
 
 
 def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
-                     T: int) -> tuple:
+                     T: int, spec_for=None) -> tuple:
     """Re-clear the whole day at once with the state of charge pinned.
 
     A day that finishes with a fuller battery has banked energy it did not sell,
@@ -173,14 +174,21 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
     settle_config = dataclasses.replace(
         config,
         storage=dataclasses.replace(config.storage, terminal_soc_equal=True))
+    if spec_for is None:
+        from rl_spec import action_spec_for as spec_for
+
     settle_actions = {}
     for nm in rl_names:
         act = actions.get(nm)
         if act is None:
             continue
+        agent = next(a for a in agents if a.name == nm)
+        # The keys come from the agent's action space. Naming the retired pair
+        # here would hand a storage unit `quote_arrays` refuses, turning a
+        # settlement into a fallback the arm would then report as zero profit.
         settle_actions[nm] = {
-            "bid_mult": np.asarray(act["bid_mult"], dtype=float)[:T],
-            "offer_adder": np.asarray(act["offer_adder"], dtype=float)[:T],
+            name: np.asarray(act[name], dtype=float)[:T]
+            for name in spec_for(agent).action_names
         }
 
     try:

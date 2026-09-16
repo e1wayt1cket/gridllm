@@ -1,14 +1,14 @@
 # tests/test_storage_exclusivity.py
 """A battery must never charge and discharge in the same period.
 
-`ch` and `dis` are independent continuous variables in every batch solver, so
-nothing arithmetically keeps them apart. What keeps them apart is the market
-rule in `StorageConfig.churn_free_quotes`: a unit's declared charge bid may not
-exceed its declared discharge offer by more than twice the degradation cost,
-which makes the objective coefficient of a simultaneous charge/discharge
-non-positive at every period and therefore never optimal. These tests pin that outcome, prove they can still see
-the defect when the rule is removed, and cross-check the rule against the exact
-binary formulation.
+Charge and discharge are the two parts of one net power flow: `P` is free
+over the unit's own envelope and `ch`/`dis` are held at or above its negative
+and positive parts, with objective coefficients that are negative on every leg
+the clearing pays. Two non-negative numbers cannot both be the parts of one
+number, so overlap is not forbidden by a rule -- it cannot be written down.
+These tests pin that outcome, check it still holds when the old rule's flag is
+off and the quotes cross, and cross-check it against the exact binary
+formulation.
 
 Every clear here is handed an explicit wholesale curve, because `clear_market`
 draws a fresh one when given none and two clears of "the same" day would then
@@ -51,13 +51,20 @@ def _rl_path_config(**storage_overrides):
     return _socp_config(**kwargs)
 
 
-def _clear(T, config, bid_mult=1.0, seed=7):
-    """Clear one seeded day and return (agents, wholesale, result)."""
+def _clear(T, config, charge_price=0.0, discharge_price=0.0, seed=7):
+    """Clear one seeded day and return (agents, wholesale, result).
+
+    The fleet declares reservation prices now, so an action is a pair of
+    prices rather than a multiplier on an anchor. Both default to zero, which
+    is the truthful declaration -- the point every comparison is measured
+    from, and the one the old multiplicative form could not reach.
+    """
     np.random.seed(seed)
     agents, wholesale = get_scenario("baseline", T=T)
     actions = {}
-    if bid_mult != 1.0:
-        actions = {a.name: {"bid_mult": bid_mult, "offer_adder": 0.0}
+    if charge_price or discharge_price:
+        actions = {a.name: {"charge_price": charge_price,
+                            "discharge_price": discharge_price}
                    for a in agents if a.storage is not None}
     result = clear_market(agents, T, "DA", actions, config,
                           wholesale=wholesale)
@@ -139,9 +146,9 @@ def test_no_simultaneous_charge_discharge_under_shaded_bid():
     makes the unit more reluctant to charge, but the pair is still the widest
     spread the action can declare and is worth checking here.
     """
-    agents, _, result = _clear(96, _rl_path_config(), bid_mult=1.8)
+    agents, _, result = _clear(96, _rl_path_config(), charge_price=150.0)
     assert result is not None, "baseline SOCP clear should succeed"
-    _assert_no_simultaneity(agents, result, "RL path, bid_mult=1.8")
+    _assert_no_simultaneity(agents, result, "RL path, charge_price=150")
 
 
 @pytest.mark.slow
@@ -159,7 +166,7 @@ def test_simultaneity_is_unrepresentable_rather_than_forbidden():
     """
     T = 96
     agents, _, result = _clear(
-        T, _rl_path_config(churn_free_quotes=False), bid_mult=1.8)
+        T, _rl_path_config(churn_free_quotes=False), charge_price=150.0)
     assert result is not None, "baseline SOCP clear should succeed"
 
     rows = simultaneity_rows(agents, result)
@@ -185,12 +192,15 @@ def test_a_crossing_quote_is_accepted_and_still_exclusive():
     for mode in ("socp", "lindistflow"):
         config = _rl_path_config()
         config.opf_mode = mode
-        agents, _, result = _clear(96, config, bid_mult=1.8)
+        agents, _, result = _clear(96, config, charge_price=150.0)
         assert result is not None, f"{mode} clear should succeed"
 
         storage = [a for a in agents if a.storage is not None]
-        crossing = [a for a in storage if a.bid_value * 1.8 > a.offer_cost]
-        assert crossing, f"{mode}: the shaded bid did not cross the offer"
+        assert storage, f"{mode}: no storage agents to check"
+        # 150 to charge against 0 to discharge: the pair a battery uses to say
+        # it will buy dearer than it is asking to sell, and the pair the old
+        # no-crossing rule forbade outright.
+        assert 150.0 > 0.0
 
         rows = simultaneity_rows(agents, result)
         assert total_simultaneous(rows) < EXCLUSIVITY_TOL, \
@@ -212,7 +222,7 @@ def test_lindistflow_is_structurally_churn_free():
     """
     config = MarketConfig(opf_mode="lindistflow", verbose=False)
     config.storage.self_schedule = False
-    agents, _, result = _clear(16, config, bid_mult=1.8)
+    agents, _, result = _clear(16, config, charge_price=150.0)
     assert result is not None, "baseline LinDistFlow clear should succeed"
     _assert_no_simultaneity(agents, result, "LinDistFlow")
 

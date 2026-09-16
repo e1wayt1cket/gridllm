@@ -6,7 +6,7 @@ conditional return distribution is multimodal, so a generative (diffusion)
 critic adds value over a point estimate. In this market load/PV/wind profiles
 are deterministic per scenario; only the day-ahead wholesale curve is re-drawn
 per episode from the global RNG (merit-order price + Gaussian noise, no
-spikes). Running a deterministic truthful policy (bid_mult=1.0, offer=0)
+spikes). Running a deterministic truthful policy (no declared premium)
 over many price days therefore samples the conditional return distribution
 for near-identical contexts. If per-block returns stay unimodal, modeling the
 full distribution is unlikely to pay off here.

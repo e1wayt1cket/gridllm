@@ -43,12 +43,10 @@ def build_ess_fleet(T: int, config: MarketConfig,
         Horizon in periods; the units carry zero load and zero generation
         profiles of this length.
     config : MarketConfig
-        Supplies the price anchor (``storage.bid_anchor``) and the enabled flag
-        is read from YAML.
+        Supplies the enabled flag, which is read from YAML.
     wholesale : np.ndarray, optional
-        The scenario's price curve. Used for the anchor when
-        ``storage.bid_anchor`` is unset, matching what the clearing optimizers
-        fall back to for terminal SOC value.
+        The scenario's price curve, used by the clearing optimizers for the
+        terminal state-of-charge value.
     buses : list of int, optional
         Override the configured placement, for the node-location experiment.
     scale : float
@@ -70,8 +68,6 @@ def build_ess_fleet(T: int, config: MarketConfig,
     capacity = float(cfg.get("capacity_mwh", 0.0)) * float(scale)
     power_ratio = float(cfg.get("power_ratio", 0.4))
     power = capacity * power_ratio
-
-    anchor = config.storage.quote_anchor()
 
     zeros = np.zeros(T)
     fleet = []
@@ -96,8 +92,14 @@ def build_ess_fleet(T: int, config: MarketConfig,
             pv_real=zeros.copy(),
             wind_forecast=None,
             wind_real=None,
-            bid_value=float(anchor),
-            offer_cost=float(anchor),
+            # A battery alone has no load to value and no generation to cost.
+            # These two are the settlement prices of a load and a generator
+            # respectively, and `IndependentStoragePayoff` reads neither, so
+            # zero here cannot misstate any cash figure. It is also the truthful
+            # quote for the clearing: cost the round trip at `cycle_cost` and
+            # declare no premium on top of it.
+            bid_value=0.0,
+            offer_cost=0.0,
             storage=storage,
             load_type="storage",
             pv_capacity=0.0,

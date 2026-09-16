@@ -18,6 +18,7 @@ import random
 
 from models import Agent, MarketConfig
 from rl_env import BiddingEnv, N_BLOCKS
+from rl_td3 import truthful_logits
 
 
 # ---------------------------------------------------------------------------
@@ -185,10 +186,19 @@ class MATD3:
         self.noise_anneal_steps = max(1, noise_anneal_steps)
 
         obs_dim = env.get_state_dim()
-        act_dim = 2
+        act_dim = env.action_spec.dim
         action_bounds = env.get_action_bounds()
         n_agents = len(env.rl_agents)
         unique_dim = env.unique_obs_dim
+
+        # Where the deviation penalty pulls the policy back to, in logit space
+        # because that is what the penalty acts on. Taken from the environment's
+        # action spec rather than assumed to be the box midpoint: the storage
+        # box is [0, 150] x [0, 300] and the truthful declared prices are
+        # (0, 0), so its midpoint means "charge at 75, discharge at 150".
+        truthful = torch.as_tensor(env.action_spec.truthful_array(),
+                                   dtype=torch.float32)
+        self.deviation_reference = truthful_logits(truthful, action_bounds)
 
         self.n_agents = n_agents
         self.obs_dim = obs_dim
@@ -370,7 +380,8 @@ class MATD3:
                 # squashed action fails because d(tanh)/dx -> 0 at the bounds,
                 # so the gradient vanishes exactly when the policy saturates.
                 # An L2 term on the raw logits survives saturation and pulls the
-                # policy back to moderate bids.
+                # policy back toward the point it is measured from -- the
+                # agent's own truthful declaration, not the midpoint of its box.
                 #
                 # The weight is dimensionless because -min(q1, q2) is already in
                 # reward-standard-deviation units: the reward was divided by
@@ -379,11 +390,11 @@ class MATD3:
                 # reward magnitude, so any rescaling of the reward silently
                 # re-tuned the actor. Coefficients carry their full meaning now.
                 if self.bid_dev_penalty > 0:
-                    actor_loss = actor_loss \
-                        + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
+                    actor_loss = actor_loss + self.bid_dev_penalty * (
+                        (logits[:, 0] - self.deviation_reference[0]) ** 2).mean()
                 if self.offer_dev_penalty > 0:
-                    actor_loss = actor_loss \
-                        + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
+                    actor_loss = actor_loss + self.offer_dev_penalty * (
+                        (logits[:, 1] - self.deviation_reference[1]) ** 2).mean()
 
                 opt.zero_grad()
                 actor_loss.backward()

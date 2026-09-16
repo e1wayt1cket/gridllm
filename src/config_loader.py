@@ -117,11 +117,43 @@ def reload_defaults() -> None:
     _defaults_cache = None
 
 
+def reload_scenarios() -> None:
+    """Clear the scenarios cache, undoing any `set_scenario_param` writes.
+
+    Separate from `reload_defaults` because the two caches are read by
+    different callers and a sweep usually overrides only one of them. Without
+    this, a per-run override written with `set_scenario_param` outlives the run
+    that asked for it: the cache is process-global and nothing else clears it,
+    so the next scenario built in the same process silently inherits the last
+    value a sweep set.
+    """
+    global _scenarios_cache
+    _scenarios_cache = None
+
+
 def set_scenario_param(scenario_name: str, key_path: str, value: Any) -> None:
     """Write a nested parameter into the in-memory scenarios cache.
     key_path is relative to the scenario dict, e.g. 'multipliers.pv'.
     """
     _deep_set(get_scenario_cfg(scenario_name), key_path, value)
+
+
+def set_scenario_override(scenario_name: str, key: str, value: Any) -> None:
+    """Write one `override_config` entry for a scenario, in the cache.
+
+    A sibling of `set_scenario_param` rather than a use of it, because
+    `override_config`'s keys are flat "section.field" strings rather than a
+    nested structure: `set_scenario_param` would build
+    `{"network": {"v_min_pu": ...}}`, which `apply_scenario_overrides` then
+    rejects as naming no field of a dict.
+
+    Writing here rather than onto a config object is what makes a per-run
+    override stick. `get_scenario` re-applies this block onto whatever config
+    it is handed, so a value set on the config alone is silently replaced by
+    the file's -- and a sweep built on it reads as flat.
+    """
+    cfg = get_scenario_cfg(scenario_name)
+    cfg.setdefault("override_config", {})[key] = value
 
 
 def save_scenarios(path: Optional[str] = None) -> None:

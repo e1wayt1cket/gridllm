@@ -28,10 +28,16 @@ from market import clear_market
 from models import MarketConfig
 from scenarios import get_scenario, typical_day_config
 
+from config_loader import get_default
+
 TARGET_PV_MW = 3.5
 TARGET_WIND_MW = 1.5
 TARGET_PEAK_MW = 10.0
-ESS_BUSES = {6, 20, 24, 31}
+# Read from the file rather than restated: the placement is a scenario fact
+# that the siting criterion is allowed to change, and a literal here would make
+# every re-siting look like a regression. What must hold is that the fleet is
+# where the file says, not that the file says a particular set of buses.
+ESS_BUSES = set(get_default("independent_storage.buses"))
 
 
 @pytest.fixture(scope="module")

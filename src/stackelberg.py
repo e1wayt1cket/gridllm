@@ -12,6 +12,7 @@ from scipy.optimize import minimize, differential_evolution
 
 from models import Agent, MarketConfig
 from market import clear_market, adaptive_bidding
+from rl_spec import action_spec_for
 
 
 def _leader_payoff(leader_name, leader_bus, actions, agents, T, config):
@@ -27,21 +28,27 @@ def _leader_payoff(leader_name, leader_bus, actions, agents, T, config):
     return result, sell - buy - penalty
 
 
-def _param_to_arrays(x, n_blocks, T, is_prosumer):
-    """Convert flat parameter vector to bid_mult and offer_adder arrays."""
+def _param_to_actions(x, n_blocks, T, leader, spec):
+    """Turn a flat parameter vector into this leader's own action dict.
+
+    The leader searches over whatever its action space is: a battery searches
+    its two reservation prices, a load its multiplier and adder. Naming the
+    keys here rather than in each caller is what keeps a storage leader from
+    being handed a multiplier it can no longer use.
+    """
     block_size = T // n_blocks
-    bid_mult = np.repeat(np.array(x[:n_blocks]), block_size)[:T]
-    if is_prosumer:
-        offer_adder = np.repeat(np.array(x[n_blocks:2 * n_blocks]), block_size)[:T]
-        return bid_mult, offer_adder
-    return bid_mult, None
+    out = {}
+    for i, name in enumerate(spec.action_names):
+        block = x[i * n_blocks:(i + 1) * n_blocks]
+        out[name] = np.repeat(np.array(block), block_size)[:T]
+    return out
 
 
-def _build_bounds(config, n_blocks, is_prosumer):
-    """Build bounds list for scipy.optimize."""
-    bounds = [config.market_design.bid_mult_range] * n_blocks
-    if is_prosumer:
-        bounds += [config.market_design.offer_adder_range] * n_blocks
+def _build_bounds(config, n_blocks, spec):
+    """Build bounds list for scipy.optimize, one block per action component."""
+    bounds = []
+    for name in spec.action_names:
+        bounds += [spec.bounds[name]] * n_blocks
     return bounds
 
 
@@ -87,23 +94,18 @@ def stackelberg_bidding(agents, config, leader_name,
         (actions dict, info dict)
     """
     leader = next(a for a in agents if a.name == leader_name)
-    is_prosumer = leader.is_prosumer
+    spec = action_spec_for(leader)
 
     # Compute follower strategies once (fixed during leader optimization)
     follower_actions = adaptive_bidding(agents, config,
                                         strategy=follower_strategy, T=T)
 
-    n_params = n_blocks * (2 if is_prosumer else 1)
-    bounds = _build_bounds(config, n_blocks, is_prosumer)
+    n_params = n_blocks * spec.dim
+    bounds = _build_bounds(config, n_blocks, spec)
 
     def objective(x):
-        bid_mult, offer_adder = _param_to_arrays(x, n_blocks, T, is_prosumer)
         actions = copy.deepcopy(follower_actions)
-        if is_prosumer:
-            actions[leader_name] = {"bid_mult": bid_mult,
-                                    "offer_adder": offer_adder}
-        else:
-            actions[leader_name] = {"bid_mult": bid_mult}
+        actions[leader_name] = _param_to_actions(x, n_blocks, T, leader, spec)
         _, payoff = _leader_payoff(leader_name, leader.bus,
                                    actions, agents, T, config)
         return -payoff
@@ -134,13 +136,8 @@ def stackelberg_bidding(agents, config, leader_name,
         best_fun = de_result.fun
 
     # Build final actions
-    opt_bid, opt_offer = _param_to_arrays(best_x, n_blocks, T, is_prosumer)
     actions = copy.deepcopy(follower_actions)
-    if is_prosumer:
-        actions[leader_name] = {"bid_mult": opt_bid,
-                                "offer_adder": opt_offer}
-    else:
-        actions[leader_name] = {"bid_mult": opt_bid}
+    actions[leader_name] = _param_to_actions(best_x, n_blocks, T, leader, spec)
 
     info = {
         "leader": leader_name,

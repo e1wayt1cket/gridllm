@@ -81,35 +81,20 @@ class StorageConfig:
     # caller's `horizon_type` argument, because a window that happens to be a
     # whole day long is still a window. See dispatch_core.pins_terminal_soc.
     terminal_soc_equal: bool = True
-    # Storage units price their charge and discharge from this anchor rather
-    # than inheriting the bid_value of the local load type, whose willingness to
-    # pay for consumption has no meaning for a battery. An explicit value wins;
-    # see `quote_anchor` for what is used otherwise and why.
-    bid_anchor: Optional[float] = None
+    # A storage unit's quotes are its declared charge and discharge prices, and
+    # `ess.build_ess_fleet` sets both to zero: zero strategic premium is the
+    # truthful declaration, because the round trip's own cost is charged
+    # separately through `cycle_cost`. `bid_value` and `offer_cost` are the
+    # settlement-side prices of a load (what it will pay) and a generator (what
+    # it must receive); a battery alone has neither, and
+    # `participant_payoff.IndependentStoragePayoff` reads neither of them. Any
+    # separate anchor would be a second source of truth for the same quote.
     # Scale applied to every battery already in the network, prosumer and
     # non-prosumer alike, when a scenario is built. The independent-storage
     # experiments reduce it so that fleet is a material arbitrageur rather than
     # a marginal one; it is part of the config snapshot, so a run records the
     # market it was cleared in. 1.0 leaves the existing fleet unchanged.
     prosumer_storage_scale: float = 1.0
-
-    def quote_anchor(self) -> float:
-        """The level a storage unit's charge bid and discharge offer start from.
-
-        A battery's two quotes are reservation prices, and the clearing costs
-        charging at the bid and discharging at the offer, so a unit cycles only
-        when the day's price spread exceeds `bid + offer + 2 * cycle_cost`. That
-        makes the anchor a claim about the spread the day offers, and it has to
-        sit far below it: anchored instead to the mean wholesale price, the two
-        quotes alone demand roughly three times the spread this network's day
-        produces and the fleet sits idle for the whole horizon. Anchoring to the
-        unit's own degradation cost keeps the claim physical -- the quotes are
-        then a margin on top of what a cycle already costs, of the same order as
-        the cost itself, rather than a restatement of the market price.
-        """
-        if self.bid_anchor is not None:
-            return float(self.bid_anchor)
-        return float(self.cycle_cost) / 2.0
 
 
 @dataclass
@@ -147,6 +132,110 @@ class RTConfig:
     da_forecast_noise_pct: float = 0.0    # noise std as % of DA price within window
 
 
+# ---------------------------------------------------------------------------
+# Binding configuration to config/defaults.yaml
+# ---------------------------------------------------------------------------
+# `config/defaults.yaml` is the configuration's single source of truth. The
+# maps below are the only declaration of which YAML key feeds which dataclass
+# field, and `MarketConfig.from_yaml` is the only reader.
+#
+# This exists because the file used to be misleading rather than authoritative:
+# the `storage:`, `market_design:` and `rt:` blocks had no reader at all, so
+# their values were documentation while the dataclass defaults in this module
+# were the model. One of them had drifted -- `enable_multi_objective` read
+# `true` in the file against an effective `false` in code -- and nobody could
+# have noticed, because editing the file changed nothing.
+#
+# Two invariants are enforced by `tests/test_yaml_config_agreement.py` and are
+# the reason this is an explicit map rather than `**kwargs`:
+#   1. A YAML key with no field behind it must fail loudly, not be skipped.
+#   2. Every field of the four config dataclasses must be either mapped here or
+#      named in KNOWN_INERT with a reason, so an unwired field is a decision
+#      rather than an omission.
+YAML_FIELD_MAP = {
+    "network": {
+        "base_kv": "network.base_kv",
+        "v_min_pu": "network.v_min_pu",
+        "v_max_pu": "network.v_max_pu",
+        "line_capacity_multiplier": "network.line_capacity_multiplier",
+        "line_capacity_overrides": "network.line_capacity_overrides",
+        "reverse_power_limit_mw": "network.reverse_power_limit_mw",
+        "ramp_limit_mw_per_period": "network.ramp_limit_mw_per_period",
+        "reactive_support": "network.reactive_support",
+        "load_power_factor": "network.load_power_factor",
+        "inverter_smax_multiplier": "network.inverter_smax_multiplier",
+        "n_loss_iters": "network.n_loss_iters",
+    },
+    "storage": {
+        "charge_discount": "storage.charge_discount",
+        "discharge_premium": "storage.discharge_premium",
+        "soc_buffer": "storage.soc_buffer",
+        "terminal_value": "storage.terminal_value",
+        "cycle_cost": "storage.cycle_cost",
+        "discount_factor": "storage.discount_factor",
+        "self_schedule": "storage.self_schedule",
+        "mpc_horizon": "storage.mpc_horizon",
+        "mpc_price_noise_pct": "storage.mpc_price_noise_pct",
+        "mpc_bus_markup_pct": "storage.mpc_bus_markup_pct",
+        "use_nodal_price": "storage.use_nodal_price",
+        "mpc_fast_heuristic": "storage.mpc_fast_heuristic",
+        "mpc_congestion_pass": "storage.mpc_congestion_pass",
+        "churn_free_quotes": "storage.churn_free_quotes",
+        "exclusive_mode": "storage.exclusive_mode",
+        "terminal_soc_equal": "storage.terminal_soc_equal",
+        "prosumer_storage_scale": "storage.prosumer_storage_scale",
+    },
+    "market_design": {
+        "penalty_unserved": "market_design.penalty_unserved",
+        "bid_mult_range": "market_design.bid_mult_range",
+        "offer_adder_range": "market_design.offer_adder_range",
+        "default_bid_mult": "market_design.default_bid_mult",
+        "default_offer_adder": "market_design.default_offer_adder",
+        "emission_factor_grid": "market_design.emission_factor_grid",
+        "enable_multi_objective": "market_design.enable_multi_objective",
+        "lambda_re": "market_design.lambda_re",
+        "lambda_curtail": "market_design.lambda_curtail",
+        "lambda_carbon": "market_design.lambda_carbon",
+        "use_constraint_multi_obj": "market_design.use_constraint_multi_obj",
+        "carbon_cap_tco2": "market_design.carbon_cap_tco2",
+        "re_min_rate": "market_design.re_min_rate",
+        "penalty_carbon_slack": "market_design.penalty_carbon_slack",
+        "penalty_re_slack": "market_design.penalty_re_slack",
+    },
+    "rt": {
+        "rt_forecast_mode": "rt.rt_forecast_mode",
+        "rt_forecast_noise_pct": "rt.rt_forecast_noise_pct",
+        "rt_horizon": "rt.rt_horizon",
+        "rt_step": "rt.rt_step",
+        "da_rolling_enabled": "rt.da_rolling_enabled",
+        "da_window_length": "rt.da_window_length",
+        "da_window_step": "rt.da_window_step",
+        "da_forecast_noise_pct": "rt.da_forecast_noise_pct",
+    },
+}
+
+# Fields deliberately left unbound, with the reason. Kept short on purpose: an
+# entry here is a decision, and adding one is how a field stops being wired.
+KNOWN_INERT = {
+    "NetworkConfig.base_mva":
+        "the per-unit conversion in all three engines is written as "
+        "z_base = base_kv**2, which is the textbook Z_base = V**2 / S_base "
+        "with S_base = 1 MVA. Nothing reads this field, and wiring it means "
+        "reworking the base in dispatch_socp, dispatch_ldf and dispatch_dc "
+        "together -- a change of its own, not a config edit.",
+}
+
+# Keys inside the bound blocks that belong to some other reader. They are
+# configuration, just not of MarketConfig: the network topology and its line
+# ratings are read by grid.build_base_network, which asks for them directly.
+YAML_KEYS_READ_ELSEWHERE = {
+    "network.name",
+    "network.base_ampacity_ka",
+    "network.min_line_ka",
+    "network.max_line_ka",
+}
+
+
 @dataclass
 class MarketConfig:
     """Top-level configuration composing network, storage, market-design, and RT settings."""
@@ -165,6 +254,60 @@ class MarketConfig:
     storage: StorageConfig = field(default_factory=StorageConfig)
     market_design: MarketDesignConfig = field(default_factory=MarketDesignConfig)
     rt: RTConfig = field(default_factory=RTConfig)
+
+    @classmethod
+    def from_yaml(cls, **overrides) -> "MarketConfig":
+        """Build the configuration from `config/defaults.yaml`.
+
+        The file is the source of truth; this is the only reader. Fields the
+        YAML does not carry keep their dataclass defaults, which is why the
+        top-level fields (`opf_mode`, the tolerance, `verbose`) are passed as
+        keyword overrides rather than living in the file -- they describe how a
+        run is executed, not what the market is.
+
+        A key named in YAML_FIELD_MAP but missing from the file raises, rather
+        than quietly falling back to a default: a file that has lost a key is a
+        file that has stopped being the source of truth, and that is the
+        failure mode this replaced.
+        """
+        # Imported here rather than at module scope: config_loader reads this
+        # module's dataclass defaults for nothing, but keeping the dependency
+        # inside the one method that needs it leaves the import graph flat.
+        from config_loader import get_default
+
+        sections = {
+            "network": NetworkConfig(),
+            "storage": StorageConfig(),
+            "market_design": MarketDesignConfig(),
+            "rt": RTConfig(),
+        }
+        for section, mapping in YAML_FIELD_MAP.items():
+            target = sections[section]
+            for field_name, yaml_key in mapping.items():
+                sentinel = object()
+                value = get_default(yaml_key, sentinel)
+                if value is sentinel:
+                    raise KeyError(
+                        f"{yaml_key} is bound to {type(target).__name__}."
+                        f"{field_name} but is not in config/defaults.yaml; add "
+                        f"it, or unbind the field")
+                # YAML has no tuple, so a range written as [lo, hi] arrives as a
+                # list and would quietly change the field's type. Restore what
+                # the field declares; a value of the wrong shape is an error.
+                current = getattr(target, field_name)
+                if isinstance(current, tuple) and isinstance(value, list):
+                    value = tuple(value)
+                setattr(target, field_name, value)
+
+        config = cls(network=sections["network"], storage=sections["storage"],
+                     market_design=sections["market_design"],
+                     rt=sections["rt"])
+        for key, value in overrides.items():
+            if not hasattr(config, key):
+                raise KeyError(f"MarketConfig has no field {key!r}")
+            setattr(config, key, value)
+        return config
+
 
 @dataclass
 class StorageSpec:

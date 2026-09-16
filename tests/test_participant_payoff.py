@@ -72,12 +72,14 @@ def test_independent_storage_payoff_is_revenue_minus_cost_minus_degradation():
 
 
 def test_independent_storage_payoff_ignores_the_declared_bid():
-    """A battery must not earn the clearing objective's charge-bid credit.
+    """A battery's quotes must not reach its settlement.
 
-    The objective credits an agent for declaring a high charge bid, but the unit
-    is settled at the nodal price, so that credit is not money. A payoff that
-    read bid_value or offer_cost would hand the unit a consumption value it has
-    no basis for, which is exactly the error that made storage churn.
+    `bid_value` is what a load will pay for consumption and `offer_cost` is
+    what a generator must receive for its output. A battery alone is neither,
+    so neither field has a meaning to read here: its money is energy sold minus
+    energy bought at the nodal price, less degradation. That is also why the
+    fleet's quotes can be set to zero without moving any cash figure, which is
+    what lets zero be the truthful declaration.
     """
     cfg = _config()
     sched = _storage_sched()

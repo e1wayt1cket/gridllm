@@ -8,7 +8,8 @@ Two algorithms:
     (CTDE). One shared replay buffer; each agent has its own actor and a
     centralized critic that sees all agents' unique observations and actions.
 
-RL controls the bid/offer PRICE (bid_mult, offer_adder). Storage SOC is
+RL controls the declared quotes (an independent battery's two reservation
+prices in CNY/MWh). Storage SOC is
 dispatched by the market-clearing optimizer using the declared prices:
 self_schedule=False disables the MPC pre-scheduler so the OPF objective
 (which prices storage at the agent's declared bid/offer) steers storage.
@@ -119,17 +120,28 @@ def build_parser():
     parser.add_argument("--noise-std", type=float, default=0.2,
                         help="Exploration noise standard deviation")
     parser.add_argument("--bid-dev-penalty", type=float, default=5.0,
-                        help="L2 penalty on the pre-tanh bid logit to keep "
-                             "bids away from action bounds (0 = no penalty)")
+                        help="L2 penalty on the pre-tanh logit of the "
+                             "agent's FIRST action, pulling it toward its "
+                             "truthful declaration (0 = no penalty). For a "
+                             "battery that action is its charge price, and "
+                             "truthful is the corner of its box.")
     parser.add_argument("--offer-dev-penalty", type=float, default=0.5,
-                        help="L2 penalty on the pre-tanh offer logit to keep "
-                             "offers away from action bounds (0 = no penalty)")
+                        help="L2 penalty on the pre-tanh logit of the "
+                             "agent's SECOND action, pulling it toward its "
+                             "truthful declaration (0 = no penalty). For a "
+                             "battery that action is its discharge price.")
     parser.add_argument("--bid-mult-low", type=float, default=None,
-                        help="Lower bound for bid_mult action space. "
-                             "Default: from config.market_design.bid_mult_range")
+                        help="Lower bound for the non-storage action's "
+                             "bid_mult. Default: from "
+                             "config.market_design.bid_mult_range. Has no "
+                             "effect on a storage agent, whose prices are "
+                             "absolute.")
     parser.add_argument("--bid-mult-high", type=float, default=None,
-                        help="Upper bound for bid_mult action space. "
-                             "Default: from config.market_design.bid_mult_range")
+                        help="Upper bound for the non-storage action's "
+                             "bid_mult. Default: from "
+                             "config.market_design.bid_mult_range. Has no "
+                             "effect on a storage agent, whose prices are "
+                             "absolute.")
     parser.add_argument("--no-diff-reward", action="store_false",
                         dest="diff_reward", default=True,
                         help="Disable differential reward (use raw profit "
@@ -592,13 +604,14 @@ def main():
 
     action_bounds = env.get_action_bounds()
     obs_dim = env.get_state_dim()
-    act_dim = 2
+    act_dim = env.action_spec.dim
 
     td3s = {name: TD3(obs_dim, act_dim, action_bounds,
                       lr=args.lr, noise_std=args.noise_std,
                       start_steps=args.start_steps,
                       bid_dev_penalty=args.bid_dev_penalty,
-                      offer_dev_penalty=args.offer_dev_penalty)
+                      offer_dev_penalty=args.offer_dev_penalty,
+                      truthful_action=env.action_spec.truthful_array())
             for name in rl_agent_names}
 
     # ---- TensorBoard ----

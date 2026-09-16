@@ -7,7 +7,9 @@ normalized to [0, 1], LMP expressed as ratios of the day-average price, block
 position, load/RE ratio, opponent-bid statistics, plus price-prediction
 features (LMP deviation from EMA, recent LMP trend, and a direct next-block
 price forecast).
-Action is continuous: (bid_mult in [0.3, 1.8], offer_adder in [0, 50]).
+The action space is the acting agent's `ActionSpec`: an independent battery
+declares its two reservation prices in CNY/MWh, and a load or prosumer
+declares the multiplier/adder pair its own `bid_value`/`offer_cost` live in.
 
 Optional differential reward: reward = raw profit - profit under truthful
 bidding (bid=1.0, offer=0.0) for the same block, anchoring the truthful
@@ -28,7 +30,8 @@ import participant_payoff
 from models import Agent, MarketConfig
 from market import adaptive_bidding
 from price_forecaster import NodalPriceForecaster
-from rl_spec import OBS_V3, ACTION_BID_OFFER_V1, ObservationSpec, ActionSpec
+from rl_spec import (OBS_V3, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
+                    ObservationSpec, ActionSpec)
 
 # Continuous action space bounds
 BID_MULT_LOW, BID_MULT_HIGH = 0.3, 1.8
@@ -119,14 +122,19 @@ class DayCapture:
         return True
 
     def add_declared(self, current_actions: dict, t_start: int) -> None:
-        """Record the actions actually declared over the committed periods."""
+        """Record the actions actually declared over the committed periods.
+
+        The slots come from whatever the caller declared rather than from a
+        fixed pair of names, so a record of one action space cannot be silently
+        reread as another.
+        """
         n = self.committed_periods(t_start)
         for nm, act in (current_actions or {}).items():
             slots = self.declared.setdefault(
-                nm, {k: np.zeros(self.T) for k in ("bid_mult", "offer_adder")})
+                nm, {k: np.zeros(self.T) for k in act})
             for k, arr in act.items():
-                if k in slots:
-                    slots[k][t_start:t_start + n] = arr[t_start:t_start + n]
+                slots[k][t_start:t_start + n] = \
+                    np.asarray(arr)[t_start:t_start + n]
 
     def finish(self) -> dict:
         """Report the capture plus whether the recorded periods are sound.
@@ -157,8 +165,8 @@ class BiddingEnv:
     - Multi-agent (rl_agent_names=None): all agents are RL-controlled.
       Backward compatible with the original MATD3 pipeline.
     - Single-agent (rl_agent_names=["Agent_X"]): only the named agent
-      uses RL actions; all other agents use fixed default strategy
-      (bid_mult=1.0, offer_adder=0.0).
+      uses RL actions; all other agents stay at their spec's truthful
+      declaration.
 
     Reward is raw profit in CNY (not normalized). Storage agents have
     cycle_cost deducted from their reward. When use_differential_reward is
@@ -195,19 +203,26 @@ class BiddingEnv:
         self.bid_mult_low = bid_mult_low
         self.bid_mult_high = bid_mult_high
 
-        # Pluggable observation/action layout. Defaults reproduce the V3
-        # 12-dim observation and the (bid_mult, offer_adder) action space.
+        # Pluggable observation/action layout. The observation defaults to V3,
+        # and the action to the storage quote space: the agents a policy acts
+        # on are the independent batteries, and a battery declares prices.
+        #
+        # `bid_mult_low/high` still override the non-storage action's bounds,
+        # which is what they always did; they have no meaning for a storage
+        # agent, whose prices are absolute.
         self.obs_spec = obs_spec if obs_spec is not None else OBS_V3
         if action_spec is not None:
             self.action_spec = action_spec
         else:
-            self.action_spec = ActionSpec(
-                ACTION_BID_OFFER_V1.name,
-                ACTION_BID_OFFER_V1.version,
-                ACTION_BID_OFFER_V1.action_names,
-                {"bid_mult": (bid_mult_low, bid_mult_high),
-                 "offer_adder": ACTION_BID_OFFER_V1.bounds["offer_adder"]},
-            )
+            self.action_spec = ACTION_STORAGE_QUOTE_V2
+        self._legacy_action_spec = ActionSpec(
+            ACTION_BID_OFFER_V1.name,
+            ACTION_BID_OFFER_V1.version,
+            ACTION_BID_OFFER_V1.action_names,
+            {"bid_mult": (bid_mult_low, bid_mult_high),
+             "offer_adder": ACTION_BID_OFFER_V1.bounds["offer_adder"]},
+            truthful=dict(ACTION_BID_OFFER_V1.truthful),
+        )
 
         # Differential reward: per-block reward = raw profit - baseline profit,
         # where the baseline is the same window under truthful bidding for all
@@ -291,19 +306,31 @@ class BiddingEnv:
     # ------------------------------------------------------------------
 
     def _default_actions(self) -> dict:
-        """Return truthful/default bidding params for all agents.
+        """Every agent at its truthful declaration, in its own action space.
 
-        bid_mult=1.0, offer_adder=0.0 — the baseline strategy used by
-        non-RL agents during single-agent training and by the evaluation
-        framework for baseline comparison.
+        This is the reference every comparison is measured from, so it is
+        taken from the spec rather than written out here: a baseline policy
+        that declares something other than the agent's own reservation is not
+        a baseline. Storage agents get their two prices; load and prosumer
+        agents get the multiplier pair their declared prices live in.
         """
         return {
-            a.name: {
-                "bid_mult": np.full(self.T, 1.0, dtype=float),
-                "offer_adder": np.full(self.T, 0.0, dtype=float),
-            }
+            a.name: {name: np.full(self.T, self.spec_for(a).truthful[name],
+                                   dtype=float)
+                     for name in self.spec_for(a).action_names}
             for a in self.all_agents
         }
+
+    def spec_for(self, agent) -> ActionSpec:
+        """Which action space this agent's quotes live in.
+
+        Chosen by participant type, so a prosumer that happens to carry a
+        battery keeps the declared-price ontology its load and generation give
+        it, and only a battery alone declares reservation prices.
+        """
+        if getattr(agent, "participant_type", "prosumer") == "storage":
+            return self.action_spec
+        return self._legacy_action_spec
 
     # ------------------------------------------------------------------
     # Scenario switching
@@ -521,11 +548,21 @@ class BiddingEnv:
         return avail * 0.25  # dt_h
 
     def _compute_opponent_features(self, agent_name: str) -> tuple:
-        """Return (avg_other_bid_mult, bid_mult_std) from previous-block snapshot.
+        """Summary of what the other participants declared, last block.
 
-        Iterates over self.all_agents (not just rl_agents) so that the RL
-        agent can observe what ALL other market participants bid, including
-        non-RL agents using default values.
+        Each agent contributes the first component of its own action space,
+        scaled into its own bounds so the two ontologies are comparable: for a
+        storage unit that is its charge price over the charge-price range, and
+        for a load or prosumer it is the multiplier over the multiplier range.
+        Comparing raw values across the two would be meaningless, and comparing
+        only storage units would hide most of the market.
+
+        Iterates over self.all_agents (not just rl_agents) so the RL agent
+        observes every other participant, including those on defaults.
+
+        The observation features these feed are still named `avg_other_bid`
+        and `bid_std`; the names are legacy from when every action was a
+        multiplier, and the rename belongs with the observation revision.
         """
         src = self._prev_block_actions
         if src is None:
@@ -537,12 +574,16 @@ class BiddingEnv:
         all_bids = []
         for a in self.all_agents:
             nm = a.name
-            if nm in src:
-                bm = float(src[nm].get("bid_mult",
-                           np.array([1.0])).flat[0])
-                all_bids.append(bm)
-                if nm != agent_name:
-                    other_bids.append(bm)
+            if nm not in src or not src[nm]:
+                continue
+            spec = self.spec_for(a)
+            name = spec.action_names[0]
+            lo, hi = spec.bounds[name]
+            value = float(np.asarray(src[nm][name]).flat[0])
+            scaled = (value - lo) / (hi - lo) if hi > lo else 0.0
+            all_bids.append(scaled)
+            if nm != agent_name:
+                other_bids.append(scaled)
         avg_other = float(np.mean(other_bids)) if other_bids else 1.0
         bid_std = float(np.std(all_bids)) if len(all_bids) >= 2 else 0.0
         return avg_other, bid_std
@@ -607,7 +648,8 @@ class BiddingEnv:
         Parameters
         ----------
         actions : dict
-            {agent_name: np.array([bid_mult, offer_adder])}
+            {agent_name: np.array of the agent's spec dim, in
+             `spec.action_names` order}
             Only RL agents need to provide actions; non-RL agents use
             defaults set during reset().
 
@@ -623,26 +665,33 @@ class BiddingEnv:
         t_start = block * BLOCK_SIZE
         t_end = min(t_start + BLOCK_SIZE, self.T)
 
-        # Update current_actions with this block's RL decisions
+        # Update current_actions with this block's RL decisions. The action
+        # vector is positional and its names come from the agent's own spec, so
+        # nothing here assumes the storage ontology is the only one.
         for a in self.rl_agents:
             nm = a.name
             if nm not in actions:
                 continue
-            act = actions[nm]
-            bid_m = float(np.clip(act[0], self.bid_mult_low, self.bid_mult_high))
-            offer_a = float(np.clip(act[1], OFFER_ADDER_LOW, OFFER_ADDER_HIGH))
+            spec = self.spec_for(a)
+            act = np.asarray(actions[nm], dtype=float)
+            if act.shape != (spec.dim,):
+                raise ValueError(
+                    f"{nm} produced an action of shape {act.shape}, but its "
+                    f"spec {spec.name!r} declares {spec.dim} components "
+                    f"{spec.action_names}")
             if nm not in self.current_actions:
                 self.current_actions[nm] = {
-                    "bid_mult": np.full(self.T, 1.0),
-                    "offer_adder": np.full(self.T, 0.0),
-                }
-            self.current_actions[nm]["bid_mult"][t_start:t_end] = bid_m
-            self.current_actions[nm]["offer_adder"][t_start:t_end] = offer_a
+                    name: np.full(self.T, spec.truthful[name], dtype=float)
+                    for name in spec.action_names}
+            for i, name in enumerate(spec.action_names):
+                lo, hi = spec.bounds[name]
+                self.current_actions[nm][name][t_start:t_end] = \
+                    float(np.clip(act[i], lo, hi))
 
         # Snapshot this block's actions for opponent features in the next block.
         self._prev_block_actions = {
-            nm: {"bid_mult": act["bid_mult"].copy(),
-                 "offer_adder": act["offer_adder"].copy()}
+            nm: {name: np.asarray(values).copy()
+                 for name, values in act.items()}
             for nm, act in self.current_actions.items()
         }
 
@@ -706,9 +755,13 @@ class BiddingEnv:
                 base_actions[nm] = {k: v.copy() for k, v in act.items()}
             for a in self.rl_agents:
                 nm = a.name
-                if nm in base_actions:
-                    base_actions[nm]["bid_mult"][:n_commit] = 1.0
-                    base_actions[nm]["offer_adder"][:n_commit] = 0.0
+                if nm not in base_actions:
+                    continue
+                # The baseline arm is the same window with every RL agent at
+                # its truthful declaration and every other agent unchanged, so
+                # the difference between the two clears is the policy's doing.
+                for name, value in self.spec_for(a).truthful.items():
+                    base_actions[nm][name][:n_commit] = value
             try:
                 base_result = clear_market(
                     base_window_agents, window_T, self.stage,

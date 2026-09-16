@@ -511,7 +511,7 @@ def mpc_storage_bidding(agents, config, market_history=None, T=96, H=8):
     Each storage agent:
       1. Forecasts LMP for next H periods
       2. Solves MPC LP for optimal charge/discharge
-      3. Converts MPC schedule to bid_mult/offer_adder
+      3. Converts the MPC schedule to the agent's declared quotes
 
     Args:
         agents: list of Agent
@@ -542,8 +542,17 @@ def mpc_storage_bidding(agents, config, market_history=None, T=96, H=8):
     dt = 0.25
 
     for a in storage_agents:
-        bid_mult = np.ones(T)
-        offer_adder = np.full(T, np.mean(config.market_design.offer_adder_range))
+        # The MPC has decided when to charge and when to discharge; the quotes
+        # are how it tells the market. A unit wants to charge when it asks
+        # little to charge and declines to sell, and wants to discharge when it
+        # asks little to discharge and declines to buy -- so the declaration
+        # is a corner of the unit's own price box, picked by direction.
+        from rl_spec import action_spec_for
+        spec = action_spec_for(a)
+        charge_price = np.full(T, spec.truthful.get("charge_price", 0.0))
+        discharge_price = np.full(T, spec.truthful.get("discharge_price", 0.0))
+        c_lo, c_hi = spec.bounds.get("charge_price", (0.0, 0.0))
+        d_lo, d_hi = spec.bounds.get("discharge_price", (0.0, 0.0))
 
         # Rolling MPC: at each period, look ahead H periods, take first action
         soc_now = a.storage.soc0
@@ -578,30 +587,17 @@ def mpc_storage_bidding(agents, config, market_history=None, T=96, H=8):
             dis_power = dis_sched[0]
 
             if dis_power > 0.001:
-                # MPC wants to discharge: lower offer_adder to sell more
-                offer_adder[t] = np.clip(
-                    config.market_design.offer_adder_range[0] + 5.0,
-                    *config.market_design.offer_adder_range
-                )
-                bid_mult[t] = np.clip(0.85, *config.market_design.bid_mult_range)
+                # Sell: ask little to discharge, and decline to buy.
+                discharge_price[t] = d_lo
+                charge_price[t] = c_hi
             elif ch_power > 0.001:
-                # MPC wants to charge: raise bid_mult to buy more
-                bid_mult[t] = np.clip(1.15, *config.market_design.bid_mult_range)
-                offer_adder[t] = np.clip(
-                    config.market_design.offer_adder_range[1] - 5.0,
-                    *config.market_design.offer_adder_range
-                )
-            else:
-                # Idle: moderate parameters
-                bid_mult[t] = np.mean(config.market_design.bid_mult_range)
-                offer_adder[t] = np.mean(config.market_design.offer_adder_range)
+                # Buy: ask little to charge, and decline to sell.
+                charge_price[t] = c_lo
+                discharge_price[t] = d_hi
+            # Idle: leave both at the truthful point, which asks for nothing.
 
-        if a.is_prosumer:
-            base_actions[a.name] = {
-                "bid_mult": bid_mult, "offer_adder": offer_adder
-            }
-        else:
-            base_actions[a.name] = {"bid_mult": bid_mult}
+        base_actions[a.name] = {"charge_price": charge_price,
+                                "discharge_price": discharge_price}
 
     return base_actions
 

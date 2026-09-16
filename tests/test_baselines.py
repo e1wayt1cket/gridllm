@@ -32,28 +32,43 @@ def test_feature_index_covers_every_named_feature():
         assert name in baselines._FEATURE_INDEX
 
 
-def test_truthful_declares_the_stated_prices():
+def _likes_to(act, direction):
+    """Whether an action expresses a preference to charge or to discharge.
+
+    A unit charges when it asks *little* to charge -- a charge price in the
+    lower half of its range is a price it will be taken up on -- and refuses to
+    sell by asking a lot to discharge. Discharging is the mirror. Asserting
+    this rather than an ordering is what stops the direction from being
+    inverted and still passing, which is what happened here for two revisions.
+    """
+    charge, discharge = float(act[0]), float(act[1])
+    c_lo, c_hi = baselines._CHARGE_LOW, baselines._CHARGE_HIGH
+    d_lo, d_hi = baselines._DISCHARGE_LOW, baselines._DISCHARGE_HIGH
+    wants_charge = charge <= c_lo + 0.25 * (c_hi - c_lo)
+    wants_discharge = discharge <= d_lo + 0.25 * (d_hi - d_lo)
+    return wants_charge if direction == "charge" else wants_discharge
+
+
+def test_truthful_declares_no_premium():
     p = baselines.make_baseline_policy("truthful")
     for obs in (_obs(), _obs(soc=0.05), _obs(price=3.0), _obs(soc=0.99)):
-        assert np.allclose(p(obs), [1.0, 0.0])
+        assert np.allclose(p(obs), [0.0, 0.0])
 
 
 def test_rule_charges_a_flat_battery_and_discharges_a_full_one():
     p = baselines.make_baseline_policy("rule")
     # State of charge outranks price: a flat battery charges even at a high
     # price, a full one discharges even at a low price.
-    assert p(_obs(soc=0.10, price=3.0, average=1.0))[0] > 1.0
-    assert p(_obs(soc=0.90, price=0.2, average=1.0))[1] == 0.0
-    assert p(_obs(soc=0.90, price=0.2, average=1.0))[0] < 1.0
+    assert _likes_to(p(_obs(soc=0.10, price=3.0, average=1.0)), "charge")
+    assert _likes_to(p(_obs(soc=0.90, price=0.2, average=1.0)), "discharge")
 
 
 def test_rule_uses_price_when_the_battery_is_between_its_limits():
     p = baselines.make_baseline_policy("rule")
     cheap = p(_obs(soc=0.5, price=0.5, average=1.0))
     dear = p(_obs(soc=0.5, price=2.0, average=1.0))
-    # Cheap energy: bid up to charge, and ask a lot to discharge. Dear: reverse.
-    assert cheap[0] > dear[0]
-    assert cheap[1] > dear[1]
+    assert _likes_to(cheap, "charge")
+    assert _likes_to(dear, "discharge")
 
 
 def test_rule_is_a_pure_function_of_the_observation():
@@ -73,13 +88,13 @@ def test_myopic_reacts_to_the_price():
     p = baselines.make_baseline_policy("myopic")
     cheap = p(_obs(price=0.5, average=1.0))
     dear = p(_obs(price=2.0, average=1.0))
-    assert cheap[0] > dear[0]
-    assert cheap[1] > dear[1]
+    assert _likes_to(cheap, "charge")
+    assert _likes_to(dear, "discharge")
 
 
 def test_every_baseline_stays_inside_the_declared_action_bounds():
-    lo = np.array([0.3, 0.0])
-    hi = np.array([1.8, 50.0])
+    lo = np.array([baselines._CHARGE_LOW, baselines._DISCHARGE_LOW])
+    hi = np.array([baselines._CHARGE_HIGH, baselines._DISCHARGE_HIGH])
     for name in baselines.BASELINE_NAMES:
         p = baselines.make_baseline_policy(name)
         for soc in (0.0, 0.5, 1.0):

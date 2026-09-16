@@ -5,6 +5,7 @@ import torch
 from typing import Dict, List, Optional
 
 from models import Agent, MarketConfig
+from rl_spec import action_spec_for
 from strategies import BiddingStrategy, register_strategy
 
 
@@ -69,10 +70,13 @@ class RLBiddingStrategy(BiddingStrategy):
         actions = {}
         for a in agents:
             nm = a.name
-            # All agents start with truthful defaults; trained policies
-            # overwrite their blocks in the loop below
-            actions[nm] = {"bid_mult": np.full(T, 1.0),
-                           "offer_adder": np.full(T, 0.0)}
+            # Every agent starts at its own truthful declaration; trained
+            # policies overwrite their blocks in the loop below. The two
+            # ontologies differ -- a storage unit declares prices and a load
+            # declares multipliers -- so the vector is built from the spec.
+            spec = action_spec_for(a)
+            actions[nm] = {name: np.full(T, spec.truthful[name])
+                           for name in spec.action_names}
 
         for block_idx in range(N_BLOCKS):
             t_start = block_idx * BLOCK_SIZE
@@ -89,19 +93,20 @@ class RLBiddingStrategy(BiddingStrategy):
                 obs_t = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
                 with torch.no_grad():
                     act_arr = policies[nm](obs_t).squeeze(0).numpy()
-                bid_m = float(np.clip(act_arr[0], action_low, action_high))
-                offer_a = float(np.clip(act_arr[1], OFFER_ADDER_LOW,
-                                        OFFER_ADDER_HIGH))
                 if nm in actions:
-                    actions[nm]["bid_mult"][t_start:t_end] = bid_m
-                    actions[nm]["offer_adder"][t_start:t_end] = offer_a
+                    spec = action_spec_for(a)
+                    for i, name in enumerate(spec.action_names):
+                        lo, hi = spec.bounds[name]
+                        actions[nm][name][t_start:t_end] = \
+                            float(np.clip(act_arr[i], lo, hi))
 
             for a in agents:
                 nm = a.name
                 if nm in policies or nm in actions:
                     continue
                 # No policy and no action yet — use fixed defaults
-                actions[nm] = {"bid_mult": np.full(T, 1.0),
-                               "offer_adder": np.full(T, 0.0)}
+                spec = action_spec_for(a)
+                actions[nm] = {name: np.full(T, spec.truthful[name])
+                               for name in spec.action_names}
 
         return actions

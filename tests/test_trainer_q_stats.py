@@ -20,9 +20,14 @@ class _StubEnv:
 
     def __init__(self, n_agents=2, obs_dim=4):
         from types import SimpleNamespace
+
+        from rl_spec import ACTION_BID_OFFER_V1
+
         self.obs_spec = SimpleNamespace(total_dim=obs_dim)
-        self.action_spec = SimpleNamespace(
-            action_names=["bid_mult", "offer_adder"])
+        # A real spec, not a namespace holding the names: the constructor reads
+        # the dimension, the bounds and the truthful point off it, and the
+        # deviation penalty is anchored at that point.
+        self.action_spec = ACTION_BID_OFFER_V1
         self.rl_agents = [SimpleNamespace(name=f"A{i}") for i in range(n_agents)]
         self._obs_dim = obs_dim
         # The centralized critic splits each agent's observation into its

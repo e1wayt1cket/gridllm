@@ -200,7 +200,8 @@ class ProsumerPayoff(_LedgerPayoff):
     """A site with load, and possibly on-site generation and a battery.
 
     Consumption is valued at the agent's truthful ``bid_value``, which the
-    bidding action never touches: RL shades ``bid_mult`` at clearing time only.
+    bidding action never touches: the action shades the declared quote at
+    clearing time only.
     Charging the battery is a purchase, not a source of value — a battery does
     not earn the clearing objective's credit for declaring a high charge bid.
     """

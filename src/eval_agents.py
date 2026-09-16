@@ -1,5 +1,5 @@
 # eval_agents.py
-"""Evaluate trained RL policies against baseline (bid_mult=1.0, offer_adder=0.0).
+"""Evaluate trained RL policies against the truthful-declaration baseline.
 
 Load any combination of trained policy files and run market simulations to
 measure:
@@ -27,6 +27,7 @@ from scenarios import get_scenario, list_scenarios
 from models import MarketConfig
 from rl_env import BiddingEnv, DayCapture, N_BLOCKS, BLOCK_SIZE
 from rl_td3 import Actor, load_policy
+from rl_spec import action_spec_for
 from rl_profit_diagnostics import valuation_artifact
 from surplus_metrics import consumer_metrics, day_econ_metrics, \
     DAY_ECON_COLUMNS
@@ -111,9 +112,11 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
             action = actor_predict(policy, obs[agent_name])
             acts = {agent_name: action}
         else:
-            # Baseline: all agents use defaults
-            default_act = np.array([1.0, 0.0], dtype=np.float32)
-            acts = {a.name: default_act for a in env.all_agents}
+            # Baseline: every agent stays at the truthful declaration reset()
+            # already installed, so no action is sent. A literal pair here
+            # would be read positionally as a storage unit's two prices, and
+            # `(1.0, 0.0)` is not the truthful point of that box.
+            acts = {}
 
         next_obs, rewards, done, info = env.step(acts)
         total_welfare += info.get("welfare", 0.0)
@@ -168,7 +171,8 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
       welfare  accumulated system welfare
       re_rate  renewable consumption rate from the last block
       sched    per-agent committed schedules padded to length env.T
-      declared per-rl-agent bid_mult/offer_adder padded to length env.T
+      declared per-rl-agent quotes padded to length env.T, in each agent's
+               own action space
     """
     obs = env.reset()
     rl_names = [a.name for a in env.rl_agents]
@@ -303,8 +307,6 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
     obs_spec = scratch_env.obs_spec
     action_spec = scratch_env.action_spec
     bounds = scratch_env.get_action_bounds()
-    bid_mult_low = float(bounds[0, 0])
-    bid_mult_high = float(bounds[1, 0])
 
     policies = load_policies_from_dir(policy_dir, obs_dim, bounds,
                                       checkpoint=checkpoint,
@@ -339,17 +341,13 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
         # this the two clears see different wholesale days and every delta
         # carries that spread.
         np.random.seed(seed)
-        env_base = BiddingEnv(agents, cfg,
-                              bid_mult_low=bid_mult_low,
-                              bid_mult_high=bid_mult_high)
+        env_base = BiddingEnv(agents, cfg)
         base = run_episode(env_base, policy=None, n_blocks=n_blocks,
                            capture=consumer_metrics)
 
         # Combined-fleet episode (all matched policies act together).
         np.random.seed(seed)
-        env_comb = BiddingEnv(agents, cfg, rl_agent_names=rl_names,
-                              bid_mult_low=bid_mult_low,
-                              bid_mult_high=bid_mult_high)
+        env_comb = BiddingEnv(agents, cfg, rl_agent_names=rl_names)
 # The welfare artifact is revalued from the captured day schedule, so
         # the combined run must always capture it; `consumer_metrics`
         # controls only the consumer accounting columns below.
@@ -406,15 +404,16 @@ def run_regret_test(agents, config, declared: dict, T: int,
 
     base_strategy = {}
     for a in agents:
-        if a.name in declared:
-            bid = np.asarray(declared[a.name]["bid_mult"], dtype=float)
-            offer = np.asarray(declared[a.name].get("offer_adder",
-                                                    np.zeros(T)),
-                               dtype=float)
-        else:
-            bid = np.full(T, 1.0, dtype=float)
-            offer = np.full(T, 0.0, dtype=float)
-        base_strategy[a.name] = {"bid_mult": bid, "offer_adder": offer}
+        spec = action_spec_for(a)
+        d = declared.get(a.name)
+        # The profile under test is whatever the policies declared, in each
+        # agent's own action space; an agent with no declaration sits at its
+        # spec's truthful point rather than at a literal written here.
+        base_strategy[a.name] = {
+            n: (np.asarray(d[n], dtype=float) if d is not None
+                else np.full(T, spec.truthful[n], dtype=float))
+            for n in spec.action_names
+        }
 
     # On Windows the tester runs serial (parallel defaults to os.name != 'nt')
     # and the COBYLA best-response search costs ~4-8h for the full fleet.
@@ -456,10 +455,6 @@ def main():
                              ".pt files")
     parser.add_argument("--scenarios", type=str, default="baseline",
                         help="Comma-separated scenario names or 'all'")
-    parser.add_argument("--bid-mult-low", type=float, default=0.3,
-                        help="Lower bound for bid_mult action space")
-    parser.add_argument("--bid-mult-high", type=float, default=1.8,
-                        help="Upper bound for bid_mult action space")
     parser.add_argument("--combined-only", action="store_true",
                         help="Only run the combined all-policies evaluation, "
                              "skipping per-agent runs")
@@ -513,15 +508,16 @@ def main():
     config = default_eval_config()
 
     # ---- Load policies ----
-    action_bounds = torch.tensor(
-        [[args.bid_mult_low, 0.0], [args.bid_mult_high, 50.0]],
-        dtype=torch.float32)
-    # Use a temp env to get obs_dim and the active observation/action spec
+    # The box a policy was trained in is the one its action spec declares, so
+    # it is read from the spec rather than assembled from flags. `load_policy`
+    # checks the spec name, but a checkpoint whose spec matches and whose box
+    # does not would be rescaled silently.
     temp_agents, _ = get_scenario("baseline", T=96, config=copy.deepcopy(config))
     temp_env = BiddingEnv(temp_agents, config)
     obs_dim = temp_env.get_state_dim()
     obs_spec = temp_env.obs_spec
     action_spec = temp_env.action_spec
+    action_bounds = temp_env.get_action_bounds()
 
     if os.path.isdir(args.policies):
         policies = load_policies_from_dir(
@@ -579,15 +575,11 @@ def main():
         agent_names = [a.name for a in agents]
         rl_names = [n for n in policies if n in agent_names]
 
-        env_base = BiddingEnv(agents, config_copy,
-                              bid_mult_low=args.bid_mult_low,
-                              bid_mult_high=args.bid_mult_high)
+        env_base = BiddingEnv(agents, config_copy)
         env_comb = None
         if len(rl_names) > 1:
             env_comb = BiddingEnv(agents, config_copy,
-                                  rl_agent_names=rl_names,
-                                  bid_mult_low=args.bid_mult_low,
-                                  bid_mult_high=args.bid_mult_high)
+                                  rl_agent_names=rl_names)
 
         # Per-episode rows, averaged per agent/ALL across episodes below.
         rows_ep: list = []
@@ -623,9 +615,7 @@ def main():
                     if S is not None:
                         np.random.seed(S)
                     env_rl = BiddingEnv(agents, config_copy,
-                                        rl_agent_names=[pol_agent_name],
-                                        bid_mult_low=args.bid_mult_low,
-                                        bid_mult_high=args.bid_mult_high)
+                                        rl_agent_names=[pol_agent_name])
                     rl_result = run_episode(env_rl, policy=pol_net)
                     if k == 0:
                         print(f"  RL ({pol_agent_name}): "

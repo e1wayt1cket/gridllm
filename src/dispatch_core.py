@@ -301,6 +301,80 @@ def _select_radial_lines(net):
     return radial_lines
 
 
+def quote_arrays(agent, action_params, T, config):
+    """The prices the clearing costs this agent's charge and discharge at.
+
+    Two ontologies, chosen by `participant_type` and never by whether the agent
+    carries a battery. A prosumer with a battery keeps the declared-price pair
+    it has always had: `bid_value` is what its load is worth to it and
+    `offer_cost` what its generation must recover, both meaningful for that
+    participant, shaded by `bid_mult` and `offer_adder`. A storage unit alone
+    has neither of those things, so it declares its two reservation prices
+    directly, in CNY/MWh.
+
+    A storage agent whose action is missing a price raises rather than falling
+    back. The old defaults (`ap.get("bid_mult", 1.0)`) are exactly how a unit
+    would end up bidding a legacy multiplier where a price belongs -- silently,
+    and only on the paths nobody re-checked.
+
+    Returns `(bid_arr, offer_arr)`, each a length-T array.
+    """
+    nm = agent.name
+    ap = action_params.get(nm, {}) or {}
+    is_storage = getattr(agent, "participant_type", "prosumer") == "storage"
+
+    if is_storage:
+        # The retired pair is an error rather than a fallback. A caller still
+        # passing `bid_mult` believes it is shading a price that no longer
+        # exists, and would otherwise get the truthful declaration and never
+        # learn that its action had stopped doing anything.
+        legacy = [k for k in ("bid_mult", "offer_adder") if k in ap]
+        if legacy:
+            raise KeyError(
+                f"storage agent {nm!r} was given {legacy}; a storage unit "
+                f"declares its reservation prices as "
+                f"'charge_price'/'discharge_price' in CNY/MWh, and "
+                f"'bid_mult'/'offer_adder' only mean something for a load or a "
+                f"prosumer")
+        declared = [k for k in ("charge_price", "discharge_price") if k in ap]
+        if not declared:
+            # No declaration at all is the truthful one: a battery that names
+            # no premium is asking for none. This is the reference point the
+            # baselines are measured from, so it is the right thing for an
+            # absent action to mean -- unlike a *partial* declaration, which
+            # can only be a mistake.
+            ap = {"charge_price": 0.0, "discharge_price": 0.0}
+        elif len(declared) != 2:
+            raise KeyError(
+                f"storage agent {nm!r} declared only {declared}; both "
+                f"reservation prices are required")
+        bid_arr = _broadcast(ap["charge_price"], T)
+        offer_arr = _broadcast(ap["discharge_price"], T)
+    else:
+        bm = ap.get("bid_mult", 1.0)
+        oa = ap.get("offer_adder", 0.0)
+        bid_arr = _broadcast(bm, T) * agent.bid_value
+        offer_arr = _broadcast(oa, T) + agent.offer_cost
+
+    # Any agent carrying a battery is modelled with charge and discharge as the
+    # parts of one net flow, and that decomposition is exact only while both
+    # objective coefficients stay negative. A prosumer's declared prices are
+    # positive by construction so this never fires for one, but the invariant
+    # is a property of the mechanism rather than of the ontology.
+    if getattr(agent, "storage", None) is not None:
+        check_storage_quote_signs(float(np.min(bid_arr)),
+                                  float(np.min(offer_arr)),
+                                  config.storage.cycle_cost, f"storage {nm}")
+    return bid_arr, offer_arr
+
+
+def _broadcast(value, T):
+    """A scalar or a per-period array, as a length-T float array."""
+    if isinstance(value, np.ndarray):
+        return np.asarray(value, dtype=float)[:T]
+    return np.full(T, float(value))
+
+
 def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, config):
     """Build per-agent info dict for single-period solvers.
 
@@ -319,12 +393,8 @@ def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, co
             _, p_ch_max, _, p_dis_max = StorageConstraints.feasible_ranges(a.storage, cur_soc)
             target_ch, target_dis = float(p_ch_max), float(p_dis_max)
 
-        bid = a.bid_value
-        offer = a.offer_cost
-        ap = action_params.get(a.name, {})
-        if ap:
-            bid *= ap["bid_mult"][t] if isinstance(ap.get("bid_mult"), np.ndarray) else ap.get("bid_mult", 1.0)
-            offer += ap["offer_adder"][t] if isinstance(ap.get("offer_adder"), np.ndarray) else ap.get("offer_adder", 0.0)
+        bid_arr, offer_arr = quote_arrays(a, action_params, t + 1, config)
+        bid, offer = float(bid_arr[t]), float(offer_arr[t])
 
         agent_info[a.name] = {
             'bus': a.bus, 'load': load_val, 'pv_max': pv_max, 'wind_max': wind_max,

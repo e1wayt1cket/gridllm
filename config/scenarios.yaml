@@ -13,6 +13,13 @@ scenarios:
     with_wind: true
     override_config:
       network.line_capacity_multiplier: 1.5
+      # Inverters rated a little above their arrays, which is how they are
+      # built: an inverter's real and reactive outputs share one apparent-power
+      # circle, so at parity every MVar spent holding the feeder inside its
+      # voltage band is a MWh of renewable output that cannot be delivered. A
+      # scenario-scoped value rather than a default, because it is a choice
+      # about this study's facilities and not a property of the network.
+      network.inverter_smax_multiplier: 1.10
 
   baseline:
     description: "Baseline: typical day, reference facilities"

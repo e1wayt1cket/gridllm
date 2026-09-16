@@ -12,6 +12,7 @@ Fallback: random sampling when scipy is unavailable or use_optimization=False.
 
 import numpy as np
 import copy
+import itertools
 import os
 
 import money
@@ -20,6 +21,7 @@ from typing import Dict, List, Tuple, Optional
 
 from models import Agent, MarketConfig
 from market import clear_market
+from rl_spec import action_spec_for
 
 try:
     from scipy.optimize import minimize as _scipy_minimize
@@ -90,65 +92,77 @@ def _evaluate_payoffs(args):
 # COBYLA-based best response (block-level optimization)
 # ---------------------------------------------------------------------------
 
+# COBYLA's initial trust-region radius, as a fraction of the narrowest action
+# range in the space being searched. Expressed as a fraction rather than a
+# constant so a price in CNY/MWh gets a step of the same relative size as the
+# multiplier it replaced: the retired `bid_mult` box was 1.5 wide and the step
+# was 0.05, and the charge price box is 150 wide and gets 5.0.
+_RHOBEG_FRACTION = 0.05 / 1.5
+
+# Local-exploration width per action name, in the action's own units. The two
+# named entries are the widths this search has always used; anything else falls
+# back to a fraction of its own range.
+_LOCAL_SIGMA = {"bid_mult": 0.08, "offer_adder": 3.0}
+_SIGMA_FRACTION = 0.06
+
+
+def _action_names(agent):
+    """The action names this agent's quotes live in."""
+    return action_spec_for(agent).action_names
+
+
+def _rhobeg_for(spec) -> float:
+    """COBYLA step size for a given action space."""
+    return _RHOBEG_FRACTION * min(spec.bounds[n][1] - spec.bounds[n][0]
+                                  for n in spec.action_names)
+
+
 def _best_response_optimize(agent, agents, config, T, stage, base_strategy,
                             block_count=24, maxiter=500):
     """Find best response via COBYLA over block-level strategy parameters.
 
     Reduces 96-dim strategy to block_count dims (e.g. 24 blocks of 4 periods).
     COBYLA handles the black-box OPF objective without derivatives.
+
+    One free variable per action the agent's spec declares, bounded by that
+    spec. A storage unit therefore searches its two reservation prices while a
+    prosumer searches its multiplier and its adder; nothing here decides which
+    by name.
     """
     name = agent.name
-    is_prosumer = agent.is_prosumer
-    base_bid = np.array(base_strategy[name]["bid_mult"])
+    spec = action_spec_for(agent)
+    names = spec.action_names
+    base = {n: np.array(base_strategy[name][n]) for n in names}
 
-    if is_prosumer:
-        base_offer = np.array(base_strategy[name]["offer_adder"])
-        x0 = np.concatenate([
-            _strategy_to_blocks(base_bid, block_count),
-            _strategy_to_blocks(base_offer, block_count),
-        ])
-    else:
-        x0 = _strategy_to_blocks(base_bid, block_count)
+    x0 = np.concatenate([_strategy_to_blocks(base[n], block_count)
+                         for n in names])
 
     def _objective(x):
         trial = copy.deepcopy(base_strategy)
-        if is_prosumer:
-            bid_blk = x[:block_count]
-            offer_blk = x[block_count:]
-            bid = np.clip(_blocks_to_strategy(bid_blk, T),
-                          *config.market_design.bid_mult_range)
-            offer = np.clip(_blocks_to_strategy(offer_blk, T),
-                            *config.market_design.offer_adder_range)
-            trial[name] = {"bid_mult": bid, "offer_adder": offer}
-        else:
-            bid_blk = x
-            bid = np.clip(_blocks_to_strategy(bid_blk, T),
-                          *config.market_design.bid_mult_range)
-            trial[name] = {"bid_mult": bid}
-
+        trial[name] = {
+            n: np.clip(
+                _blocks_to_strategy(x[i * block_count:(i + 1) * block_count], T),
+                *spec.bounds[n])
+            for i, n in enumerate(names)
+        }
         r_name, payoff, _ = _evaluate_payoffs(
             (agents, config, T, stage, trial, name))
         return -payoff if r_name == name else float('inf')
 
     try:
         res = _scipy_minimize(_objective, x0, method='COBYLA',
-                              options={'maxiter': maxiter, 'rhobeg': 0.05})
+                              options={'maxiter': maxiter,
+                                       'rhobeg': _rhobeg_for(spec)})
         opt_x = res.x
     except Exception:
         opt_x = x0
 
     # Reconstruct best strategy from optimized blocks
     best_strat = copy.deepcopy(base_strategy[name])
-    if is_prosumer:
-        best_strat["bid_mult"] = np.clip(
-            _blocks_to_strategy(opt_x[:block_count], T),
-            *config.market_design.bid_mult_range)
-        best_strat["offer_adder"] = np.clip(
-            _blocks_to_strategy(opt_x[block_count:], T),
-            *config.market_design.offer_adder_range)
-    else:
-        best_strat["bid_mult"] = np.clip(
-            _blocks_to_strategy(opt_x, T), *config.market_design.bid_mult_range)
+    for i, n in enumerate(names):
+        best_strat[n] = np.clip(
+            _blocks_to_strategy(opt_x[i * block_count:(i + 1) * block_count], T),
+            *spec.bounds[n])
 
     # Final OPF evaluation to get accurate payoff
     trial_final = copy.deepcopy(base_strategy)
@@ -174,61 +188,45 @@ def _generate_variations(base_strategy, agent, config, num_variations=300,
     and far deviations share one variant budget. Uses the global numpy RNG so
     parallel workers each draw independent candidates.
     """
-    bid_lo, bid_hi = config.market_design.bid_mult_range
-    offer_range = config.market_design.offer_adder_range
-    variants = []
-    base_bid = np.array(base_strategy[agent.name]["bid_mult"])
-    is_prosumer = agent.is_prosumer
-    if is_prosumer:
-        base_offer = np.array(base_strategy[agent.name]["offer_adder"])
+    spec = action_spec_for(agent)
+    names = spec.action_names
+    base = {n: np.array(base_strategy[agent.name][n]) for n in names}
+    scale = exploration_scale or 1.0
 
-    # Deterministic full-range vertices (low / mid / high bid; low & high offer).
-    for bm in (bid_lo, (bid_lo + bid_hi) / 2.0, bid_hi):
+    # Deterministic full-range vertices: the first action takes its low, mid
+    # and high value while every other takes its two bounds.
+    levels = []
+    for i, n in enumerate(names):
+        lo, hi = spec.bounds[n]
+        levels.append((lo, (lo + hi) / 2.0, hi) if i == 0 else (lo, hi))
+
+    variants = []
+    for combo in itertools.product(*levels):
         new_strat = copy.deepcopy(base_strategy)
-        if is_prosumer:
-            for oa in (offer_range[0], offer_range[1]):
-                new_strat = copy.deepcopy(base_strategy)
-                new_strat[agent.name] = {
-                    "bid_mult": np.full_like(base_bid, bm),
-                    "offer_adder": np.full_like(base_offer, oa)}
-                variants.append(new_strat)
-        else:
-            new_strat[agent.name] = {"bid_mult": np.full_like(base_bid, bm)}
-            variants.append(new_strat)
+        new_strat[agent.name] = {n: np.full_like(base[n], v)
+                                 for n, v in zip(names, combo)}
+        variants.append(new_strat)
 
     remaining = num_variations - len(variants)
     n_local = max(0, int(remaining * (local_fraction if local_fraction else 0.0)))
     n_uniform = max(0, remaining - n_local)
 
-    bid_sigma = 0.08 * (exploration_scale or 1.0)
-    offer_sigma = 3.0 * (exploration_scale or 1.0)
+    sigmas = {n: _LOCAL_SIGMA.get(
+        n, _SIGMA_FRACTION * (spec.bounds[n][1] - spec.bounds[n][0])) * scale
+        for n in names}
 
     for _ in range(n_local):
         new_strat = copy.deepcopy(base_strategy)
-        if is_prosumer:
-            bid_mult = np.clip(np.random.normal(base_bid, bid_sigma),
-                               bid_lo, bid_hi)
-            offer_adder = np.clip(np.random.normal(base_offer, offer_sigma),
-                                  *offer_range)
-            new_strat[agent.name] = {"bid_mult": bid_mult,
-                                     "offer_adder": offer_adder}
-        else:
-            bid_mult = np.clip(np.random.normal(base_bid, bid_sigma),
-                               bid_lo, bid_hi)
-            new_strat[agent.name] = {"bid_mult": bid_mult}
+        new_strat[agent.name] = {
+            n: np.clip(np.random.normal(base[n], sigmas[n]), *spec.bounds[n])
+            for n in names}
         variants.append(new_strat)
 
     for _ in range(n_uniform):
         new_strat = copy.deepcopy(base_strategy)
-        if is_prosumer:
-            bid_mult = np.random.uniform(bid_lo, bid_hi, size=base_bid.shape)
-            offer_adder = np.random.uniform(*offer_range,
-                                            size=base_offer.shape)
-            new_strat[agent.name] = {"bid_mult": bid_mult,
-                                     "offer_adder": offer_adder}
-        else:
-            bid_mult = np.random.uniform(bid_lo, bid_hi, size=base_bid.shape)
-            new_strat[agent.name] = {"bid_mult": bid_mult}
+        new_strat[agent.name] = {
+            n: np.random.uniform(*spec.bounds[n], size=base[n].shape)
+            for n in names}
         variants.append(new_strat)
     return variants
 
@@ -350,15 +348,16 @@ class NashEquilibriumTester:
 
         Includes ALL agents' strategies, not just the target's own. Otherwise,
         in diagonalization, when Agent A updates and Agent B re-computes BR
-        with unchanged bid_mult/offer_adder, the cache returns a stale payoff
-        computed against Agent A's old strategy.
+        with an unchanged declaration, the cache returns a stale payoff
+        computed against Agent A's old strategy. Every action name the agent's
+        spec declares is hashed, so an action that stops being represented
+        cannot go on being cached.
         """
         parts = [target_name]
         for a in sorted(self.agents, key=lambda x: x.name):
             s = strategy.get(a.name, {})
-            parts.append(tuple(np.round(s.get("bid_mult", []), 5)))
-            if a.is_prosumer:
-                parts.append(tuple(np.round(s.get("offer_adder", []), 5)))
+            for n in _action_names(a):
+                parts.append(tuple(np.round(s.get(n, []), 5)))
         return tuple(parts)
 
     def _clear_cache(self):

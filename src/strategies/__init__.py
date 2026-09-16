@@ -28,7 +28,10 @@ class BiddingStrategy:
         market_history: Optional[dict] = None,
         T: int = 96,
     ) -> dict:
-        """Return {agent_name: {"bid_mult": array(T,), "offer_adder": array(T,)}}."""
+        """Return {agent_name: {action_name: array(T,)}}.
+
+        The action names are each agent's own spec's, not a fixed pair.
+        """
         raise NotImplementedError
 
 

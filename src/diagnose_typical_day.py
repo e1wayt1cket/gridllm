@@ -34,6 +34,14 @@ Usage:
   PYTHONPATH=src python src/diagnose_typical_day.py --json outputs/typical_day.json
   PYTHONPATH=src python src/diagnose_typical_day.py --sweep-load-scale 1.6,1.75,1.914
   PYTHONPATH=src python src/diagnose_typical_day.py --sweep-elasticity 0.35,1.0,1.4,1.8
+  PYTHONPATH=src python src/diagnose_typical_day.py --sweep-ess-buses all
+  PYTHONPATH=src python src/diagnose_typical_day.py --search-ess-buses all
+
+The last two are the placement experiment: `--sweep-ess-buses` clears one unit
+at every candidate bus, and `--search-ess-buses` chooses four by hill-climbing
+the share of the action box each keeps tradeable *in the fleet's company*. The
+placement in `config/defaults.yaml` is the output of the second; the first is
+the per-bus landscape and is not the selection metric (see `siting_sweep`).
 
 Exits non-zero when a hard gate fails, so it can be wired into a check later.
 """
@@ -48,10 +56,12 @@ import config_loader
 import money
 import participant_payoff
 import surplus_metrics
-from config_loader import get_default, reload_defaults, set_default
+from config_loader import (get_default, reload_defaults, reload_scenarios,
+                           set_default, set_scenario_override)
 from grid import build_base_network, day_ahead_price_china
 from market import clear_market
 from rl_physics import pairwise_resistance_distance
+from rl_spec import ACTION_STORAGE_QUOTE_V2
 from scenarios import get_scenario, typical_day_config
 
 # The typical day's targets, in one place so the report and the gates agree.
@@ -59,6 +69,76 @@ from scenarios import get_scenario, typical_day_config
 # what `profiles.load.target_peak_mw` asks for, and the profiles are scaled to
 # hit it. Read at call time so a sweep that overrides the config is reported
 # against the level it actually ran at.
+# ---------------------------------------------------------------------------
+# Siting eligibility
+# ---------------------------------------------------------------------------
+# A battery declares two reservation prices and the clearing costs charging at
+# the first and discharging at the second, on top of `cycle_cost`. So the unit
+# still cycles only while `charge_price + discharge_price` stays under the
+# margin its own price window leaves over the degradation floor. That region is
+# a triangle in the corner of the box, and its share of the box is the unit's
+# tradeable strategy space: the fraction of its own action on which anything
+# happens at all.
+#
+# This threshold is fixed **before** any siting measurement is run, so which
+# buses turn out to be eligible cannot be reverse-engineered from the threshold
+# afterwards. 25% is the plan's number; it is a judgement about how much of a
+# strategy space a policy needs to be learnable, not a measured quantity.
+TRADEABLE_BOX_SHARE = 0.25
+
+
+def round_trip_margin_cny_mwh(node, eta_ch: float, eta_dis: float,
+                              cycle_cost: float) -> float:
+    """Margin over the degradation floor, per MWh *stored*, in CNY/MWh.
+
+    One MWh stored costs `valley / eta_ch` to put in and releases `eta_dis` MWh
+    at the peak price, so it earns `eta_dis * peak`; degradation is charged on
+    both legs. Expressed per MWh stored rather than per MWh discharged so it
+    compares directly against the `2 * cycle_cost` the pair of quotes has to
+    cover inside the action box.
+    """
+    valley = float(np.min(node))
+    peak = float(np.max(node))
+    return eta_dis * peak - valley / eta_ch - 2.0 * cycle_cost
+
+
+def tradeable_box_share(margin: float, box) -> float:
+    """Share of the action box in which the unit still cycles.
+
+    The tradeable region is `charge + discharge < margin` clipped to the box.
+    Integrating the slice height `clamp(M - u, 0, H)` along the charge axis
+    gives the area exactly, in the two pieces the clamp splits it into: a
+    constant-height part where the slice has already hit the box's discharge
+    side, and a linear part where it has not.
+    """
+    (c_lo, c_hi), (d_lo, d_hi) = box
+    width, height = c_hi - c_lo, d_hi - d_lo
+    if width <= 0 or height <= 0:
+        return 0.0
+    # Distance along the charge axis, measured from the box's lower corner,
+    # over which charge + discharge still fits under the margin.
+    m = margin - c_lo - d_lo
+    if m <= 0:
+        return 0.0
+    full = min(width, max(0.0, m - height))   # slice already at full height
+    linear = min(width, m)                    # slice still growing
+    area = height * full + m * (linear - full) \
+        - (linear ** 2 - full ** 2) / 2.0
+    return area / (width * height)
+
+
+def action_box():
+    """The storage action box, as ((charge_lo, charge_hi), (disch_lo, disch_hi)).
+
+    Read from the spec rather than restated: the siting rule is a statement
+    about the space a policy actually declares in, so a change to the bounds
+    has to move this with it.
+    """
+    spec = ACTION_STORAGE_QUOTE_V2
+    return (spec.bounds[spec.action_names[0]],
+            spec.bounds[spec.action_names[1]])
+
+
 def _target_peak_mw() -> float:
     return float(get_default("profiles.load.target_peak_mw"))
 
@@ -90,26 +170,38 @@ CHURN_TOL_MWH = 1e-4
 
 def run_day(scenario="typical_day", T=money.PERIODS_PER_DAY, opf_mode="socp",
             load_scale=None, price_base=None, elasticity=None,
-            inverter_headroom=None, seed_note=None):
+            inverter_headroom=None, seed_note=None, ess_buses=None,
+            der_moves=None):
     """Clear one whole typical day and return everything the report reads.
 
-    The keyword overrides are applied to the in-memory configuration cache, so
-    calibration can sweep values without editing config/defaults.yaml. The cache
-    is reset first, so each run starts from what is on disk.
+    The keyword overrides are applied to the in-memory configuration caches, so
+    calibration can sweep values without editing config/defaults.yaml. Both
+    caches are reset first, so each run starts from what is on disk and a
+    previous sweep cannot leak into this one.
     """
     reload_defaults()
+    reload_scenarios()
     if load_scale is not None:
         set_default("profiles.load.load_scale", float(load_scale))
     if price_base is not None:
         set_default("price_curve.base", float(price_base))
     if elasticity is not None:
         set_default("price_curve.merit_order_price_elasticity", float(elasticity))
+    if inverter_headroom is not None:
+        # Written to the scenario cache, not to `config`, because the scenario
+        # owns this key: `get_scenario` re-applies `override_config` onto any
+        # config it is handed, so a value set on the config object alone is
+        # overwritten by config/scenarios.yaml one line later and the sweep
+        # reads as flat. Expressed where the file is read, the override is seen
+        # by both readers -- `typical_day_config` here and `_build_scenario`
+        # below -- and the two cannot disagree.
+        set_scenario_override(scenario, "network.inverter_smax_multiplier",
+                              float(inverter_headroom))
 
     config = typical_day_config(T)
     config.opf_mode = opf_mode
-    if inverter_headroom is not None:
-        config.network.inverter_smax_multiplier = float(inverter_headroom)
-    agents, wholesale = get_scenario(scenario, T, config)
+    agents, wholesale = get_scenario(scenario, T, config, ess_buses=ess_buses,
+                                     der_moves=der_moves)
     result = clear_market(agents, T, "DA", {}, config, wholesale=wholesale,
                           horizon_type="full_day" if T == money.PERIODS_PER_DAY
                           else "window")
@@ -145,6 +237,33 @@ def _churn(schedule):
     ch = np.asarray(schedule["p_ch"], dtype=float)
     dis = np.asarray(schedule["p_dis"], dtype=float)
     return float(np.sum(np.minimum(ch, dis)) * money.DT_HOURS)
+
+
+# Candidate DER layouts for the zero-shedding search (plan §3.3 S-PV1/S-PV2/
+# S-WIND/S-SPLIT). Each is a set of moves against the placement in
+# config/defaults.yaml, so the installed MW are conserved by construction and
+# the candidate is a question about location alone.
+#
+# The plan fixes what each one probes: whether moving injection toward the
+# voltage-limited end of the feeder buys shedding (the deep main feeder is
+# buses 14-17), whether putting it next to the largest load does, whether the
+# end of the longest spur does, and whether splitting a site beats one large
+# injection.
+DER_LAYOUTS = {
+    "none": [],
+    # 2.0 MW of residential PV from bus 21 to bus 17, the deep main feeder.
+    "S-PV1": [(21, 17, "pv")],
+    # 1.5 MW of industrial PV from bus 23 to bus 24, beside the largest load.
+    "S-PV2": [(23, 24, "pv")],
+    # 1.5 MW of wind from bus 30 to bus 32, the electrical end of the spur.
+    "S-WIND": [(30, 32, "wind")],
+    # The residential site split in half across two distant buses, against the
+    # same 2.0 MW delivered at one point. The second fraction is of what is
+    # left, so the site empties: 1.0 MW to each of buses 17 and 2.
+    "S-SPLIT": [(21, 17, "pv", 0.5), (21, 2, "pv", 1.0)],
+    # The combined move the individual candidates are each one half of.
+    "S-COMB": [(21, 17, "pv"), (23, 24, "pv"), (30, 32, "wind")],
+}
 
 
 def system_report(day):
@@ -300,6 +419,16 @@ def price_report(day):
         row = {"name": a.name, "bus": a.bus,
                "lmp_mean": float(node.mean())}
         row.update(_window(node, a.storage.eta_ch, a.storage.eta_dis, cycle_cost))
+        # The margin in CNY/MWh and the share of the unit's own action box it
+        # leaves tradeable. The ratio above says whether a cycle pays at all;
+        # these say how much of what the unit can declare still does something.
+        margin = round_trip_margin_cny_mwh(node, a.storage.eta_ch,
+                                           a.storage.eta_dis, cycle_cost)
+        row["round_trip_margin_cny_mwh"] = margin
+        row["tradeable_box_share"] = tradeable_box_share(
+            margin, action_box())
+        row["siting_eligible"] = (
+            row["tradeable_box_share"] >= TRADEABLE_BOX_SHARE)
         rows.append(row)
 
     # Every bus, not just the ones carrying a battery: this is what makes a
@@ -310,6 +439,11 @@ def price_report(day):
         node = lmp[:, i]
         row = {"bus": int(bus), "lmp_mean": float(node.mean())}
         row.update(_window(node, 0.92, 0.92, cycle_cost))
+        # Same two quantities as the per-unit rows, on the standard 0.92/0.92
+        # unit, so the pool a layout is searched over is read from one place.
+        margin = round_trip_margin_cny_mwh(node, 0.92, 0.92, cycle_cost)
+        row["round_trip_margin_cny_mwh"] = margin
+        row["tradeable_box_share"] = tradeable_box_share(margin, action_box())
         by_bus.append(row)
     by_bus.sort(key=lambda r: -r["margin"])
     viable = [r["bus"] for r in by_bus if r["margin"] > 0]
@@ -783,13 +917,18 @@ def build_report(day):
 
 
 def _sweep_axis(label, values, run_kwargs, axis):
-    """Clear the day once per value of one knob and show the gates that matter."""
+    """Clear the day once per value of one knob and show the gates that matter.
+
+    Returns the rows, so a caller that is writing an artifact gets the table
+    rather than only the printout.
+    """
     print("\n" + "=" * 78)
     print("sweep: %s over %s" % (label, values))
     print("=" * 78)
     print("%-9s %8s %7s %8s %9s %7s %7s %8s"
           % (label, "peak MW", "re %", "curt MWh", "unserv MWh",
              "v_min", "v_max", "maxUtil"))
+    rows = []
     for v in values:
         kwargs = dict(run_kwargs)
         kwargs[axis] = v
@@ -800,6 +939,17 @@ def _sweep_axis(label, values, run_kwargs, axis):
             continue
         system = system_report(day)
         network = network_report(day)
+        rows.append({
+            axis: v,
+            "peak_load_coincident_mw": system["peak_load_coincident_mw"],
+            "peak_load_sum_of_maxima_mw": system["peak_load_sum_of_maxima_mw"],
+            "re_consumption_rate": system["re_consumption_rate"],
+            "curtailment_mwh": system["curtailment_mwh"],
+            "unserved_mwh": system["unserved_mwh"],
+            "min_bus_voltage_pu": network.get("min_bus_voltage_pu"),
+            "max_bus_voltage_pu": network.get("max_bus_voltage_pu"),
+            "max_line_utilization": network.get("max_line_utilization"),
+        })
         print("%-9.4g %8.3f %7.2f %8.2f %9.4f %7.4f %7.4f %8.4f"
               % (v, system["peak_load_sum_of_maxima_mw"],
                  system["re_consumption_rate"], system["curtailment_mwh"],
@@ -807,6 +957,275 @@ def _sweep_axis(label, values, run_kwargs, axis):
                  network.get("min_bus_voltage_pu", float("nan")),
                  network.get("max_bus_voltage_pu", float("nan")),
                  network.get("max_line_utilization", float("nan"))))
+    return rows
+
+
+def der_layout_sweep(run_kwargs, headroom, names=None):
+    """Clear each candidate DER layout and show what it does to the shedding.
+
+    Every candidate is checked at one inverter headroom so the layouts are
+    compared against each other rather than against different multipliers, and
+    the invariants the plan requires are asserted on every one: PV 3.5 MW,
+    wind 1.5 MW, exactly four batteries, at least two PV buses, and no bus
+    carrying both.
+    """
+    names = list(names or DER_LAYOUTS)
+    print("\n" + "=" * 78)
+    print("DER layouts at headroom %.2f" % headroom)
+    print("=" * 78)
+    print("%-9s %7s %7s %9s %10s %9s %8s"
+          % ("layout", "pv MW", "wind MW", "unserv MWh", "curt MWh", "v_min", "peak MW"))
+    rows = []
+    for name in names:
+        moves = DER_LAYOUTS[name]
+        try:
+            day = run_day(**dict(run_kwargs, inverter_headroom=headroom,
+                                 der_moves=moves))
+        except Exception as exc:
+            print("%-9s FAILED: %s" % (name, str(exc)[:56]))
+            continue
+        agents, result = day["agents"], day["result"]
+        pv = sum(a.pv_capacity for a in agents)
+        wind = sum(a.wind_capacity for a in agents)
+        fleet = [a for a in agents if getattr(a, "participant_type", "") == "storage"]
+        pv_buses = {a.bus for a in agents if a.pv_capacity > 0}
+        wind_buses = {a.bus for a in agents if a.wind_capacity > 0}
+        assert abs(pv - 3.5) < 1e-6 and abs(wind - 1.5) < 1e-6, \
+            f"{name}: PV {pv} / wind {wind} are not the required 3.5 / 1.5 MW"
+        assert len(fleet) == 4, f"{name}: {len(fleet)} batteries, expected 4"
+        assert len(pv_buses) >= 2, f"{name}: PV on {sorted(pv_buses)}, need >= 2"
+        assert not (pv_buses & wind_buses), \
+            f"{name}: {sorted(pv_buses & wind_buses)} carries both PV and wind"
+        system = system_report(day)
+        network = network_report(day)
+        rows.append({
+            "layout": name, "moves": [list(m) for m in moves],
+            "pv_mw": pv, "wind_mw": wind,
+            "pv_buses": sorted(pv_buses), "wind_buses": sorted(wind_buses),
+            "unserved_mwh": system["unserved_mwh"],
+            "curtailment_mwh": system["curtailment_mwh"],
+            "re_consumption_rate": system["re_consumption_rate"],
+            "min_bus_voltage_pu": network.get("min_bus_voltage_pu"),
+            "max_line_utilization": network.get("max_line_utilization"),
+            "peak_load_sum_of_maxima_mw":
+                system["peak_load_sum_of_maxima_mw"],
+        })
+        print("%-9s %7.2f %7.2f %9.4f %10.4f %9.4f %8.4f"
+              % (name, pv, wind, system["unserved_mwh"],
+                 system["curtailment_mwh"],
+                 network.get("min_bus_voltage_pu", float("nan")),
+                 system["peak_load_sum_of_maxima_mw"]))
+    return rows
+
+
+def _margin_for_share(share, box):
+    """The margin a given tradeable share corresponds to, for reporting."""
+    from scipy.optimize import brentq
+    span = (box[0][1] - box[0][0]) + (box[1][1] - box[1][0])
+    return float(brentq(lambda m: tradeable_box_share(m, box) - share,
+                        -1.0, span))
+
+
+def _slack_bus(day):
+    """The bus the external grid connects at, which cannot host a battery."""
+    net = build_base_network(day["config"])
+    return int(net.ext_grid.at[0, "bus"])
+
+
+def _non_slack_buses(day):
+    """Every bus a battery could be placed on, in network order."""
+    slack = _slack_bus(day)
+    return [int(b) for b in day["result"].get("bus_indices", [])
+            if int(b) != slack]
+
+
+def siting_sweep(run_kwargs, buses=None):
+    """Measure one battery alone at each candidate bus (the plan's M2).
+
+    **This is a diagnostic, not the selection metric, and it was measured to be
+    misleading as one.** A single-unit clear answers "what would this bus be
+    worth to a unit arriving into today's market", but four units arbitrage the
+    same daily spread, so the price field a candidate is evaluated on is one
+    the other three have already flattened. Bus 6 leaves a lone unit 186
+    CNY/MWh and 17 once the fleet bids; the layout this scan selects
+    (10/15/19/26) leaves *none* of the four with a usable action space, while
+    the previous layout leaves one.
+
+    So read it as a per-bus price landscape -- which buses have a wide window,
+    which are narrow, where the crowding bites -- and take the eligibility a
+    layout is judged on from `price_report`, whose margin is read off the joint
+    day. `layout_search` is what selects.
+
+    Eligibility in both places is the share of the action box the unit can
+    still trade in, not the sign of its margin: "profitable" and "has a
+    strategy space" are different questions, and a unit can be the first
+    without being the second.
+    """
+    day = run_day(**run_kwargs)
+    candidates = buses if buses is not None else _non_slack_buses(day)
+    box = action_box()
+    cost = float(day["config"].storage.cycle_cost)
+
+    print("\n" + "=" * 78)
+    print("siting: one unit alone at each of %d buses" % len(candidates))
+    print("=" * 78)
+    print("%4s %9s %9s %10s %9s %8s %9s"
+          % ("bus", "valley", "peak", "margin", "share", "cycles", "net CNY"))
+    rows = []
+    for bus in candidates:
+        try:
+            solo = run_day(**dict(run_kwargs, ess_buses=[bus]))
+        except Exception as exc:
+            print("%4d FAILED: %s" % (bus, str(exc)[:52]))
+            continue
+        unit = _storage_agents(solo["agents"])[0]
+        sched = solo["result"]["schedules"][unit.name]
+        node = solo["result"]["lmp"][:, unit.bus]
+        ledger = participant_payoff.participant_payoff(
+            sched, node, unit, solo["config"]).as_dict()
+        margin = round_trip_margin_cny_mwh(node, unit.storage.eta_ch,
+                                           unit.storage.eta_dis, cost)
+        share = tradeable_box_share(margin, box)
+        rows.append({
+            "bus": int(bus),
+            "lmp_valley": float(np.min(node)),
+            "lmp_peak": float(np.max(node)),
+            "round_trip_margin_cny_mwh": margin,
+            "tradeable_box_share": share,
+            "eligible": bool(share >= TRADEABLE_BOX_SHARE),
+            "charge_mwh": float(np.sum(sched["p_ch"]) * money.DT_HOURS),
+            "discharge_mwh": float(np.sum(sched["p_dis"]) * money.DT_HOURS),
+            "cycles": float(ledger["equivalent_cycles"]),
+            "net_profit": float(ledger["total"]),
+        })
+        print("%4d %9.1f %9.1f %10.1f %9.6f %8.3f %9.2f"
+              % (bus, rows[-1]["lmp_valley"], rows[-1]["lmp_peak"], margin,
+                 share, rows[-1]["cycles"], rows[-1]["net_profit"]))
+
+    eligible = [r for r in rows if r["eligible"]]
+    print("-" * 78)
+    print("eligible (share >= %.2f, i.e. margin >= %.1f CNY/MWh): %s"
+          % (TRADEABLE_BOX_SHARE, _margin_for_share(TRADEABLE_BOX_SHARE, box),
+             [r["bus"] for r in eligible] or "none"))
+    print("of those, %d cycled: %s"
+          % (sum(1 for r in eligible if r["cycles"] > 0),
+             [r["bus"] for r in eligible if r["cycles"] > 0] or "none"))
+    if not eligible:
+        print("note: no bus clears the eligibility bar. That is a finding "
+              "about the day, not a reason to lower the bar after the fact.")
+    return rows
+
+
+def joint_tradeable_shares(run_kwargs, buses):
+    """Per-unit tradeable box shares in a layout cleared jointly.
+
+    The criterion a layout is judged on. Read off the day the four units
+    actually produced together, which is the only day any of them will trade
+    in.
+    """
+    day = run_day(**dict(run_kwargs, ess_buses=list(buses)))
+    cost = float(day["config"].storage.cycle_cost)
+    lmp = day["result"]["lmp"]
+    shares = {}
+    for a in _storage_agents(day["agents"]):
+        margin = round_trip_margin_cny_mwh(lmp[:, a.bus], a.storage.eta_ch,
+                                           a.storage.eta_dis, cost)
+        shares[int(a.bus)] = tradeable_box_share(margin, action_box())
+    return shares
+
+
+def siting_pool(run_kwargs):
+    """Every bus a battery is allowed to sit on, in network order.
+
+    One condition, and it is a constraint rather than a score: the bus carries
+    no renewable, which preserves the spatial separation the network has always
+    had (PV at 21/23, wind at 30, batteries elsewhere). Otherwise a siting
+    search could buy its margin by putting a battery on top of a generator it
+    would then be paid to absorb.
+
+    Deliberately **not** filtered by any margin. A pool is a search bound, and
+    a bound that excludes the optimum cannot be repaired by the objective --
+    while the two available margin readings disagree sharply and each is wrong
+    on its own. Read jointly, a deep-feeder bus carries a voltage-constraint
+    shadow price that a battery sited there would itself relieve (bus 17: 1405
+    CNY/MWh jointly against 45.8 with a single unit); read in isolation, the
+    bus shows the value a lone unit would find before the other three flatten
+    it. Both are in the artifact as `by_bus` and `siting_sweep`. The criterion
+    that decides is the *realized* joint share, which `layout_search`
+    evaluates for each candidate.
+    """
+    day = run_day(**run_kwargs)
+    re_buses = {a.bus for a in day["agents"]
+                if getattr(a, "pv_capacity", 0.0) > 0
+                or getattr(a, "wind_capacity", 0.0) > 0}
+    return sorted(b for b in day["result"].get("bus_indices", [])
+                  if int(b) not in re_buses and int(b) != _slack_bus(day))
+
+
+def layout_search(run_kwargs, pool=None, start=None):
+    """Choose four buses by hill-climbing the joint tradeable-share criterion.
+
+    The objective is lexicographic: how many units clear the eligibility bar
+    first, then the worst-placed unit's share, then the total. The floor comes
+    first because the round's goal is four units that each have a strategy
+    space, not one unit with a large one -- and the layouts that maximise the
+    total do so by giving one unit almost everything.
+
+    Reproducible: the same pool and starting layout search the same
+    neighbourhood in the same order, so the run that selected the committed
+    placement can be repeated from the CLI.
+    """
+    if pool is None:
+        pool = siting_pool(run_kwargs)
+    pool = sorted(set(pool))
+    if len(pool) < 4:
+        raise ValueError(
+            f"only {len(pool)} buses qualify for placement, so four units "
+            f"cannot be sited: {pool}")
+    current = tuple(start or pool[:4])
+    best = _layout_score(joint_tradeable_shares(run_kwargs, current))
+
+    print("\n" + "=" * 78)
+    print("layout search: hill-climb on the joint tradeable-share criterion")
+    print("=" * 78)
+    print("start %-22s eligible=%d worst=%.5f sum=%.3f"
+          % (str(current), best[0], best[1], best[2]))
+    improved = True
+    while improved:
+        improved = False
+        for i in range(len(current)):
+            for bus in pool:
+                if bus in current:
+                    continue
+                cand = tuple(sorted(current[:i] + (bus,) + current[i + 1:]))
+                shares = joint_tradeable_shares(run_kwargs, cand)
+                score = _layout_score(shares)
+                if score > best:
+                    best, current, improved = score, cand, True
+                    print("  -> %-22s eligible=%d worst=%.5f sum=%.3f  %s"
+                          % (str(cand), score[0], score[1], score[2],
+                             " ".join("%.3f" % shares[b]
+                                      for b in sorted(shares))))
+    print("-" * 78)
+    print("chosen %s" % (list(current),))
+    print("  eligible=%d of %d, worst share=%.5f, sum=%.3f"
+          % (best[0], len(current), best[1], best[2]))
+    return list(current), joint_tradeable_shares(run_kwargs, current)
+
+
+def _layout_score(shares):
+    """(units clearing the bar, worst share, total) -- maximised in that order."""
+    values = list(shares.values())
+    return (sum(1 for s in values if s >= TRADEABLE_BOX_SHARE),
+            min(values), sum(values))
+
+
+def _parse_buses(text):
+    """`all`, or a comma-separated list of bus numbers; None means all."""
+    text = str(text).strip()
+    if text.lower() == "all":
+        return None
+    return [int(x) for x in text.split(",") if x.strip()]
 
 
 def _parse_floats(text):
@@ -834,6 +1253,32 @@ def main(argv=None):
                              "rating). SOCP only: the LinDistFlow batch solver "
                              "carries no inverter diamond, so the sweep reads "
                              "as no effect there.")
+    parser.add_argument("--sweep-ess-buses", default=None,
+                        help="clear the day once per candidate bus with a "
+                             "single-unit fleet ('all' for every non-slack "
+                             "bus, or a comma separated list). Slow: one full "
+                             "clear per bus.")
+    parser.add_argument("--ess-buses", default=None,
+                        help="place the fleet at these buses for the report "
+                             "run ('all' is not meaningful here)")
+    parser.add_argument("--sweep-der-layouts", default=None,
+                        help="candidate renewable layouts to clear, comma "
+                             "separated, or 'all'. The candidates are the "
+                             "plan's S-PV1/S-PV2/S-WIND/S-SPLIT; each is a set "
+                             "of moves of an existing site, so installed MW "
+                             "are conserved.")
+    parser.add_argument("--der-headroom", type=float, default=1.10,
+                        help="inverter multiplier the DER layouts are compared "
+                             "at (default 1.10, the configured value)")
+    parser.add_argument("--search-ess-buses", default=None,
+                        help="hill-climb the joint tradeable-share criterion "
+                             "to choose the fleet's placement. Give the "
+                             "eligible pool, comma separated, or 'all' to "
+                             "search every bus. Slow: one full clear per "
+                             "neighbour evaluated.")
+    parser.add_argument("--search-start", default=None,
+                        help="comma separated four buses to start the layout "
+                             "search from (default: the first four of the pool)")
     parser.add_argument("--unserved-limit", type=float, default=None,
                         help="MWh of load shedding to fail on; omitted, shedding "
                              "is reported and not gated")
@@ -847,6 +1292,7 @@ def main(argv=None):
     run_kwargs = {"scenario": args.scenario, "T": args.T,
                   "opf_mode": args.opf_mode}
 
+    headroom_rows = None
     if args.sweep_load_scale:
         _sweep_axis("load_scale", _parse_floats(args.sweep_load_scale),
                     dict(run_kwargs, price_base=args.base,
@@ -860,17 +1306,86 @@ def main(argv=None):
             print("note: the headroom sweep is SOCP-only; the LinDistFlow "
                   "batch solver has no inverter diamond to widen, so a run "
                   "there reports no effect for a reason that is not physics.")
-        _sweep_axis("headroom", _parse_floats(args.sweep_headroom),
-                    dict(run_kwargs, load_scale=args.load_scale,
-                         price_base=args.base, elasticity=args.elasticity),
-                    "inverter_headroom")
+        headroom_rows = _sweep_axis(
+            "headroom", _parse_floats(args.sweep_headroom),
+            dict(run_kwargs, load_scale=args.load_scale,
+                 price_base=args.base, elasticity=args.elasticity),
+            "inverter_headroom")
+    der_rows = None
+    if args.sweep_der_layouts:
+        text = args.sweep_der_layouts.strip()
+        names = list(DER_LAYOUTS) if text.lower() == "all" \
+            else [x.strip() for x in text.split(",") if x.strip()]
+        unknown = [n for n in names if n not in DER_LAYOUTS]
+        if unknown:
+            parser.error(f"unknown DER layout(s) {unknown}; "
+                         f"available: {list(DER_LAYOUTS)}")
+        der_rows = der_layout_sweep(
+            dict(run_kwargs, load_scale=args.load_scale, price_base=args.base,
+                 elasticity=args.elasticity),
+            args.der_headroom, names)
+        if args.json is None:
+            return 0
+
+    search_result = None
+    if args.search_ess_buses:
+        _buses = _parse_buses(args.search_ess_buses)
+        pool = _buses if _buses is not None else None
+        start = (_parse_buses(args.search_start)
+                 if args.search_start else None)
+        chosen, shares = layout_search(
+            dict(run_kwargs, load_scale=args.load_scale, price_base=args.base,
+                 elasticity=args.elasticity),
+            pool=pool, start=start)
+        search_result = {
+            "chosen": chosen,
+            "pool": sorted(set(pool)) if pool is not None
+                    else siting_pool(dict(run_kwargs, load_scale=args.load_scale,
+                                          price_base=args.base,
+                                          elasticity=args.elasticity)),
+            "start": start,
+            "shares": {str(b): s for b, s in shares.items()},
+            "threshold": TRADEABLE_BOX_SHARE,
+        }
+        if args.json is None:
+            return 0
+
+    siting_rows = None
+    if args.sweep_ess_buses:
+        siting_rows = siting_sweep(
+            dict(run_kwargs, load_scale=args.load_scale, price_base=args.base,
+                 elasticity=args.elasticity),
+            _parse_buses(args.sweep_ess_buses))
+        if args.json is None:
+            return 0
+
     if args.sweep_load_scale or args.sweep_elasticity or args.sweep_headroom:
         if args.json is None:
             return 0
 
     day = run_day(**dict(run_kwargs, load_scale=args.load_scale,
-                         price_base=args.base, elasticity=args.elasticity))
+                         price_base=args.base, elasticity=args.elasticity,
+                         ess_buses=_parse_buses(args.ess_buses)
+                         if args.ess_buses else None))
     report = build_report(day)
+    if headroom_rows is not None:
+        report["headroom_sweep"] = headroom_rows
+    if der_rows is not None:
+        report["der_layouts"] = der_rows
+    if search_result is not None:
+        report["layout_search"] = search_result
+    if siting_rows is not None:
+        # Recorded next to the layout it argues about, so the siting claim is
+        # re-derivable from the artifact rather than from a terminal scrollback.
+        report["siting_sweep"] = siting_rows
+        report["siting_rule"] = {
+            "tradeable_box_share_threshold": TRADEABLE_BOX_SHARE,
+            "margin_cny_mwh_threshold": _margin_for_share(TRADEABLE_BOX_SHARE,
+                                                          action_box()),
+            "rule": "eligibility is the share of the action box the unit can "
+                    "still trade in; the threshold was fixed before the sweep "
+                    "was run",
+        }
     if not args.quiet:
         system = report["system"]
         print(render(day, system, report["batteries"], report["network"],

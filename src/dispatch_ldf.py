@@ -24,6 +24,7 @@ from dispatch_core import (
     _compute_mpc_schedules,
     add_grid_exchange,
     add_storage_net_power,
+    quote_arrays,
     check_storage_quote_signs,
     empty_schedules,
     grid_carbon_tco2,
@@ -748,17 +749,11 @@ class _CachedOPFModel:
         bid_arr = {}; offer_arr = {}; pv_max_arr = {}; wind_max_arr = {}
         for a in agents_list:
             nm = a.name
-            ap = action_params.get(a.name, {})
-            bm = ap.get("bid_mult", 1.0)
-            oa = ap.get("offer_adder", 0.0)
-            if isinstance(bm, np.ndarray):
-                bid_arr[nm] = a.bid_value * bm
-            else:
-                bid_arr[nm] = np.full(T, a.bid_value * bm)
-            if isinstance(oa, np.ndarray):
-                offer_arr[nm] = a.offer_cost + oa
-            else:
-                offer_arr[nm] = np.full(T, a.offer_cost + oa)
+            # Same helper as the SOCP path, so the two engines cannot drift
+            # apart on what a quote means. This path also gains the sign check
+            # it was missing.
+            bid_arr[nm], offer_arr[nm] = quote_arrays(a, action_params, T,
+                                                      config)
             pv_max_arr[nm] = (a.pv_forecast if stage == "DA"
                               else a.pv_real)
             wind_max_arr[nm] = ((a.wind_forecast if stage == "DA"

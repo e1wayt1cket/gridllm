@@ -2,8 +2,8 @@
 """Single-agent TD3 (Twin Delayed DDPG) for agent bidding.
 
 Each agent is trained independently. The environment designates one agent
-as the RL learner; all others use fixed default strategy (bid_mult=1.0,
-offer_adder=0.0). This is the Independent Learner paradigm — each agent
+as the RL learner; all others stay at their spec's truthful declaration.
+This is the Independent Learner paradigm — each agent
 optimizes its own profit without centralized coordination.
 
 Architecture:
@@ -62,6 +62,43 @@ class Actor(nn.Module):
         mid = (self.action_low + self.action_high) / 2.0
         half = (self.action_high - self.action_low) / 2.0
         return logits, mid + raw * half
+
+
+# A truthful point that sits on a corner of its own box has no finite `atanh`,
+# so the reference logit below is clamped this far short of the edge. One part
+# in a thousand of the half-range is orders of magnitude below any quote
+# difference the clearing can price, so the action the reference stands for is
+# unchanged by the clamp.
+_LOGIT_CLAMP = 1.0 - 1e-3
+
+
+def truthful_logits(truthful_action: torch.Tensor,
+                    action_bounds: torch.Tensor) -> torch.Tensor:
+    """The pre-tanh logits that reproduce `truthful_action` in this box.
+
+    A deviation penalty has to be applied to the logits (see `TD3.update`), so
+    its reference point has to be a logit rather than an action. Since
+    `action = mid + tanh(logit) * half`, that logit is
+    `atanh((action - mid) / half)` -- not zero, unless the truthful action is
+    the box midpoint.
+
+    Getting this wrong is not a subtle bias. The storage box is
+    `[0, 150] x [0, 300]` with a truthful point of `(0, 0)`, so its midpoint is
+    `(75, 150)`: a penalty referencing the logit zero would anchor the policy
+    at "charge at 75, discharge at 150", which is as far from declaring no
+    premium as the box allows.
+
+    A caller that passes no truthful action keeps the old reference of logit
+    zero, which is the box midpoint. That is wrong for every spec in the
+    registry -- the prosumer pair's own truthful point is `(1.0, 0.0)` against
+    a midpoint of `(1.05, 25.0)` -- and survives only so a checkpoint trained
+    against the old reference can still be reproduced.
+    """
+    low, high = action_bounds[0], action_bounds[1]
+    mid = (low + high) / 2.0
+    half = (high - low) / 2.0
+    position = (truthful_action - mid) / half
+    return torch.atanh(position.clamp(-_LOGIT_CLAMP, _LOGIT_CLAMP))
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +213,8 @@ class TD3:
                  batch_size: int = 128, buffer_capacity: int = 100_000,
                  start_steps: int = 500,
                  bid_dev_penalty: float = 0.0,
-                 offer_dev_penalty: float = 0.0):
+                 offer_dev_penalty: float = 0.0,
+                 truthful_action: torch.Tensor = None):
         self.obs_dim = obs_dim
         self.act_dim = act_dim
         self.gamma = gamma
@@ -192,6 +230,17 @@ class TD3:
 
         self.action_low = action_bounds[0]
         self.action_high = action_bounds[1]
+
+        # Where the deviation penalty pulls the policy back to. Held as logits
+        # because that is what the penalty acts on; a logit-zero reference is
+        # the box midpoint, which is the truthful point only for a box drawn
+        # symmetrically around it. See `truthful_logits`.
+        if truthful_action is None:
+            self.deviation_reference = torch.zeros(act_dim)
+        else:
+            self.deviation_reference = truthful_logits(
+                torch.as_tensor(truthful_action, dtype=torch.float32),
+                action_bounds)
 
         # Networks
         self.actor = Actor(obs_dim, act_dim, action_bounds)
@@ -291,8 +340,15 @@ class TD3:
             # Deviation penalty applied to the pre-tanh logits. Penalizing the
             # squashed action fails because d(tanh)/dx -> 0 at the bounds, so
             # the gradient vanishes exactly when the policy saturates. An L2
-            # term on the raw logits has gradient 2*coef*logit that survives
-            # saturation and pulls the policy back to moderate bids.
+            # term on the raw logits has gradient 2*coef*(logit - reference)
+            # that survives saturation and pulls the policy back toward the
+            # point it is measured from -- the agent's own truthful
+            # declaration, not the midpoint of its box.
+            #
+            # The two weights index `action_names[0]` and `action_names[1]`.
+            # The names are historical: the first action has always been the
+            # one a participant shades its buying price by and the second the
+            # one it shades its selling price by.
             #
             # The weight is dimensionless because -min(q1, q2) is already in
             # reward-standard-deviation units: the reward was divided by `scale`
@@ -300,11 +356,11 @@ class TD3:
             # regularization inversely proportional to the reward magnitude, so
             # any rescaling of the reward silently re-tuned the actor.
             if self.bid_dev_penalty > 0:
-                actor_loss = actor_loss \
-                    + self.bid_dev_penalty * (logits[:, 0] ** 2).mean()
+                actor_loss = actor_loss + self.bid_dev_penalty * (
+                    (logits[:, 0] - self.deviation_reference[0]) ** 2).mean()
             if self.offer_dev_penalty > 0:
-                actor_loss = actor_loss \
-                    + self.offer_dev_penalty * (logits[:, 1] ** 2).mean()
+                actor_loss = actor_loss + self.offer_dev_penalty * (
+                    (logits[:, 1] - self.deviation_reference[1]) ** 2).mean()
 
             self.actor_opt.zero_grad()
             actor_loss.backward()
@@ -463,8 +519,15 @@ def load_policy(path: str, obs_dim: int,
     """Load a single Actor network from disk.
 
     If the saved file carries a policy metadata header (see save_policy) and
-    the caller supplies the expected obs_spec, a name mismatch raises
-    ValueError. Legacy files without metadata load unchanged.
+    the caller supplies the expected obs_spec or action_spec, a name mismatch
+    raises ValueError. Legacy files without metadata load unchanged.
+
+    Both checks matter for different reasons. The observation check catches a
+    weights-shape mismatch, which `load_state_dict` would also catch. The
+    action check catches the case that has no other symptom: the same two
+    weights, meaning a different pair of quantities. A checkpoint trained on
+    the retired multiplier pair loads perfectly into a storage actor and
+    silently reads `bid_mult` as a CNY/MWh charge price.
     """
     state = torch.load(path, map_location="cpu", weights_only=False)
     meta = state.pop(_POLICY_META_KEY, None)
@@ -476,6 +539,14 @@ def load_policy(path: str, obs_dim: int,
                 f"'{saved.get('name')}' (v{saved.get('version')}) but the "
                 f"environment uses '{obs_spec.name}' "
                 f"(v{obs_spec.version}); refusing to load.")
+    if meta is not None and action_spec is not None:
+        saved = meta.get("action_spec") or {}
+        if saved.get("name") != action_spec.name:
+            raise ValueError(
+                f"Policy {path} was trained with action spec "
+                f"'{saved.get('name')}' (v{saved.get('version')}) but the "
+                f"environment uses '{action_spec.name}' "
+                f"(v{action_spec.version}); refusing to load.")
     actor_type = (meta or {}).get("actor_type", "Actor")
     if actor_type == "StochasticActor":
         from rl_masac import StochasticActor  # lazy: avoids import cycle

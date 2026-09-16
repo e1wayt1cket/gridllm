@@ -5,17 +5,23 @@ import numpy as np
 from typing import List, Optional
 
 from models import Agent, MarketConfig
+from rl_spec import action_spec_for
 from strategies import BiddingStrategy, register_strategy
 
 
 @register_strategy("random")
 class RandomStrategy(BiddingStrategy):
-    """Random bid_mult and offer_adder, independently sampled per period.
+    """Each agent's own action components drawn independently per period.
 
-    Prosumers draw bid_mult from [0.3, 0.6, 0.9, 1.2, 1.5, 1.8]
-    and offer_adder from [0, 15, 30, 45].  Non-prosumers use the
-    midpoint of the configured bid_mult range.
+    The space comes from the agent's spec, so a storage unit draws two
+    reservation prices and a load draws a multiplier and an adder -- sampling
+    one ontology and handing it to a participant of the other is what the
+    clearing now rejects outright. Five levels per component, evenly spaced
+    across that component's own range, so the sample spans the space
+    including its truthful corner. Seeded per agent name, so a run repeats.
     """
+
+    LEVELS = 5
 
     def formulate(
         self,
@@ -24,19 +30,16 @@ class RandomStrategy(BiddingStrategy):
         market_history: Optional[dict] = None,
         T: int = 96,
     ) -> dict:
-        bid_choices = [0.3, 0.6, 0.9, 1.2, 1.5, 1.8]
-        offer_choices = [0, 15, 30, 45]
         actions = {}
         for a in agents:
             rng = np.random.RandomState(hash(a.name) % (2**31))
-            if a.is_prosumer:
-                actions[a.name] = {
-                    "bid_mult": np.array([rng.choice(bid_choices) for _ in range(T)]),
-                    "offer_adder": np.array([rng.choice(offer_choices) for _ in range(T)]),
-                }
-            else:
-                actions[a.name] = {
-                    "bid_mult": np.full(T, np.mean(config.market_design.bid_mult_range)),
-                    "offer_adder": np.zeros(T),
-                }
+            spec = action_spec_for(a)
+            actions[a.name] = {}
+            for name in spec.action_names:
+                lo, hi = spec.bounds[name]
+                choices = np.linspace(lo, hi, self.LEVELS)
+                if spec.truthful[name] not in choices:
+                    choices[0] = spec.truthful[name]
+                actions[a.name][name] = np.array(
+                    [rng.choice(choices) for _ in range(T)], dtype=float)
         return actions

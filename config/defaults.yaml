@@ -10,6 +10,21 @@ network:
   ramp_limit_mw_per_period: null
   # Per-line capacity overrides — use to model line upgrades or N-1 relief.
   line_capacity_overrides: {}
+  # --- MarketConfig.network fields ---
+  # These were dataclass defaults with no YAML entry, so editing them here did
+  # nothing. They are read now. The values below are what was already in effect.
+  base_kv: 12.66
+  v_min_pu: 0.93          # GB/T 12325 +/-7%
+  v_max_pu: 1.05
+  line_capacity_multiplier: 1.5
+  reverse_power_limit_mw: 2.5
+  reactive_support: true
+  load_power_factor: 0.9
+  # Inverter apparent-power rating as a multiple of the real-power rating it is
+  # sized from. The typical-day scenario raises it to 1.10 through its override
+  # in scenarios.yaml; see the comment there.
+  inverter_smax_multiplier: 1.0
+  n_loss_iters: 3
 
 profiles:
   pv:
@@ -186,11 +201,31 @@ non_prosumer_storage:
 # the time of day, so a unit there would be paid for where it sits rather than
 # for when it cycles. Each battery returns to its starting state of charge at
 # the end of the day (storage.terminal_soc_equal), so a unit cannot be paid for
-# finishing with banked energy. Charging and discharging are priced from the
-# day's mean wholesale unless storage.bid_anchor overrides it.
+# finishing with banked energy. Both quotes are zero: a battery alone has no
+# load value to offer and no generation cost to recover, and the round trip's
+# own cost is charged separately as storage.cycle_cost.
 independent_storage:
   enabled: true
-  buses: [6, 20, 24, 31]
+  # Sited by the criterion in `diagnose_typical_day`: a bus qualifies when the
+  # share of the action box its round-trip margin leaves tradeable is at least
+  # 25%, so the unit has a strategy space and not merely a positive profit.
+  #
+  # Selected on the margin each unit has *in the company of the other three*,
+  # not the margin its bus shows when a single unit is cleared there. The two
+  # give different answers and the second is misleading: four units arbitrage
+  # the same daily spread, so the price field a candidate bus is evaluated on
+  # is one the other three have already flattened. Bus 6, for instance, leaves
+  # a unit 186 CNY/MWh alone and 17 once the fleet is bidding; the previous
+  # placement 6/20/24/31 left only 20 with a usable space, and a re-siting
+  # chosen on the single-unit scan left none of the four with one.
+  #
+  # Previous placements, for the record: 6/20/24/31 (1 of 4 units eligible),
+  # and 10/15/19/26 (0 of 4) which the single-unit scan selected.
+  #
+  # Read together with the DER placement above: PV sits at 21/23 and wind at
+  # 30, and a battery is never placed on a bus that carries either, which is
+  # the spatial separation the network has always had.
+  buses: [2, 12, 13, 19]
   capacity_mwh: 4.0
   # Power follows from capacity: 4.0 MWh at 0.25 gives the 1.0 MW rating.
   power_ratio: 0.25
@@ -203,6 +238,9 @@ independent_storage:
 # Storage strategy parameters (map to StorageConfig fields)
 # These are separate from the prosumer storage specs above —
 # they control the OPF-level storage policy, not individual unit capacities.
+# Read into MarketConfig.storage. Every field of StorageConfig has an entry
+# here; the values below are what was already in effect while the block was
+# inert, so wiring it up changed no behaviour.
 storage:
   charge_discount: 0.75
   discharge_premium: 1.30
@@ -215,22 +253,38 @@ storage:
   mpc_price_noise_pct: 5.0
   mpc_bus_markup_pct: 30.0
   use_nodal_price: true
+  mpc_fast_heuristic: false
+  mpc_congestion_pass: false
+  # Retired. Capped a storage unit's charge bid at its discharge offer; charge
+  # and discharge are now the parts of one net flow, so it caps nothing.
+  churn_free_quotes: true
+  exclusive_mode: "off"
+  terminal_soc_equal: true
+  prosumer_storage_scale: 1.0
 
 # Market design parameters (map to MarketDesignConfig fields)
+# Read into MarketConfig.market_design. Wiring this block up corrected one live
+# divergence: `enable_multi_objective` said true here while the effective value
+# was the dataclass's false, because nothing read the file. The value below is
+# the one that was actually in effect.
 market_design:
   penalty_unserved: 2500.0
   bid_mult_range: [0.3, 1.8]
   offer_adder_range: [0.0, 50.0]
+  # Neither is read by any module; the truthful pair is written where it is
+  # used. Kept so the block covers every field, and flagged in KNOWN_INERT.
   default_bid_mult: 1.0
   default_offer_adder: 0.0
   emission_factor_grid: 0.58
-  enable_multi_objective: true
+  enable_multi_objective: false
   lambda_re: 50.0
   lambda_curtail: 200.0
   lambda_carbon: 80.0
   use_constraint_multi_obj: false
   carbon_cap_tco2: null
   re_min_rate: null
+  penalty_carbon_slack: 5000.0
+  penalty_re_slack: 3000.0
 
 # Real-time and rolling-horizon parameters (map to RTConfig fields)
 rt:

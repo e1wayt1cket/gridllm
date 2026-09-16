@@ -1,6 +1,6 @@
 # scenarios.py
 import numpy as np
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import money
 from models import MarketConfig, Agent
 from ess import build_ess_fleet
@@ -8,7 +8,127 @@ from grid import build_base_network, create_agents_from_network, day_ahead_price
 from config_loader import get_scenario_cfg
 
 
-def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[List[Agent], np.ndarray]:
+def apply_scenario_overrides(config: MarketConfig, override: dict) -> None:
+    """Apply a scenario's `override_config` onto a configuration, in place.
+
+    Dotted keys address a nested field ("network.v_min_pu"); a bare key
+    addresses a top-level one ("opf_mode"). Idempotent, so a caller that
+    already applied them -- `typical_day_config` does, so that a bare call
+    returns the model the diagnostic actually clears -- may pass the same
+    config through `get_scenario` again without harm.
+
+    Every key must name something that already exists. `setattr` on a dataclass
+    instance happily creates a stray attribute for a misspelled or retired
+    name, and the run then proceeds with the key silently ignored -- which is
+    how a scenario ends up configured by a comment. A key that names nothing is
+    an error here.
+    """
+    for key, value in override.items():
+        if "." not in key:
+            if key.startswith("_") or not hasattr(config, key):
+                raise ValueError(
+                    f"scenario override {key!r} names no field of "
+                    f"{type(config).__name__}")
+            setattr(config, key, value)
+            continue
+
+        parts = key.split(".")
+        obj = config
+        for i, part in enumerate(parts[:-1]):
+            if not hasattr(obj, part):
+                raise ValueError(
+                    f"scenario override {key!r} names no field "
+                    f"{'.'.join(parts[:i + 1])!r} of {type(obj).__name__}")
+            obj = getattr(obj, part)
+        leaf = parts[-1]
+        if leaf.startswith("_") or not hasattr(obj, leaf):
+            raise ValueError(
+                f"scenario override {key!r} names no field {leaf!r} of "
+                f"{type(obj).__name__}")
+        setattr(obj, leaf, value)
+
+
+def relocate_renewables(agents: List[Agent], moves) -> None:
+    """Move a renewable resource between buses, in place.
+
+    A move rather than a re-rating: the array keeps its size and its own
+    profile and only its bus changes, so the installed MW are conserved by
+    construction. That is the invariant a layout experiment has to hold --
+    re-rating a site would confound "where the array is" with "how big it is",
+    and the question is the first.
+
+    Parameters
+    ----------
+    moves : sequence of (from_bus, to_bus, kind, fraction)
+        `kind` is "pv" or "wind". `fraction` defaults to 1.0 and is the share
+        of what the source holds **at that point in the sequence**, so a site
+        split across two buses is `[(b, x, k, 0.5), (b, y, k, 1.0)]` -- half
+        then the remainder -- and a site emptied onto one bus is a single
+        default move. Expressed that way the shares are readable in order and
+        every move conserves what it touches.
+
+    Raises when a bus is asked to give up a resource it does not carry, or to
+    receive one it already has. A layout expressed against buses that have
+    moved is a layout whose author was thinking about a different network, and
+    silently relocating the wrong array is worse than refusing.
+    """
+    by_bus = {a.bus: a for a in agents}
+    for move in moves:
+        from_bus, to_bus, kind = int(move[0]), int(move[1]), move[2]
+        fraction = float(move[3]) if len(move) > 3 else 1.0
+        if not 0.0 < fraction <= 1.0:
+            raise ValueError(f"move {move}: fraction must be in (0, 1]")
+        src, dst = by_bus.get(from_bus), by_bus.get(to_bus)
+        if src is None or dst is None:
+            missing = from_bus if src is None else to_bus
+            raise ValueError(f"move {move}: no agent at bus {missing}")
+
+        if kind == "pv":
+            if src.pv_capacity <= 0:
+                raise ValueError(
+                    f"move {move}: bus {from_bus} carries no PV to move")
+            if fraction == 1.0 and dst.pv_capacity > 0:
+                raise ValueError(
+                    f"move {move}: bus {to_bus} already carries "
+                    f"{dst.pv_capacity:.4g} MW of PV")
+            dst.pv_capacity += src.pv_capacity * fraction
+            dst.pv_forecast = (dst.pv_forecast
+                               + src.pv_forecast * fraction)
+            dst.pv_real = dst.pv_real + src.pv_real * fraction
+            src.pv_capacity *= (1.0 - fraction)
+            src.pv_forecast = src.pv_forecast * (1.0 - fraction)
+            src.pv_real = src.pv_real * (1.0 - fraction)
+        elif kind == "wind":
+            if not src.has_wind or src.wind_capacity <= 0:
+                raise ValueError(
+                    f"move {move}: bus {from_bus} carries no wind to move")
+            if fraction == 1.0 and dst.wind_capacity > 0:
+                raise ValueError(
+                    f"move {move}: bus {to_bus} already carries "
+                    f"{dst.wind_capacity:.4g} MW of wind")
+            dst.wind_capacity += src.wind_capacity * fraction
+            dst_forecast = dst.wind_forecast if dst.has_wind \
+                else np.zeros_like(src.wind_forecast)
+            dst_real = dst.wind_real if dst.has_wind \
+                else np.zeros_like(src.wind_real)
+            dst.wind_forecast = dst_forecast + src.wind_forecast * fraction
+            dst.wind_real = dst_real + src.wind_real * fraction
+            src.wind_capacity *= (1.0 - fraction)
+            if src.wind_capacity <= 0:
+                # `has_wind` is a None check, not a capacity check, so an
+                # emptied source has to be set back to None or the bus goes on
+                # being modelled as a wind site with a zero-rating turbine.
+                src.wind_forecast = src.wind_real = None
+            else:
+                src.wind_forecast = src.wind_forecast * (1.0 - fraction)
+                src.wind_real = src.wind_real * (1.0 - fraction)
+        else:
+            raise ValueError(f"move {move}: unknown kind {kind!r}")
+
+
+def _build_scenario(name: str, T: int, config: MarketConfig = None,
+                    ess_buses: Optional[List[int]] = None,
+                    der_moves=None) -> Tuple[List[Agent], np.ndarray]:
     """Generic scenario builder driven by config/scenarios.yaml.
 
     Supported YAML keys per scenario:
@@ -36,43 +156,12 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
     custom_loads = override.pop("custom_loads", [])
     re_ramp = cfg.get("re_ramp", None)
 
-    if config is not None:
-        for k, v in override.items():
-            # Support dotted keys like "network.line_capacity_multiplier"
-            if "." in k:
-                parts = k.split(".")
-                obj = config
-                for p in parts[:-1]:
-                    obj = getattr(obj, p)
-                setattr(obj, parts[-1], v)
-            else:
-                setattr(config, k, v)
-    else:
-        # Dotted keys in override are resolved into nested dataclass instances
-        net_kwargs = {}
-        stor_kwargs = {}
-        md_kwargs = {}
-        rt_kwargs = {}
-        top_kwargs = {}
-        for k, v in override.items():
-            if k.startswith("network."):
-                net_kwargs[k.split(".", 1)[1]] = v
-            elif k.startswith("storage."):
-                stor_kwargs[k.split(".", 1)[1]] = v
-            elif k.startswith("market_design."):
-                md_kwargs[k.split(".", 1)[1]] = v
-            elif k.startswith("rt."):
-                rt_kwargs[k.split(".", 1)[1]] = v
-            else:
-                top_kwargs[k] = v
-        from models import NetworkConfig, StorageConfig, MarketDesignConfig, RTConfig
-        config = MarketConfig(
-            network=NetworkConfig(**net_kwargs) if net_kwargs else NetworkConfig(),
-            storage=StorageConfig(**stor_kwargs) if stor_kwargs else StorageConfig(),
-            market_design=MarketDesignConfig(**md_kwargs) if md_kwargs else MarketDesignConfig(),
-            rt=RTConfig(**rt_kwargs) if rt_kwargs else RTConfig(),
-            **top_kwargs,
-        )
+    # Both branches start from config/defaults.yaml, so the file is the source
+    # of truth whichever way a scenario is reached. The only difference is
+    # whether a caller supplied an existing config to override.
+    if config is None:
+        config = MarketConfig.from_yaml()
+    apply_scenario_overrides(config, override)
 
     net = build_base_network(config)
     agents = create_agents_from_network(net, T, with_wind=with_wind)
@@ -103,19 +192,6 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
             a.storage.e_max *= fleet_storage_mult
             a.storage.p_ch_max *= fleet_storage_mult
             a.storage.p_dis_max *= fleet_storage_mult
-
-    # --- anchor storage bid prices ---
-    # A battery's willingness to pay to charge is not the local load type's
-    # willingness to pay for consumption; the two describe different things.
-    # Inheriting the load bid (650-850 CNY/MWh) prices charging well above what
-    # the energy costs, and the clearing objective books that gap as surplus.
-    # Storage units are priced from a single anchor instead - see
-    # StorageConfig.quote_anchor - and the bidding action shades around it.
-    anchor = config.storage.quote_anchor()
-    for a in agents:
-        if a.storage is not None:
-            a.bid_value = float(anchor)
-            a.offer_cost = float(anchor)
 
     # --- apply per-bus custom load scaling (spatial redistribution) ---
     # Runs after the global load multiplier so the factor acts on the
@@ -164,7 +240,18 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None) -> Tuple[Lis
     # Appended last so the load, RE-ramp and storage-scaling steps above apply
     # only to the network's own participants: the fleet carries no load and no
     # generation for those steps to act on, and its capacity is its own knob.
-    agents.extend(build_ess_fleet(T, config, wholesale=wholesale))
+    # `ess_buses` re-places the fleet for the siting experiment. An empty list
+    # is a real request -- no fleet at all, which is how a single unit is
+    # measured against a market that has no other battery in it -- so it must
+    # stay distinguishable from the default, which is "whatever the file says".
+    agents.extend(build_ess_fleet(T, config, wholesale=wholesale,
+                                  buses=ess_buses))
+
+    # After the fleet, because it is a placement of the same facilities the
+    # steps above have finished scaling: a move is a relocation of what is
+    # already installed, not a sizing.
+    if der_moves:
+        relocate_renewables(agents, der_moves)
 
     # Two agents sharing a name silently corrupt the clearing model: the batch
     # solvers key charge, discharge and state of charge by agent name, so a
@@ -191,21 +278,13 @@ def typical_day_config(T: int = money.PERIODS_PER_DAY) -> MarketConfig:
     if T != money.PERIODS_PER_DAY:
         raise ValueError(
             f"the typical day is {money.PERIODS_PER_DAY} periods; got T={T}")
-    config = MarketConfig(opf_mode="socp")
-    config.market_design.enable_multi_objective = False
-    config.storage.self_schedule = False
-    config.storage.terminal_soc_equal = True
-    # Inverters rated a little above their arrays, which is how they are built:
-    # an inverter's real and reactive outputs share one apparent-power circle,
-    # so at parity every MVar spent holding the feeder inside its voltage band
-    # is a MWh of renewable output that cannot be delivered. Measured over
-    # 1.00-2.50, curtailment falls 1.64 to 0.00 MWh and load shedding 1.22 to
-    # 0.00 MWh, but shedding reaches zero only at 2.50 -- a 1 MW array behind a
-    # 2.5 MVA inverter, which is not a device anyone installs. At 1.10 both are
-    # roughly a third lower than at parity, and the remaining ~1.0 MWh of shed
-    # load is accepted rather than bought with an unphysical rating. See the
-    # headroom sweep in diagnose_typical_day.
-    config.network.inverter_smax_multiplier = 1.10
+    # Built from config/defaults.yaml, then given this scenario's own choices
+    # from config/scenarios.yaml. Nothing is assigned here: a value that lives
+    # in code rather than in the file is a value the next reader cannot find,
+    # and the point of the binding is that the file says what the model is.
+    config = MarketConfig.from_yaml(opf_mode="socp")
+    apply_scenario_overrides(config, get_scenario_cfg("typical_day")
+                             .get("override_config", {}))
     return config
 
 
@@ -223,11 +302,20 @@ def _load_registry():
         SCENARIO_REGISTRY[name] = None  # value unused; name is the key
 
 
-def get_scenario(name: str, T: int = 96, config: MarketConfig = None) -> Tuple[List[Agent], np.ndarray]:
+def get_scenario(name: str, T: int = 96, config: MarketConfig = None,
+                 ess_buses: Optional[List[int]] = None, der_moves=None) \
+        -> Tuple[List[Agent], np.ndarray]:
+    """Build one scenario.
+
+    `ess_buses` overrides the independent fleet's placement -- None keeps the
+    configured one, [] requests no fleet. `der_moves` relocates renewable
+    sites, as a sequence of (from_bus, to_bus, kind[, fraction]).
+    """
     _load_registry()
     if name not in SCENARIO_REGISTRY:
         raise ValueError(f"Unknown scenario '{name}'. Available: {list(SCENARIO_REGISTRY.keys())}")
-    return _build_scenario(name, T, config)
+    return _build_scenario(name, T, config, ess_buses=ess_buses,
+                           der_moves=der_moves)
 
 
 def list_scenarios() -> List[str]:

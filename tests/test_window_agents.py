@@ -39,9 +39,17 @@ def test_installed_capacity_survives_the_slice(agents):
 
 
 def test_participant_type_survives_the_slice(agents):
+    """Compared against the fleet as built, not against a literal list.
+
+    Which buses the fleet occupies is a siting decision that has already
+    changed once; the property under test is that the slice preserves the
+    type, so the expectation is taken from the agents themselves.
+    """
     window = _make_window_agents(agents, 0, 16, {}, {})
     fleet = [a for a in window if a.participant_type == "storage"]
-    assert {a.name for a in fleet} == {"ESS6", "ESS20", "ESS24", "ESS31"}, \
+    expected = {a.name for a in agents if a.participant_type == "storage"}
+    assert expected, "no storage fleet in the scenario, so the check is vacuous"
+    assert {a.name for a in fleet} == expected, \
         "the storage fleet lost its participant type in the window"
 
 

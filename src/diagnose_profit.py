@@ -34,7 +34,6 @@ from rl_td3 import load_policy
 from rl_profit_diagnostics import valuation_artifact
 
 N_BUS = 33
-DEFAULT_ACTION = np.array([1.0, 0.0], dtype=np.float32)
 
 
 def build_config() -> MarketConfig:
@@ -49,8 +48,8 @@ def run_day(env: BiddingEnv, rl_names, action_provider) -> tuple:
     """Run one full day, stitching committed-period schedules and nodal LMP.
 
     Returns (sched, lmp, declared): per-agent full-day schedule dicts (ALL
-    agents), the (T, 33) nodal LMP matrix, and the DECLARED bid_mult /
-    offer_adder actually applied per period (storage agents only). Only the
+    agents), the (T, 33) nodal LMP matrix, and the DECLARED quotes actually
+    applied per period, in each RL agent's own action space. Only the
     committed periods of each rolling window are recorded, matching the
     reward the environment hands to training.
     """
@@ -61,8 +60,16 @@ def run_day(env: BiddingEnv, rl_names, action_provider) -> tuple:
                   "pv_used", "wind_used"]}
         for a in env.all_agents
     }
-    declared = {nm: {"bid_mult": np.zeros(T), "offer_adder": np.zeros(T)}
-                for nm in rl_names}
+    # The keys come from the spec rather than from a list written here: an
+    # agent's action space is the one the environment hands it, and naming the
+    # retired pair here is how a storage unit would end up recorded under keys
+    # nothing reads.
+    declared = {
+        nm: {name: np.zeros(T)
+             for name in env.spec_for(next(a for a in env.all_agents
+                                           if a.name == nm)).action_names}
+        for nm in rl_names
+    }
     lmp = np.zeros((T, N_BUS))
     obs = env.reset()
     for block in range(N_BLOCKS):
@@ -80,14 +87,14 @@ def run_day(env: BiddingEnv, rl_names, action_provider) -> tuple:
                 for key in sched[nm]:
                     sched[nm][key][t_start:t_start + n_commit] = ws[key][:n_commit]
             lmp[t_start:t_start + n_commit, :] = res["lmp"][:n_commit, :]
-        # Record the declared (clipped) bid/offer the optimizer actually used
+        # Record the declared (clipped) quotes the optimizer actually used
         for nm in rl_names:
             ca = env.current_actions.get(nm)
-            if ca is not None:
-                declared[nm]["bid_mult"][t_start:t_start + n_commit] = \
-                    ca["bid_mult"][t_start:t_start + n_commit]
-                declared[nm]["offer_adder"][t_start:t_start + n_commit] = \
-                    ca["offer_adder"][t_start:t_start + n_commit]
+            if ca is None:
+                continue
+            for name in declared[nm]:
+                declared[nm][name][t_start:t_start + n_commit] = \
+                    ca[name][t_start:t_start + n_commit]
         obs = next_obs
         if done:
             break
@@ -143,15 +150,25 @@ def main():
     policies = {}
     for nm in rl_names:
         path = os.path.join(args.policies, f"{nm}.pt")
-        policies[nm] = load_policy(path, obs_dim, action_bounds)
+        # Pass the specs so a checkpoint trained on a different observation or
+        # action ontology is refused rather than read as this one.
+        policies[nm] = load_policy(path, obs_dim, action_bounds,
+                                   obs_spec=env.obs_spec,
+                                   action_spec=env.action_spec)
 
     def rl_provider(nm, obs):
         with torch.no_grad():
             return policies[nm](
                 torch.as_tensor(obs[None], dtype=torch.float32)).numpy()[0]
 
+    # The base arm is the truthful declaration of whatever action space these
+    # agents live in, not a literal pair: the literal `(1.0, 0.0)` is the
+    # retired multiplier ontology, and reading it as storage prices would ask
+    # the fleet to charge at 1 CNY/MWh.
+    base_action = env.action_spec.truthful_array().astype(np.float32)
+
     def base_provider(nm, obs):
-        return DEFAULT_ACTION
+        return base_action
 
     s_base, lmp_base, decl_base = run_day(env, rl_names, base_provider)
     s_rl, lmp_rl, decl_rl = run_day(env, rl_names, rl_provider)

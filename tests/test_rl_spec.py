@@ -8,7 +8,7 @@ from models import MarketConfig
 from scenarios import get_scenario
 from rl_env import BiddingEnv
 from rl_spec import (
-    OBS_V3, ACTION_BID_OFFER_V1,
+    OBS_V3, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
     ObservationSpec, ActionSpec, FeatureSpec,
     register_obs_spec, get_obs_spec,
 )
@@ -61,9 +61,22 @@ def test_action_spec_dict_round_trip():
 
 
 def test_action_bounds_reflect_ctor_overrides():
+    """The constructor's bid bounds still reach the non-storage action space.
+
+    They no longer set the environment's own bounds: the agents a policy acts
+    on are the batteries, and a battery declares prices, so the default spec is
+    the storage one. The multiplier bounds still apply to the space a load or a
+    prosumer bids in, which is what they always described.
+    """
     env = _make_env(bid_mult_low=0.4, bid_mult_high=1.6)
-    bounds = env.get_action_bounds().numpy()
-    np.testing.assert_allclose(bounds, [[0.4, 0.0], [1.6, 50.0]])
+    np.testing.assert_allclose(
+        env._legacy_action_spec.bounds["bid_mult"], (0.4, 1.6))
+    np.testing.assert_allclose(
+        env.get_action_bounds().numpy(),
+        [[ACTION_STORAGE_QUOTE_V2.bounds[n][0] for n in
+          ACTION_STORAGE_QUOTE_V2.action_names],
+         [ACTION_STORAGE_QUOTE_V2.bounds[n][1] for n in
+          ACTION_STORAGE_QUOTE_V2.action_names]])
 
 
 def test_register_obs_spec_duplicate_guard():
@@ -108,6 +121,35 @@ def test_load_policy_spec_mismatch_raises(tmp_path):
     with pytest.raises(ValueError, match="v3_12d"):
         load_policy(path, 12, torch.tensor([[0.3, 0.0], [1.8, 50.0]]),
                     obs_spec=other)
+
+
+def test_load_policy_action_spec_mismatch_raises(tmp_path):
+    """The check the action-space rename exists for.
+
+    A checkpoint trained on the retired multiplier pair has the same two
+    weights as a storage actor, so nothing downstream notices: `load_state_dict`
+    succeeds and `bid_mult` is read as a CNY/MWh charge price. Only the spec
+    name in the header distinguishes them.
+    """
+    actor = _stub_actor()
+    path = str(tmp_path / "ESS6.pt")
+    save_policy(actor, path, obs_spec=OBS_V3, action_spec=ACTION_BID_OFFER_V1)
+
+    with pytest.raises(ValueError, match="bid_offer_v1"):
+        load_policy(path, 12, torch.tensor([[0.0, 0.0], [150.0, 300.0]]),
+                    obs_spec=OBS_V3, action_spec=ACTION_STORAGE_QUOTE_V2)
+
+
+def test_load_policy_without_action_spec_skips_that_check(tmp_path):
+    """A caller that passes no action spec is not refused on one."""
+    actor = _stub_actor()
+    path = str(tmp_path / "ESS6.pt")
+    save_policy(actor, path, obs_spec=OBS_V3, action_spec=ACTION_BID_OFFER_V1)
+
+    loaded = load_policy(path, 12, torch.tensor([[0.3, 0.0], [1.8, 50.0]]),
+                         obs_spec=OBS_V3)
+    obs = torch.randn(1, 12)
+    torch.testing.assert_close(loaded(obs), actor(obs))
 
 
 def test_load_legacy_policy_without_meta(tmp_path):

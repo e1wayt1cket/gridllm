@@ -56,7 +56,9 @@ def load_policies():
                           rl_agent_names=[a.name for a in agents if a.storage])
         pols[tag] = {
             a.name: load_policy(os.path.join(d, f"{a.name}.pt"),
-                                env0.get_state_dim(), env0.get_action_bounds())
+                                env0.get_state_dim(), env0.get_action_bounds(),
+                                obs_spec=env0.obs_spec,
+                                action_spec=env0.action_spec)
             for a in env0.rl_agents
         }
     return pols

@@ -222,7 +222,11 @@ def test_soc_transition_formula():
         return
     base_net = build_base_network(config)
     wholesale = np.ones(T) * 300.0
-    actions = {a.name: {"bid_mult": 1.0, "offer_adder": 0.0} for a in agents}
+    # An empty declaration is the truthful one for every ontology: a storage
+    # unit declares no reservation premium, a load declares its own prices
+    # unshaded. Naming the multiplier keys instead would only mean something to
+    # the load agents and would be rejected for the batteries.
+    actions = {a.name: {} for a in agents}
     result = solve_lindist_opf_batch(base_net, agents, T, "DA", config, actions, wholesale)
     assert result is not None, "batch OPF should succeed"
     for a in storage_agents:
@@ -381,5 +385,7 @@ def test_mpc_bidding_runs():
     assert len(actions) == len(agents)
     for a in agents:
         assert a.name in actions
-        assert "bid_mult" in actions[a.name]
-        assert len(actions[a.name]["bid_mult"]) == T
+        declared = actions[a.name]
+        assert declared, f"{a.name} declared nothing"
+        for name, values in declared.items():
+            assert len(values) == T, f"{a.name}.{name} is not a full horizon"

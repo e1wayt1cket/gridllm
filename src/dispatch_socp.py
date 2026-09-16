@@ -21,6 +21,7 @@ from models import Agent, MarketConfig
 from dispatch_core import (
     _select_radial_lines, _compute_mpc_schedules, empty_schedules, split_power,
     add_grid_exchange, add_storage_net_power, check_storage_quote_signs,
+    quote_arrays,
     grid_import_export, grid_carbon_tco2, pins_terminal_soc, DT_HOURS,
 )
 
@@ -483,27 +484,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     pv_max_arr = {}; wind_max_arr = {}
     for a in agents_list:
         nm = a.name
-        ap = action_params.get(a.name, {})
-        bm = ap.get("bid_mult", 1.0)
-        oa = ap.get("offer_adder", 0.0)
-        if isinstance(bm, np.ndarray):
-            bid_arr[nm] = a.bid_value * bm
-        else:
-            bid_arr[nm] = np.full(T, a.bid_value * bm)
-        if isinstance(oa, np.ndarray):
-            offer_arr[nm] = a.offer_cost + oa
-        else:
-            offer_arr[nm] = np.full(T, a.offer_cost + oa)
-        if a.storage is not None:
-            # Charging is costed, so a unit's two quotes are reservations it
-            # will not cross in either direction, and they are free to cross
-            # each other: the net flow decides which one applies, not a cap.
-            # The quotes only have to be non-negative, or the objective
-            # coefficient on one leg turns positive and stops pinning the
-            # charge/discharge split to the net flow (see dispatch_core).
-            check_storage_quote_signs(
-                float(np.min(bid_arr[nm])), float(np.min(offer_arr[nm])),
-                config.storage.cycle_cost, f"storage {nm}")
+        # Charging is costed, so a unit's two quotes are reservations it will
+        # not cross in either direction, and they are free to cross each other:
+        # the net flow decides which one applies, not a cap. See
+        # dispatch_core.quote_arrays, which also enforces the sign invariant.
+        bid_arr[nm], offer_arr[nm] = quote_arrays(a, action_params, T, config)
         pv_max_arr[nm] = a.pv_forecast if stage == "DA" else a.pv_real
         wind_max_arr[nm] = (a.wind_forecast if stage == "DA" else a.wind_real) if a.has_wind else np.zeros(T)
 
