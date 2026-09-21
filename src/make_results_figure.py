@@ -5,7 +5,7 @@ Panel forms:
   1. Stat tiles (headline numbers)
   2. Line chart : training curves (MATD3 vs TD3, differential reward)
   3. Grouped bar: profit delta vs baseline by approach x scenario
-  4. Grouped bar: welfare decomposition (bid-shading artifact vs genuine)
+  4. Grouped bar: objective decomposition (bid-shading artifact vs genuine)
   5. Grouped bar: arbitrage vs market-power per storage agent
 
 Usage:
@@ -93,7 +93,7 @@ def eval_csv_delta(tag, scenario):
     df = df[df["agent"] == "ALL"]
     row = df[df["scenario"] == scenario]
     if len(row):
-        return float(row["welfare_delta"].iloc[0])
+        return float(row["clearing_objective_delta"].iloc[0])
     return None
 
 
@@ -133,7 +133,7 @@ def main():
         df = df[df["agent"] == "ALL"].set_index("scenario")
         prof[tag] = [float(df.loc[s, "profit_delta"]) for s in SCEN]
 
-    # ---- welfare decomposition: artifact + genuine for 4 combos ----
+    # ---- objective decomposition: artifact + genuine for 4 combos ----
     combos = [("matd3", "baseline"), ("td3", "baseline"),
               ("matd3", "peak_load"), ("td3", "peak_load")]
     decomp = []
@@ -179,8 +179,8 @@ def main():
          "相对真实出价 baseline，5 场景"),
         ("真实调度效应 baseline", "+9k ~ +11k",
          "剔除出价假象后，RL 出清为正"),
-        ("福利下降中假象占比", "≈100%",
-         "baseline 场景福利下降全为度量假象"),
+        ("出清目标下降中假象占比", "≈100%",
+         "baseline 场景出清目标下降全为度量假象"),
         ("唯一真实损失", "peak_load −25k",
          "紧张场景储能激进套利所致"),
     ]
@@ -246,7 +246,7 @@ def main():
               [LABELS[t] for t in ["logitreg", "td3", "matd3"]],
               frameon=False, fontsize=7.5, loc="upper left")
 
-    # ---- panel 3: welfare decomposition (artifact vs genuine) ----
+    # ---- panel 3: objective decomposition (artifact vs genuine) ----
     ax = fig.add_subplot(gs[2, 1])
     panel_style(ax)
     cl = [f"{d['tag']}\n{d['sc'].replace('_', ' ')}" for d in decomp]
@@ -268,7 +268,7 @@ def main():
     ax.axhline(0, color=AXIS, lw=1)
     ax.grid(axis="y", color=GRID, lw=0.6)
     ax.set_axisbelow(True)
-    ax.set_title("福利下降的构成（k CNY）", fontsize=11, color=INK,
+    ax.set_title("出清目标下降的构成（k CNY）", fontsize=11, color=INK,
                  loc="left", pad=8)
     ax.set_xticks(xc)
     ax.set_xticklabels(cl, fontsize=7, color=SEC)

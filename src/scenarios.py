@@ -5,7 +5,42 @@ import money
 from models import MarketConfig, Agent
 from ess import build_ess_fleet
 from grid import build_base_network, create_agents_from_network, day_ahead_price_china
-from config_loader import get_scenario_cfg
+from config_loader import get_scenario_cfg, set_default
+
+
+def scenario_scale(cfg: dict) -> dict:
+    """A scenario's declaration of its own operating scale.
+
+    Four quantities that used to be one number in `defaults.yaml`:
+
+      load_scale_mode       "native_peak" (the network's own nominal demand) or
+                            "explicit_peak" (a declared `peak_load_mw`)
+      peak_load_mw          the target for the explicit mode
+      load_shape            "native" or "diversified"
+      renewable.{pv,wind}_bus_mw
+                            installed capacity per bus, in MW
+
+    Read from the scenario rather than from the defaults because none of them
+    is a property of the benchmark: they are choices this scenario makes, and a
+    scenario that inherits another's choice cannot be described.
+    """
+    missing = [k for k in ("load_scale_mode", "load_shape", "renewable")
+               if k not in cfg]
+    if missing:
+        raise ValueError(
+            f"scenario {cfg.get('name', '?')!r} declares no {missing}. Every "
+            f"scenario must state its own operating scale and renewable "
+            f"capacity: a scenario that inherits another's cannot be described, "
+            f"and a reader cannot tell the IEEE33 native scale from a study "
+            f"scale. See config/scenarios.yaml.")
+    renewable = cfg.get("renewable", {}) or {}
+    return {
+        "mode": cfg["load_scale_mode"],
+        "peak_load_mw": cfg.get("peak_load_mw"),
+        "shape": cfg["load_shape"],
+        "pv_bus_mw": renewable.get("pv_bus_mw", {}) or {},
+        "wind_bus_mw": renewable.get("wind_bus_mw", {}) or {},
+    }
 
 
 def apply_scenario_overrides(config: MarketConfig, override: dict) -> None:
@@ -147,6 +182,14 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None,
         raise ValueError(f"Unknown scenario '{name}'")
 
     with_wind = cfg.get("with_wind", True)
+    # The config's power factor is this scenario's, not a global default: the
+    # native scale needs the one that makes the reactive load the benchmark's
+    # own, and a legacy scenario must keep the one it was defined with rather
+    # than inherit a change made for another scenario.
+    if "load_power_factor" in cfg:
+        config_load_pf = float(cfg["load_power_factor"])
+    else:
+        config_load_pf = None
     multipliers = cfg.get("multipliers", {})
     override = dict(cfg.get("override_config", {}))
     # custom_loads is a per-bus load scaling directive applied after agent
@@ -162,9 +205,24 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None,
     if config is None:
         config = MarketConfig.from_yaml()
     apply_scenario_overrides(config, override)
+    if config_load_pf is not None:
+        config.network.load_power_factor = config_load_pf
 
     net = build_base_network(config)
-    agents = create_agents_from_network(net, T, with_wind=with_wind)
+    agents = create_agents_from_network(net, T, with_wind=with_wind,
+                                        scale=scenario_scale(cfg))
+    # Which market prices this scenario, written where every regeneration site
+    # reads it. Written on every build, including when the scenario declares
+    # nothing, so that building the native scenario and then a legacy one
+    # cannot leave the legacy one priced by the external market: the price has
+    # ten creation sites and only this one knows which scenario is being built.
+    #
+    # The fallback is the scenario level's default, which is `legacy` -- the
+    # retired net-load map. Every scenario that is not the native research day
+    # exists only for comparison against results recorded before the external
+    # market existed, and is priced the way those results were.
+    set_default("wholesale_market.source",
+                str(cfg.get("wholesale_source", "legacy")))
     wholesale = day_ahead_price_china(T, agents=agents, config=config)
 
     # --- apply multipliers ---
@@ -283,8 +341,14 @@ def typical_day_config(T: int = money.PERIODS_PER_DAY) -> MarketConfig:
     # in code rather than in the file is a value the next reader cannot find,
     # and the point of the binding is that the file says what the model is.
     config = MarketConfig.from_yaml(opf_mode="socp")
-    apply_scenario_overrides(config, get_scenario_cfg("typical_day")
-                             .get("override_config", {}))
+    cfg = get_scenario_cfg("typical_day")
+    apply_scenario_overrides(config, cfg.get("override_config", {}))
+    # The scenario's own power factor, applied here as well as in
+    # `_build_scenario`: this entry point returns a model to clear with, so a
+    # field the file declares and this function omits would make the
+    # diagnostic's market differ from the one the scenario actually builds.
+    if "load_power_factor" in cfg:
+        config.network.load_power_factor = float(cfg["load_power_factor"])
     return config
 
 
@@ -303,17 +367,33 @@ def _load_registry():
 
 
 def get_scenario(name: str, T: int = 96, config: MarketConfig = None,
-                 ess_buses: Optional[List[int]] = None, der_moves=None) \
+                 ess_buses: Optional[List[int]] = None, der_moves=None,
+                 day_id: Optional[int] = None) \
         -> Tuple[List[Agent], np.ndarray]:
     """Build one scenario.
 
     `ess_buses` overrides the independent fleet's placement -- None keeps the
     configured one, [] requests no fleet. `der_moves` relocates renewable
     sites, as a sequence of (from_bus, to_bus, kind[, fraction]).
+
+    `day_id` selects which day of the wholesale price library the day is
+    priced on. It is written into the configuration caches rather than passed
+    down, the way `diagnose_typical_day.run_day` moves `load_scale`: the price
+    has ten creation sites and threading a new argument through all of them
+    would be a refactor in service of one number.
+
+    None leaves the cache alone, which -- like every other `set_default` knob
+    -- means it leaves the last value a caller set rather than reverting to the
+    file. A caller that wants the file's value after setting one calls
+    `reload_defaults()` first. The source itself is different: `_build_scenario`
+    rewrites it on every build, so a scenario can never inherit another's
+    market.
     """
     _load_registry()
     if name not in SCENARIO_REGISTRY:
         raise ValueError(f"Unknown scenario '{name}'. Available: {list(SCENARIO_REGISTRY.keys())}")
+    if day_id is not None:
+        set_default("wholesale_market.day_id", int(day_id))
     return _build_scenario(name, T, config, ess_buses=ess_buses,
                            der_moves=der_moves)
 

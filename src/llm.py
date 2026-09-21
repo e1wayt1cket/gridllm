@@ -633,7 +633,7 @@ RE消纳率: >90%良好，<80%需关注。
 
 === 仿真数据 ===
 场景: {summary.get('scenario', '未知')}
-社会福利: {summary.get('welfare_da', '?')} ¥
+出清目标: {summary.get('clearing_objective_da', '?')} ¥
 RE消纳率: {summary.get('re_rate', '?')}%
 负荷满足率: {summary.get('load_sat', '?')}%
 节点电价（¥/MWh）: 平均{summary.get('avg_lmp', '?')}，最低{summary.get('min_lmp', '?')}，最高{summary.get('max_lmp', '?')}
@@ -658,7 +658,7 @@ RE消纳率: {summary.get('re_rate', '?')}%
             active = summary.get('storage_active', '否')
             load_sat = float(summary.get('load_sat', 100))
         except Exception:
-            return "系统运行平稳，可微调报价参数以提升社会福利。"
+            return "系统运行平稳，可微调报价参数以改善出清目标。"
 
         parts = []
 
@@ -674,6 +674,6 @@ RE消纳率: {summary.get('re_rate', '?')}%
             parts.append("储能未动作，电价波动可能较小或套利空间不足，可扩大电价峰谷差或调整储能报价策略。")
 
         if not parts:
-            parts.append("系统运行平稳，各曲线符合预期，可进一步优化报价参数以提升社会福利。")
+            parts.append("系统运行平稳，各曲线符合预期，可进一步优化报价参数以改善出清目标。")
 
         return "。\n".join(parts) + "。"

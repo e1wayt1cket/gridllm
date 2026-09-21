@@ -107,7 +107,7 @@ def build_digest(runs: pd.DataFrame, evals: pd.DataFrame) -> str:
             continue
         out += [f"### {_CONVENTION_TITLES[conv]}", ""]
         grouped = sub.groupby("scenario")[
-            ["profit_delta", "genuine_welfare_delta", "cs_delta",
+            ["profit_delta", "genuine_clearing_objective_delta", "cs_delta",
              "market_power_arb", "market_power_power"]] \
             .mean().reset_index()
         grouped["n"] = sub.groupby("scenario").size().values
@@ -115,14 +115,14 @@ def build_digest(runs: pd.DataFrame, evals: pd.DataFrame) -> str:
             {s: i for i, s in enumerate(_SCENARIO_ORDER)})
         grouped = grouped.sort_values("_o", na_position="last")
         cols = {"scenario": "场景", "n": "点数",
-                "profit_delta": "利润增量", "genuine_welfare_delta": "真实福利增量",
+                "profit_delta": "利润增量", "genuine_clearing_objective_delta": "真实出清目标增量",
                 "cs_delta": "CS 增量", "market_power_arb": "套利",
                 "market_power_power": "市场力"}
         out += [_fmt_table(grouped, cols), ""]
 
     out += [
         "口径说明：`cs_delta` 与 `cp_delta` 在两代口径之间符号可能相反，"
-        "因此分开汇总、不合并平均。`profit_delta` 与 `genuine_welfare_delta` "
+        "因此分开汇总、不合并平均。`profit_delta` 与 `genuine_clearing_objective_delta` "
         "不受口径影响。",
         "",
     ]

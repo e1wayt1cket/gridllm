@@ -9,7 +9,9 @@ from collections import deque
 import numpy as np
 
 import money
+
 from models import MarketConfig, Agent
+from rl_spec import ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2
 
 # ===========================================================================
 # Constants
@@ -336,23 +338,28 @@ def quote_arrays(agent, action_params, T, config):
                 f"'charge_price'/'discharge_price' in CNY/MWh, and "
                 f"'bid_mult'/'offer_adder' only mean something for a load or a "
                 f"prosumer")
-        declared = [k for k in ("charge_price", "discharge_price") if k in ap]
+        names = ACTION_STORAGE_QUOTE_V2.action_names
+        charge_name, discharge_name = names
+        declared = [k for k in names if k in ap]
         if not declared:
             # No declaration at all is the truthful one: a battery that names
             # no premium is asking for none. This is the reference point the
             # baselines are measured from, so it is the right thing for an
             # absent action to mean -- unlike a *partial* declaration, which
             # can only be a mistake.
-            ap = {"charge_price": 0.0, "discharge_price": 0.0}
-        elif len(declared) != 2:
+            ap = dict(ACTION_STORAGE_QUOTE_V2.truthful)
+        elif len(declared) != len(names):
             raise KeyError(
                 f"storage agent {nm!r} declared only {declared}; both "
                 f"reservation prices are required")
-        bid_arr = _broadcast(ap["charge_price"], T)
-        offer_arr = _broadcast(ap["discharge_price"], T)
+        bid_arr = _broadcast(ap[charge_name], T)
+        offer_arr = _broadcast(ap[discharge_name], T)
     else:
-        bm = ap.get("bid_mult", 1.0)
-        oa = ap.get("offer_adder", 0.0)
+        # The default is this space's own truthful point rather than a literal:
+        # a multiplier of 1 and no adder are what "declare no premium" means
+        # for a participant whose prices live in bid_value/offer_cost.
+        bm = ap.get("bid_mult", ACTION_BID_OFFER_V1.truthful["bid_mult"])
+        oa = ap.get("offer_adder", ACTION_BID_OFFER_V1.truthful["offer_adder"])
         bid_arr = _broadcast(bm, T) * agent.bid_value
         offer_arr = _broadcast(oa, T) + agent.offer_cost
 

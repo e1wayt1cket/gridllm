@@ -1,4 +1,10 @@
-"""Unit tests for the deviation penalty applied directly to the TD3 actor loss."""
+"""The deviation penalty: what it measures, and how hard it pulls.
+
+The penalty is defined on each action's distance from its own truthful point,
+normalized by that action's box width. That normalization is the whole point:
+it makes the two legs of a quote pair the same quantity, and it is what keeps
+the penalty from pinning the policy at the truthful corner.
+"""
 
 import random
 
@@ -6,17 +12,28 @@ import numpy as np
 import pytest
 import torch
 
-from rl_td3 import TD3, truthful_logits
+from rl_td3 import TD3, deviation_penalty, normalized_deviation
 
 OBS_DIM = 4
 ACT_DIM = 2
 BOUNDS = torch.tensor([[0.6, 0.0], [1.4, 50.0]], dtype=torch.float32)
 
+# BOUNDS is a load/prosumer box, whose own truthful point is (1.0, 0.0) by
+# ACTION_BID_OFFER_V1 -- inside the box, unlike a battery's (0, 0) which is a
+# corner of its own.
+TRUTHFUL = np.array([1.0, 0.0], dtype=np.float32)
 
-def _make_td3(bid_pen: float = 0.0, offer_pen: float = 0.0) -> TD3:
-    return TD3(OBS_DIM, ACT_DIM, BOUNDS,
-               bid_dev_penalty=bid_pen, offer_dev_penalty=offer_pen,
-               batch_size=8, buffer_capacity=64, start_steps=0)
+# The storage box, whose truthful point is the box corner. The interesting
+# properties only show up here.
+STORAGE_BOUNDS = torch.tensor([[0.0, 0.0], [150.0, 300.0]],
+                              dtype=torch.float32)
+STORAGE_TRUTHFUL = np.array([0.0, 0.0], dtype=np.float32)
+
+
+def _make_td3(pen: float = 0.0) -> TD3:
+    return TD3(OBS_DIM, ACT_DIM, BOUNDS, truthful_action=TRUTHFUL,
+               dev_penalty=pen, batch_size=8, buffer_capacity=64,
+               start_steps=0)
 
 
 def _fill_buffer(td3: TD3, action: np.ndarray, n: int = 16):
@@ -28,68 +45,201 @@ def _fill_buffer(td3: TD3, action: np.ndarray, n: int = 16):
                        False)
 
 
-def test_td3_accepts_deviation_penalty_args():
-    td3 = _make_td3(bid_pen=5.0, offer_pen=0.5)
-    assert td3.bid_dev_penalty == 5.0
-    assert td3.offer_dev_penalty == 0.5
+# ---------------------------------------------------------------------------
+# What the deviation is
+# ---------------------------------------------------------------------------
+
+def test_the_deviation_is_the_distance_from_truthful_over_the_box_width():
+    """The definition, stated as the arithmetic it is.
+
+    For a truthful point at the box edge and a squashed action,
+    `d = (1 + tanh(logit)) / 2`: zero at the edge, one at the far edge.
+    """
+    logits = torch.zeros(1, 2)
+    d = normalized_deviation(logits, STORAGE_TRUTHFUL, STORAGE_BOUNDS)
+    # tanh(0) = 0 -> the action sits at the box midpoint -> d = 0.5.
+    assert torch.allclose(d, torch.full((1, 2), 0.5), atol=1e-6)
+
+    far = torch.full((1, 2), 30.0)
+    assert torch.all(normalized_deviation(
+        far, STORAGE_TRUTHFUL, STORAGE_BOUNDS) > 0.99)
+
+    near = torch.full((1, 2), -30.0)
+    assert torch.all(normalized_deviation(
+        near, STORAGE_TRUTHFUL, STORAGE_BOUNDS) < 0.01)
 
 
-def test_actor_loss_increases_with_bid_penalty():
-    """A nonzero bid deviation penalty raises the actor loss, all else equal."""
+def test_the_deviation_is_bounded_in_the_unit_interval():
+    """Whatever the logit, d stays in [0, 1] for a truthful point in the box.
+
+    That bound is what lets the weight be chosen against a normalized reward:
+    the penalty can never exceed the weight, however far the policy wanders.
+    """
+    logits = torch.linspace(-50.0, 50.0, 101).unsqueeze(1).repeat(1, 2)
+    d = normalized_deviation(logits, STORAGE_TRUTHFUL, STORAGE_BOUNDS)
+    assert float(d.min()) >= 0.0
+    assert float(d.max()) <= 1.0 + 1e-6
+
+
+def test_the_deviation_is_monotone_in_the_logit():
+    """Further from truthful is always further, never less."""
+    logits = torch.linspace(-20.0, 20.0, 200).unsqueeze(1).repeat(1, 2)
+    d = normalized_deviation(logits, STORAGE_TRUTHFUL, STORAGE_BOUNDS)
+    assert torch.all(d[1:] >= d[:-1] - 1e-7)
+
+
+def test_the_deviation_is_the_same_on_both_legs_at_the_same_fraction():
+    """The charge box is 150 wide and the discharge box 300.
+
+    A raw deviation in CNY/MWh would call a 30 CNY/MWh move on the discharge
+    leg twice the move it is on the charge leg. Normalized, the same fraction
+    of each box is the same deviation, which is what makes one coefficient
+    legitimate for both.
+    """
+    # 20% of each box, expressed as the logit that lands there.
+    # d = (1 + tanh(x))/2 = 0.2  ->  tanh(x) = -0.6
+    x = float(torch.atanh(torch.tensor(-0.6)))
+    logits = torch.full((1, 2), x)
+    d = normalized_deviation(logits, STORAGE_TRUTHFUL, STORAGE_BOUNDS)
+    assert d[0, 0] == pytest.approx(d[0, 1], abs=1e-6)
+    assert float(d[0, 0]) == pytest.approx(0.2, abs=1e-5)
+
+
+def test_the_deviation_does_not_depend_on_the_units_the_box_is_in():
+    """Scaling a box changes the prices, not the deviation.
+
+    The same fractional position in a box twice as wide is the same deviation,
+    so a penalty calibrated on one box transfers to a rescaled one.
+    """
+    x = float(torch.atanh(torch.tensor(0.4)))     # d = 0.7
+    logits = torch.full((1, 2), x)
+    d_small = normalized_deviation(logits, STORAGE_TRUTHFUL, STORAGE_BOUNDS)
+    scaled = STORAGE_BOUNDS * 7.0
+    d_big = normalized_deviation(logits, STORAGE_TRUTHFUL, scaled)
+    assert torch.allclose(d_small, d_big, atol=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# How it enters the actor loss
+# ---------------------------------------------------------------------------
+
+def test_the_penalty_is_the_weight_times_the_squared_deviation():
+    logits = torch.zeros(4, 2)
+    p = deviation_penalty(logits, STORAGE_TRUTHFUL, STORAGE_BOUNDS, 0.25)
+    # d = 0.5 on both actions -> 0.25 * (0.25 + 0.25) = 0.125
+    assert float(p) == pytest.approx(0.125, abs=1e-6)
+
+
+def test_a_zero_weight_contributes_nothing():
+    logits = torch.randn(8, 2) * 5.0
+    p = deviation_penalty(logits, STORAGE_TRUTHFUL, STORAGE_BOUNDS, 0.0)
+    assert float(p) == 0.0
+
+
+def test_the_penalty_gradient_vanishes_at_the_truthful_corner():
+    """The property that stops it pinning the policy there.
+
+    A penalty with a nonzero gradient at the truthful point would hold the
+    policy against it. This one's pull weakens as the policy approaches
+    truthful, because the deviation itself is going to zero.
+    """
+    at_corner = torch.full((4, 2), -30.0, requires_grad=True)
+    p = deviation_penalty(at_corner, STORAGE_TRUTHFUL, STORAGE_BOUNDS, 1.0)
+    p.backward()
+    assert float(at_corner.grad.abs().max()) < 1e-6
+
+    mid = torch.zeros(4, 2, requires_grad=True)
+    deviation_penalty(mid, STORAGE_TRUTHFUL, STORAGE_BOUNDS, 1.0).backward()
+    assert float(mid.grad.abs().max()) > 0.1
+
+
+def test_the_penalty_gradient_is_bounded():
+    """Unlike the logit-quadratic form, the pull cannot grow without bound.
+
+    For one sample the penalty is `weight * sum_i d_i^2`. With a truthful point
+    at a box edge, `d = (1 + t)/2` for `t = tanh(x)`, so
+    `d(d^2)/dx = (1 + t)(1 - t^2)/2`, maximised at `t = 1/3` for the value
+    `16/27`. It falls to zero at both edges -- so however large the weight, the
+    regularizer cannot dominate the economic term arbitrarily far from
+    truthful, which is exactly what pinned the old penalty at the corner.
+
+    Checked one sample at a time: the penalty averages over the batch, so the
+    per-element pull in a batch of B is this divided by B, the same scaling
+    `-min(q1, q2).mean()` carries.
+    """
+    worst = 0.0
+    for x in np.linspace(-20.0, 20.0, 2001):
+        one = torch.full((1, 2), float(x), requires_grad=True)
+        deviation_penalty(one, STORAGE_TRUTHFUL, STORAGE_BOUNDS, 1.0).backward()
+        worst = max(worst, float(one.grad.abs().max()))
+    assert worst == pytest.approx(16.0 / 27.0, abs=1e-3)
+
+
+def test_the_penalty_is_a_batch_mean_like_the_economic_term():
+    """Both terms average over the batch, so the weight is batch-size free.
+
+    Replicating a sample must not change what the penalty costs, or the
+    coefficient calibrated at one batch size would mean something else at
+    another.
+    """
+    one = torch.zeros(1, 2)
+    many = torch.zeros(64, 2)
+    assert float(deviation_penalty(
+        one, STORAGE_TRUTHFUL, STORAGE_BOUNDS, 1.0)) == pytest.approx(
+        float(deviation_penalty(
+            many, STORAGE_TRUTHFUL, STORAGE_BOUNDS, 1.0)), rel=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# Through the trainer
+# ---------------------------------------------------------------------------
+
+def test_td3_accepts_the_deviation_penalty_arg():
+    assert _make_td3(pen=0.25).dev_penalty == 0.25
+
+
+def test_actor_loss_rises_with_the_penalty():
     random.seed(7)
     torch.manual_seed(7)
-    baseline = _make_td3(bid_pen=0.0)
+    baseline = _make_td3(pen=0.0)
     _fill_buffer(baseline, np.array([1.4, 0.0]))
     loss_baseline = baseline.update()["actor_loss"]
     assert loss_baseline is not None
 
     random.seed(7)
     torch.manual_seed(7)
-    penalized = _make_td3(bid_pen=5.0)
+    penalized = _make_td3(pen=0.5)
     _fill_buffer(penalized, np.array([1.4, 0.0]))
-    loss_penalized = penalized.update()["actor_loss"]
-
-    # L2 penalty on the pre-tanh logit is strictly additive and non-negative.
-    assert loss_penalized > loss_baseline
+    assert penalized.update()["actor_loss"] > loss_baseline
 
 
-def test_actor_loss_increases_with_offer_penalty():
-    random.seed(11)
-    torch.manual_seed(11)
-    baseline = _make_td3(offer_pen=0.0)
-    _fill_buffer(baseline, np.array([1.0, 50.0]))
-    loss_baseline = baseline.update()["actor_loss"]
-
-    random.seed(11)
-    torch.manual_seed(11)
-    penalized = _make_td3(offer_pen=0.5)
-    _fill_buffer(penalized, np.array([1.0, 50.0]))
-    loss_penalized = penalized.update()["actor_loss"]
-
-    assert loss_penalized > loss_baseline
+def test_forward_logits_matches_forward():
+    actor = _make_td3().actor
+    obs = torch.zeros(1, OBS_DIM)
+    logits, action = actor.forward_logits(obs)
+    assert torch.allclose(action, actor(obs), atol=1e-6)
+    assert logits.shape == (1, ACT_DIM)
+    mid = (BOUNDS[0] + BOUNDS[1]) / 2.0
+    half = (BOUNDS[1] - BOUNDS[0]) / 2.0
+    assert torch.allclose(action[0], mid + torch.tanh(logits[0]) * half,
+                          atol=1e-6)
 
 
 def test_actor_loss_is_invariant_to_a_uniform_reward_rescale():
-    """Rescaling the reward must not change the actor update.
+    """The weight is dimensionless, so rescaling the reward must not re-tune it.
 
-    The reward is divided by its running standard deviation before the critic
-    target, so a uniform rescale cancels out. That is what lets a change in the
-    reward's magnitude — such as the money-unit unification, which divides every
-    economic term by four — leave the actor's effective learning problem alone.
-
-    It only holds while the deviation penalty carries a dimensionless weight.
-    Dividing the penalty by the reward standard deviation as well made the
-    effective regularization scale with the reward, so this catches a
-    reintroduction of that coupling.
+    The reward is divided by its running std before the critic target, and the
+    penalty is in those same units rather than scaled by the reward a second
+    time.
     """
-    def actor_loss_at(reward_scale: float) -> float:
+    def actor_loss_at(scale: float) -> float:
         random.seed(5)
         torch.manual_seed(5)
-        td3 = _make_td3(bid_pen=5.0, offer_pen=0.5)
+        td3 = _make_td3(pen=0.25)
         obs = np.zeros(OBS_DIM, dtype=np.float32)
         for i in range(16):
             td3.buffer.add(obs, np.array([1.2, 20.0], dtype=np.float32),
-                           reward_scale * (1.0 + i % 3), obs, False)
+                           scale * (1.0 + i % 3), obs, False)
         loss = td3.update()["actor_loss"]
         assert loss is not None
         return loss
@@ -97,90 +247,13 @@ def test_actor_loss_is_invariant_to_a_uniform_reward_rescale():
     assert actor_loss_at(1.0) == pytest.approx(actor_loss_at(100.0), rel=1e-5)
 
 
-def test_forward_logits_matches_forward():
-    """forward() and forward_logits() return the same action."""
-    actor = _make_td3().actor
-    obs = torch.zeros(1, OBS_DIM)
-    logits, action = actor.forward_logits(obs)
-    assert torch.allclose(action, actor(obs), atol=1e-6)
-    assert logits.shape == (1, ACT_DIM)
-    # action = mid + tanh(logit) * half
-    mid = (BOUNDS[0] + BOUNDS[1]) / 2.0
-    half = (BOUNDS[1] - BOUNDS[0]) / 2.0
-    expected = mid + torch.tanh(logits[0]) * half
-    assert torch.allclose(action[0], expected, atol=1e-6)
+def test_td3_refuses_to_invent_a_deviation_reference():
+    """No truthful action is an error, not a default.
 
-
-def test_logit_penalty_survives_saturation():
-    """The L2 logit penalty keeps a nonzero gradient even when the actor is
-    saturated at the action bound, where d(tanh)/dx would vanish."""
-    random.seed(3)
-    torch.manual_seed(3)
-    td3 = _make_td3(bid_pen=5.0, offer_pen=0.0)
-    # Drive the actor's pre-tanh logits far from the reference (saturated).
-    with torch.no_grad():
-        for p in td3.actor.net[4].parameters():
-            p.fill_(50.0)
-    obs = torch.zeros(8, OBS_DIM)
-    logits, _ = td3.actor.forward_logits(obs)
-    assert torch.all(torch.abs(logits[:, 0]) > 30.0)  # tanh fully saturated
-    loss = td3.bid_dev_penalty * (
-        (logits[:, 0] - td3.deviation_reference[0]) ** 2).mean()
-    loss.backward()
-    grads = [p.grad for p in td3.actor.net[4].parameters()
-             if p.grad is not None]
-    assert any(g.abs().sum().item() > 0 for g in grads)
-
-
-def test_truthful_logit_reproduces_the_truthful_action():
-    """The penalty reference is a logit, but it must stand for an action.
-
-    `atanh` round-trips through the actor's own parameterization, so this is
-    what ties the reference to the spec's truthful point rather than to a
-    convention held here.
+    The old fallback was the box midpoint, which for the storage box means
+    "charge at 75, discharge at 150" -- the region the thin-margin batteries
+    cannot trade in.
     """
-    from rl_spec import ACTION_STORAGE_QUOTE_V2, ACTION_BID_OFFER_V1
-
-    for spec in (ACTION_STORAGE_QUOTE_V2, ACTION_BID_OFFER_V1):
-        low = torch.tensor([spec.bounds[n][0] for n in spec.action_names],
-                           dtype=torch.float32)
-        high = torch.tensor([spec.bounds[n][1] for n in spec.action_names],
-                            dtype=torch.float32)
-        bounds = torch.stack([low, high])
-        ref = truthful_logits(torch.as_tensor(spec.truthful_array()), bounds)
-        mid = (low + high) / 2.0
-        half = (high - low) / 2.0
-        recovered = mid + torch.tanh(ref) * half
-        assert torch.allclose(recovered, torch.as_tensor(spec.truthful_array()),
-                              atol=0.5)
-
-
-def test_deviation_reference_is_not_the_box_midpoint_for_storage():
-    """The regression this reference exists for.
-
-    Anchoring the storage penalty at the logit zero means anchoring it at
-    "charge at 75 CNY/MWh, discharge at 150", which is the one region of the
-    box where the three thin-margin batteries cannot trade at all.
-    """
-    from rl_spec import ACTION_STORAGE_QUOTE_V2
-
-    spec = ACTION_STORAGE_QUOTE_V2
-    low = torch.tensor([spec.bounds[n][0] for n in spec.action_names],
-                       dtype=torch.float32)
-    high = torch.tensor([spec.bounds[n][1] for n in spec.action_names],
-                        dtype=torch.float32)
-    bounds = torch.stack([low, high])
-    ref = truthful_logits(torch.as_tensor(spec.truthful_array()), bounds)
-
-    assert torch.all(ref < -3.0), "the truthful point is a corner, not the middle"
-    mid = (low + high) / 2.0
-    half = (high - low) / 2.0
-    recovered = mid + torch.tanh(ref) * half
-    assert torch.all(recovered < 1.0), "and the clamp keeps it finite"
-
-
-def test_td3_defaults_to_the_box_midpoint_reference():
-    """No truthful action given -> logit zero, as every checkpoint on disk was
-    trained against."""
-    td3 = _make_td3(bid_pen=5.0)
-    assert torch.all(td3.deviation_reference == 0.0)
+    with pytest.raises(ValueError, match="truthful action"):
+        TD3(OBS_DIM, ACT_DIM, BOUNDS, dev_penalty=0.25,
+            batch_size=8, buffer_capacity=64, start_steps=0)

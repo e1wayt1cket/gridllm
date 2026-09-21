@@ -1,26 +1,39 @@
 # counterfactual_eval.py
-"""Benefit of an assisted bidding policy, measured against a baseline policy.
+"""The economic gain of an assisted bidding policy over a baseline policy.
 
-The quantity the research is about is a difference between two runs of the same
-day:
+This module owns the research question's key performance indicators. They are
+defined on one participant's settled profit over one day:
 
-    benefit_i = profit_i(assisted) - profit_i(baseline)
+    Pi_AI          the assisted arm's settled profit
+    Pi_baseline    the baseline arm's settled profit
+    DeltaPi        = Pi_AI - Pi_baseline
+    DeltaPi_pct    = DeltaPi / (|Pi_baseline| + eps)
+    P(DeltaPi > 0) how often the assisted arm came out ahead
 
-Everything here exists to make that difference mean what it says. Each arm of a
+`Pi` is a *participant payoff*, computed by `participant_payoff` from what the
+unit was actually settled at, and never the clearing objective: the objective
+values a unit at the quotes it declared, while settlement happens at the nodal
+price, and only the second is money the unit keeps.
+
+Everything here exists to make the difference mean what it says. Each arm of a
 pair is run with the same RNG seed over the same scenario, so load, on-site
 generation, the initial state of charge, the network and the price realization
-are identical and the only thing that differs is the bidding policy. The pair is
-then *checked*, not assumed: if the two arms did not see the same day, the
-comparison is refused rather than reported.
+are identical and the only thing that differs is the bidding policy. Both arms
+are then settled the same way -- one joint clear of the whole day with the
+state of charge pinned at both ends -- so neither can win by ending the day
+with a fuller or emptier battery. The pair is *checked*, not assumed: if the
+two arms did not see the same day, the comparison is refused rather than
+reported.
 
 The baseline is a whole-day policy applied to every strategic agent. That is a
 different counterfactual from the one the training reward subtracts, which is
 taken inside a single window and holds the other agents at their learned bids
-(see rl_env.step). A training reward is not a benefit.
+(see rl_env.step). A training reward is not a payoff and must never be read as
+one.
 
-`benefit_rate` divides by the magnitude of the baseline, so a baseline that
-loses money — a battery whose day's spread does not cover its degradation — still
-yields a rate that reads the right way round.
+`delta_pi_percent` divides by the magnitude of the baseline, so a baseline that
+loses money -- a battery whose day's spread does not cover its degradation --
+still yields a rate that reads the right way round.
 """
 
 import csv
@@ -37,17 +50,20 @@ from scenarios import get_scenario
 # Guard against a zero denominator for an exactly break-even baseline.
 RATE_EPSILON = 1e-6
 
-# Benefit statistics reported per agent and for the fleet.
+# Statistics reported per agent and for the fleet, for every quantity.
+# `positive_rate` is the generic form of P(DeltaPi > 0): the share of days the
+# quantity was above zero. It is a statistic of whichever quantity it is
+# attached to, so the delta's share is read as `delta_pi_positive_rate`.
 STAT_COLUMNS = ("n", "mean", "std", "median", "p05", "p25", "p50", "p75",
                 "p95", "positive_rate")
 
 
-def benefit(profit_ai: float, profit_baseline: float) -> float:
+def delta_pi(profit_ai: float, profit_baseline: float) -> float:
     """How much more the assisted policy earned (CNY)."""
     return float(profit_ai) - float(profit_baseline)
 
 
-def benefit_rate(profit_ai: float, profit_baseline: float) -> float:
+def delta_pi_percent(profit_ai: float, profit_baseline: float) -> float:
     """The benefit relative to the baseline's magnitude.
 
     The denominator is the magnitude, not the signed value, so that improving
@@ -94,7 +110,9 @@ class ArmSpec:
 
 def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
             rl_names: Sequence[str], day_seed: int, T: int = 96,
-            n_blocks: int = N_BLOCKS, settle_full_day: bool = True) -> dict:
+            n_blocks: int = N_BLOCKS, settle_full_day: bool = True,
+            day_id: Optional[int] = None, obs_spec=None,
+            action_spec=None) -> dict:
     """Run one policy over one day and return what each agent settled.
 
     ``day_seed`` is required and applied before anything else, so every arm of a
@@ -115,8 +133,18 @@ def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
         policy = None
 
     np.random.seed(day_seed)
-    agents, wholesale = get_scenario(scenario, T=T, config=config)
-    env = BiddingEnv(agents, config, rl_agent_names=list(rl_names))
+    # `day_id` selects which day of the wholesale library this arm is priced on.
+    # It is orthogonal to `day_seed`: the seed pairs the two arms' residual
+    # noise, the day chooses the price. Both arms of a pair get the same one of
+    # each, which is what keeps the wholesale arrays comparable.
+    agents, wholesale = get_scenario(scenario, T=T, config=config,
+                                     day_id=day_id)
+    # `obs_spec`/`action_spec` must match the environment the policy was
+    # TRAINED in. A validation env built on the defaults would put a trained
+    # actor in a differently shaped observation or a differently bounded action
+    # space, and would produce a plausible, wrong profit rather than an error.
+    env = BiddingEnv(agents, config, rl_agent_names=list(rl_names),
+                     obs_spec=obs_spec, action_spec=action_spec)
 
     profits: Dict[str, float] = {nm: 0.0 for nm in rl_names}
     clean = True
@@ -141,16 +169,17 @@ def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
             break
 
     rolling_profits = dict(profits)
+    day_result = None
     if settle_full_day:
-        profits, settled = _settle_full_day(agents, config, rl_names,
-                                            env.current_actions, wholesale, T,
-                                            spec_for=env.spec_for)
+        profits, settled, day_result = _settle_full_day(
+            agents, config, rl_names, env.current_actions, wholesale, T,
+            spec_for=env.spec_for)
         clean = clean and settled
 
     return {"arm": arm.name, "profits": profits,
             "rolling_profits": rolling_profits,
             "settled": bool(settle_full_day), "wholesale": wholesale,
-            "seed": day_seed, "clean": clean}
+            "seed": day_seed, "clean": clean, "day_result": day_result}
 
 
 def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
@@ -164,7 +193,9 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
     choose. The action sequence is the one the policy emitted causally, block by
     block; only the settlement is joint.
 
-    Returns (per-agent profit, clean).
+    Returns (per-agent profit, clean, result). `result` is the cleared day
+    itself -- network state, prices, schedules -- and is None when the clear
+    degraded.
     """
     import dataclasses
 
@@ -197,7 +228,7 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
     except Exception:
         result = None
     if result is None or result.get("fell_back"):
-        return {nm: 0.0 for nm in rl_names}, False
+        return {nm: 0.0 for nm in rl_names}, False, None
 
     profits = {}
     for nm in rl_names:
@@ -208,7 +239,126 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
             continue
         profits[nm] = participant_payoff.participant_payoff(
             sched, result["lmp"][:, agent.bus], agent, settle_config).total
-    return profits, True
+    return profits, True, result
+
+
+#: The truthful arm does not depend on the policy under test, so its settled
+#: profit on a validation day is computed once per process and reused. Cache
+#: keyed by `(scenario, day_id, T)`.
+_BASELINE_CACHE: Dict[tuple, dict] = {}
+
+
+def day_seed_for(day_id: int) -> int:
+    """The RNG seed an arm is run with on a given library day.
+
+    Derived from the day rather than drawn, and that is what makes the baseline
+    cache sound: the cache stores one arm's result for a day, and it is only
+    comparable to a later AI arm if both were run under the same seed. Drawing
+    a fresh seed each evaluation would pair a cached baseline against a
+    differently realised day, and `assert_paired` would be comparing two days
+    while looking like it compared two policies.
+    """
+    return int(day_id) + 1_000
+
+
+def validation_kpis(actors: Dict[str, object], config: MarketConfig,
+                    scenario: str, rl_names: Sequence[str],
+                    day_ids: Sequence[int], T: int = 96,
+                    n_blocks: int = N_BLOCKS, obs_spec=None,
+                    action_spec=None, use_cache: bool = True) -> dict:
+    """The paired counterfactual on held-out days, as one number to select on.
+
+    Returns mean Delta_Pi and the two pieces it is made of, plus `days`: one
+    entry per retained day carrying `day_id`, `pi_ai`, `pi_baseline`,
+    `delta_pi` and `delta_pi_percent`. The means are what a cycle is selected
+    on; the per-day entries are what a reader checks the selection against.
+
+    Only the AI arm moves between cycles -- the truthful baseline's settled
+    profit is a function of the day and the configuration, not of the policy --
+    so the baseline is computed once and cached, which halves the cost of
+    evaluating every cycle without changing the result.
+
+    The validation days must come from `day_rotation.validation_days()`. The
+    test days are not reachable from here, and nothing in the training path
+    passes them.
+    """
+    ai_arm = ArmSpec(name="ai", kind="rl", policies=dict(actors))
+    base_arm = ArmSpec(name="baseline", kind="truthful")
+
+    pi_ai: List[float] = []
+    pi_base: List[float] = []
+    kept: List[int] = []
+    dropped: List[int] = []
+
+    for day_id in day_ids:
+        seed = day_seed_for(day_id)
+        key = (scenario, int(day_id), int(T))
+
+        cached = _BASELINE_CACHE.get(key) if use_cache else None
+        if cached is None:
+            base = run_arm(scenario, config, base_arm, rl_names, seed, T,
+                           n_blocks, day_id=day_id, obs_spec=obs_spec,
+                           action_spec=action_spec)
+            if use_cache:
+                _BASELINE_CACHE[key] = base
+        else:
+            base = cached
+
+        ai = run_arm(scenario, config, ai_arm, rl_names, seed, T, n_blocks,
+                     day_id=day_id, obs_spec=obs_spec, action_spec=action_spec)
+
+        # The two arms must have been priced on the same day, or the difference
+        # between them is the difference between two days.
+        assert_paired(base, ai)
+
+        if not (base.get("clean") and ai.get("clean")):
+            dropped.append(int(day_id))
+            continue
+
+        kept.append(int(day_id))
+        pi_base.append(float(sum(base["profits"].values())))
+        pi_ai.append(float(sum(ai["profits"].values())))
+
+    deltas = [a - b for a, b in zip(pi_ai, pi_base)]
+    # The per-day pairs, not only the mean over them. The mean is what the
+    # cycle is selected on, but a mean alone cannot show whether the gain held
+    # across the ten days or came from one -- and once this call returns, the
+    # per-day profits are gone. Emitting them costs bookkeeping, not a solve.
+    days = [
+        {"day_id": day, "pi_ai": a, "pi_baseline": b,
+         "delta_pi": delta_pi(a, b),
+         "delta_pi_percent": delta_pi_percent(a, b)}
+        for day, a, b in zip(kept, pi_ai, pi_base)
+    ]
+    return {
+        "days": days,
+        "mean_delta_pi": float(np.mean(deltas)) if deltas else float("nan"),
+        "mean_pi_ai": float(np.mean(pi_ai)) if pi_ai else float("nan"),
+        "mean_pi_baseline": float(np.mean(pi_base)) if pi_base else float("nan"),
+        "p_delta_pi_positive": (float(np.mean([d > 0 for d in deltas]))
+                                if deltas else float("nan")),
+        "n_days": len(deltas),
+        "n_days_dropped": len(dropped),
+        "dropped_days": dropped,
+    }
+
+
+def reset_baseline_cache() -> None:
+    """Drop the cached baseline arm, so a config change is picked up."""
+    _BASELINE_CACHE.clear()
+
+
+def settle_day(agents, config: MarketConfig, rl_names, declared: dict,
+               wholesale, T: int = 96) -> tuple:
+    """Settle one arm's day the way a pair of arms must be settled.
+
+    Public entry to the endpoint-pinned settlement, so the evaluation CLI and
+    the baseline ladder cannot settle the same day two different ways. See
+    `_settle_full_day` for why the endpoints are pinned.
+
+    Returns (per-agent profit, clean, result).
+    """
+    return _settle_full_day(agents, config, rl_names, declared, wholesale, T)
 
 
 def assert_paired(base: dict, ai: dict) -> None:
@@ -239,11 +389,11 @@ def evaluate(scenario: str, config: MarketConfig, ai_arm: ArmSpec,
     averaged in.
     """
     per_agent: Dict[str, Dict[str, List[float]]] = {
-        nm: {"baseline_profit": [], "ai_profit": [], "benefit": [],
-             "benefit_rate": []}
+        nm: {"pi_baseline": [], "pi_ai": [], "delta_pi": [],
+             "delta_pi_percent": []}
         for nm in rl_names}
-    fleet = {k: [] for k in ("baseline_profit", "ai_profit", "benefit",
-                             "benefit_rate")}
+    fleet = {k: [] for k in ("pi_baseline", "pi_ai", "delta_pi",
+                             "delta_pi_percent")}
     dropped = []
 
     for seed in seeds:
@@ -261,14 +411,14 @@ def evaluate(scenario: str, config: MarketConfig, ai_arm: ArmSpec,
             a = ai["profits"][nm]
             base_total += b
             ai_total += a
-            per_agent[nm]["baseline_profit"].append(b)
-            per_agent[nm]["ai_profit"].append(a)
-            per_agent[nm]["benefit"].append(benefit(a, b))
-            per_agent[nm]["benefit_rate"].append(benefit_rate(a, b))
-        fleet["baseline_profit"].append(base_total)
-        fleet["ai_profit"].append(ai_total)
-        fleet["benefit"].append(benefit(ai_total, base_total))
-        fleet["benefit_rate"].append(benefit_rate(ai_total, base_total))
+            per_agent[nm]["pi_baseline"].append(b)
+            per_agent[nm]["pi_ai"].append(a)
+            per_agent[nm]["delta_pi"].append(delta_pi(a, b))
+            per_agent[nm]["delta_pi_percent"].append(delta_pi_percent(a, b))
+        fleet["pi_baseline"].append(base_total)
+        fleet["pi_ai"].append(ai_total)
+        fleet["delta_pi"].append(delta_pi(ai_total, base_total))
+        fleet["delta_pi_percent"].append(delta_pi_percent(ai_total, base_total))
 
     return {
         "scenario": scenario,
@@ -276,7 +426,7 @@ def evaluate(scenario: str, config: MarketConfig, ai_arm: ArmSpec,
         "baseline_arm": baseline_arm.name,
         "seeds_requested": list(seeds),
         "seeds_dropped": dropped,
-        "n_days": len(fleet["benefit"]),
+        "n_days": len(fleet["delta_pi"]),
         "fleet": {k: summarize(v) for k, v in fleet.items()},
         "per_agent": {nm: {k: summarize(v) for k, v in stats.items()}
                       for nm, stats in per_agent.items()},
@@ -286,17 +436,24 @@ def evaluate(scenario: str, config: MarketConfig, ai_arm: ArmSpec,
 #: Headline columns, in the order a report should read them: how much was
 #: gained, how large that is relative to the baseline, and how often it was
 #: gained at all.
-HEADLINE_COLUMNS = ("mean_benefit", "mean_benefit_rate", "positive_rate")
+HEADLINE_COLUMNS = ("mean_delta_pi", "mean_delta_pi_percent",
+                    "p_delta_pi_positive")
 
 
 def headline(result: dict) -> dict:
-    """The three numbers the research question is answered with."""
-    fleet = result["fleet"]["benefit"]
-    rate = result["fleet"]["benefit_rate"]
+    """The numbers the research question is answered with.
+
+    `p_delta_pi_positive` is P(DeltaPi > 0), the share of days the assisted arm
+    earned more. It sits beside the mean on purpose: a mean lifted by two good
+    days and a share near one half are different findings, and neither number
+    alone distinguishes them.
+    """
+    fleet = result["fleet"]["delta_pi"]
+    rate = result["fleet"]["delta_pi_percent"]
     return {
-        "mean_benefit": fleet["mean"],
-        "mean_benefit_rate": rate["mean"],
-        "positive_rate": fleet["positive_rate"],
+        "mean_delta_pi": fleet["mean"],
+        "mean_delta_pi_percent": rate["mean"],
+        "p_delta_pi_positive": fleet["positive_rate"],
         "n_days": result["n_days"],
         "n_days_dropped": len(result["seeds_dropped"]),
     }
@@ -306,10 +463,10 @@ def write_csv(result: dict, path: str) -> None:
     """One row per agent plus a fleet row, with the headline columns first."""
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     base_cols = ["scenario", "ai_arm", "baseline_arm", "agent", "n_days",
-                 "n_days_dropped", "mean_benefit", "mean_benefit_rate",
-                 "positive_rate"]
-    stat_cols = [f"{q}_{s}" for q in ("baseline_profit", "ai_profit",
-                                      "benefit", "benefit_rate")
+                 "n_days_dropped", "mean_delta_pi", "mean_delta_pi_percent",
+                 "p_delta_pi_positive"]
+    stat_cols = [f"{q}_{s}" for q in ("pi_baseline", "pi_ai",
+                                      "delta_pi", "delta_pi_percent")
                  for s in STAT_COLUMNS]
     with open(path, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=base_cols + stat_cols)
@@ -322,9 +479,9 @@ def write_csv(result: dict, path: str) -> None:
                 "baseline_arm": result["baseline_arm"], "agent": agent,
                 "n_days": result["n_days"],
                 "n_days_dropped": len(result["seeds_dropped"]),
-                "mean_benefit": stats["benefit"]["mean"],
-                "mean_benefit_rate": stats["benefit_rate"]["mean"],
-                "positive_rate": stats["benefit"]["positive_rate"],
+                "mean_delta_pi": stats["delta_pi"]["mean"],
+                "mean_delta_pi_percent": stats["delta_pi_percent"]["mean"],
+                "p_delta_pi_positive": stats["delta_pi"]["positive_rate"],
             }
             for quantity, values in stats.items():
                 for stat in STAT_COLUMNS:

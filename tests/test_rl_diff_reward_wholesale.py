@@ -29,8 +29,13 @@ def _make_diff_reward_env():
     return env, rl_names
 
 
-def _fixed_price(T: int, agents=None, config=None) -> np.ndarray:
-    """Deterministic flat wholesale curve; realizations are irrelevant here."""
+def _fixed_price(T: int, agents=None, config=None, **kwargs) -> np.ndarray:
+    """Deterministic flat wholesale curve; realizations are irrelevant here.
+
+    `**kwargs` absorbs the call's window offset and day id, which the real
+    generators take and a flat curve does not care about. Absorbing them keeps
+    this mock a faithful stand-in for the entry point it patches.
+    """
     return np.full(T, 400.0, dtype=float)
 
 

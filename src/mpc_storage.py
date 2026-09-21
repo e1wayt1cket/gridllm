@@ -634,7 +634,7 @@ def mpc_rt_rolling(agents, T, action_params_base, config, H=8):
     schedules_rt = empty_schedules(agents, T)
     prev_soc = {}
     prev_power = {}
-    total_welfare_rt = 0.0
+    total_clearing_objective_rt = 0.0
     carbon_emissions = 0.0
     total_curtailment = 0.0
     total_served_mwh = 0.0
@@ -728,7 +728,7 @@ def mpc_rt_rolling(agents, T, action_params_base, config, H=8):
                     p_grid = sub_result["schedules"]['GRID']['g_grid'][t_rel]
                     if p_grid > 0:
                         carbon_emissions += config.market_design.emission_factor_grid * p_grid * 0.25
-                    total_welfare_rt += sub_result.get("welfare", 0) / sub_T
+                    total_clearing_objective_rt += sub_result.get("clearing_objective", 0) / sub_T
 
                 idx += apply_steps
             else:
@@ -753,7 +753,7 @@ def mpc_rt_rolling(agents, T, action_params_base, config, H=8):
         "price": lmp_rt.mean(axis=1),
         "lmp": lmp_rt,
         "schedules": schedules_rt,
-        "welfare": total_welfare_rt,
+        "clearing_objective": total_clearing_objective_rt,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_available,
         "carbon_emissions": carbon_emissions,
@@ -769,7 +769,7 @@ def _mpc_fallback_step(agents, base_net, config, t_abs, T, wholesale,
     from dispatch import solve_opf_gurobi, StorageConstraints
     from market import split_power
 
-    success, lmp_t, welfare_t, agent_res, p_grid = solve_opf_gurobi(
+    success, lmp_t, clearing_objective_t, agent_res, p_grid = solve_opf_gurobi(
         base_net, agents, t_abs, "RT", prev_soc, wholesale[t_abs],
         action_params_base, config
     )

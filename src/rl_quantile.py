@@ -26,7 +26,8 @@ import torch.nn as nn
 import torch.optim as optim
 from typing import Dict, List, Optional, Tuple
 
-from rl_bidding import Actor, ReplayBuffer
+from rl_bidding import Actor, ReplayBuffer, agent_action_spaces
+from rl_td3 import deviation_penalty
 
 
 def quantile_huber_loss(pred: torch.Tensor, target: torch.Tensor,
@@ -97,8 +98,7 @@ class QuantileMATD3:
                  tau: float = 0.005, policy_delay: int = 2,
                  noise_std: float = 0.2, noise_clip: float = 0.5,
                  batch_size: int = 128, buffer_capacity: int = 100_000,
-                 start_steps: int = 500, bid_dev_penalty: float = 0.0,
-                 offer_dev_penalty: float = 0.0,
+                 start_steps: int = 500, dev_penalty: float = 0.0,
                  final_noise_std: float = 0.05,
                  noise_anneal_steps: int = 5000,
                  n_quantiles: int = 32, critic_factory=None):
@@ -113,15 +113,16 @@ class QuantileMATD3:
         self.noise_clip = noise_clip
         self.batch_size = batch_size
         self.start_steps = start_steps
-        self.bid_dev_penalty = bid_dev_penalty
-        self.offer_dev_penalty = offer_dev_penalty
+        self.dev_penalty = dev_penalty
         self.final_noise_std = final_noise_std
         self.noise_anneal_steps = max(1, noise_anneal_steps)
         self.n_quantiles = n_quantiles
 
         obs_dim = env.get_state_dim()
-        act_dim = 2
-        action_bounds = env.get_action_bounds()
+        (self.spec_by_agent, self.bounds_by_agent, self.truthful_action,
+         act_dim) = agent_action_spaces(env)
+        action_bounds = (self.bounds_by_agent[env.rl_agents[0].name]
+                         if env.rl_agents else env.get_action_bounds())
         n_agents = len(env.rl_agents)
 
         self.n_agents = n_agents
@@ -265,12 +266,11 @@ class QuantileMATD3:
                 # Value = min of the twin means over the quantile heads.
                 value = torch.min(q1.mean(dim=-1), q2.mean(dim=-1))
                 a_loss = -value.mean()
-                if self.bid_dev_penalty > 0:
-                    a_loss = a_loss + (self.bid_dev_penalty / scale) \
-                        * (logits[:, 0] ** 2).mean()
-                if self.offer_dev_penalty > 0:
-                    a_loss = a_loss + (self.offer_dev_penalty / scale) \
-                        * (logits[:, 1] ** 2).mean()
+                # Deviation penalty, anchored at this agent's truthful point.
+                # See `deviation_penalty`; the weight is dimensionless.
+                a_loss = a_loss + deviation_penalty(
+                    logits, self.truthful_action[nm],
+                    self.bounds_by_agent[nm], self.dev_penalty)
 
                 opt.zero_grad()
                 a_loss.backward()

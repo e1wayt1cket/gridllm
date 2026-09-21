@@ -18,7 +18,7 @@ import random
 
 from models import Agent, MarketConfig
 from rl_env import BiddingEnv, N_BLOCKS
-from rl_td3 import truthful_logits
+from rl_td3 import deviation_penalty
 
 
 # ---------------------------------------------------------------------------
@@ -47,10 +47,11 @@ class Actor(nn.Module):
             -> Tuple[torch.Tensor, torch.Tensor]:
         """Return (pre-tanh logits, final action) for the given obs.
 
-        The logits are the raw linear outputs before the final Tanh. A
-        deviation penalty applied to these logits keeps the policy from
-        saturating at the action bounds, because d(tanh)/dx vanishes at
-        saturation and would otherwise zero out any penalty gradient.
+        The logits are the raw linear outputs before the final Tanh. The
+        deviation penalty is defined on the resulting action, normalized by the
+        box width, and differentiated through this squash; see
+        `rl_td3.normalized_deviation` for why that keeps its pull bounded away
+        from the truthful point instead of growing with distance from it.
         """
         logits = self.net[:-1](obs)
         raw = torch.tanh(logits)
@@ -139,6 +140,40 @@ class ReplayBuffer:
 
 
 # ---------------------------------------------------------------------------
+# Per-agent action spaces
+# ---------------------------------------------------------------------------
+
+def agent_action_spaces(env):
+    """Each RL agent's action space, box and truthful point, keyed by name.
+
+    Returns `(specs, bounds, truthful, act_dim)`.
+
+    Shared by every trainer, so a policy is built in the box its own agent
+    declares its prices in, and its deviation penalty is measured from that
+    agent's own truthful point. A trainer that read one environment-wide spec
+    instead would train a prosumer in a battery's price box -- the two spaces
+    differ in both bounds and meaning, and the wrong one produces no error,
+    only a policy whose actions mean something else.
+
+    The centralized critic concatenates every agent's action, so the population
+    has to agree on a width; a mixed-width one is rejected rather than reshaped
+    into some other agent's box.
+    """
+    specs = {a.name: env.spec_for(a) for a in env.rl_agents}
+    dims = {nm: s.dim for nm, s in specs.items()}
+    act_dim = next(iter(dims.values())) if dims else env.action_spec.dim
+    if any(d != act_dim for d in dims.values()):
+        raise ValueError(
+            f"the centralized critic concatenates every agent's action, so all "
+            f"RL agents must share one action width; got {dims}")
+    bounds = {a.name: env.action_bounds_for(a) for a in env.rl_agents}
+    truthful = {
+        nm: torch.as_tensor(spec.truthful_array(), dtype=torch.float32)
+        for nm, spec in specs.items()}
+    return specs, bounds, truthful, act_dim
+
+
+# ---------------------------------------------------------------------------
 # MATD3 Trainer — centralized critic, decentralized actors
 # ---------------------------------------------------------------------------
 
@@ -164,8 +199,7 @@ class MATD3:
                  policy_delay: int = 2, noise_std: float = 0.2,
                  noise_clip: float = 0.5, batch_size: int = 128,
                  buffer_capacity: int = 100_000, start_steps: int = 500,
-                 bid_dev_penalty: float = 0.0,
-                 offer_dev_penalty: float = 0.0,
+                 dev_penalty: float = 0.0,
                  final_noise_std: float = 0.05,
                  noise_anneal_steps: int = 5000,
                  critic_factory=None):
@@ -180,25 +214,21 @@ class MATD3:
         self.noise_clip = noise_clip
         self.batch_size = batch_size
         self.start_steps = start_steps
-        self.bid_dev_penalty = bid_dev_penalty
-        self.offer_dev_penalty = offer_dev_penalty
+        self.dev_penalty = dev_penalty
         self.final_noise_std = final_noise_std
         self.noise_anneal_steps = max(1, noise_anneal_steps)
 
         obs_dim = env.get_state_dim()
-        act_dim = env.action_spec.dim
-        action_bounds = env.get_action_bounds()
         n_agents = len(env.rl_agents)
         unique_dim = env.unique_obs_dim
 
-        # Where the deviation penalty pulls the policy back to, in logit space
-        # because that is what the penalty acts on. Taken from the environment's
-        # action spec rather than assumed to be the box midpoint: the storage
-        # box is [0, 150] x [0, 300] and the truthful declared prices are
-        # (0, 0), so its midpoint means "charge at 75, discharge at 150".
-        truthful = torch.as_tensor(env.action_spec.truthful_array(),
-                                   dtype=torch.float32)
-        self.deviation_reference = truthful_logits(truthful, action_bounds)
+        # Each RL agent is trained in its own action space, and its deviation
+        # penalty is anchored to its own truthful point. See
+        # `agent_action_spaces` for why the box cannot follow the environment.
+        (self.spec_by_agent, self.bounds_by_agent, self.truthful_action,
+         act_dim) = agent_action_spaces(env)
+        action_bounds = (self.bounds_by_agent[env.rl_agents[0].name]
+                         if env.rl_agents else env.get_action_bounds())
 
         self.n_agents = n_agents
         self.obs_dim = obs_dim
@@ -211,8 +241,9 @@ class MATD3:
         self.actor_targets: Dict[str, Actor] = {}
         self.actor_opts: Dict[str, optim.Adam] = {}
         for a in env.rl_agents:
-            self.actors[a.name] = Actor(obs_dim, act_dim, action_bounds)
-            self.actor_targets[a.name] = Actor(obs_dim, act_dim, action_bounds)
+            bounds = self.bounds_by_agent[a.name]
+            self.actors[a.name] = Actor(obs_dim, act_dim, bounds)
+            self.actor_targets[a.name] = Actor(obs_dim, act_dim, bounds)
             self.actor_targets[a.name].load_state_dict(
                 self.actors[a.name].state_dict())
             self.actor_opts[a.name] = optim.Adam(
@@ -239,6 +270,10 @@ class MATD3:
 
         self.buffer = ReplayBuffer(buffer_capacity)
         self.total_steps = 0
+        # The representative box, for callers that need one box rather than
+        # each agent's. Anything acting on behalf of a specific agent reads
+        # `bounds_by_agent` instead; clamping one agent's exploration to
+        # another's box would let it declare a price outside its own.
         self.action_low = action_bounds[0]
         self.action_high = action_bounds[1]
 
@@ -272,8 +307,8 @@ class MATD3:
                              + self.final_noise_std * ratio)
                 noise = torch.randn_like(action) * noise_std
                 noise = noise.clamp(-self.noise_clip, self.noise_clip)
-                action = (action + noise).clamp(self.action_low,
-                                                self.action_high)
+                bounds = self.bounds_by_agent[agent_name]
+                action = (action + noise).clamp(bounds[0], bounds[1])
             return action.numpy()
 
     def update(self) -> dict:
@@ -315,7 +350,8 @@ class MATD3:
                     noise = (torch.randn_like(na) * self.noise_std
                              * 0.5).clamp(-self.noise_clip * 0.5,
                                           self.noise_clip * 0.5)
-                    na = (na + noise).clamp(self.action_low, self.action_high)
+                    bounds = self.bounds_by_agent[nm2]
+                    na = (na + noise).clamp(bounds[0], bounds[1])
                     next_actions.append(na)
                 next_act_all = torch.stack(next_actions, dim=1)
 
@@ -376,25 +412,12 @@ class MATD3:
                     self._build_global_state(obs, i),
                     new_act_all.view(self.batch_size, -1))
                 actor_loss = -torch.min(q1, q2).mean()
-                # Deviation penalty on the pre-tanh logits: penalizing the
-                # squashed action fails because d(tanh)/dx -> 0 at the bounds,
-                # so the gradient vanishes exactly when the policy saturates.
-                # An L2 term on the raw logits survives saturation and pulls the
-                # policy back toward the point it is measured from -- the
-                # agent's own truthful declaration, not the midpoint of its box.
-                #
-                # The weight is dimensionless because -min(q1, q2) is already in
-                # reward-standard-deviation units: the reward was divided by
-                # `scale` above. Dividing the penalty by `scale` as well made
-                # the effective regularization inversely proportional to the
-                # reward magnitude, so any rescaling of the reward silently
-                # re-tuned the actor. Coefficients carry their full meaning now.
-                if self.bid_dev_penalty > 0:
-                    actor_loss = actor_loss + self.bid_dev_penalty * (
-                        (logits[:, 0] - self.deviation_reference[0]) ** 2).mean()
-                if self.offer_dev_penalty > 0:
-                    actor_loss = actor_loss + self.offer_dev_penalty * (
-                        (logits[:, 1] - self.deviation_reference[1]) ** 2).mean()
+                # Deviation penalty on the pre-tanh logits, one term per
+                # declared action and anchored at *this* agent's truthful
+                # point. See `deviation_penalty`.
+                actor_loss = actor_loss + deviation_penalty(
+                    logits, self.truthful_action[nm],
+                    self.bounds_by_agent[nm], self.dev_penalty)
 
                 opt.zero_grad()
                 actor_loss.backward()
@@ -436,7 +459,7 @@ class MATD3:
         writer = SummaryWriter(log_dir)
 
         history = {nm: {"reward": []} for nm in self.agent_names}
-        history["welfare"] = []
+        history["clearing_objective"] = []
         history["re_rate"] = []
 
         for ep in range(n_episodes):
@@ -494,20 +517,20 @@ class MATD3:
             for nm in self.agent_names:
                 history[nm]["reward"].append(ep_rewards[nm])
 
-            history["welfare"].append(info.get("welfare", 0.0))
+            history["clearing_objective"].append(info.get("clearing_objective", 0.0))
             history["re_rate"].append(info.get("re_rate", 0.0))
 
             if verbose and (ep + 1) % max(1, n_episodes // 10) == 0:
                 avg_r = np.mean([ep_rewards[nm]
                                 for nm in self.agent_names])
                 print(f"  Ep {ep+1}/{n_episodes}: avg_reward={avg_r:.3f}, "
-                      f"welfare={info.get('welfare', 0):.0f}, "
+                      f"objective={info.get('clearing_objective', 0):.0f}, "
                       f"RE={info.get('re_rate', 0):.1f}%")
 
             # TensorBoard logging
             writer.add_scalar("Reward/mean", np.mean(
                 [ep_rewards[nm] for nm in self.agent_names]), ep)
-            writer.add_scalar("Welfare", info.get("welfare", 0), ep)
+            writer.add_scalar("ClearingObjective", info.get("clearing_objective", 0), ep)
             writer.add_scalar("RE_Rate", info.get("re_rate", 0), ep)
             if ep_critic_vals:
                 writer.add_scalar("Loss/critic", np.mean(ep_critic_vals), ep)
@@ -575,11 +598,15 @@ def load_policies(path: str, obs_dim: int,
                 f"'{saved.get('name')}' (v{saved.get('version')}) but the "
                 f"environment uses '{obs_spec.name}' "
                 f"(v{obs_spec.version}); refusing to load.")
+    # The actor's output width is the action dimension, read off the (low,
+    # high) box rather than written here; a literal would rebuild every net at
+    # a width the saved weights do not have once the action space changes size.
+    act_dim = int(action_bounds.shape[1])
     policies = {}
     for nm, sd in state.items():
         if nm.startswith("_"):
             continue
-        net = Actor(obs_dim, 2, action_bounds)
+        net = Actor(obs_dim, act_dim, action_bounds)
         net.load_state_dict(sd)
         policies[nm] = net
     global _TRAINED_POLICIES

@@ -15,14 +15,34 @@ def _stub_actor(obs_dim=12):
     return Actor(obs_dim, 2, bounds)
 
 
-class _StubEnv:
-    """Minimal BiddingEnv-like stub for episode aggregation tests."""
+class _StubAgent:
+    """An agent as far as action-spec selection is concerned."""
 
-    def __init__(self, rl_names, reward: float = 10.0):
+    def __init__(self, name, participant_type="prosumer"):
+        self.name = name
+        self.participant_type = participant_type
+
+
+class _StubEnv:
+    """Minimal BiddingEnv-like stub for episode aggregation tests.
+
+    Carries agent objects and delegates spec selection to the real rule, so a
+    test of the truthful fallback exercises the selection the environment
+    actually performs rather than a stub's idea of it.
+    """
+
+    def __init__(self, rl_names, reward: float = 10.0, agents=None):
         self.rl_names = rl_names
         self.reward = reward
+        self.all_agents = list(agents) if agents is not None \
+            else [_StubAgent(nm) for nm in rl_names]
         self.obs = {nm: np.zeros(12, dtype=np.float32) for nm in rl_names}
         self.step_count = 0
+        self.seen_actions = []
+
+    def spec_for(self, agent):
+        from rl_spec import action_spec_for
+        return action_spec_for(agent)
 
     def reset(self):
         self.step_count = 0
@@ -30,8 +50,9 @@ class _StubEnv:
 
     def step(self, actions):
         self.step_count += 1
+        self.seen_actions.append({k: np.array(v) for k, v in actions.items()})
         rewards = {nm: self.reward for nm in self.rl_names}
-        info = {"welfare": 100.0, "re_rate": 50.0}
+        info = {"clearing_objective": 100.0, "re_rate": 50.0}
         done = self.step_count >= 1
         return dict(self.obs), rewards, done, info
 
@@ -41,9 +62,9 @@ def test_deterministic_fleet_episode_aggregates():
     env = _StubEnv(rl_names)
     actors = {"Bus5R": _stub_actor(), "Bus6R": _stub_actor()}
     out = deterministic_fleet_episode(env, actors, rl_names)
-    # One step (done after 1), two agents each +10 -> mean_reward 10, welfare 100.
+    # One step (done after 1), two agents each +10 -> mean_reward 10, objective 100.
     assert out["mean_reward"] == pytest.approx(10.0)
-    assert out["welfare"] == pytest.approx(100.0)
+    assert out["clearing_objective"] == pytest.approx(100.0)
     assert out["re_rate"] == pytest.approx(50.0)
     assert out["profits"] == {"Bus5R": 10.0, "Bus6R": 10.0}
 
@@ -51,10 +72,28 @@ def test_deterministic_fleet_episode_aggregates():
 def test_deterministic_fleet_episode_missing_actor_uses_default():
     rl_names = ["Bus5R", "Bus6R"]
     env = _StubEnv(rl_names)
-    # Bus6R has no actor -> falls back to truthful default [1.0, 0.0].
+    # Bus6R has no actor -> falls back to its own spec's truthful point.
     actors = {"Bus5R": _stub_actor()}
     out = deterministic_fleet_episode(env, actors, rl_names)
     assert out["mean_reward"] == pytest.approx(10.0)
+    assert np.allclose(env.seen_actions[0]["Bus6R"], [1.0, 0.0])
+
+
+def test_missing_actor_declares_the_agents_own_truthful_point():
+    """The fallback is per agent, because truthful is a different pair per space.
+
+    A battery declares no premium as (0, 0) and a load as (1, 0). A literal
+    fallback is read positionally as whichever space the agent is in, so it
+    declares a premium on every agent whose space it does not belong to -- for
+    a storage fleet, "charge at 1 CNY/MWh".
+    """
+    names = ["ESS2", "Bus5R"]
+    agents = [_StubAgent("ESS2", "storage"), _StubAgent("Bus5R", "prosumer")]
+    env = _StubEnv(names, agents=agents)
+    deterministic_fleet_episode(env, {}, names)
+    declared = env.seen_actions[0]
+    assert np.allclose(declared["ESS2"], [0.0, 0.0])
+    assert np.allclose(declared["Bus5R"], [1.0, 0.0])
 
 
 def test_tracker_build_eval_env():
@@ -109,14 +148,14 @@ def test_tracker_best_and_last_with_early_stop(tmp_path):
     actors = {nm: _stub_actor() for nm in rl_names}
 
     # First eval: improvement -> saves best/, not enough window for early stop.
-    improving = {"mean_reward": 50.0, "welfare": 1000.0, "re_rate": 50.0}
+    improving = {"mean_reward": 50.0, "clearing_objective": 1000.0, "re_rate": 50.0}
     assert tracker.compare_and_save_policies(1, actors, improving) is False
     import os
     assert os.path.exists(os.path.join(tracker.best_dir, "Bus5R.pt"))
     assert tracker.best_episode == 1
 
     # Second eval: flat window -> improvement below threshold -> early stop.
-    flat = {"mean_reward": 50.0, "welfare": 1000.0, "re_rate": 50.0}
+    flat = {"mean_reward": 50.0, "clearing_objective": 1000.0, "re_rate": 50.0}
     assert tracker.compare_and_save_policies(2, actors, flat) is True
     assert tracker.early_stopped is True
     assert os.path.exists(os.path.join(tracker.last_dir, "Bus5R.pt"))
@@ -127,7 +166,7 @@ def test_tracker_no_early_stop_when_disabled(tmp_path):
     tracker = PolicyTracker(str(tmp_path / "p"), rl_names,
                             early_stopping_steps=0)
     actors = {"Bus5R": _stub_actor()}
-    flat = {"mean_reward": 10.0, "welfare": 100.0, "re_rate": 50.0}
+    flat = {"mean_reward": 10.0, "clearing_objective": 100.0, "re_rate": 50.0}
     # Even flat metrics never trigger early stop when disabled.
     assert tracker.compare_and_save_policies(1, actors, flat) is False
     assert tracker.compare_and_save_policies(2, actors, flat) is False

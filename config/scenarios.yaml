@@ -1,16 +1,58 @@
-# Scenario definitions with multipliers and overrides.
-# Adding a new scenario only requires adding a YAML entry — no Python changes.
+# Scenario definitions.
+#
+# Four quantities are declared here rather than in `defaults.yaml`, because
+# none of them is a property of the benchmark:
+#
+#   load_scale_mode       "native_peak"    the network's own nominal demand
+#                         "explicit_peak"  a peak this scenario declares
+#   peak_load_mw          the target for "explicit_peak"
+#   load_shape            "native"       one shared peak-normalized lambda_t,
+#                                        so P_i(t) = P_i_base * lambda_t
+#                         "diversified"  per-load-type shapes and multipliers
+#   load_power_factor     sets the reactive load; the native scale needs the one
+#                         that reproduces the benchmark's own 2.3 MVAr
+#   renewable.{pv,wind}_bus_mw
+#                         installed capacity per bus, in MW
+#
+# Every scenario also states `scenario_scale_source`, so a reader can tell where
+# its scale came from. Nothing inherits another scenario's scale.
 
 scenarios:
-  # The physical baseline the research scenarios are measured against: 11 MW
-  # peak load, 3.5 MW PV and 1.5 MW wind on separate branches, and four
-  # identical 1 MW / 4 MWh batteries as the only storage. Its parameters live in
-  # config/defaults.yaml, so this entry carries no multipliers of its own — a
-  # scenario-scoped multiplier would not be inherited by the other scenarios,
-  # and the device fleet is meant to be shared.
+  # The research scenario: the IEEE 33-bus at its own nominal demand.
   typical_day:
-    description: "Typical day physical baseline: 11 MW peak, 3.5 MW PV / 1.5 MW wind, 4 independent ESS"
+    description: "IEEE33 native scale: 3.715 MW peak, PV 0.6 MW / wind 1.0 MW, 4 independent ESS"
     with_wind: true
+    load_scale_mode: native_peak
+    scenario_scale_source: ieee33_native
+    load_shape: native
+    # Priced from the external wholesale market rather than from this
+    # network's own net load. The distribution network's dispatch must not
+    # move the price it is bidding against, or a battery could shade the
+    # number it is being settled at. The legacy scenarios below keep the
+    # retired net-load map, since they exist only for comparison against
+    # results recorded before the external market was built.
+    wholesale_source: synthetic_v1
+    # 3.715 / sqrt(3.715^2 + 2.3^2) -- the power factor that makes the day's
+    # reactive load the benchmark's own 2.3 MVAr rather than a convention.
+    load_power_factor: 0.8503
+    # A literature-anchored modified-IEEE33 scenario, not a claim that these
+    # are standard IEEE33 values. An existing modified IEEE33 source-load-
+    # storage study in the supplied literature uses 1 MW wind and 0.6/0.3 MW
+    # PV, and the Enhanced IEEE33 literature supports integrating renewable DG
+    # and recommends voltage/loss sensitivity for placement and capacity. These
+    # capacities are a deliberate choice informed by those magnitudes, not
+    # copied as a benchmark requirement.
+    #
+    # Buses 21 and 23 carry the PV and bus 30 the wind, as the network always
+    # has. The placement rule is topological and pre-declared: injection goes on
+    # load buses of the lateral spurs rather than on the main trunk, and never
+    # on a bus carrying an independent battery. Buses 21 and 23 sit on the
+    # residential and industrial laterals and 30 at the end of the second-longest
+    # spur, which is where placement by voltage sensitivity puts them -- the
+    # laterals are the buses whose voltage responds most to a local injection.
+    renewable:
+      pv_bus_mw: {21: 0.3, 23: 0.3}
+      wind_bus_mw: {30: 1.0}
     override_config:
       network.line_capacity_multiplier: 1.5
       # Inverters rated a little above their arrays, which is how they are
@@ -21,15 +63,37 @@ scenarios:
       # about this study's facilities and not a property of the network.
       network.inverter_smax_multiplier: 1.10
 
+  # --- Legacy scenarios -----------------------------------------------------
+  # Retained at the scale they were defined at, which is NOT the IEEE33 native
+  # scale. `scenario_scale_source: legacy_explicit` records that, so a later
+  # reader cannot mistake their 10 MW for the benchmark's demand. They are kept
+  # for continuity with earlier results and are not the research scenario.
+
   baseline:
-    description: "Baseline: typical day, reference facilities"
+    description: "Legacy: 10 MW study scale, reference facilities"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     override_config:
       network.line_capacity_multiplier: 1.5
 
   high_re:
-    description: "High renewable: 2x PV/wind output on a windy, sunny day"
+    description: "Legacy: 2x PV/wind output on a windy, sunny day"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     multipliers:
       pv: 2.0
       wind: 2.0
@@ -37,16 +101,32 @@ scenarios:
       network.line_capacity_multiplier: 1.5
 
   peak_load:
-    description: "Heat-wave peak: 1.5x all loads, storage and line capacity unchanged"
+    description: "Legacy: heat-wave peak, 1.5x all loads"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     multipliers:
       load: 1.5
     override_config:
       network.line_capacity_multiplier: 1.5
 
   congestion:
-    description: "Downstream load concentration: long-distance power flow against shared line limits"
+    description: "Legacy: downstream load concentration against shared line limits"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     override_config:
       network.line_capacity_multiplier: 1.5
       custom_loads:
@@ -58,14 +138,30 @@ scenarios:
           factor: 0.6
 
   no_congestion:
-    description: "No congestion: 5x line capacity for algorithm validation"
+    description: "Legacy: 5x line capacity for algorithm validation"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     override_config:
       network.line_capacity_multiplier: 5.0
 
   tight_bottleneck:
-    description: "Tight bottleneck: lines 11 (11→12) and 15 (15→16) at 20% for LMP research"
+    description: "Legacy: lines 11 and 15 at 20% for LMP research"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     override_config:
       network.line_capacity_multiplier: 1.0
       network.line_capacity_overrides:
@@ -73,14 +169,30 @@ scenarios:
         15: 0.20
 
   re_ramp_drop:
-    description: "RE sudden drop: output falls to 10% at midpoint"
+    description: "Legacy: RE output falls to 10% at midpoint"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     re_ramp:
       type: sudden_drop
       multiplier: 0.1
 
   re_ramp_surge:
-    description: "RE sudden surge: output surges from 10% to full at midpoint"
+    description: "Legacy: RE output surges from 10% to full at midpoint"
     with_wind: true
+    load_scale_mode: explicit_peak
+    peak_load_mw: 10.0
+    scenario_scale_source: legacy_explicit
+    load_shape: diversified
+    load_power_factor: 0.9
+    renewable:
+      pv_bus_mw: {21: 2.0, 23: 1.5}
+      wind_bus_mw: {30: 1.5}
     re_ramp:
       type: sudden_surge

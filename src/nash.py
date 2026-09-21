@@ -99,10 +99,12 @@ def _evaluate_payoffs(args):
 # was 0.05, and the charge price box is 150 wide and gets 5.0.
 _RHOBEG_FRACTION = 0.05 / 1.5
 
-# Local-exploration width per action name, in the action's own units. The two
-# named entries are the widths this search has always used; anything else falls
-# back to a fraction of its own range.
-_LOCAL_SIGMA = {"bid_mult": 0.08, "offer_adder": 3.0}
+# Local-exploration width, as a fraction of each action's own range. A single
+# fraction rather than a width per action name: a name-keyed table silently
+# stops applying the moment an action space is renamed, and the widths it used
+# to carry are almost exactly what the fraction already gives -- 0.06 of the
+# adder's 50-wide range is 3.0, and of the multiplier's 1.5-wide range is 0.09
+# against the 0.08 it was written with.
 _SIGMA_FRACTION = 0.06
 
 
@@ -211,9 +213,8 @@ def _generate_variations(base_strategy, agent, config, num_variations=300,
     n_local = max(0, int(remaining * (local_fraction if local_fraction else 0.0)))
     n_uniform = max(0, remaining - n_local)
 
-    sigmas = {n: _LOCAL_SIGMA.get(
-        n, _SIGMA_FRACTION * (spec.bounds[n][1] - spec.bounds[n][0])) * scale
-        for n in names}
+    sigmas = {n: _SIGMA_FRACTION * (spec.bounds[n][1] - spec.bounds[n][0])
+              * scale for n in names}
 
     for _ in range(n_local):
         new_strat = copy.deepcopy(base_strategy)

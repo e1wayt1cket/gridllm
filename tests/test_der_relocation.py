@@ -16,7 +16,18 @@ import money
 from scenarios import get_scenario, relocate_renewables, typical_day_config
 from diagnose_typical_day import DER_LAYOUTS
 
-PV_TOTAL, WIND_TOTAL = 3.5, 1.5
+# The scenario declares its renewable capacity now, so the totals are read
+# from the declaration rather than restated: a test that hardcodes them stops
+# testing conservation the moment the scenario is rescaled, which is exactly
+# what a relocation invariant must survive.
+def _declared_totals():
+    from config_loader import get_scenario_cfg
+    renewable = get_scenario_cfg("typical_day").get("renewable") or {}
+    return (sum(float(v) for v in (renewable.get("pv_bus_mw") or {}).values()),
+            sum(float(v) for v in (renewable.get("wind_bus_mw") or {}).values()))
+
+
+PV_TOTAL, WIND_TOTAL = _declared_totals()
 
 
 def _agents(der_moves=None):
@@ -89,10 +100,17 @@ def test_an_emptied_wind_site_stops_being_a_wind_site():
 
 
 def test_a_split_lands_where_it_says_and_empties_the_source():
+    """Half of bus 21's PV to 17, the remainder to 2; bus 23 is untouched."""
+    from config_loader import get_scenario_cfg
+    pv_bus = (get_scenario_cfg("typical_day").get("renewable") or {}) \
+        .get("pv_bus_mw") or {}
+    at_21 = float(pv_bus[21])
+    at_23 = float(pv_bus[23])
+
     agents = _agents([(21, 17, "pv", 0.5), (21, 2, "pv", 1.0)])
     got = {a.bus: a.pv_capacity for a in agents if a.pv_capacity > 0}
-    assert got == {17: pytest.approx(1.0), 2: pytest.approx(1.0),
-                   23: pytest.approx(1.5)}
+    assert got == {17: pytest.approx(at_21 / 2), 2: pytest.approx(at_21 / 2),
+                   23: pytest.approx(at_23)}
 
 
 def test_moving_from_a_bus_that_has_nothing_raises():

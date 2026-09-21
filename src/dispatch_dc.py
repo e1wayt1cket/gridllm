@@ -1,5 +1,25 @@
 # dispatch_dc.py
-"""DC-OPF solvers: Gurobi (primary) + HiGHS via ortools (fallback)."""
+"""DC-OPF solvers: Gurobi (primary) + HiGHS via ortools (fallback).
+
+An AUXILIARY engine, not the study's market model. It is a single-period
+lossless DC approximation and differs from the SOCP engine -- the primary one
+-- in ways that matter to every economic quantity this project reports:
+
+- **No voltage variables at all**, so the voltage constraint that binds this
+  network is absent and no voltage-limit shadow price appears in its prices.
+- **Losses are ignored**, and its nodal prices are angle-only duals for that
+  reason.
+- **Independent storage units are not modelled.** The `storage_units` fleet is
+  never passed to this engine, so a day cleared here has no independent
+  battery in it.
+- **Prosumer-attached storage is valued at the wholesale price**, where the
+  SOCP values it at the unit's own declared bid and offer.
+- Its `clearing_objective` is a correspondingly simpler quantity than the SOCP
+  and LinDistFlow ones; the three are not the same function.
+
+Use it for sensitivity and for a fast sanity check, never as the market a
+result is reported from. See `docs/2026-09-18-dispatch-engine-semantics.md`.
+"""
 
 import numpy as np
 try:
@@ -243,7 +263,7 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
             lmp[i] = wholesale_t
 
     agent_res = {}
-    total_welfare = 0.0
+    total_clearing_objective = 0.0
     for a in agents:
         nm = a.name
         info = agent_info[nm]
@@ -257,10 +277,10 @@ def _solve_dc_opf_highs(net, agents, t, stage, prev_soc, wholesale_t,
         node_lmp = lmp[bus_idx] if bus_idx < len(lmp) else wholesale_t
         revenue = (s_val * info['bid']
                    - (pv_val + w_val + dis_val) * info['offer']) * dt_scale
-        total_welfare += revenue
+        total_clearing_objective += revenue
         agent_res[nm] = {
             'served': s_val, 'pv_used': pv_val, 'wind_used': w_val,
             'p_ch': ch_val, 'p_dis': dis_val,
         }
 
-    return True, lmp, total_welfare, agent_res, p_grid.SolutionValue()
+    return True, lmp, total_clearing_objective, agent_res, p_grid.SolutionValue()

@@ -256,10 +256,11 @@ def test_the_continuous_relaxation_is_validated_against_the_exact_model():
     _assert_no_simultaneity(agents_bin, result_bin, "exact binary model")
 
     # The objective is the claim itself, so it is held tightest.
-    assert result_bin["objective"] == pytest.approx(
-        result_rule["objective"], rel=1e-5), (
-        f"the relaxation is not exact: objective {result_rule['objective']:.4f} "
-        f"against the exact model's {result_bin['objective']:.4f}")
+    assert result_bin["clearing_objective"] == pytest.approx(
+        result_rule["clearing_objective"], rel=1e-5), (
+        f"the relaxation is not exact: objective "
+        f"{result_rule['clearing_objective']:.4f} against the exact model's "
+        f"{result_bin['clearing_objective']:.4f}")
 
     for a_rule, a_bin in zip(agents_rule, agents_bin):
         if a_rule.storage is None:
@@ -323,11 +324,11 @@ def test_binary_exclusivity_agrees_with_the_market_rule():
 
     _assert_no_simultaneity(agents_bin, result_bin, "binary exclusivity")
 
-    assert result_bin["welfare"] == pytest.approx(result_rule["welfare"],
+    assert result_bin["clearing_objective"] == pytest.approx(result_rule["clearing_objective"],
                                                   rel=1e-6), (
         "binary exclusivity and the market rule should describe the same "
-        f"model; objective {result_bin['welfare']:.4f} vs "
-        f"{result_rule['welfare']:.4f}")
+        f"model; objective {result_bin['clearing_objective']:.4f} vs "
+        f"{result_rule['clearing_objective']:.4f}")
 
     # Duals of a degenerate LP are not unique, so this is a relative check: the
     # two formulations agree to a fraction of a percent (measured worst case

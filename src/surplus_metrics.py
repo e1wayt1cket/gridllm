@@ -3,7 +3,8 @@
 
 Splits one cleared day into user outcomes (consumer payment / consumer
 surplus), mechanism outcomes (LMP markup, market-power decomposition) and the
-existing system-level welfare, so profit gains can be traced to who pays.
+existing system-level clearing objective, so profit gains can be traced
+to who pays.
 
 Pure numpy + models; no torch, no rl_env, no eval_agents at import time so the
 module stays lightweight and reusable from eval, diagnostics and reports.

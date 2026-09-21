@@ -35,14 +35,14 @@ _TABLE_COLUMNS = [
     ("variant", "变体"),
     ("scenario", "场景"),
     ("profit_delta", "利润增量", "{:,.0f}"),
-    ("genuine_welfare_delta", "真实福利增量", "{:,.0f}"),
+    ("genuine_clearing_objective_delta", "真实出清目标增量", "{:,.0f}"),
     ("cs_delta", "CS 增量", "{:,.0f}"),
     ("cp_delta", "CP 增量", "{:,.0f}"),
     ("lmp_markup_delta", "markup 增量", "{:+.4f}"),
     ("market_power_arb", "套利", "{:,.0f}"),
     ("market_power_power", "市场力", "{:,.0f}"),
 ]
-_SIGNED_COLUMNS = {"profit_delta", "genuine_welfare_delta", "cs_delta",
+_SIGNED_COLUMNS = {"profit_delta", "genuine_clearing_objective_delta", "cs_delta",
                    "cp_delta"}
 
 _CONVENTION_MARK = {

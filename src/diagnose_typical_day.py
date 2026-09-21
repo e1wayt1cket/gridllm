@@ -65,9 +65,10 @@ from rl_spec import ACTION_STORAGE_QUOTE_V2
 from scenarios import get_scenario, typical_day_config
 
 # The typical day's targets, in one place so the report and the gates agree.
-# The load level is a configured target now rather than a constant here: it is
-# what `profiles.load.target_peak_mw` asks for, and the profiles are scaled to
-# hit it. Read at call time so a sweep that overrides the config is reported
+# The load level is the scenario's own declaration now rather than a constant
+# here, and rather than a global default: `native_peak` means the network's
+# rated demand and `explicit_peak` a declared figure, and the profiles are
+# scaled to hit whichever the scenario chose. Read at call time so a sweep that overrides the config is reported
 # against the level it actually ran at.
 # ---------------------------------------------------------------------------
 # Siting eligibility
@@ -139,12 +140,45 @@ def action_box():
             spec.bounds[spec.action_names[1]])
 
 
-def _target_peak_mw() -> float:
-    return float(get_default("profiles.load.target_peak_mw"))
+def price_source(scenario: str = "typical_day") -> str:
+    """Which wholesale market prices this scenario.
+
+    Read from the scenario's own declaration, because that is what
+    `_build_scenario` writes into the price layer -- the defaults-level setting
+    only applies to paths that never build a scenario.
+    """
+    from config_loader import get_scenario_cfg
+    return str(get_scenario_cfg(scenario).get("wholesale_source", "legacy"))
 
 
-TARGET_PV_MW = 3.5
-TARGET_WIND_MW = 1.5
+def _target_peak_mw(scenario: str = "typical_day") -> float:
+    """The coincident peak this scenario declares.
+
+    Read from the scenario rather than from a default, because the load level
+    is a scenario's own choice: `native_peak` means the network's rated demand
+    and `explicit_peak` means the declared figure.
+    """
+    from config_loader import get_scenario_cfg
+    cfg = get_scenario_cfg(scenario)
+    mode = cfg.get("load_scale_mode")
+    if mode == "native_peak":
+        from grid import native_nominal_demand_mw
+        from scenarios import typical_day_config
+        from grid import build_base_network
+        return native_nominal_demand_mw(
+            build_base_network(typical_day_config(money.PERIODS_PER_DAY)))
+    if mode == "explicit_peak":
+        return float(cfg["peak_load_mw"])
+    raise ValueError(f"scenario {scenario!r} declares no load scale")
+
+
+def _declared_renewables(scenario: str = "typical_day"):
+    """(pv_mw, wind_mw) this scenario declares, summed over its buses."""
+    from config_loader import get_scenario_cfg
+    renewable = get_scenario_cfg(scenario).get("renewable") or {}
+    pv = sum(float(v) for v in (renewable.get("pv_bus_mw") or {}).values())
+    wind = sum(float(v) for v in (renewable.get("wind_bus_mw") or {}).values())
+    return pv, wind
 ESS_POWER_TO_PEAK_BAND = (0.30, 0.42)
 ESS_ENERGY_TO_LOAD_BAND = (0.08, 0.10)
 MIN_RE_RATE = 90.0
@@ -213,14 +247,206 @@ def run_day(scenario="typical_day", T=money.PERIODS_PER_DAY, opf_mode="socp",
         # explicit scale when the sweep gave one, otherwise the target peak the
         # profiles were scaled to reach.
         "load_level": ("load_scale %.4g" % load_scale if load_scale is not None
-                       else "target peak %.4g MW"
-                       % get_default("profiles.load.target_peak_mw")),
+                       else "target peak %.4g MW" % _target_peak_mw(scenario)),
         "result": result,
         "scenario": scenario,
         "T": T,
         "load_scale": get_default("profiles.load.load_scale", 1.0),
         "price_base": get_default("price_curve.base"),
         "elasticity": get_default("price_curve.merit_order_price_elasticity"),
+        # Which market priced this day. The two merit-order numbers above are
+        # still returned because the legacy sweeps set them, but they describe
+        # nothing unless this says `legacy`.
+        "price_source": price_source(scenario),
+    }
+
+
+# --------------------------------------------------------------------------
+# shed diagnostics
+#
+# Shed load is not evidence of an energy shortage. It can be any of: the day is
+# short of energy; the network cannot carry what would be needed; a voltage or
+# line limit binds; or the clearing simply chose not to serve a unit the objective
+# valued below its cost. These two runs separate those, and neither replaces the
+# economic market run -- they answer a different question about the same physics.
+# --------------------------------------------------------------------------
+
+#: The value-of-lost-load weight that makes the clearing lexicographic in shed.
+#: Every other objective coefficient is a price or a declared bid, all of them
+#: below 1e4 CNY/MWh in this study, so a weight this large puts shed strictly
+#: ahead of every other term while leaving every constraint untouched.
+MIN_SHED_VOLL = 1e7
+
+
+def min_shed_run(scenario="typical_day", T=money.PERIODS_PER_DAY,
+                 opf_mode="socp", ess_buses=None, **kwargs):
+    """The same day solved with total shed ahead of every economic term.
+
+    DIAGNOSTIC ONLY. The constraints are the ones the market clears against --
+    same network, same line capacities, same voltage band -- and only the
+    objective's ordering changes, so the residual shed this reports is what the
+    *network* makes unservable rather than what the market chose not to buy.
+    The dispatch it produces is not a market outcome and its prices are not
+    nodal prices for any economic purpose.
+
+    Compare it with the economic run: `shed_economic - shed_min` is the load the
+    clearing declined to serve at the prices it faced, and `shed_min` is the
+    part no price could have bought.
+    """
+    day = run_day(scenario=scenario, T=T, opf_mode=opf_mode,
+                  ess_buses=ess_buses, **kwargs)
+    config = day["config"]
+    agents = day["agents"]
+    wholesale = day["wholesale"]
+
+    config.market_design.penalty_unserved = MIN_SHED_VOLL
+    result = clear_market(agents, T, "DA", {}, config, wholesale=wholesale,
+                          horizon_type="full_day"
+                          if T == money.PERIODS_PER_DAY else "window")
+
+    shed_mwh = sum(float(np.sum(result["schedules"][a.name]["unserved"]))
+                   for a in agents) * money.DT_HOURS
+    return {
+        "diagnostic_mode": "MIN_SHED_RUN",
+        "not_a_market_outcome": True,
+        "voll_used": MIN_SHED_VOLL,
+        "scenario": scenario,
+        "shed_mwh": shed_mwh,
+        "curtailment_mwh": float(result.get("total_curtailment", 0.0)),
+        "shed_economic_mwh": float(
+            sum(np.sum(day["result"]["schedules"][a.name]["unserved"])
+                for a in agents) * money.DT_HOURS),
+        "result": result,
+        "agents": agents,
+        "config": config,
+    }
+
+
+def no_shed_voltage_diagnostic(scenario="typical_day",
+                               T=money.PERIODS_PER_DAY, opf_mode="socp",
+                               band=None, ess_buses=None, **kwargs):
+    """Force every unit served and report what the network violates.
+
+    DIAGNOSTIC ONLY, and not a market run at all: there is no clearing here.
+    Each period is a power flow on the day's must-serve injections -- every
+    unit's load served in full, every renewable at its available output -- so
+    the answer is the network's, not the objective's. Whichever limit breaks
+    first is what has to give if shed is to be zero.
+
+    Shed is fixed at zero by construction. Nothing is tuned to reach it.
+    """
+    import pandapower as pp
+
+    from dispatch_core import _select_radial_lines
+    from grid import build_base_network
+
+    day = run_day(scenario=scenario, T=T, opf_mode=opf_mode,
+                  ess_buses=ess_buses, **kwargs)
+    config = day["config"]
+    agents = day["agents"]
+    lo, hi = band if band else (config.network.v_min_pu,
+                                config.network.v_max_pu)
+
+    # A copy, because `build_base_network` hands back the same cached object to
+    # every caller. This diagnostic rewrites every bus's load and adds a
+    # generator per renewable bus, so working on the cache in place would leave
+    # those edits in the network every later run in this process clears against.
+    import copy as _copy
+
+    net = _copy.deepcopy(build_base_network(config))
+    pf = float(config.network.load_power_factor)
+    tan_phi = float(np.tan(np.arccos(pf)))
+
+    # The per-bus injections this day actually has: every unit's load, served
+    # in full, and every renewable at the output it had. Aggregated by bus,
+    # because the power flow's elements are per bus and the agents are not.
+    load_bus: Dict[int, np.ndarray] = {}
+    gen_bus: Dict[int, np.ndarray] = {}
+    for a in agents:
+        b = int(a.bus)
+        arr = getattr(a, "load_real", None)
+        if arr is not None:
+            load_bus.setdefault(b, np.zeros(T))
+            load_bus[b] = load_bus[b] + np.asarray(arr, dtype=float)
+        for attr in ("pv_real", "wind_real"):
+            arr = getattr(a, attr, None)
+            if arr is None:
+                continue
+            gen_bus.setdefault(b, np.zeros(T))
+            gen_bus[b] = gen_bus[b] + np.maximum(
+                np.asarray(arr, dtype=float), 0.0)
+
+    # One element per bus, rewritten each period. The published case33bw loads
+    # are replaced rather than added to: this is the scenario's day, not the
+    # benchmark's.
+    load_buses = sorted(set(int(x) for x in net.load.bus))
+    for b in load_buses:
+        net.load.loc[net.load.bus == b, "p_mw"] = load_bus.get(b, np.zeros(T))[0]
+        net.load.loc[net.load.bus == b, "q_mvar"] = \
+            load_bus.get(b, np.zeros(T))[0] * tan_phi
+    # A bus carrying load and generation both is the normal case, so the
+    # generators go on every bus that has one, not only on the load-free ones.
+    for b in sorted(gen_bus):
+        pp.create_sgen(net, bus=b, p_mw=float(gen_bus[b][0]), q_mvar=0.0,
+                       name=f"re_{b}")
+
+    rows = []
+    converged = True
+    for t in range(T):
+        for b, series in load_bus.items():
+            net.load.loc[net.load.bus == b, "p_mw"] = series[t]
+            net.load.loc[net.load.bus == b, "q_mvar"] = series[t] * tan_phi
+        for b, series in gen_bus.items():
+            mask = net.sgen.bus == b
+            net.sgen.loc[mask, "p_mw"] = series[t]
+        try:
+            pp.runpp(net, algorithm="bfsw")
+        except Exception:
+            converged = False
+            break
+        vm = net.res_bus.vm_pu
+        rows.append({
+            "period": t,
+            "vmin": float(vm.min()),
+            "vmin_bus": int(vm.idxmin()),
+            "vmax": float(vm.max()),
+            "buses_below_lo": int((vm < lo).sum()),
+            "buses_above_hi": int((vm > hi).sum()),
+            "max_line_loading": float(net.res_line.loading_percent.max()) / 100.0,
+        })
+
+    if not converged:
+        return {
+            "diagnostic_mode": "NO_SHED_VOLTAGE_DIAGNOSTIC",
+            "not_a_market_outcome": True,
+            "shed": 0.0,
+            "shed_forced_zero": True,
+            "converged": False,
+            "note": "the forced-serve case does not even solve; the violation "
+                    "is beyond a power flow's reach",
+        }
+
+    vmin_row = min(rows, key=lambda r: r["vmin"])
+    overloaded = [r for r in rows if r["max_line_loading"] > 1.0]
+    voltage_rows = [r for r in rows if r["buses_below_lo"] or r["buses_above_hi"]]
+    return {
+        "diagnostic_mode": "NO_SHED_VOLTAGE_DIAGNOSTIC",
+        "not_a_market_outcome": True,
+        "shed": 0.0,
+        "shed_forced_zero": True,
+        "converged": True,
+        "band": [float(lo), float(hi)],
+        "worst_voltage": vmin_row,
+        "periods_violating_voltage": len(voltage_rows),
+        "bus_periods_below_lo": int(sum(r["buses_below_lo"] for r in rows)),
+        "bus_periods_above_hi": int(sum(r["buses_above_hi"] for r in rows)),
+        "periods_overloading_a_line": len(overloaded),
+        "worst_line_loading": max(r["max_line_loading"] for r in rows),
+        # Which network limit breaks first, stated plainly.
+        "binding_constraint": (
+            "voltage" if voltage_rows else
+            ("line_capacity" if overloaded else "none")),
+        "rows": rows,
     }
 
 
@@ -312,7 +538,12 @@ def system_report(day):
         "unserved_mwh": unserved,
         "re_consumption_rate": result["re_consumption_rate"],
         "lmp_fallbacks": result.get("lmp_fallbacks"),
-        "objective": result["objective"],
+        # The canonical name. This read `result["objective"]` until the clearing
+        # stopped emitting that spelling; `legacy_schema` translates the retired
+        # name for artifacts already on disk, but a freshly cleared result
+        # carries only the canonical one, so reading the old name here failed
+        # outright rather than being translated.
+        "objective": result["clearing_objective"],
         "carbon_emissions_tco2": result["carbon_emissions"],
     }
 
@@ -671,7 +902,7 @@ def evaluate_gates(day, system, ess, network, price, distances):
     target_peak = _target_peak_mw()
     add("coincident peak load on target",
         abs(coincident - target_peak) <= 1e-6, coincident,
-        "== %.4g MW, the configured profiles.load.target_peak_mw" % target_peak)
+        "== %.4g MW, the peak this scenario declares" % target_peak)
     observe("peak load (sum of per-agent maxima)", peak,
             "MW; larger than the coincident peak because the buses do not all "
             "peak at the same period, and not drawn at any single instant")
@@ -687,11 +918,13 @@ def evaluate_gates(day, system, ess, network, price, distances):
             "the band this used to be gated on was %.2f-%.2f"
             % ESS_ENERGY_TO_LOAD_BAND)
 
+    target_pv, target_wind = _declared_renewables()
     add("installed renewables on target",
-        abs(system["pv_installed_mw"] - TARGET_PV_MW) <= INSTALLED_MW_TOL
-        and abs(system["wind_installed_mw"] - TARGET_WIND_MW) <= INSTALLED_MW_TOL,
+        abs(system["pv_installed_mw"] - target_pv) <= INSTALLED_MW_TOL
+        and abs(system["wind_installed_mw"] - target_wind) <= INSTALLED_MW_TOL,
         {"pv_mw": system["pv_installed_mw"], "wind_mw": system["wind_installed_mw"]},
-        "PV %.1f MW, wind %.1f MW" % (TARGET_PV_MW, TARGET_WIND_MW))
+        "PV %.2f MW, wind %.2f MW, as the scenario declares" % (target_pv,
+                                                                target_wind))
 
     observe("cycles per unit", [round(c, 4) for c in (r["cycles"] for r in ess)],
             "how hard the day's prices worked each unit; was gated on %.1f-%.1f"
@@ -747,15 +980,20 @@ def render(day, system, ess, network, price, distances, gates, recon,
     line("=" * 78)
     line("Typical day physical baseline")
     line("=" * 78)
-    line("scenario %s | T=%d | engine %s | %s | price base %.4g, elasticity %.4g"
+    # The price source is named rather than assumed. This header used to print
+    # the merit-order map's base and elasticity unconditionally, which stopped
+    # describing the day the moment the native scenario was priced by an
+    # external market -- the numbers stayed on the page and referred to
+    # parameters no longer in the path.
+    line("scenario %s | T=%d | engine %s | %s | price source %s"
          % (day["scenario"], day["T"], day["config"].opf_mode,
             day.get("load_level", "load level n/a"),
-            day["price_base"], day["elasticity"]))
+            day.get("price_source", "unknown")))
 
     line("")
     line("-- system " + "-" * 68)
     line("  peak load (coincident)               %.4g MW   target %.4g"
-         % (system["peak_load_coincident_mw"], _target_peak_mw()))
+         % (system["peak_load_coincident_mw"], _target_peak_mw(day["scenario"])))
     line("  peak load (sum of per-agent maxima)  %.4g MW   (diagnostic)"
          % system["peak_load_sum_of_maxima_mw"])
     line("  load energy                          %.4g MWh" % system["load_energy_mwh"])
@@ -1282,9 +1520,38 @@ def main(argv=None):
     parser.add_argument("--unserved-limit", type=float, default=None,
                         help="MWh of load shedding to fail on; omitted, shedding "
                              "is reported and not gated")
+    parser.add_argument("--min-shed", action="store_true",
+                        help="MIN_SHED_RUN: solve the same day with total shed "
+                             "ahead of every economic term, to separate what the "
+                             "network cannot serve from what the market declined "
+                             "to buy. Diagnostic only; not a market outcome.")
+    parser.add_argument("--no-shed-voltage", action="store_true",
+                        help="NO_SHED_VOLTAGE_DIAGNOSTIC: force every unit served "
+                             "and report which network limit breaks first. No "
+                             "market clearing runs.")
     parser.add_argument("--json", default=None, help="write the report as JSON here")
     parser.add_argument("--quiet", action="store_true", help="JSON only")
     args = parser.parse_args(argv)
+
+    # The two shed diagnostics answer a different question from the market run,
+    # so they replace it rather than being appended to it.
+    if args.min_shed or args.no_shed_voltage:
+        if args.min_shed:
+            out = min_shed_run(scenario=args.scenario, T=args.T,
+                               opf_mode=args.opf_mode)
+            out.pop("result", None)
+            out.pop("agents", None)
+            out.pop("config", None)
+        else:
+            out = no_shed_voltage_diagnostic(scenario=args.scenario, T=args.T,
+                                             opf_mode=args.opf_mode)
+        if args.json:
+            with open(args.json, "w", encoding="utf-8", newline="\n") as fh:
+                json.dump(out, fh, indent=2, sort_keys=True)
+                fh.write("\n")
+        if not args.quiet:
+            print(json.dumps(out, indent=2, sort_keys=True, default=str))
+        return 0
 
     global UNSERVED_LIMIT_MWH
     UNSERVED_LIMIT_MWH = args.unserved_limit

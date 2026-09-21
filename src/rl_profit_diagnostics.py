@@ -1,9 +1,9 @@
 # rl_profit_diagnostics.py
-"""Shared profit/welfare diagnostics for RL bidding policies.
+"""Shared profit/objective diagnostics for RL bidding policies.
 
 Separates the genuine dispatch effect of an RL policy from the valuation
 artifact caused by bid shading, so evaluation reports an honest "consistent
-welfare delta" instead of the raw OPF objective-value delta.
+objective delta" instead of the raw OPF objective-value delta.
 
 Used by eval_agents.py (evaluation CSV) and diagnose_profit.py
 (decomposition report); both import from here as the single source of truth.
@@ -15,7 +15,7 @@ import money
 
 
 def valuation_artifact(sched: dict, declared: dict, agents, config) -> float:
-    """Welfare (ObjVal) drop caused purely by the quotes the fleet declared.
+    """Objective (ObjVal) drop caused purely by the quotes the fleet declared.
 
     The OPF objective values charge and discharge at the agent's DECLARED
     quotes. A unit that shades them therefore changes the metric even when the

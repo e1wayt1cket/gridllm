@@ -32,7 +32,8 @@ import torch.nn as nn
 import torch.optim as optim
 from typing import Dict, List, Optional
 
-from rl_bidding import Actor, ReplayBuffer
+from rl_bidding import Actor, ReplayBuffer, agent_action_spaces
+from rl_td3 import deviation_penalty
 from rl_env import N_BLOCKS
 
 
@@ -111,8 +112,7 @@ class MAD3PG:
                  tau: float = 0.005, policy_delay: int = 2,
                  noise_std: float = 0.2, noise_clip: float = 0.5,
                  batch_size: int = 128, buffer_capacity: int = 100_000,
-                 start_steps: int = 500, bid_dev_penalty: float = 5.0,
-                 offer_dev_penalty: float = 0.5,
+                 start_steps: int = 500, dev_penalty: float = 0.0,
                  final_noise_std: float = 0.05,
                  noise_anneal_steps: int = 5000,
                  diff_steps: int = 50, diff_k: int = 4,
@@ -125,8 +125,7 @@ class MAD3PG:
         self.noise_clip = noise_clip
         self.batch_size = batch_size
         self.start_steps = start_steps
-        self.bid_dev_penalty = bid_dev_penalty
-        self.offer_dev_penalty = offer_dev_penalty
+        self.dev_penalty = dev_penalty
         self.final_noise_std = final_noise_std
         self.noise_anneal_steps = max(1, noise_anneal_steps)
         self.T = diff_steps
@@ -134,8 +133,10 @@ class MAD3PG:
         self.device = device
 
         obs_dim = env.get_state_dim()
-        act_dim = 2
-        action_bounds = env.get_action_bounds()
+        (self.spec_by_agent, self.bounds_by_agent, self.truthful_action,
+         act_dim) = agent_action_spaces(env)
+        action_bounds = (self.bounds_by_agent[env.rl_agents[0].name]
+                         if env.rl_agents else env.get_action_bounds())
         n_agents = len(env.rl_agents)
         self.n_agents = n_agents
         self.obs_dim = obs_dim
@@ -342,17 +343,12 @@ class MAD3PG:
                 c_new = torch.cat([state, cur.reshape(B, -1)], dim=-1)
                 val = self._value_grad(critic, c_new)
                 a_loss = -val.mean()
-                # Penalty rescaled by the frozen sigma so the balance vs the
-                # standardized value matches the raw-profit formulation.
-                sig = float(self.sigma[i]) if self.sigma[i] > 0 else 1.0
-                if self.bid_dev_penalty > 0:
-                    a_loss = (a_loss
-                              + (self.bid_dev_penalty / sig)
-                              * (logits[:, 0] ** 2).mean())
-                if self.offer_dev_penalty > 0:
-                    a_loss = (a_loss
-                              + (self.offer_dev_penalty / sig)
-                              * (logits[:, 1] ** 2).mean())
+                # Deviation penalty, anchored at this agent's truthful point.
+                # See `deviation_penalty`: the weight is dimensionless, so it is
+                # not rescaled by the reward standard deviation a second time.
+                a_loss = a_loss + deviation_penalty(
+                    logits, self.truthful_action[nm],
+                    self.bounds_by_agent[nm], self.dev_penalty)
                 opt.zero_grad()
                 a_loss.backward()
                 nn.utils.clip_grad_norm_(actor.parameters(), 1.0)

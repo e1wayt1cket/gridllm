@@ -10,8 +10,8 @@ training curve faceted by scenario.
 Writes four figures into --out-dir (default results/):
 
   1. unified_profit_delta_by_scenario.png
-  2. unified_welfare_delta_by_scenario.png
-  3. unified_profit_welfare_tradeoff.png
+  2. unified_clearing_objective_delta_by_scenario.png
+  3. unified_profit_clearing_objective_tradeoff.png
   4. unified_training_by_scenario.png
 
 Usage:
@@ -63,8 +63,8 @@ GRID = "#e1e0d9"
 
 
 def load_family(results_dir: str) -> dict:
-    """Read the three seed eval CSVs into {scenario: {profit_deltas, genuine_welfare_deltas}}."""
-    fam = {sc: {"profit_deltas": [], "genuine_welfare_deltas": []}
+    """Read the three seed eval CSVs into {scenario: {profit_deltas, genuine_clearing_objective_deltas}}."""
+    fam = {sc: {"profit_deltas": [], "genuine_clearing_objective_deltas": []}
            for sc in SCENARIOS}
     for fname in SEED_FILES:
         path = os.path.join(results_dir, fname)
@@ -76,8 +76,8 @@ def load_family(results_dir: str) -> dict:
             sc = str(r["scenario"])
             if sc in SCENARIOS:
                 fam[sc]["profit_deltas"].append(float(r["profit_delta"]))
-                fam[sc]["genuine_welfare_deltas"].append(
-                    float(r["genuine_welfare_delta"]))
+                fam[sc]["genuine_clearing_objective_deltas"].append(
+                    float(r["genuine_clearing_objective_delta"]))
     return fam
 
 
@@ -133,14 +133,14 @@ def fig_profit_delta(fam: dict, out_dir: str):
     print(f"Wrote {out}")
 
 
-def fig_welfare_delta(fam: dict, out_dir: str):
-    """Genuine welfare delta per scenario, same grouping as profit delta."""
+def fig_clearing_objective_delta(fam: dict, out_dir: str):
+    """Genuine objective delta per scenario, same grouping as profit delta."""
     x = np.arange(len(SCENARIOS))
     fig, ax = plt.subplots(figsize=(9, 5))
     fig.patch.set_facecolor(SURFACE)
     ax.set_facecolor(SURFACE)
     for i, sc in enumerate(SCENARIOS):
-        vals = np.asarray(fam[sc]["genuine_welfare_deltas"]) / 1e3
+        vals = np.asarray(fam[sc]["genuine_clearing_objective_deltas"]) / 1e3
         if vals.size == 0:
             continue
         mean, lo, hi = vals.mean(), vals.min(), vals.max()
@@ -155,8 +155,8 @@ def fig_welfare_delta(fam: dict, out_dir: str):
                 fontsize=8, color=SECONDARY)
     ax.set_xticks(x)
     ax.set_xticklabels([SCEN_LABEL[s] for s in SCENARIOS])
-    ax.set_ylabel("genuine welfare delta (k CNY)")
-    ax.set_title("Genuine welfare gain by scenario (unified, 3 seeds)")
+    ax.set_ylabel("genuine objective delta (k CNY)")
+    ax.set_title("Genuine objective gain by scenario (unified, 3 seeds)")
     ax.axhline(0, color="k", lw=0.8)
     ax.grid(axis="y", color=GRID, lw=0.7)
     ax.set_axisbelow(True)
@@ -165,14 +165,14 @@ def fig_welfare_delta(fam: dict, out_dir: str):
     ax.legend(handles=_seed_legend_handles(), fontsize=8, frameon=False,
               loc="upper left")
     fig.tight_layout()
-    out = os.path.join(out_dir, "unified_welfare_delta_by_scenario.png")
+    out = os.path.join(out_dir, "unified_clearing_objective_delta_by_scenario.png")
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print(f"Wrote {out}")
 
 
 def fig_tradeoff(fam: dict, out_dir: str):
-    """Profit vs welfare tradeoff: color encodes seed, shape encodes scenario."""
+    """Profit vs objective tradeoff: color encodes seed, shape encodes scenario."""
     fig, ax = plt.subplots(figsize=(9, 6))
     fig.patch.set_facecolor(SURFACE)
     ax.set_facecolor(SURFACE)
@@ -180,20 +180,20 @@ def fig_tradeoff(fam: dict, out_dir: str):
         shape = SCEN_SHAPE[sc]
         for i, (s, c) in enumerate(SEED_COLORS.items()):
             px = _k(fam[sc]["profit_deltas"][i])
-            py = _k(fam[sc]["genuine_welfare_deltas"][i])
+            py = _k(fam[sc]["genuine_clearing_objective_deltas"][i])
             ax.scatter([px], [py], marker=shape, s=110, color=c,
                        edgecolor="k", linewidths=0.7, zorder=4)
         # Scenario label at the seed-7 point.
         ax.annotate(SCEN_LABEL[sc],
                     (_k(fam[sc]["profit_deltas"][0]),
-                     _k(fam[sc]["genuine_welfare_deltas"][0])),
+                     _k(fam[sc]["genuine_clearing_objective_deltas"][0])),
                     textcoords="offset points", xytext=(6, 4), fontsize=8,
                     color=SECONDARY)
     ax.axhline(0, color="k", lw=0.8)
     ax.axvline(0, color="k", lw=0.8)
     ax.set_xlabel("profit delta vs truthful baseline (k CNY)")
-    ax.set_ylabel("genuine welfare delta (k CNY)")
-    ax.set_title("Profit vs welfare tradeoff by scenario (unified, 3 seeds)")
+    ax.set_ylabel("genuine objective delta (k CNY)")
+    ax.set_title("Profit vs objective tradeoff by scenario (unified, 3 seeds)")
     scen_handles = [plt.Line2D([], [], marker=SCEN_SHAPE[sc], color="w",
                                markerfacecolor="#b0b0b0",
                                markeredgecolor="k", label=SCEN_LABEL[sc])
@@ -205,7 +205,7 @@ def fig_tradeoff(fam: dict, out_dir: str):
     ax.legend(handles=scen_handles, loc="lower right", fontsize=8,
               title="scenario", frameon=False)
     fig.tight_layout()
-    out = os.path.join(out_dir, "unified_profit_welfare_tradeoff.png")
+    out = os.path.join(out_dir, "unified_profit_clearing_objective_tradeoff.png")
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print(f"Wrote {out}")
@@ -259,7 +259,7 @@ def main():
         return
 
     fig_profit_delta(fam, args.out_dir)
-    fig_welfare_delta(fam, args.out_dir)
+    fig_clearing_objective_delta(fam, args.out_dir)
     fig_tradeoff(fam, args.out_dir)
     if os.path.exists(args.metrics_csv):
         fig_training_by_scenario(args.metrics_csv, args.out_dir)

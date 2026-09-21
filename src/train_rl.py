@@ -28,9 +28,12 @@ import numpy as np
 import torch
 
 from scenarios import get_scenario
+from counterfactual_eval import validation_kpis
+import day_rotation
 from models import MarketConfig
 from rl_env import BiddingEnv, DayCapture, BLOCK_SIZE, N_BLOCKS
-from rl_td3 import TD3, save_policy
+from rl_bidding import agent_action_spaces
+from rl_td3 import CALIBRATED_DEV_PENALTY, TD3, save_policy
 from run_artifacts import RunArtifacts
 from surplus_metrics import day_econ_metrics
 
@@ -56,10 +59,12 @@ def _episode_econ(day_base: dict, day_rl: dict, agents, config):
         return {}, fell_backs
 
 N_EPISODES = 200
-# Each training run trains on a single fixed scenario by default, so the
-# reward curve is free of scenario-rotation noise and per-run behavior is
-# scenario-specific. Pass --scenarios with a comma-separated list to rotate.
-DEFAULT_TRAIN_SCENARIO = "baseline"
+# The native-scale research scenario, and the only one that declares
+# `wholesale_source: synthetic_v1` -- so the only one the 40-day price library
+# can price. On a legacy scenario the day id is ignored by the price layer and
+# a rotated run would be a single-priced run wearing a 40-day name.
+# `--no-day-rotation` (or `--scenarios`) reproduces the older behaviour.
+DEFAULT_TRAIN_SCENARIO = "typical_day"
 
 
 def list_agents_command():
@@ -119,17 +124,16 @@ def build_parser():
                         help="Learning rate for actor and critic")
     parser.add_argument("--noise-std", type=float, default=0.2,
                         help="Exploration noise standard deviation")
-    parser.add_argument("--bid-dev-penalty", type=float, default=5.0,
-                        help="L2 penalty on the pre-tanh logit of the "
-                             "agent's FIRST action, pulling it toward its "
-                             "truthful declaration (0 = no penalty). For a "
-                             "battery that action is its charge price, and "
-                             "truthful is the corner of its box.")
-    parser.add_argument("--offer-dev-penalty", type=float, default=0.5,
-                        help="L2 penalty on the pre-tanh logit of the "
-                             "agent's SECOND action, pulling it toward its "
-                             "truthful declaration (0 = no penalty). For a "
-                             "battery that action is its discharge price.")
+    parser.add_argument("--dev-penalty", type=float,
+                        default=CALIBRATED_DEV_PENALTY,
+                        help="Coefficient on the squared box-normalized "
+                             "deviation of every action from its own truthful "
+                             "point (0 = no penalty). The deviation is "
+                             "|a - truthful| / (high - low), so it lies in "
+                             "[0, 1] and is the same quantity on both legs of "
+                             "a quote pair; the weight is in the same units as "
+                             "the normalized reward, so it is directly "
+                             "comparable to it. See rl_td3.deviation_penalty.")
     parser.add_argument("--bid-mult-low", type=float, default=None,
                         help="Lower bound for the non-storage action's "
                              "bid_mult. Default: from "
@@ -165,6 +169,16 @@ def build_parser():
     parser.add_argument("--early-stop-threshold", type=float, default=0.05,
                         help="Relative improvement required to avoid early "
                              "stopping")
+    parser.add_argument("--day-rotation", type=str, default="auto",
+                        choices=("auto", "on", "off"),
+                        help="which day each episode runs on. 'auto' turns "
+                             "rotation on only for a scenario priced by the "
+                             "external library, where a day id selects a "
+                             "distinct price; legacy scenarios keep their "
+                             "existing behaviour. 'on'/'off' force it.")
+    parser.add_argument("--train-scenario", type=str, default=None,
+                        help="scenario the rotated days are priced on; "
+                             "defaults to the training scenario")
     parser.add_argument("--eval-metric", type=str, default="mean_reward",
                         help="Metric tracked for best-policy selection and "
                              "early stopping")
@@ -242,13 +256,38 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         from rl_bidding import MATD3
         trainer = MATD3(env, lr=args.lr, noise_std=args.noise_std,
                         start_steps=args.start_steps,
-                        bid_dev_penalty=args.bid_dev_penalty,
-                        offer_dev_penalty=args.offer_dev_penalty,
+                        dev_penalty=args.dev_penalty,
                         noise_anneal_steps=args.noise_anneal_steps)
     matd3 = trainer
     obs_dim = env.get_state_dim()
     low = action_bounds[0].numpy()
     high = action_bounds[1].numpy()
+
+    # Which day each episode runs on. `auto` turns rotation on exactly when it
+    # can mean anything -- a scenario priced by the external library, where a
+    # day id selects a distinct price curve. On a legacy scenario the day id is
+    # ignored by the price layer, so rotation would run 800 episodes on one
+    # price while reporting a 40-day protocol, and nothing would look wrong.
+    rotation_mode = getattr(args, "day_rotation", "auto")
+    rotation_scenario = getattr(args, "train_scenario", None) or \
+        DEFAULT_TRAIN_SCENARIO
+    if rotation_mode == "on":
+        rotation_on = True
+    elif rotation_mode == "off":
+        rotation_on = False
+    else:
+        from wholesale_price import get_scenario_cfg_source
+        rotation_on = (get_scenario_cfg_source(rotation_scenario)
+                       == "synthetic_v1")
+    run_seed = int(args.seed)
+    if rotation_on:
+        protocol = day_rotation.assert_protocol()
+        print(f"Day rotation: on | scenario {rotation_scenario} | "
+              f"split {protocol['sizes']} | run seed {run_seed}")
+        print(f"  validation {day_rotation.validation_days()}")
+    else:
+        print(f"Day rotation: off (mode={rotation_mode}, "
+              f"scenario={rotation_scenario})")
 
     stopped_early = False
     eval_envs = tracker.build_eval_envs(env.config) if tracker is not None \
@@ -256,13 +295,25 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
 
     t0 = time.time()
     for ep in range(args.episodes):
-        sc_name = random.choice(train_scenarios)
         config_copy = copy.deepcopy(env.config)
-        agents_sc, wholesale = get_scenario(sc_name, T=env.T,
-                                            config=config_copy)
+        slot = None
+        if rotation_on:
+            # The day comes from the declared schedule, not from a draw. Two
+            # runs with the same seed see the same twenty days in a different
+            # order, so a difference between them is a difference in the
+            # learning rather than in the data.
+            slot = day_rotation.episode_day(run_seed, ep)
+            sc_name = rotation_scenario
+            agents_sc, wholesale = get_scenario(
+                sc_name, T=env.T, config=config_copy, day_id=slot["day_id"])
+        else:
+            sc_name = random.choice(train_scenarios)
+            agents_sc, wholesale = get_scenario(sc_name, T=env.T,
+                                                config=config_copy)
         if args.capacity is not None:
             config_copy.network.line_capacity_multiplier = args.capacity
-        env.set_agents(agents_sc, wholesale)
+        env.set_agents(agents_sc, wholesale,
+                       day_id=slot["day_id"] if slot else None)
         env.config = config_copy
         obs = env.reset()
 
@@ -271,7 +322,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         # both; see RunArtifacts.record_episode.
         ep_raw_profit = {nm: 0.0 for nm in rl_agent_names}
         ep_local_base = {nm: 0.0 for nm in rl_agent_names}
-        ep_welfare = 0.0
+        ep_clearing_objective = 0.0
         ep_re_rate = 0.0
         # Per-episode day capture: the RL day and the truthful baseline day.
         # The baseline clear already runs every block for the differential
@@ -310,7 +361,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                 ep_raw_profit[nm] += info.get("raw_profit", {}).get(nm, 0.0)
                 ep_local_base[nm] += info.get("local_baseline_profit", {}) \
                     .get(nm, 0.0)
-            ep_welfare = info.get("welfare", 0.0)
+            ep_clearing_objective = info.get("clearing_objective", 0.0)
             ep_re_rate = info.get("re_rate", 0.0)
             obs = next_obs
 
@@ -357,17 +408,35 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         # TensorBoard
         for nm in rl_agent_names:
             writer.add_scalar(f"Reward/{nm}", ep_rewards[nm], ep)
-        writer.add_scalar("Welfare", ep_welfare, ep)
+        writer.add_scalar("ClearingObjective", ep_clearing_objective, ep)
         writer.add_scalar("RE_Rate", ep_re_rate, ep)
         writer.add_scalar("Reward/mean",
                           sum(ep_rewards.values()) / len(rl_agent_names), ep)
 
         # In-training evaluation + early stopping (opt-in via tracker)
-        if tracker is not None and args.eval_interval > 0 \
-                and (ep + 1) % args.eval_interval == 0:
+        # Under rotation the unit of evaluation is the cycle, not the episode:
+        # a partial cycle has seen only some of the twenty days, so selecting on
+        # it would compare policies trained on different day mixes. The
+        # interval argument is ignored in that mode rather than silently
+        # producing selections off the end of an incomplete cycle.
+        eval_due = ((ep + 1) % args.eval_interval == 0
+                    if not rotation_on else day_rotation.is_cycle_end(ep))
+        if tracker is not None and args.eval_interval > 0 and eval_due:
             metrics = tracker.evaluate(eval_envs, matd3.actors)
+            if rotation_on:
+                # Only validation days reach this call. The test days are
+                # frozen until the run is over and nothing in the training
+                # path can name them.
+                metrics.update(validation_kpis(
+                    matd3.actors, env.config, rotation_scenario,
+                    rl_agent_names, day_rotation.validation_days(),
+                    T=env.T, n_blocks=N_BLOCKS,
+                    obs_spec=env.obs_spec, action_spec=env.action_spec))
+                for key in ("mean_delta_pi", "mean_pi_ai",
+                            "mean_pi_baseline", "p_delta_pi_positive"):
+                    writer.add_scalar(f"Eval/{key}", metrics[key], ep)
             writer.add_scalar("Eval/mean_reward", metrics["mean_reward"], ep)
-            writer.add_scalar("Eval/welfare", metrics["welfare"], ep)
+            writer.add_scalar("Eval/clearing_objective", metrics["clearing_objective"], ep)
             for sc_name2, sub in (metrics.get("by_scenario") or {}).items():
                 writer.add_scalar(f"Eval/mean_reward/{sc_name2}",
                                   sub["mean_reward"], ep)
@@ -375,10 +444,22 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                                                  metrics):
                 stopped_early = True
             if artifacts is not None:
+                # The cycle is read from the schedule rather than divided out
+                # of the episode index, so the record cannot disagree with the
+                # days that actually ran.
+                eval_cycle = slot["cycle"] if slot else None
                 artifacts.record_eval(
                     ep + 1, metrics,
                     is_best=(tracker.best_episode == ep + 1),
-                    stopped=stopped_early)
+                    stopped=stopped_early, cycle=eval_cycle)
+                if eval_cycle is not None:
+                    artifacts.record_validation_cycle(
+                        eval_cycle, metrics, episode=ep + 1)
+                    # One row per held-out day, so the cycle mean can be
+                    # checked against the days it was taken over.
+                    for day in metrics.get("days") or []:
+                        artifacts.record_validation_day(
+                            eval_cycle, day, episode=ep + 1)
             if stopped_early:
                 break
 
@@ -387,7 +468,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             elapsed = time.time() - t0
             mean_r = sum(ep_rewards.values()) / len(rl_agent_names)
             print(f"Ep {ep+1}/{args.episodes} | mean_reward={mean_r:+.1f} | "
-                  f"welfare={ep_welfare:.0f} | RE={ep_re_rate:.1f}% | "
+                  f"objective={ep_clearing_objective:.0f} | RE={ep_re_rate:.1f}% | "
                   f"sc={sc_name} | elapsed={elapsed:.0f}s | algo={args.algo}",
                   flush=True)
 
@@ -398,7 +479,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                                              env.config)
             artifacts.record_episode(
                 ep + 1, sum(ep_rewards.values()) / len(rl_agent_names),
-                ep_welfare, ep_re_rate,
+                ep_clearing_objective, ep_re_rate,
                 critic_loss=np.mean(c_losses) if c_losses else None,
                 actor_loss=np.mean(a_losses) if a_losses else None,
                 scenario=sc_name,
@@ -409,7 +490,9 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                 profit_delta_local=(sum(ep_rewards.values())
                                     / len(rl_agent_names)),
                 q_stats=q_stats, econ=econ,
-                capture_fellbacks=fell_backs)
+                capture_fellbacks=fell_backs,
+                day_id=slot["day_id"] if slot else None,
+                cycle=slot["cycle"] if slot else None)
 
         # Checkpoint
         if (ep + 1) % 50 == 0:
@@ -449,7 +532,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             artifacts.add_policy_paths(
                 "last", [os.path.join(tracker.last_dir, f"{nm}.pt")
                          for nm in rl_agent_names])
-            best_welfare = max((e.get("welfare") or float("-inf"))
+            best_clearing_objective = max((e.get("clearing_objective") or float("-inf"))
                                for e in artifacts.evals) \
                 if artifacts.evals else None
             final_mean_reward = artifacts.metrics[-1]["mean_reward"] \
@@ -457,7 +540,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             artifacts.kpi = {
                 "final_mean_reward": final_mean_reward,
                 "best_mean_reward": tracker.max_eval.get(tracker.metric),
-                "best_welfare": best_welfare,
+                "best_clearing_objective": best_clearing_objective,
                 "best_episode": tracker.best_episode,
                 "early_stopped": stopped_early,
                 "n_episodes": done_ep,
@@ -488,7 +571,7 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
-    # ---- Build config (pure economic welfare objective, RL-dispatched storage) ----
+    # ---- Build config (pure economic objective, RL-dispatched storage) ----
     config = MarketConfig(opf_mode="socp", verbose=False)
     config.market_design.enable_multi_objective = False
     # Storage SOC is dispatched by the market optimizer using declared prices;
@@ -496,7 +579,10 @@ def main():
     config.storage.self_schedule = False
     config.storage.use_nodal_price = False
 
-    # ---- Action bounds: single source of truth in the market config ----
+    # ---- Non-storage action bounds, for the prosumer space ----
+    # The source of truth is `rl_spec`; the config's range is the fallback for
+    # a caller that overrides nothing. These have no effect on a storage agent,
+    # which declares absolute prices.
     if args.bid_mult_low is None or args.bid_mult_high is None:
         low, high = config.market_design.bid_mult_range
         args.bid_mult_low, args.bid_mult_high = low, high
@@ -540,8 +626,20 @@ def main():
 
     print(f"Training {len(rl_agent_names)} storage agents: {rl_agent_names}",
           flush=True)
-    print(f"Action bounds: bid_mult=[{args.bid_mult_low}, "
-          f"{args.bid_mult_high}], offer_adder=[0, 50]", flush=True)
+    # The exercising agents' own boxes, from their own specs. Printing the
+    # prosumer box here would describe a space none of these agents bid in.
+    from rl_spec import action_spec_for
+    by_name = {a.name: a for a in agents}
+    shown = set()
+    for nm in rl_agent_names:
+        spec = action_spec_for(by_name[nm])
+        if spec.name in shown:
+            continue
+        shown.add(spec.name)
+        box = ", ".join(f"{a}=[{spec.bounds[a][0]:g}, {spec.bounds[a][1]:g}]"
+                        for a in spec.action_names)
+        print(f"  {nm}: {spec.name} {box} "
+              f"truthful={list(spec.truthful_array())}", flush=True)
 
     # ---- Determine training and evaluation scenarios ----
     train_scenarios = _resolve_train_scenarios(args.scenarios)
@@ -602,16 +700,22 @@ def main():
             config, vars(args), env.obs_spec.to_dict(),
             env.action_spec.to_dict())
 
-    action_bounds = env.get_action_bounds()
+    # Each policy is built in its own agent's box and measured from that
+    # agent's own truthful point, rather than from one environment-wide spec.
+    (specs_by_agent, bounds_by_agent, truthful_by_agent,
+     act_dim) = agent_action_spaces(env)
     obs_dim = env.get_state_dim()
-    act_dim = env.action_spec.dim
+    # The fleet's own box, for the exploration noise and the shared rollout
+    # paths. Numerically the same as any one agent's when -- as here -- every
+    # RL agent is a battery, but the per-agent maps above are what a policy is
+    # built from.
+    action_bounds = env.get_action_bounds()
 
-    td3s = {name: TD3(obs_dim, act_dim, action_bounds,
+    td3s = {name: TD3(obs_dim, act_dim, bounds_by_agent[name],
                       lr=args.lr, noise_std=args.noise_std,
                       start_steps=args.start_steps,
-                      bid_dev_penalty=args.bid_dev_penalty,
-                      offer_dev_penalty=args.offer_dev_penalty,
-                      truthful_action=env.action_spec.truthful_array())
+                      dev_penalty=args.dev_penalty,
+                      truthful_action=specs_by_agent[name].truthful_array())
             for name in rl_agent_names}
 
     # ---- TensorBoard ----
@@ -652,8 +756,7 @@ def main():
             trainer = MATD3(
                 env, lr=args.lr, noise_std=args.noise_std,
                 start_steps=args.start_steps,
-                bid_dev_penalty=args.bid_dev_penalty,
-                offer_dev_penalty=args.offer_dev_penalty,
+                dev_penalty=args.dev_penalty,
                 noise_anneal_steps=args.noise_anneal_steps,
                 critic_factory=_physics_factory(1))
         stopped_early = _train_matd3(
@@ -672,8 +775,7 @@ def main():
         trainer = MAD3PG(
             env, lr=args.lr, noise_std=args.noise_std,
             start_steps=args.start_steps,
-            bid_dev_penalty=args.bid_dev_penalty,
-            offer_dev_penalty=args.offer_dev_penalty,
+            dev_penalty=args.dev_penalty,
             noise_anneal_steps=args.noise_anneal_steps,
             batch_size=args.batch_size,
             diff_steps=args.diff_steps, diff_k=args.diff_k)
@@ -693,8 +795,7 @@ def main():
         trainer = QuantileMATD3(
             env, lr=args.lr, noise_std=args.noise_std,
             start_steps=args.start_steps,
-            bid_dev_penalty=args.bid_dev_penalty,
-            offer_dev_penalty=args.offer_dev_penalty,
+            dev_penalty=args.dev_penalty,
             noise_anneal_steps=args.noise_anneal_steps,
             batch_size=args.batch_size,
             n_quantiles=args.n_quantiles,
@@ -714,8 +815,7 @@ def main():
         from rl_masac import MASAC
         trainer = MASAC(
             env, lr=args.lr, start_steps=args.start_steps,
-            bid_dev_penalty=args.bid_dev_penalty,
-            offer_dev_penalty=args.offer_dev_penalty,
+            dev_penalty=args.dev_penalty,
             batch_size=args.batch_size,
             alpha_init=args.alpha_init, target_entropy=args.target_entropy,
             critic_factory=_physics_factory(1))
@@ -748,7 +848,7 @@ def main():
         # both; see RunArtifacts.record_episode.
         ep_raw_profit = {name: 0.0 for name in rl_agent_names}
         ep_local_base = {name: 0.0 for name in rl_agent_names}
-        ep_welfare = 0.0
+        ep_clearing_objective = 0.0
         ep_re_rate = 0.0
         cap_rl = DayCapture.from_env(env)
         cap_base = DayCapture.from_env(env)
@@ -780,7 +880,7 @@ def main():
             cap_base.add_block(env._last_base_result, t_start,
                                env._last_wholesale)
 
-            ep_welfare = info.get("welfare", 0.0)
+            ep_clearing_objective = info.get("clearing_objective", 0.0)
             ep_re_rate = info.get("re_rate", 0.0)
             obs = next_obs
 
@@ -812,7 +912,7 @@ def main():
         # TensorBoard
         for name in rl_agent_names:
             writer.add_scalar(f"Reward/{name}", ep_rewards[name], ep)
-        writer.add_scalar("Welfare", ep_welfare, ep)
+        writer.add_scalar("ClearingObjective", ep_clearing_objective, ep)
         writer.add_scalar("RE_Rate", ep_re_rate, ep)
         writer.add_scalar("Reward/mean",
                           sum(ep_rewards.values()) / len(rl_agent_names), ep)
@@ -823,7 +923,7 @@ def main():
             actors = {name: td3s[name].actor for name in rl_agent_names}
             metrics = tracker.evaluate(eval_envs, actors)
             writer.add_scalar("Eval/mean_reward", metrics["mean_reward"], ep)
-            writer.add_scalar("Eval/welfare", metrics["welfare"], ep)
+            writer.add_scalar("Eval/clearing_objective", metrics["clearing_objective"], ep)
             for sc_name2, sub in (metrics.get("by_scenario") or {}).items():
                 writer.add_scalar(f"Eval/mean_reward/{sc_name2}",
                                   sub["mean_reward"], ep)
@@ -842,7 +942,7 @@ def main():
             elapsed = time.time() - t0
             mean_r = sum(ep_rewards.values()) / len(rl_agent_names)
             print(f"Ep {ep+1}/{args.episodes} | mean_reward={mean_r:+.1f} | "
-                  f"welfare={ep_welfare:.0f} | RE={ep_re_rate:.1f}% | "
+                  f"objective={ep_clearing_objective:.0f} | RE={ep_re_rate:.1f}% | "
                   f"sc={sc_name} | elapsed={elapsed:.0f}s", flush=True)
 
         # Structured run artifacts
@@ -852,7 +952,7 @@ def main():
                                              config)
             artifacts.record_episode(
                 ep + 1, sum(ep_rewards.values()) / len(rl_agent_names),
-                ep_welfare, ep_re_rate,
+                ep_clearing_objective, ep_re_rate,
                 critic_loss=np.mean(c_losses) if c_losses else None,
                 actor_loss=np.mean(a_losses) if a_losses else None,
                 scenario=sc_name,
@@ -906,7 +1006,7 @@ def main():
             artifacts.add_policy_paths(
                 "last", [os.path.join(tracker.last_dir, f"{name}.pt")
                          for name in rl_agent_names])
-            best_welfare = max((e.get("welfare") or float("-inf"))
+            best_clearing_objective = max((e.get("clearing_objective") or float("-inf"))
                                for e in artifacts.evals) \
                 if artifacts.evals else None
             final_mean_reward = artifacts.metrics[-1]["mean_reward"] \
@@ -914,7 +1014,7 @@ def main():
             artifacts.kpi = {
                 "final_mean_reward": final_mean_reward,
                 "best_mean_reward": tracker.max_eval.get(tracker.metric),
-                "best_welfare": best_welfare,
+                "best_clearing_objective": best_clearing_objective,
                 "best_episode": tracker.best_episode,
                 "early_stopped": stopped_early,
                 "n_episodes": done_ep,

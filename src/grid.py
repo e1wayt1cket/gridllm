@@ -51,6 +51,17 @@ def build_base_network(config: MarketConfig) -> pp.pandapowerNet:
     return net  # type: ignore
 
 
+def _common_noise(T: int, sigma: float, seed: int) -> np.ndarray:
+    """One multiplicative error factor per period, shared by every bus.
+
+    Unlike `_noisy_load`, this does not vary bus by bus: a single factor per
+    period keeps the fleet's nodal *shape* intact, which is what lets one
+    `lambda_t` describe every bus at once.
+    """
+    rng = np.random.RandomState(seed)
+    return np.clip(1.0 + rng.normal(0.0, sigma, size=T), 0.0, None)
+
+
 def _noisy_load(x: np.ndarray, sigma: float = 0.1, seed: int = None) -> np.ndarray:
     """Apply multiplicative Gaussian noise, clipped to non-negative."""
     rng = np.random.RandomState(seed) if seed is not None else np.random
@@ -61,8 +72,42 @@ def _make_load_profile(
     hours: np.ndarray,
     load_type: str,
     load_cfg: dict,
+    shape: str = "diversified",
 ) -> np.ndarray:
-    """Generate type-specific diurnal load profile (per-unit, mean=1.0)."""
+    """The diurnal multiplier for one bus.
+
+    Two shapes, and the difference is what each one normalizes:
+
+    `diversified` is the legacy per-load-type shape, a per-unit profile with
+    mean 1.0 and a per-type phase shift and amplitude blend. Because the types
+    peak at different hours, no single multiplier describes the whole fleet.
+
+    `native` is one shared shape for every bus, normalized so its **peak** is
+    1.0. That is what makes `P_i(t) = P_i_base * lambda_t` hold bus by bus with
+    the same `lambda_t`, and therefore what makes the fleet's peak exactly the
+    sum of the native bus demands. No type overrides apply: a phase shift or an
+    amplitude blend would give each type its own multiplier again.
+    """
+    if shape == "native":
+        prof = load_profile(
+            hours,
+            morning_peak_hour=load_cfg.get("morning_peak_hour", 8.0),
+            morning_peak_amplitude=load_cfg.get("morning_peak_amplitude", 0.30),
+            morning_peak_width=load_cfg.get("morning_peak_width", 3.0),
+            evening_peak_hour=load_cfg.get("evening_peak_hour", 19.0),
+            evening_peak_amplitude=load_cfg.get("evening_peak_amplitude", 0.50),
+            evening_peak_width=load_cfg.get("evening_peak_width", 4.0),
+            night_base=load_cfg.get("night_base", 0.60),
+        )
+        peak = float(np.max(prof))
+        if peak <= 0:
+            raise ValueError("the native load shape peaks at zero")
+        return prof / peak
+
+    if shape != "diversified":
+        raise ValueError(
+            f"unknown load shape {shape!r}; expected 'native' or 'diversified'")
+
     ov = load_cfg.get("type_overrides", {}).get(load_type, {})
     return load_profile(
         hours,
@@ -78,12 +123,50 @@ def _make_load_profile(
     )
 
 
+#: Defaults for a scenario that declares no scale of its own. Kept as the
+#: legacy behaviour so an old scenario built by an old config is unchanged.
+_DEFAULT_SCALE_SPEC = {
+    "mode": "explicit_peak",
+    "peak_load_mw": None,
+    "shape": "diversified",
+    "pv_bus_mw": {},
+    "wind_bus_mw": {},
+}
+
+
+def native_nominal_demand_mw(net) -> float:
+    """The network's own nominal active demand (MW).
+
+    Read live from the network rather than configured, so it cannot drift from
+    the benchmark it is meant to be.
+    """
+    return float(net.load.p_mw.sum())
+
+
 def create_agents_from_network(
     net: pp.pandapowerNet,
     T: int,
     with_wind: bool = False,
+    scale: Optional[dict] = None,
 ) -> List[Agent]:
-    """Create Agent list from network, reading defaults from config/defaults.yaml."""
+    """Create Agent list from network, reading defaults from config/defaults.yaml.
+
+    `scale` is the scenario's declaration of its own operating scale (see
+    `config/scenarios.yaml`). It carries four things that used to be one number
+    in `defaults.yaml`:
+
+      mode          "native_peak" pins the day's coincident peak to the
+                    network's own nominal demand; "explicit_peak" pins it to
+                    `peak_load_mw`.
+      peak_load_mw  the target for "explicit_peak".
+      shape         "native" (one shared peak-normalized lambda_t for every
+                    bus) or "diversified" (per-load-type shapes).
+      pv_bus_mw /   installed renewable capacity per bus, in MW. Explicit
+      wind_bus_mw   because a capacity derived from the local load cannot be
+                    defended as a property of the study rather than of the load.
+    """
+    spec = dict(_DEFAULT_SCALE_SPEC)
+    spec.update(scale or {})
     cfg = load_defaults()
     hours = np.arange(T)
 
@@ -107,17 +190,45 @@ def create_agents_from_network(
     load_cfg = cfg["profiles"]["load"]
     load_fcast_sigma = load_cfg.get("forecast_noise_sigma", 0.06)
     load_real_sigma = load_cfg.get("real_noise_sigma", 0.12)
-    # Fleet-wide load level. Applied to the finished load profiles only, so it
-    # sets how much energy the network serves without touching the per-bus
-    # `base_load` that sizes PV, wind and batteries.
+    # The day's own error realization, as distinct from its shape. Under the
+    # `native` shape this is one system-wide factor per period shared by every
+    # bus, so the whole fleet's demand error moves together; the two seeds are
+    # what make one day differ from another in *level* at a fixed shape. The
+    # literals are the values these were hardcoded to, so leaving the keys at
+    # their defaults reproduces every recorded result bit for bit.
+    load_fcast_seed = int(load_cfg.get("forecast_noise_seed", 100_000))
+    load_real_seed = int(load_cfg.get("real_noise_seed", 100_001))
+    # The fleet-wide load level, from the scenario's own declaration.
     #
-    # An explicit `load_scale` is used as given. Otherwise the scale is derived
-    # once the profiles exist, from the coincident peak they actually produce;
-    # that derivation needs every bus, so it happens after the loop below and
-    # the profiles are built unscaled in the meantime.
-    target_peak_mw = load_cfg.get("target_peak_mw")
+    # `native_peak` targets the network's own nominal demand, read off the
+    # network rather than configured, so the day is the benchmark's load spread
+    # over 96 periods and not a study scale wearing its name.
+    #
+    # The target is applied to the coincident peak of the finished profiles, so
+    # the derivation needs every bus and happens after the loop below; the
+    # profiles are built unscaled in the meantime.
+    mode = spec["mode"]
+    if mode == "native_peak":
+        target_peak_mw = native_nominal_demand_mw(net)
+    elif mode == "explicit_peak":
+        target_peak_mw = spec.get("peak_load_mw")
+        if target_peak_mw is None:
+            raise ValueError(
+                "load_scale_mode 'explicit_peak' needs a 'peak_load_mw'; set "
+                "it in the scenario, or use 'native_peak' for the network's "
+                "own nominal demand")
+    else:
+        raise ValueError(
+            f"unknown load_scale_mode {mode!r}; expected 'native_peak' or "
+            f"'explicit_peak'")
+
+    # An explicit `load_scale` still wins where a sweep sets one.
     explicit_scale = load_cfg.get("load_scale")
     load_scale = float(explicit_scale) if explicit_scale is not None else 1.0
+    shape = spec["shape"]
+    pv_bus_mw = {int(b): float(v) for b, v in (spec["pv_bus_mw"] or {}).items()}
+    wind_bus_mw = {int(b): float(v)
+                   for b, v in (spec["wind_bus_mw"] or {}).items()}
 
     # ---- Build bus → load_type map from config ----
     bus_to_type: Dict[int, str] = {}
@@ -142,15 +253,32 @@ def create_agents_from_network(
 
         load_type = bus_to_type.get(bus, "industrial")
         lt_cfg = get_load_type_cfg(load_type)
-        # Sizing basis for this bus: the rated load scaled by the load type's
-        # multiplier. Deliberately NOT scaled by `load_scale` — PV, wind and
-        # storage capacity are read off this quantity, so scaling it would make
-        # the load level inflate every device on the bus as well.
-        base_load = p_mw * lt_cfg.get("load_multiplier", 1.0)
-        diurnal = _make_load_profile(hours, load_type, load_cfg)
+        # The bus's own load. Under the `native` shape it is exactly the
+        # network's rated demand for that bus, so the fleet reproduces the
+        # benchmark's nodal distribution; under `diversified` the load type's
+        # multiplier still applies, which is what the legacy scenarios use.
+        # Deliberately NOT scaled by `load_scale`: that sets the fleet's level,
+        # and letting it reach the per-bus term would make the load level
+        # inflate every device on the bus as well.
+        base_load = (p_mw if shape == "native"
+                     else p_mw * lt_cfg.get("load_multiplier", 1.0))
+        diurnal = _make_load_profile(hours, load_type, load_cfg, shape=shape)
 
-        load_forecast = _noisy_load(diurnal * base_load, load_fcast_sigma, seed=bus * 10 + 0) * load_scale
-        load_real = _noisy_load(diurnal * base_load, load_real_sigma, seed=bus * 10 + 1) * load_scale
+        if shape == "native":
+            # One system-wide error factor per period, shared by every bus.
+            #
+            # Per-bus noise would give each bus its own realization, so no
+            # single lambda_t would describe the fleet and `P_i(t) =
+            # P_i_base * lambda_t` would hold only in expectation. A shared
+            # factor keeps the formula exact while still letting the forecast
+            # and the realized day differ from each other and from the shape.
+            load_forecast = diurnal * base_load * _common_noise(
+                T, load_fcast_sigma, seed=load_fcast_seed) * load_scale
+            load_real = diurnal * base_load * _common_noise(
+                T, load_real_sigma, seed=load_real_seed) * load_scale
+        else:
+            load_forecast = _noisy_load(diurnal * base_load, load_fcast_sigma, seed=bus * 10 + 0) * load_scale
+            load_real = _noisy_load(diurnal * base_load, load_real_sigma, seed=bus * 10 + 1) * load_scale
 
         is_prosumer = bus in prosumer_buses.get(load_type, set())
         pv_cap_installed = 0.0
@@ -168,23 +296,20 @@ def create_agents_from_network(
             ps_cfg = get_prosumer_cfg(load_type)
 
             if load_type == "residential":
-                pv_cap = base_load * ps_cfg.get("pv_capacity_factor", 3.8)
+                # Capacity is declared by the scenario, in MW. Deriving it from
+                # the local load would make a study capacity move whenever the
+                # load does, which is not a property anyone could defend.
+                pv_cap = pv_bus_mw.get(bus, 0.0)
                 pv_fcast_noise = ps_cfg.get("pv_forecast_noise", 0.15)
                 pv_real_noise = ps_cfg.get("pv_real_noise", 0.20)
-                # Per-bus capacity scale from YAML override
-                pv_scale = ps_cfg.get("bus_overrides", {}).get(bus, {}).get("pv_capacity_scale", 1.0)
-                pv_cap *= pv_scale
                 pv_cap_installed = pv_cap
                 pv_forecast = _noisy_load(_pv_base * pv_cap, pv_fcast_noise, seed=bus * 10 + 2)
                 pv_real = _noisy_load(_pv_base * pv_cap, pv_real_noise, seed=bus * 10 + 3)
 
             elif load_type == "industrial" and with_wind:
-                wind_cap = base_load * ps_cfg.get("wind_capacity_factor", 4.5)
+                wind_cap = wind_bus_mw.get(bus, 0.0)
                 wind_fcast_noise = ps_cfg.get("wind_forecast_noise", 0.12)
                 wind_real_noise = ps_cfg.get("wind_real_noise", 0.18)
-                # Per-bus capacity scale from YAML override
-                wind_scale = ps_cfg.get("bus_overrides", {}).get(bus, {}).get("wind_capacity_scale", 1.0)
-                wind_cap *= wind_scale
                 wind_cap_installed = wind_cap
                 # Per-bus wind profile for spatial diversity
                 bus_wind = wind_profile(hours, seed=wind_base_seed + bus,
@@ -228,13 +353,12 @@ def create_agents_from_network(
                     storage.p_ch_max = storage_power * pr_mult
                     storage.p_dis_max = storage_power * pr_mult
 
-            # Assign PV to industrial prosumer buses that have pv:true in override
-            if load_type == "industrial" and bus_ov.get("pv", False):
-                pv_cap = base_load * ps_cfg.get("pv_capacity_factor", 2.5)
+            # Industrial PV. The scenario's capacity declaration is the only
+            # gate: a bus carrying no declared PV gets none.
+            if load_type == "industrial" and pv_bus_mw.get(bus, 0.0) > 0.0:
+                pv_cap = pv_bus_mw[bus]
                 pv_fcast_noise = ps_cfg.get("pv_forecast_noise", 0.15)
                 pv_real_noise = ps_cfg.get("pv_real_noise", 0.20)
-                pv_scale = bus_ov.get("pv_capacity_scale", 1.0)
-                pv_cap *= pv_scale
                 pv_cap_installed = pv_cap
                 pv_forecast = _noisy_load(_pv_base * pv_cap, pv_fcast_noise, seed=bus * 10 + 2)
                 pv_real = _noisy_load(_pv_base * pv_cap, pv_real_noise, seed=bus * 10 + 3)
@@ -286,11 +410,13 @@ def create_agents_from_network(
     # it would not bound the flow the feeder has to carry. Derived rather than
     # hand-tuned so it survives a change to the profile shapes or the seeds.
     if explicit_scale is None:
-        if target_peak_mw is None:
-            raise ValueError(
-                "no load level configured: set profiles.load.target_peak_mw, "
-                "or profiles.load.load_scale for an explicit factor")
-        raw_peak = _coincident_peak(agents)
+        # Which profile the target is pinned to depends on what the target
+        # means. `native_peak` says `max_t P_total(t) = nominal demand`, and
+        # P is the load that was actually drawn, so it normalizes `load_real`.
+        # `explicit_peak` is the legacy study scale and keeps normalizing the
+        # forecast, which is what its recorded numbers were produced against.
+        raw_peak = _coincident_peak(agents,
+                                    realized=(mode == "native_peak"))
         if raw_peak <= 0:
             raise ValueError(
                 "the unscaled load profiles peak at zero, so no scale can "
@@ -303,15 +429,20 @@ def create_agents_from_network(
     return agents
 
 
-def _coincident_peak(agents) -> float:
+def _coincident_peak(agents, realized: bool = False) -> float:
     """The largest total load the fleet draws in any one period.
 
     Distinct from the sum of each agent's own maximum, which is larger whenever
     the buses peak at different times and is never actually drawn.
+
+    `realized` chooses which of the two profiles it measures. The forecast is
+    the right one for a target stated as a forecast; the realized load is the
+    right one for a target stated as what the network actually carries.
     """
     if not agents:
         return 0.0
-    total = np.sum([np.asarray(a.load_forecast, dtype=float) for a in agents],
+    key = "load_real" if realized else "load_forecast"
+    total = np.sum([np.asarray(getattr(a, key), dtype=float) for a in agents],
                    axis=0)
     return float(np.max(total))
 
@@ -327,22 +458,42 @@ def _price_rng(cfg: dict):
     return np.random.RandomState(int(seed)) if seed is not None else np.random
 
 
-def day_ahead_price_china(T: int = 96, agents=None, config=None) -> np.ndarray:
-    """Generate day-ahead price curve.
+def day_ahead_price_china(T: int = 96, agents=None, config=None,
+                          t_start: int = 0, day_id=None) -> np.ndarray:
+    """The price at the point of common coupling, from whichever market is configured.
 
-    Routes to the configured forecast method (defaults.yaml price_curve.forecast_method):
-      - "merit_order": builds supply/demand stacks from agent fundamentals, so
-        the price reflects actual net-load conditions (tight supply → high price,
-        excess RE → low / negative price). Requires *agents* and *config*.
-      - "synthetic": legacy sinusoidal model — no agents needed.
+    This is a routing shim. Which market prices the day is
+    `wholesale_market.source` in config/defaults.yaml, resolved in one place by
+    `wholesale_price.get_provider`; nothing downstream asks which one it holds.
+
+      - "synthetic_v1" / "library": an external market's own demand, renewables
+        and supply stack. The price is a function of the external system only,
+        so this network's dispatch cannot move the price it bids against, and
+        `agents` is accepted and deliberately ignored.
+      - "legacy": the retired merit-order map, which derives the price from
+        `agents` themselves. Kept so recorded results still reproduce; it is
+        not a market, it is an accounting identity, and it is not for new work.
+      - "guangdong": the phase-two slot, which raises until given a series.
+
+    `t_start` and `T` select a window of the day. A rolling-horizon caller must
+    pass `t_start`: an agent-independent market cannot infer which periods a
+    window covers from the agent list the way the retired map could, because
+    its windows were aligned only by the window's own agents carrying the
+    window's own net load. `day_id` selects the library day.
     """
-    cfg = get_default("price_curve", {})
-    method = cfg.get("forecast_method", "synthetic")
+    from wholesale_price import get_provider, current_source
 
-    if method == "merit_order" and agents is not None and len(agents) > 0:
-        return _forecast_price_merit_order(agents, T, config, cfg)
-    else:
+    if current_source() == "legacy":
+        cfg = get_default("price_curve", {})
+        method = cfg.get("forecast_method", "synthetic")
+        if method == "merit_order" and agents is not None and len(agents) > 0:
+            return _forecast_price_merit_order(agents, T, config, cfg)
         return _forecast_price_synthetic(T, cfg)
+
+    provider = get_provider()
+    if day_id is None:
+        day_id = int(get_default("wholesale_market.day_id", 0) or 0)
+    return provider.get_day_ahead_price(day_id, T=T, t_start=t_start)
 
 
 def _forecast_price_synthetic(T: int, cfg: dict) -> np.ndarray:
@@ -384,7 +535,24 @@ def _forecast_price_synthetic(T: int, cfg: dict) -> np.ndarray:
 
 
 def _forecast_price_merit_order(agents, T: int, config, cfg: dict) -> np.ndarray:
-    """Build supply/demand stacks from agent fundamentals for each period.
+    """LEGACY / DIAGNOSTIC ONLY. The retired net-load price map.
+
+    Superseded by `wholesale_price`, which prices the day from an *external*
+    market's own demand, renewables and supply stack. Reachable only through
+    `wholesale_market.source: legacy`, which exists so results recorded before
+    the external market existed can still be reproduced.
+
+    Do not build new results on it, and do not add parameters to it. It maps
+    this network's own net load affinely to price, which makes the price a
+    function of the dispatch it is pricing -- a battery bidding into it moves
+    the number it is settled at -- and it has no supply-side structure: the
+    declared floor and cap are both unreachable at any load this network can
+    present, so the whole reachable range is one straight line. The
+    market-opportunity audit identified that flatness as the reason the
+    strategic-bidding signal was under-excited, and it is why this function
+    was retired rather than retuned.
+
+    Build supply/demand stacks from agent fundamentals for each period.
 
     Approach (inspired by ASSUME's calculate_naive_price):
       1. Compute total demand per period (sum of load forecasts).

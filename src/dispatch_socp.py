@@ -1,6 +1,22 @@
 # dispatch_socp.py
 """SOCP (Second-Order Cone Programming) OPF for radial distribution networks.
 
+**The primary engine of this study.** Every reported market result -- the
+baseline ladder, the paired counterfactual evaluation and the RL environment --
+is cleared here. `dispatch_ldf` and `dispatch_dc` are auxiliary engines kept
+for sensitivity work and differ from this one in ways that change the economic
+quantities; see `docs/2026-09-18-dispatch-engine-semantics.md` for the table.
+
+Two properties in particular are only this engine's, and both are load-bearing
+for the payoff accounting:
+
+- Every battery, independent or prosumer-attached, is valued at its **own
+  declared bid and offer**, never at the wholesale or nodal price. Charging is
+  costed on both legs plus `storage.cycle_cost`, so a unit cycles only when the
+  day's spread covers its quotes and its round trip.
+- Prices come straight from the power-balance duals, with no marginal-loss
+  post-correction, and losses are carried inside the cone as `r * I_sq`.
+
 Solves the DistFlow equations with exact SOCP relaxation, which is
 computationally exact for radial networks under mild conditions.
 
@@ -32,8 +48,6 @@ try:
 except ImportError:
     _HAS_GUROBI = False
 
-DT_HOURS = 0.25
-
 # Storage charge/discharge exclusivity settings accepted by the batch solvers.
 #   "off"           no binaries anywhere; relies on the bid cap alone.
 #   "binary"        exact exclusive-or on every storage unit.
@@ -53,6 +67,33 @@ def _validate_exclusive_mode(config):
         raise ValueError(
             f"unknown storage.exclusive_mode {mode!r}; "
             f"expected one of {EXCLUSIVE_MODES}")
+
+
+def _add_independent_storage(obj, su, ch, dis, soc, T, dt_scale, disc_T,
+                             terminal_value, cycle_cost):
+    """Add one independent storage unit's objective terms to ``obj``.
+
+    The first pass and the nodal re-solve both build this unit's contribution
+    through here. Written out twice they disagreed on the sign of the charge
+    leg, and the disagreement is silent: the re-solve overwrites the objective
+    with ``setObjective``, so the dispatch simply followed whichever sign the
+    re-solve happened to carry while the reported prices came from it too. One
+    construction means there is no second sign to get wrong.
+
+    Both legs are costs, because the unit's quote is what it asks to be paid
+    for the direction it is moving in -- charging at a declared price is the
+    unit buying, not a source of value. A quote below ``-cycle_cost`` would
+    flip the combined coefficient; see ``check_storage_quote_signs``.
+    """
+    nm = su.name
+    for t in range(T):
+        obj -= su.bid_value * ch[nm][t] * dt_scale
+        obj -= su.offer_cost * dis[nm][t] * dt_scale
+        if cycle_cost > 0:
+            obj -= cycle_cost * (ch[nm][t] + dis[nm][t]) * dt_scale
+    # Terminal SOC is an energy (MWh) times a price, so it is already money and
+    # is not scaled again.
+    obj += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
 
 
 def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
@@ -560,16 +601,12 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         obj += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
 
     for su in storage_units:
-        nm = su.name
         check_storage_quote_signs(su.bid_value, su.offer_cost,
-                                  config.storage.cycle_cost, f"storage {nm}")
-        for t in range(T):
-            obj -= su.bid_value * ch[nm][t] * dt_scale
-            obj -= su.offer_cost * dis[nm][t] * dt_scale
-            if config.storage.cycle_cost > 0:
-                obj -= config.storage.cycle_cost \
-                    * (ch[nm][t] + dis[nm][t]) * dt_scale
-        obj += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
+                                  config.storage.cycle_cost,
+                                  f"storage {su.name}")
+        _add_independent_storage(obj, su, ch, dis, soc, T, dt_scale,
+                                 disc_T, terminal_value,
+                                 config.storage.cycle_cost)
 
     m.setObjective(obj, GRB.MAXIMIZE)
     # --- Solve ---
@@ -640,14 +677,9 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             for a in storage_agents:
                 obj2 += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
             for su in storage_units:
-                nm = su.name
-                for t in range(T):
-                    obj2 += su.bid_value * ch[nm][t] * dt_scale
-                    obj2 -= su.offer_cost * dis[nm][t] * dt_scale
-                    if config.storage.cycle_cost > 0:
-                        obj2 -= config.storage.cycle_cost \
-                            * (ch[nm][t] + dis[nm][t]) * dt_scale
-                obj2 += disc_T * terminal_value * soc[nm][T] * su.storage.e_max
+                _add_independent_storage(obj2, su, ch, dis, soc, T, dt_scale,
+                                         disc_T, terminal_value,
+                                         config.storage.cycle_cost)
 
             m.setObjective(obj2, GRB.MAXIMIZE)
             m.optimize()
@@ -696,7 +728,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
             'storage_mode': ['idle'] * T,
         }
-    market_objective = m.ObjVal
+    clearing_objective = m.ObjVal
     total_re_avail = sum(
         (np.sum(a.pv_forecast if stage == "DA" else a.pv_real)
          + (np.sum(a.wind_forecast if stage == "DA" else a.wind_real)
@@ -769,13 +801,13 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         "price": lmp.mean(axis=1),
         "lmp": lmp,
         "schedules": schedules,
-        # The clearing model's own optimization objective, in CNY. It is neither
-        # a participant payoff nor social welfare: it values each storage unit
-        # at that unit's declared bid and offer rather than at the settlement
-        # price, so it cannot be read as anyone's profit. `welfare` is kept as
-        # an alias for existing readers; new code should use `objective`.
-        "objective": market_objective,
-        "welfare": market_objective,
+        # The clearing model's own optimization objective, in CNY. It is
+        # neither a participant payoff nor social welfare: it values each
+        # storage unit at that unit's declared bid and offer rather than at the
+        # settlement price, so it cannot be read as anyone's profit. The two
+        # are different quantities and only the settlement one is money a
+        # participant keeps -- see `participant_payoff`.
+        "clearing_objective": clearing_objective,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_avail,
         "carbon_emissions": carbon_emissions,

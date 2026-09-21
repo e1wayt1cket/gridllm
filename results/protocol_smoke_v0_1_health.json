@@ -1,0 +1,45 @@
+{
+  "all_passed": true,
+  "band": [
+    0.93,
+    1.05
+  ],
+  "checks": {
+    "no_corner_collapse": true,
+    "no_nan": true,
+    "non_degenerate_actions": true,
+    "stable_clearing": true,
+    "terminal_soc_equality": true,
+    "valid_actions": true,
+    "valid_soc": true
+  },
+  "dev_penalty": 0.25,
+  "episodes": 24,
+  "rows": [
+    {
+      "actions_out_of_box": 0,
+      "blocks_cleared": 576,
+      "clearing_fallbacks": 0,
+      "clearing_stable": true,
+      "corner_fraction": 0.003689236111111111,
+      "dev_penalty": 0.25,
+      "episodes": 24,
+      "final_critic_loss": null,
+      "mean_deviation": 0.5170341812477246,
+      "nan_seen": false,
+      "quote_max": 299.1968688964844,
+      "quote_min": 0.017156222835183144,
+      "quote_spread_mean": 24.539719573442355,
+      "seed": 1,
+      "soc_max_seen": 0.6149987286727595,
+      "soc_min_seen": 0.16032616310432252,
+      "soc_out_of_range": 0,
+      "terminal_soc": {
+        "max_terminal_soc_gap": 0.0,
+        "settled_clean": true
+      }
+    }
+  ],
+  "rung": "B3",
+  "scenario": "typical_day"
+}

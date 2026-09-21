@@ -1,5 +1,17 @@
 # dispatch_ldf.py
-"""LinDistFlow OPF solvers: single-period + multi-period batch with storage SOC coupling."""
+"""LinDistFlow OPF solvers: single-period + multi-period batch with storage SOC coupling.
+
+An AUXILIARY engine. It is voltage-aware and multi-period like the SOCP engine
+-- the primary one -- but it values a prosumer-attached battery at the
+wholesale price (and, in the nodal re-solve, at the nodal price) where the SOCP
+values it at that unit's own declared bid and offer, and it post-corrects
+non-slack duals with a marginal-loss factor the SOCP does not apply. Its prices
+are therefore not the SOCP's prices. Independent storage units are declared-quote
+valued in both, so the fleet's own economics do agree.
+
+Use it for sensitivity, never as the market a result is reported from. See
+`docs/2026-09-18-dispatch-engine-semantics.md` for the full comparison.
+"""
 
 from collections import deque
 
@@ -966,7 +978,7 @@ class _CachedOPFModel:
                 'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
                 'storage_mode': ['idle'] * T,
             }
-        market_objective = m.ObjVal
+        clearing_objective = m.ObjVal
         total_re_avail = sum(
             (np.sum(a.pv_forecast if stage == "DA" else a.pv_real)
              + (np.sum(a.wind_forecast if stage == "DA"
@@ -1082,10 +1094,10 @@ class _CachedOPFModel:
             "lmp": lmp,
             "schedules": schedules,
             # The clearing model's own optimization objective, in CNY. It is
-            # neither a participant payoff nor social welfare; `welfare` is kept
-            # as an alias for existing readers, new code should use `objective`.
-            "objective": market_objective,
-            "welfare": market_objective,
+            # neither a participant payoff nor social welfare: it values each
+            # unit at that unit's declared bid and offer rather than at the
+            # settlement price, so it cannot be read as anyone's profit.
+            "clearing_objective": clearing_objective,
             "re_consumption_rate": re_rate,
             "total_re_available": total_re_avail,
             "carbon_emissions": carbon_emissions,

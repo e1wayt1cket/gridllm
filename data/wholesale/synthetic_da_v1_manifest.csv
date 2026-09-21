@@ -1,0 +1,2 @@
+version,seed,generator,price_floor,price_cap,noise_sigma,scarcity_probability,supply_stack,number_of_days,resolution_minutes,r_min_mw,r_max_mw,normalization,library_sha256,rows
+synthetic_da_v1,20260920,wholesale_price.SyntheticWholesalePriceProvider,120.0,1000.0,15.0,0.01,"{""knots"": [0.0, 0.25, 0.5, 0.7, 0.85, 1.0], ""prices"": [160.0, 190.0, 260.0, 400.0, 600.0, 900.0], ""slopes"": [120.0, 280.0, 700.0, 1333.3333333333333, 2000.0]}",40,15,29.67104437506668,190.4691422791851,minmax_over_library,b9fc3e8f8243fc1ceeabc942196e1f16c7e2ad07af66866b4c7ce6c0ca5700ad,3840

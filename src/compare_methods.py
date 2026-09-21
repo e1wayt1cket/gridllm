@@ -1,6 +1,7 @@
 """Compare weighted-sum vs constraint-based multi-objective optimization.
 
-Runs both methods on the baseline scenario and compares welfare, RE rate,
+Runs both methods on the baseline scenario and compares the clearing
+objective, RE rate,
 carbon emissions, solve time, feasibility, and shadow prices.
 
 Usage:
@@ -30,7 +31,7 @@ def run_one(config, label):
         return {
             "label": label,
             "feasible": True,
-            "welfare": results["welfare"],
+            "clearing_objective": results["clearing_objective"],
             "re_rate": results["re_consumption_rate"],
             "carbon": results["carbon_emissions"],
             "carbon_intensity": results["carbon_intensity"],
@@ -77,13 +78,13 @@ def main():
         rows.append(run_one(cfg, f"Constraint: C<={cap} + RE>={rate}%"))
 
     # ---- Print table ----
-    print(f"{'Method':<45} {'Welfare':>10} {'RE%':>7} {'Carbon':>8} {'Curtail':>9} {'Time':>6} {'Shadow C':>10} {'Shadow RE':>10}")
+    print(f"{'Method':<45} {'Objective':>10} {'RE%':>7} {'Carbon':>8} {'Curtail':>9} {'Time':>6} {'Shadow C':>10} {'Shadow RE':>10}")
     print("-" * 120)
     for r in rows:
         if not r["feasible"]:
             print(f"{r['label']:<45} {'INFEASIBLE':>10}")
             continue
-        w = r['welfare']
+        w = r['clearing_objective']
         re_r = r['re_rate']
         c = r['carbon']
         curt = r['curtailment']
@@ -98,23 +99,23 @@ def main():
     # ---- Analysis ----
     print("\n=== Analysis ===")
     ws = rows[0]
-    print(f"WeightedSum welfare: {ws['welfare']:.0f}, RE: {ws['re_rate']:.1f}%, Carbon: {ws['carbon']:.1f}")
+    print(f"WeightedSum objective: {ws['clearing_objective']:.0f}, RE: {ws['re_rate']:.1f}%, Carbon: {ws['carbon']:.1f}")
 
     # Find constraint runs with similar RE rate to WS
     for r in rows[1:]:
         if r['feasible'] and 'RE>=' in r['label']:
             diff = abs(r['re_rate'] - ws['re_rate'])
             if diff < 2:
-                w_diff = r['welfare'] - ws['welfare']
-                print(f"  {r['label']}: welfare delta={w_diff:+.0f} vs WS")
+                w_diff = r['clearing_objective'] - ws['clearing_objective']
+                print(f"  {r['label']}: objective delta={w_diff:+.0f} vs WS")
 
     # Find constraint runs with similar carbon to WS
     for r in rows[1:]:
         if r['feasible'] and 'carbon<=' in r['label'] and 'RE' not in r['label']:
             diff = abs(r['carbon'] - ws['carbon'])
             if diff < 20:
-                w_diff = r['welfare'] - ws['welfare']
-                print(f"  {r['label']}: welfare delta={w_diff:+.0f} vs WS (carbon diff={r['carbon']-ws['carbon']:+.1f})")
+                w_diff = r['clearing_objective'] - ws['clearing_objective']
+                print(f"  {r['label']}: objective delta={w_diff:+.0f} vs WS (carbon diff={r['carbon']-ws['carbon']:+.1f})")
 
     # Interpret shadow prices
     print("\nShadow price interpretation:")
@@ -123,10 +124,10 @@ def main():
             sp = r['shadow_prices']
             if 'carbon_cap' in sp and sp['carbon_cap'] is not None and abs(sp['carbon_cap']) > 1e-6:
                 print(f"  {r['label']}: carbon shadow = {sp['carbon_cap']:.2f} CNY/tCO2 "
-                      f"(marginal welfare gain per unit relaxation)")
+                      f"(marginal objective gain per unit relaxation)")
             if 're_min_rate' in sp and sp['re_min_rate'] is not None and abs(sp['re_min_rate']) > 1e-6:
                 print(f"  {r['label']}: RE shadow = {sp['re_min_rate']:.2f} CNY/% "
-                      f"(marginal welfare cost per 1% tighter RE constraint)")
+                      f"(marginal objective cost per 1% tighter RE constraint)")
 
     print("\nDone.")
 
@@ -135,7 +136,7 @@ def pareto_scan():
     """Grid-scan carbon caps and RE rates to map the Pareto frontier.
 
     Sweeps carbon_cap_tco2 over [20, 300] and re_min_rate over [0.3, 1.0],
-    recording (welfare, carbon, re_rate) for every feasible point.
+    recording (clearing objective, carbon, re_rate) for every feasible point.
     Computes the non-dominated set and prints a summary.
     """
     carbon_range = np.linspace(20, 300, 6)
@@ -165,7 +166,7 @@ def pareto_scan():
                         "carbon_cap": float(c_cap),
                         "re_rate_target": float(r_rate),
                         "feasible": True,
-                        "welfare": res["welfare"],
+                        "clearing_objective": res["clearing_objective"],
                         "carbon": res["carbon_emissions"],
                         "re_rate_actual": res["re_consumption_rate"],
                         "curtailment": res["total_curtailment"],
@@ -201,17 +202,17 @@ def pareto_scan():
         for r in infeasible[:5]:
             print(f"    C<={r['carbon_cap']}, RE>={r['re_rate_target']}")
 
-    # Compute Pareto frontier: non-dominated in (carbon, welfare) space
-    # A point dominates another if it has BOTH lower carbon AND higher welfare.
+    # Compute Pareto frontier: non-dominated in (carbon, objective) space
+    # A point dominates another if it has BOTH lower carbon AND a higher objective.
     pareto = []
     for i, a in enumerate(feasible):
         dominated = False
         for j, b in enumerate(feasible):
             if i == j:
                 continue
-            # b dominates a: b has lower carbon AND higher welfare
-            if b["carbon"] <= a["carbon"] and b["welfare"] >= a["welfare"]:
-                if b["carbon"] < a["carbon"] or b["welfare"] > a["welfare"]:
+            # b dominates a: b has lower carbon AND a higher objective
+            if b["carbon"] <= a["carbon"] and b["clearing_objective"] >= a["clearing_objective"]:
+                if b["carbon"] < a["carbon"] or b["clearing_objective"] > a["clearing_objective"]:
                     dominated = True
                     break
         if not dominated:
@@ -221,27 +222,27 @@ def pareto_scan():
     pareto.sort(key=lambda r: r["carbon"])
 
     print(f"\nPareto frontier ({len(pareto)} points):")
-    print(f"{'Carbon Cap':>11} {'RE Target':>10} {'Welfare':>10} {'Carbon':>9} {'RE Act%':>8} {'Curtail':>9} {'C-Slack':>9} {'RE-Slack':>9}")
+    print(f"{'Carbon Cap':>11} {'RE Target':>10} {'Objective':>10} {'Carbon':>9} {'RE Act%':>8} {'Curtail':>9} {'C-Slack':>9} {'RE-Slack':>9}")
     print("-" * 85)
     for r in pareto:
-        print(f"{r['carbon_cap']:11.0f} {r['re_rate_target']:10.2f} {r['welfare']:10.0f} "
+        print(f"{r['carbon_cap']:11.0f} {r['re_rate_target']:10.2f} {r['clearing_objective']:10.0f} "
               f"{r['carbon']:9.1f} {r['re_rate_actual']:7.1f}% {r['curtailment']:9.1f} "
               f"{r['carbon_slack']:9.2f} {r['re_slack']:9.2f}")
 
-    # Carbon-welfare trade-off summary
+    # Carbon-objective trade-off summary
     if len(pareto) >= 2:
-        best_w = pareto[-1]  # highest welfare (relaxed constraints)
+        best_w = pareto[-1]  # highest objective (relaxed constraints)
         best_c = pareto[0]   # lowest carbon (tightest constraints)
         print(f"\nTrade-off summary:")
-        print(f"  Min carbon: {best_c['carbon']:.1f} tCO2 → welfare {best_c['welfare']:.0f} CNY "
+        print(f"  Min carbon: {best_c['carbon']:.1f} tCO2 → objective {best_c['clearing_objective']:.0f} CNY "
               f"(cap={best_c['carbon_cap']:.0f}, slack={best_c['carbon_slack']:.2f})")
-        print(f"  Max welfare: {best_w['welfare']:.0f} CNY → carbon {best_w['carbon']:.1f} tCO2 "
+        print(f"  Max objective: {best_w['clearing_objective']:.0f} CNY → carbon {best_w['carbon']:.1f} tCO2 "
               f"(cap={best_w['carbon_cap']:.0f})")
-        delta_w = best_w['welfare'] - best_c['welfare']
+        delta_w = best_w['clearing_objective'] - best_c['clearing_objective']
         delta_c = best_c['carbon'] - best_w['carbon']
         if delta_c > 0:
             print(f"  Abatement cost: {delta_w/delta_c:.0f} CNY/tCO2 "
-                  f"(welfare reduction per tonne CO2 avoided)")
+                  f"(objective reduction per tonne CO2 avoided)")
 
     print("\nPareto scan done.")
 

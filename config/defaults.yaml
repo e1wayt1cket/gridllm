@@ -40,23 +40,28 @@ profiles:
     noise_std: 0.15
     peak_hour: 3.0
   load:
-    # Fleet-wide load level, stated as the quantity it is meant to be: the
-    # coincident peak, which is the largest the whole network draws in any one
-    # period. The scale factor that produces it is derived from the unscaled
-    # profiles at build time, so the target stays true when the profile shapes,
-    # the per-bus ratings or the noise seeds change. It multiplies the load
-    # profiles only, so it sets the energy the network serves without resizing
-    # the PV, wind and batteries whose capacity is derived from `base_load`.
+    # There is deliberately no load level here. How large a day is belongs to
+    # the scenario that declares it (`load_scale_mode` / `peak_load_mw` in
+    # config/scenarios.yaml), not to the benchmark's defaults: a single number
+    # here would simultaneously mean "the benchmark's demand", "this study's
+    # operating scale" and "what the renewables were sized against", and no
+    # reader could tell which.
     #
-    # The peak quoted in the baseline report used to be the sum of each agent's
-    # own maximum, which is a larger number reached at no single instant (11.0
-    # MW against 9.77 MW coincident) and is reported separately as a diagnostic.
-    target_peak_mw: 10.0
-    # Explicit override. Set, it wins over `target_peak_mw`; null derives the
-    # scale from the target. This is what the parameter sweeps drive.
+    # Explicit per-run override, used by the parameter sweeps. Set, it wins
+    # over whatever the scenario declared; null derives the scale from that
+    # declaration.
     load_scale: null
     forecast_noise_sigma: 0.06
     real_noise_sigma: 0.12
+    # The seeds behind the day's demand error. Under the `native` shape every
+    # bus shares one factor per period, so these two decide the day's level at
+    # a fixed shape -- which is what a multi-day ensemble varies to get days
+    # that differ from one another without changing the load the network was
+    # built for. The values are the literals these were hardcoded to, so
+    # leaving them alone reproduces every result recorded before the keys
+    # existed.
+    forecast_noise_seed: 100000
+    real_noise_seed: 100001
     morning_peak_hour: 8.0
     morning_peak_amplitude: 0.40
     morning_peak_width: 1.5
@@ -92,7 +97,6 @@ load_types:
 prosumers:
   residential:
     prosumer_buses: [5, 21]
-    pv_capacity_factor: 3.5
     pv_forecast_noise: 0.35
     pv_real_noise: 0.40
     storage:
@@ -108,15 +112,12 @@ prosumers:
     offer_cost: 180.0
     bus_overrides:
       5:
-        pv_capacity_scale: 0.0
         storage:
           soc0: 0.3
           soc_min: 0.05
           soc_max: 0.95
           power_ratio_mult: 1.5
       21:
-        # 2.0 MW against a 0.081 MW load at pv_capacity_factor 3.5
-        pv_capacity_scale: 7.054674
         storage:
           soc0: 0.75
           eta_ch: 0.90
@@ -124,10 +125,8 @@ prosumers:
           power_ratio_mult: 1.8
   industrial:
     prosumer_buses: [16, 23, 25, 30]
-    wind_capacity_factor: 3.5
     wind_forecast_noise: 0.12
     wind_real_noise: 0.18
-    pv_capacity_factor: 2.5
     pv_forecast_noise: 0.35
     pv_real_noise: 0.40
     storage:
@@ -149,16 +148,11 @@ prosumers:
           soc0: 0.5
           soc_max: 0.95
           power_ratio_mult: 1.2
-        wind_capacity_scale: 0.0
       23:
         storage:
           eta_ch: 0.96
           eta_dis: 0.96
           soc_max: 0.98
-        pv: true
-        # 1.5 MW against a 0.462 MW load at pv_capacity_factor 2.5
-        pv_capacity_scale: 1.298701
-        wind_capacity_scale: 0.0
       25:
         storage:
           eta_ch: 0.78
@@ -166,9 +160,6 @@ prosumers:
           soc0: 0.35
           soc_max: 0.85
           power_ratio_mult: 1.5
-        pv: true
-        pv_capacity_scale: 0.0
-        wind_capacity_scale: 0.0
       30:
         storage:
           eta_ch: 0.85
@@ -176,10 +167,6 @@ prosumers:
           soc0: 0.25
           soc_max: 0.88
           power_ratio_mult: 0.7
-        pv: true
-        pv_capacity_scale: 0.0
-        # 1.5 MW against a 0.165 MW load at wind_capacity_factor 3.5
-        wind_capacity_scale: 2.597403
 
 non_prosumer_storage:
   enabled: false
@@ -225,9 +212,19 @@ independent_storage:
   # Read together with the DER placement above: PV sits at 21/23 and wind at
   # 30, and a battery is never placed on a bus that carries either, which is
   # the spatial separation the network has always had.
-  buses: [2, 12, 13, 19]
-  capacity_mwh: 4.0
-  # Power follows from capacity: 4.0 MWh at 0.25 gives the 1.0 MW rating.
+  # Sited at the native scale by `src/ess_siting.py`: B0 operating-point-based
+  # finite-difference voltage self-sensitivity screening (candidate pool =
+  # non-slack, non-renewable, S >= 25% of max), then a highest-sensitivity
+  # seed spread by max-min pairwise series resistance. See
+  # `docs/2026-09-19-native-ess-resize.md`.
+  buses: [9, 14, 17, 27]
+  # Sized against the native system rather than the old 10 MW study scale. At
+  # 4.0 MWh each the fleet's power rating was 4 MW against a 3.715 MW system
+  # peak -- larger than every load on the network draws at its busiest instant
+  # -- and two of the four units had no market activity at all. 1.6 MWh each
+  # puts the fleet at 1.6 MW, 43% of the peak.
+  capacity_mwh: 1.6
+  # Power follows from capacity: 1.6 MWh at 0.25 gives the 0.4 MW rating.
   power_ratio: 0.25
   eta_ch: 0.92
   eta_dis: 0.92
@@ -342,3 +339,105 @@ price_curve:
   hard_max: 1200.0
   spike_probability: 0.0
   spike_magnitude: 300.0
+
+# The price at the point of common coupling, and where it comes from.
+#
+# A top-level block rather than a field of MarketConfig, following
+# `price_curve`: it is read with `config_loader.get_default`, so it needs no
+# dataclass field and no YAML_FIELD_MAP entry. `price_curve` above is the
+# retired map, kept reachable as `source: legacy` so recorded results still
+# reproduce; nothing should select it for new work.
+#
+# `wholesale` is the PCC price. It is NOT the nodal price inside the feeder --
+# that is `lmp`, recovered from the power-balance duals of the network-
+# constrained clearing. The two are different quantities at different levels.
+wholesale_market:
+  # legacy | synthetic_v1 | library | guangdong
+  #
+  # `synthetic_v1` prices from an external market with its own demand, its own
+  # renewables and its own supply stack, so the distribution network's own
+  # dispatch cannot move the price it is bidding against. `library` reads the
+  # committed CSV back and refuses it if its recorded yardstick disagrees with
+  # this configuration. `guangdong` is the phase-two slot and raises until it
+  # is given a series.
+  source: legacy
+  # Which library day to price when a caller does not name one. Moved with
+  # `set_default`, the way `profiles.load.load_scale` is, so the ten places
+  # that create a wholesale price curve need no new argument.
+  #
+  # This is the library's REFERENCE DAY: the day whose price range is the
+  # library's median, so that a single-day diagnostic reports a typical day of
+  # this market rather than an extreme one. The criterion is the market's own
+  # price range and nothing economic -- no profit, no margin, no fleet
+  # outcome enters it.
+  #
+  # It is declared rather than derived. Day 0 happens to be the flattest of the
+  # forty (range 236 CNY/MWh against a median of 434), so leaving the default
+  # at 0 would have made every single-day result in the project -- the baseline
+  # ladder, the siting screen, the typical-day diagnosis -- report the mildest
+  # day in the library and read as though the market had no arbitrage in it.
+  # A test asserts this number is still the median-range day, so rebuilding the
+  # library fails loudly and forces the choice to be remade rather than
+  # silently drifting to a different day.
+  day_id: 11
+  library_file: data/wholesale/synthetic_da_v1.csv
+  master_seed: 20260920
+  number_of_days: 40
+  price_floor: 120.0
+  price_cap: 1000.0
+  # Noise rides on the stack but must not dominate it: at 15 CNY/MWh against a
+  # stack spanning 160 to 900 it perturbs which segment a period sits in
+  # without deciding the day's level.
+  noise_sigma: 15.0
+  # A rare tight period, NOT a profit generator. The marginal resource
+  # switching to something dear is a real feature of a supply stack and its
+  # probability is fixed; raising it to make a battery's day look better would
+  # be tuning the market to the result.
+  scarcity_probability: 0.01
+  scarcity_min: 150.0
+  scarcity_max: 300.0
+  # A continuous piecewise-linear supply stack over the normalized net load r.
+  #
+  # Knots and prices alone do NOT determine this curve -- the five segments
+  # have five different slopes -- so the slopes are carried explicitly rather
+  # than re-derived. The middle slope is the exact rational 200/0.15; writing
+  # 1333.0 instead would put a 0.05 CNY/MWh step at r=0.85, in a curve whose
+  # whole point is that it is continuous.
+  #
+  # Slopes are non-decreasing, which is what makes this a supply stack rather
+  # than a fitted line: as cheap capacity is used up the marginal resource
+  # gets dearer, so price rises faster near the peak than it does near the
+  # trough. The retired map was one affine response across its whole reachable
+  # range, and that flatness is what the market-opportunity audit identified
+  # as the reason the strategic-bidding signal was under-excited.
+  supply_stack:
+    knots:  [0.00, 0.25, 0.50, 0.70, 0.85, 1.00]
+    prices: [160.0, 190.0, 260.0, 400.0, 600.0, 900.0]
+    slopes: [120.0, 280.0, 700.0, 1333.3333333333333, 2000.0]
+  # The external market's own demand and renewables. Levels are in arbitrary
+  # MW: only the ratio of demand to PV to wind reaches the price, through the
+  # normalized net load. They are a declared modelling choice, and they are
+  # read from HERE and never from `profiles.*`, which describe the distribution
+  # network -- a price that moved when IEEE33's load moved would be a function
+  # of the dispatch it is pricing.
+  external_system:
+    demand_peak_mw: 100.0
+    pv_capacity_mw: 25.0
+    wind_capacity_mw: 20.0
+    # Day-to-day variation, drawn from `master_seed + day_id`. The shape
+    # parameters below are the mean the draws move around.
+    demand_amplitude_range: [0.80, 1.20]
+    pv_intensity_range: [0.70, 1.30]
+    wind_intensity_range: [0.65, 1.35]
+    peak_hour_jitter: 1.0
+    morning_peak_hour: 8.0
+    evening_peak_hour: 19.0
+    morning_peak_amplitude: 0.30
+    evening_peak_amplitude: 0.55
+    morning_peak_width: 3.0
+    evening_peak_width: 4.0
+    night_base: 0.55
+    pv_cloud_prob: 0.15
+    wind_ar_coef: 0.90
+    wind_noise_std: 0.15
+    wind_peak_hour: 3.0

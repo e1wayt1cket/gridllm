@@ -8,14 +8,14 @@ is energy sold minus energy bought at the nodal price, less degradation (see
 
 It takes part in the market the same way every other participant does. It
 declares what it will pay to charge and what it asks to discharge; the clearing
-decides whether to take either, and settlement happens at the nodal price. The
-declared prices are anchored to an economically meaningful level rather than
-inherited from the local load type, whose willingness to pay for consumption has
-no meaning for a battery. That level is a margin on the unit's own degradation
-cost, not the market price: the clearing costs charging at the declared bid, so
-a unit cycles only when the day's spread covers both quotes and the round trip,
-and an anchor set to the mean wholesale price demands a spread no day offers.
-See `StorageConfig.quote_anchor`.
+decides whether to take either, and settlement happens at the nodal price.
+
+Those declared prices are the unit's own, in CNY/MWh, not a multiplier on a
+level inherited from somewhere else. The local load type's willingness to pay
+for consumption means nothing for a battery, and no anchor is imposed: the
+unit declares no premium on either leg at truthful, and the round trip is
+costed separately as `storage.cycle_cost` on both legs. A unit therefore cycles
+only when the day's spread covers both quotes and that cycle cost.
 """
 
 from typing import List, Optional

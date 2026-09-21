@@ -1,5 +1,5 @@
 # tests/test_baseline.py
-"""Regression tests for baseline scenario: welfare, RE rate, carbon."""
+"""Regression tests for baseline scenario: clearing objective, RE, carbon."""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -20,7 +20,7 @@ def _clear_opf_cache():
     _OPF_CACHE.clear()
 
 
-def test_baseline_da_welfare():
+def test_baseline_da_clearing_objective():
     """The baseline day clears into a coherent market.
 
     This used to pin the clearing objective inside a fitted band. A band on that
@@ -37,10 +37,12 @@ def test_baseline_da_welfare():
     actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config, wholesale=wholesale)
 
-    objective = results["objective"]
+    objective = results["clearing_objective"]
     assert np.isfinite(objective), f"objective {objective} is not finite"
-    # `welfare` is kept as an alias for existing readers.
-    assert results["welfare"] == objective
+    # The clearing objective is emitted under exactly one name. It used to be
+    # aliased as `welfare`, which read as a social-welfare figure it never was.
+    assert "welfare" not in results
+    assert "objective" not in results
 
     assert results["lmp"].shape == (T, 33)
     assert results.get("lmp_fallbacks") == 0, \
@@ -84,7 +86,7 @@ def test_baseline_result_schema():
     agents, _ = get_scenario("baseline", T=T)
     actions = adaptive_bidding(agents, config, strategy="rl")
     results = clear_market(agents, T, "DA", actions, config)
-    required = ["price", "lmp", "schedules", "welfare", "re_consumption_rate",
+    required = ["price", "lmp", "schedules", "clearing_objective", "re_consumption_rate",
                 "total_re_available", "carbon_emissions", "carbon_intensity",
                 "total_curtailment"]
     for key in required:
@@ -150,9 +152,9 @@ def test_peak_load_stresses_the_feeder():
     assert uns_p > uns_b * 2, \
         f"peak_load shed {uns_p:.3f} MWh, baseline {uns_b:.3f} MWh: the peak is " \
         f"no longer stressing the feeder"
-    assert r_p["welfare"] < r_b["welfare"], \
-        f"peak_load objective {r_p['welfare']:.0f} not below baseline " \
-        f"{r_b['welfare']:.0f} despite shedding more load"
+    assert r_p["clearing_objective"] < r_b["clearing_objective"], \
+        f"peak_load objective {r_p['clearing_objective']:.0f} not below baseline " \
+        f"{r_b['clearing_objective']:.0f} despite shedding more load"
 
 
 def test_constraint_mode_feasible():
@@ -176,7 +178,7 @@ def test_constraint_mode_feasible():
 def test_congestion_widens_lmp_spread():
     """Redesigned congestion: spatial load concentration against shared line
     limits should widen nodal price divergence vs baseline. The former
-    'welfare no higher' invariant belonged to the old line-capacity-halved
+    'objective no higher' invariant belonged to the old line-capacity-halved
     definition; the unified-facility scenario now isolates a spatial-price
     signal under identical storage and line capacity."""
     T = 96

@@ -18,20 +18,20 @@ import counterfactual_eval as ce
 # Definitions
 # --------------------------------------------------------------------------
 def test_benefit_is_the_difference_in_settled_profit():
-    assert ce.benefit(150.0, 100.0) == pytest.approx(50.0)
-    assert ce.benefit(-50.0, -100.0) == pytest.approx(50.0)
+    assert ce.delta_pi(150.0, 100.0) == pytest.approx(50.0)
+    assert ce.delta_pi(-50.0, -100.0) == pytest.approx(50.0)
 
 
-def test_benefit_rate_uses_the_baseline_magnitude():
+def test_delta_pi_percent_uses_the_baseline_magnitude():
     # Improving on a money-losing baseline is a positive rate, not a negative
     # one: a battery whose day does not cover its degradation still gained.
-    assert ce.benefit_rate(150.0, 100.0) == pytest.approx(0.5)
-    assert ce.benefit_rate(-50.0, -100.0) > 0
-    assert ce.benefit_rate(-50.0, -100.0) == pytest.approx(0.5, rel=1e-4)
+    assert ce.delta_pi_percent(150.0, 100.0) == pytest.approx(0.5)
+    assert ce.delta_pi_percent(-50.0, -100.0) > 0
+    assert ce.delta_pi_percent(-50.0, -100.0) == pytest.approx(0.5, rel=1e-4)
 
 
-def test_benefit_rate_survives_a_zero_baseline():
-    rate = ce.benefit_rate(10.0, 0.0)
+def test_delta_pi_percent_survives_a_zero_baseline():
+    rate = ce.delta_pi_percent(10.0, 0.0)
     assert np.isfinite(rate) and rate > 0
 
 
@@ -89,13 +89,14 @@ def test_paired_arms_must_share_the_price_day():
 def test_headline_leads_with_the_three_numbers_the_question_needs():
     result = {
         "n_days": 3, "seeds_dropped": [9],
-        "fleet": {"benefit": {"mean": 42.0, "positive_rate": 2 / 3},
-                  "benefit_rate": {"mean": 0.25}},
+        "fleet": {"delta_pi": {"mean": 42.0, "positive_rate": 2 / 3},
+                  "delta_pi_percent": {"mean": 0.25}},
     }
     h = ce.headline(result)
-    assert h["mean_benefit"] == pytest.approx(42.0)
-    assert h["mean_benefit_rate"] == pytest.approx(0.25)
-    assert h["positive_rate"] == pytest.approx(2 / 3)
+    assert h["mean_delta_pi"] == pytest.approx(42.0)
+    assert h["mean_delta_pi_percent"] == pytest.approx(0.25)
+    # P(DeltaPi > 0): the share of days the assisted arm earned more.
+    assert h["p_delta_pi_positive"] == pytest.approx(2 / 3)
     assert h["n_days_dropped"] == 1
 
 
@@ -104,10 +105,10 @@ def test_write_csv_puts_the_headline_columns_first(tmp_path):
         "scenario": "baseline", "ai_arm": "rl", "baseline_arm": "truthful",
         "n_days": 2, "seeds_dropped": [],
         "fleet": {q: ce.summarize([1.0, 2.0]) for q in
-                  ("baseline_profit", "ai_profit", "benefit", "benefit_rate")},
+                  ("pi_baseline", "pi_ai", "delta_pi", "delta_pi_percent")},
         "per_agent": {"ESS2": {q: ce.summarize([1.0, 2.0]) for q in
-                               ("baseline_profit", "ai_profit", "benefit",
-                                "benefit_rate")}},
+                               ("pi_baseline", "pi_ai", "delta_pi",
+                                "delta_pi_percent")}},
     }
     path = str(tmp_path / "benefit.csv")
     ce.write_csv(result, path)
@@ -115,6 +116,6 @@ def test_write_csv_puts_the_headline_columns_first(tmp_path):
         header = fh.readline().strip().split(",")
         body = fh.read().strip().splitlines()
     assert header[:7] == ["scenario", "ai_arm", "baseline_arm", "agent",
-                          "n_days", "n_days_dropped", "mean_benefit"]
+                          "n_days", "n_days_dropped", "mean_delta_pi"]
     assert len(body) == 2                      # the fleet row and one agent
     assert body[0].startswith("baseline,rl,truthful,ALL")

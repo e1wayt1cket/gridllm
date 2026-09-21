@@ -84,7 +84,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
     lmp = np.zeros((T, n_buses))
     schedules = empty_schedules(agents, T)
 
-    total_welfare = 0.0
+    total_clearing_objective = 0.0
     total_re_available = 0.0; total_re_used = 0.0
     total_curtailment = 0.0
     carbon_emissions = 0.0
@@ -102,7 +102,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
     prev_soc: dict[str, float] = {}
 
     for t in range(T):
-        success, lmp_t, welfare_t, agent_res, p_grid = solve_opf_gurobi(
+        success, lmp_t, clearing_objective_t, agent_res, p_grid = solve_opf_gurobi(
             base_net, agents, t, stage, prev_soc, wholesale[t],
             action_params, config
         )
@@ -125,7 +125,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
 
         lmp[t] = lmp_t
         schedules['GRID']['g_grid'][t] = p_grid
-        total_welfare += welfare_t
+        total_clearing_objective += clearing_objective_t
         if p_grid > 0:
             carbon_emissions += config.market_design.emission_factor_grid * p_grid * 0.25
 
@@ -166,7 +166,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
         "price": lmp.mean(axis=1),
         "lmp": lmp,
         "schedules": schedules,
-        "welfare": total_welfare,
+        "clearing_objective": total_clearing_objective,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_available,
         "carbon_emissions": carbon_emissions,
@@ -206,7 +206,7 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
             }
 
     prev_soc: dict[str, float] = {}
-    total_welfare = 0.0
+    total_clearing_objective = 0.0
     total_re_available = 0.0
     total_re_used = 0.0
     total_curtailment = 0.0
@@ -324,7 +324,7 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
                         next_soc = ws['soc'][d + 1]
                     prev_soc[nm] = next_soc
 
-            total_welfare += result["welfare"] * (n_commit / window_T)
+            total_clearing_objective += result["clearing_objective"] * (n_commit / window_T)
             carbon_emissions += result.get("carbon_emissions", 0) * (n_commit / window_T)
         else:
             if idx > 0:
@@ -342,7 +342,7 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
         "price": lmp_da.mean(axis=1),
         "lmp": lmp_da,
         "schedules": schedules_da,
-        "welfare": total_welfare,
+        "clearing_objective": total_clearing_objective,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_available,
         "carbon_emissions": carbon_emissions,
@@ -417,7 +417,7 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
         }
 
     prev_soc = {}
-    total_welfare_rt = 0.0
+    total_clearing_objective_rt = 0.0
     carbon_emissions = 0.0
     total_curtailment = 0.0
     total_served_mwh = 0.0
@@ -508,7 +508,7 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
                 if pgi > 0:
                     carbon_emissions += config.market_design.emission_factor_grid * pgi * dt
 
-            total_welfare_rt += result["welfare"] * (n_commit / window_T)
+            total_clearing_objective_rt += result["clearing_objective"] * (n_commit / window_T)
         else:
             if idx > 0:
                 lmp_rt[idx] = lmp_rt[idx - 1]
@@ -521,7 +521,7 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
         "price": lmp_rt.mean(axis=1),
         "lmp": lmp_rt,
         "schedules": schedules_rt,
-        "welfare": total_welfare_rt,
+        "clearing_objective": total_clearing_objective_rt,
         "re_consumption_rate": re_rate,
         "total_re_available": total_re_available,
         "carbon_emissions": carbon_emissions,

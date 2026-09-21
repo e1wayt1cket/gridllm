@@ -24,11 +24,13 @@ import re
 import json
 from typing import List, Optional
 
+from legacy_schema import canonical_name, upgrade_columns, upgrade_row
+
 # Columns every metrics frame is guaranteed to expose, whatever generation of
 # metrics.csv it came from. Readers can address them without a presence check;
 # ones a given file lacks come back empty rather than missing.
 CANONICAL_METRIC_COLUMNS = [
-    "episode", "mean_reward", "welfare", "re_rate", "critic_loss",
+    "episode", "mean_reward", "clearing_objective", "re_rate", "critic_loss",
     "actor_loss", "scenario",
     "q1_mean", "q2_mean", "q_gap",
     "cs_baseline", "cs_rl", "cs_delta",
@@ -159,9 +161,24 @@ def _metrics_columns(run_id: str, root: Optional[str]) -> List[str]:
     if not os.path.exists(path):
         return []
     try:
-        return list(pd.read_csv(path, nrows=0).columns)
+        return upgrade_columns(list(pd.read_csv(path, nrows=0).columns))
     except Exception:
         return []
+
+
+def _upgrade_legacy_columns(frame):
+    """Rename any legacy column names to the canonical ones.
+
+    Files on disk predate the `welfare` -> `clearing_objective` rename and are
+    superseded rather than rewritten; translating on read is what lets a
+    dashboard built against the new schema still show an old run.
+    """
+    if frame.empty and not len(frame.columns):
+        return frame
+    renamed = {c: canonical_name(c) for c in frame.columns}
+    if any(old != new for old, new in renamed.items()):
+        frame = frame.rename(columns=renamed)
+    return frame
 
 
 def list_runs(root: Optional[str] = None,
@@ -201,7 +218,9 @@ def list_runs(root: Optional[str] = None,
             and os.path.isdir(os.path.join(repo_root(), save_dir)),
             "best_episode": kpi.get("best_episode"),
             "best_mean_reward": kpi.get("best_mean_reward"),
-            "best_welfare": kpi.get("best_welfare"),
+            # A manifest written before the rename says `best_welfare`.
+            "best_clearing_objective": upgrade_row(kpi).get(
+                "best_clearing_objective"),
             "final_mean_reward": kpi.get("final_mean_reward"),
             "n_episodes": kpi.get("n_episodes"),
             "early_stopped": kpi.get("early_stopped"),
@@ -228,13 +247,15 @@ def load_metrics(run_id: str, root: Optional[str] = None,
 
     A metrics.csv from an older run is returned as-is with the newer columns
     present but empty, so a consumer never has to branch on schema generation.
+    A column written under a name the project has since renamed is translated
+    to the canonical one on read; see `legacy_schema`.
     """
     pd = _pd()
     path = os.path.join(_run_dir(run_id, root), "metrics.csv")
     frame = pd.DataFrame()
     if os.path.exists(path):
         try:
-            frame = pd.read_csv(path)
+            frame = _upgrade_legacy_columns(pd.read_csv(path))
         except Exception:
             _WARNINGS.append(f"{run_id}: unreadable metrics.csv")
             frame = pd.DataFrame()
@@ -250,16 +271,25 @@ def load_metrics(run_id: str, root: Optional[str] = None,
 
 
 def load_evals(run_id: str, root: Optional[str] = None):
-    """In-training evaluation history; empty when the run recorded none."""
+    """In-training evaluation history; empty when the run recorded none.
+
+    eval.csv holds two grains: one summary row per evaluation, and one row per
+    held-out day of each validation pass. This accessor is the history, so the
+    per-day rows are filtered out -- a caller charting `mean_reward` against
+    `episode` would otherwise be handed rows that carry neither.
+    """
     pd = _pd()
     path = os.path.join(_run_dir(run_id, root), "eval.csv")
     if not os.path.exists(path):
         return pd.DataFrame()
     try:
-        return pd.read_csv(path)
+        frame = _upgrade_legacy_columns(pd.read_csv(path))
     except Exception:
         _WARNINGS.append(f"{run_id}: unreadable eval.csv")
         return pd.DataFrame()
+    if "mean_reward" in frame.columns:
+        frame = frame[frame["mean_reward"].notna()].reset_index(drop=True)
+    return frame
 
 
 # ---------------------------------------------------------------------------
@@ -524,7 +554,7 @@ def list_eval_results(root: Optional[str] = None):
             continue
         path = os.path.join(base, fn)
         try:
-            frame = pd.read_csv(path)
+            frame = _upgrade_legacy_columns(pd.read_csv(path))
         except Exception:
             _WARNINGS.append(f"{fn}: unreadable evaluation CSV")
             continue
@@ -544,7 +574,7 @@ def list_eval_results(root: Optional[str] = None):
 
 # Columns the fleet-level consumer accounting is expressed in.
 FLEET_METRIC_COLUMNS = [
-    "profit_delta", "genuine_welfare_delta", "welfare_delta",
+    "profit_delta", "genuine_clearing_objective_delta", "clearing_objective_delta",
     "cs_baseline", "cs_rl", "cs_delta",
     "cp_baseline", "cp_rl", "cp_delta",
     "lmp_markup_baseline", "lmp_markup_rl", "lmp_markup_delta",
@@ -684,7 +714,7 @@ def pareto_pairs(root: Optional[str] = None,
     fleet = fleet_rows(root, convention=convention,
                        money_convention=money_convention)
     cols = ["policy_label", "scenario", "cs_convention", "money_convention",
-            "profit_delta", "genuine_welfare_delta", "cs_delta", "cp_delta",
+            "profit_delta", "genuine_clearing_objective_delta", "cs_delta", "cp_delta",
             "lmp_markup_delta", "market_power_power",
             "profit_rises", "cs_rises", "conflict"]
     if not len(fleet):

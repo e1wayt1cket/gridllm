@@ -56,7 +56,7 @@ def _print_scenario_summary(scenario, da_results, rt_results, config, is_nash, i
     """Print one-line KPI summary for a scenario."""
     n_prof = sum(1 for v in (improvements or {}).values() if v.get("profitable"))
     nash_str = f"Nash={'Y' if is_nash else 'N'}(prof={n_prof})" if is_nash is not None else "Nash=skip"
-    print(f"  {scenario:16s} | W={da_results['welfare']:>10,.1f} | "
+    print(f"  {scenario:16s} | W={da_results['clearing_objective']:>10,.1f} | "
           f"RE={da_results['re_consumption_rate']:>5.1f}% | "
           f"CO2={da_results.get('carbon_emissions',0):>6.1f}t | "
           f"Curt={da_results.get('total_curtailment',0):>6.1f}MWh | "
@@ -225,10 +225,10 @@ def main():
         print(f"Storage: self-scheduled via MPC (horizon={config.storage.mpc_horizon})")
     if multi_scale:
         print(f"RT forecast mode: {config.rt.rt_forecast_mode}, noise: {config.rt.rt_forecast_noise_pct}%")
-    print(f"DA welfare: {da_results['welfare']:.2f}, RE rate: {da_results['re_consumption_rate']:.1f}%")
+    print(f"DA objective: {da_results['clearing_objective']:.2f}, RE rate: {da_results['re_consumption_rate']:.1f}%")
     print(f"carbon: {carbon_em:.1f} tCO2, intensity: {carbon_int:.3f} tCO2/MWh, curtailment: {curtail:.1f} MWh")
     if rt_results:
-        print(f"RT welfare: {rt_results['welfare']:.2f}, RE rate: {rt_results['re_consumption_rate']:.1f}%, "
+        print(f"RT objective: {rt_results['clearing_objective']:.2f}, RE rate: {rt_results['re_consumption_rate']:.1f}%, "
               f"carbon: {rt_results.get('carbon_emissions', 0):.1f} tCO2")
 
     is_nash = None

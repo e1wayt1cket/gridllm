@@ -41,6 +41,14 @@ class _StubEnv:
     def get_action_bounds(self):
         return torch.tensor([[0.3, 0.0], [1.8, 50.0]], dtype=torch.float32)
 
+    def spec_for(self, agent):
+        from rl_spec import action_spec_for
+        return action_spec_for(agent)
+
+    def action_bounds_for(self, agent):
+        from rl_env import bounds_tensor
+        return bounds_tensor(self.spec_for(agent))
+
 
 def _filled_matd3(batch_size=8, n_fill=20, seed=0):
     torch.manual_seed(seed)
@@ -76,10 +84,16 @@ def test_matd3_update_reports_absent_q_stats_before_the_buffer_fills():
     assert info.get("q_gap") is None
 
 
+# A load/prosumer box, whose truthful point under ACTION_BID_OFFER_V1 is
+# (1.0, 0.0). TD3 requires it: the deviation penalty has no valid default.
+_BOUNDS = torch.tensor([[0.3, 0.0], [1.8, 50.0]], dtype=torch.float32)
+_TRUTHFUL = np.array([1.0, 0.0], dtype=np.float32)
+
+
 def _filled_td3(batch_size=8, n_fill=20, seed=0):
     torch.manual_seed(seed)
     np.random.seed(seed)
-    t = TD3(4, 2, torch.tensor([[0.3, 0.0], [1.8, 50.0]], dtype=torch.float32),
+    t = TD3(4, 2, _BOUNDS, truthful_action=_TRUTHFUL,
             lr=3e-4, batch_size=batch_size)
     for _ in range(n_fill):
         t.buffer.add(
@@ -99,8 +113,7 @@ def test_td3_update_reports_q_statistics():
 
 
 def test_td3_update_reports_absent_q_stats_before_the_buffer_fills():
-    t = TD3(4, 2, torch.tensor([[0.3, 0.0], [1.8, 50.0]], dtype=torch.float32),
-            batch_size=8)
+    t = TD3(4, 2, _BOUNDS, truthful_action=_TRUTHFUL, batch_size=8)
     info = t.update()
     assert info["critic_loss"] is None
     assert info.get("q_gap") is None

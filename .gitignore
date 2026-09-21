@@ -29,6 +29,11 @@ dash.log
 *.db
 *.sqlite3
 
+# 合成外部电价库：这是研究输入而非数据产物。价格由 master_seed 与库规模共同
+# 决定（r 的归一化跨整个库），所以只有把库本身入库，一次记录的实验才可能被
+# 独立复现；否则复现依赖生成器一个字都没改。
+!data/wholesale/*.csv
+
 # 系统文件
 .DS_Store
 Thumbs.db

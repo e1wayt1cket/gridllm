@@ -509,8 +509,8 @@ def create_kpi_cards(da_results, rt_results, payment, agents, config=None):
     curtailment = da_results.get('total_curtailment', 0)
 
     items = [
-        ("日前社会福利", f"{da_results['welfare']:,.0f} CNY",   "#4f46e5"),
-        ("实时社会福利", f"{rt_results['welfare']:,.0f} CNY",   "#6366f1"),
+        ("日前出清目标", f"{da_results['clearing_objective']:,.0f} CNY",   "#4f46e5"),
+        ("实时出清目标", f"{rt_results['clearing_objective']:,.0f} CNY",   "#6366f1"),
         ("可再生消纳率", f"{da_results['re_consumption_rate']:.1f}%", "#10b981"),
         ("负荷满足率",   f"{satisfaction:.1f}%",                "#3b82f6"),
         ("总市场成本",   f"{total_cost:,.0f} CNY",              "#f59e0b"),
@@ -620,11 +620,11 @@ def _rl_agg_table(scenarios):
             html.Td(f"{s['profit_delta']:+,.0f}", style={
                 'color': _rl_delta_color(s['profit_delta']), 'fontWeight': '700',
                 'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
-            html.Td(f"{s['welfare_delta']:+,.0f}", style={
-                'color': _rl_delta_color(s['welfare_delta']),
+            html.Td(f"{s['clearing_objective_delta']:+,.0f}", style={
+                'color': _rl_delta_color(s['clearing_objective_delta']),
                 'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
-            html.Td(f"{s['genuine_welfare_delta']:+,.0f}", style={
-                'color': _rl_delta_color(s['genuine_welfare_delta']),
+            html.Td(f"{s['genuine_clearing_objective_delta']:+,.0f}", style={
+                'color': _rl_delta_color(s['genuine_clearing_objective_delta']),
                 'fontFamily': '"JetBrains Mono", monospace', 'textAlign': 'right'}),
             html.Td(f"{s['re_rate_baseline']:.1f}% → {s['re_rate_rl']:.1f}%",
                     style={'fontFamily': '"JetBrains Mono", monospace',
@@ -639,8 +639,8 @@ def _rl_agg_table(scenarios):
             html.Th("基准利润", style={'textAlign': 'right'}),
             html.Th("RL利润", style={'textAlign': 'right'}),
             html.Th("利润增量", style={'textAlign': 'right'}),
-            html.Th("福利增量", style={'textAlign': 'right'}),
-            html.Th("真实福利增量", style={'textAlign': 'right'}),
+            html.Th("出清目标增量", style={'textAlign': 'right'}),
+            html.Th("真实出清目标增量", style={'textAlign': 'right'}),
             html.Th("RE消纳率(基→RL)", style={'textAlign': 'right'}),
         ])),
         html.Tbody(rows),
@@ -649,15 +649,15 @@ def _rl_agg_table(scenarios):
 
 
 def _rl_results_figure(scenarios):
-    """Grouped bars: profit delta and genuine welfare delta per scenario."""
+    """Grouped bars: profit delta and genuine objective delta per scenario."""
     x = [RL_SCENARIO_SHORT.get(s["scenario"], s["scenario"])
          for s in scenarios]
     prof = [s["profit_delta"] for s in scenarios]
-    genuine = [s["genuine_welfare_delta"] for s in scenarios]
+    genuine = [s["genuine_clearing_objective_delta"] for s in scenarios]
     fig = go.Figure()
     fig.add_trace(go.Bar(x=x, y=prof, name="利润增量 (RL−基准)",
                          marker_color=C_PRIMARY))
-    fig.add_trace(go.Bar(x=x, y=genuine, name="真实福利增量",
+    fig.add_trace(go.Bar(x=x, y=genuine, name="真实出清目标增量",
                          marker_color=C_SUCCESS))
     fig.update_layout(
         template="plotly_white", paper_bgcolor=C_SURFACE,
@@ -749,7 +749,7 @@ def build_insight_summary(da_results, agents, scenario_cn):
 
     return {
         'scenario': scenario_cn,
-        'welfare_da': f"{da_results['welfare']:.0f}",
+        'clearing_objective_da': f"{da_results['clearing_objective']:.0f}",
         're_rate': f"{da_results['re_consumption_rate']:.1f}",
         'load_sat': f"{satisfaction:.1f}",
         'avg_lmp': f"{avg_lmp:.1f}",

@@ -131,10 +131,11 @@ def test_pure_ledger_objective_is_invariant_to_the_unit_fix(opf_mode,
     # SOCP reaches one optimum, and the rescale has to leave its value and its
     # duals alone. The objective is checked tightly because it is the claim
     # itself: a positive rescale cannot change the optimal value.
-    assert new["objective"] == pytest.approx(0.25 * old["objective"], rel=1e-5), (
+    assert new["clearing_objective"] == pytest.approx(
+        0.25 * old["clearing_objective"], rel=1e-5), (
         f"[{label}] the unified objective should be the legacy one rescaled by "
-        f"the period length: {new['objective']:.4f} vs "
-        f"0.25 * {old['objective']:.4f}")
+        f"the period length: {new['clearing_objective']:.4f} vs "
+        f"0.25 * {old['clearing_objective']:.4f}")
 
     # Per-period dispatch is checked at solver tolerance rather than exactly.
     # SOCP reaches the same optimum in both runs -- the objective above holds to

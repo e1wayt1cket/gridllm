@@ -112,7 +112,7 @@ def test_ckpt_table_renders_labels_not_missing_markers():
     # understands numbers would show "—" for both, hiding which row is which.
     from ui.train_page import _ckpt_table
     rows = [{"checkpoint": "best", "scenario": "baseline",
-             "profit_delta": 4875.31, "genuine_welfare_delta": 1665.19,
+             "profit_delta": 4875.31, "genuine_clearing_objective_delta": 1665.19,
              "cs_delta": 193.42, "cp_delta": -193.42,
              "lmp_markup_delta": -0.01, "market_power_power": 153.5}]
     table = _ckpt_table(rows)
@@ -127,7 +127,7 @@ def test_ckpt_table_renders_labels_not_missing_markers():
 def test_ckpt_table_marks_only_genuinely_absent_values():
     from ui.train_page import _ckpt_table
     rows = [{"checkpoint": "ckpt_50", "scenario": "peak_load",
-             "profit_delta": None, "genuine_welfare_delta": float("nan"),
+             "profit_delta": None, "genuine_clearing_objective_delta": float("nan"),
              "cs_delta": -5.0, "cp_delta": 5.0, "lmp_markup_delta": 0.0,
              "market_power_power": 1.0}]
     table = _ckpt_table(rows)

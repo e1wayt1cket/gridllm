@@ -28,7 +28,9 @@ def _make_env(use_differential_reward=True):
     return env, rl_names
 
 
-def _fixed_price(T: int, agents=None, config=None) -> np.ndarray:
+def _fixed_price(T: int, agents=None, config=None, **kwargs) -> np.ndarray:
+    """Flat wholesale curve. `**kwargs` absorbs the window offset and day id
+    that the real generators take and a flat curve does not care about."""
     return np.full(T, 400.0, dtype=float)
 
 

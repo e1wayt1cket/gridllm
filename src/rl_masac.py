@@ -28,7 +28,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_bidding import CentralizedCritic, ReplayBuffer
+from rl_bidding import CentralizedCritic, ReplayBuffer, agent_action_spaces
+from rl_td3 import deviation_penalty
 
 LOG_STD_MIN = -2.0
 LOG_STD_MAX = 2.0
@@ -105,8 +106,7 @@ class MASAC:
     def __init__(self, env, lr: float = 3e-4, gamma: float = 0.99,
                  tau: float = 0.005, policy_delay: int = 2,
                  batch_size: int = 128, buffer_capacity: int = 100_000,
-                 start_steps: int = 500, bid_dev_penalty: float = 0.0,
-                 offer_dev_penalty: float = 0.0,
+                 start_steps: int = 500, dev_penalty: float = 0.0,
                  alpha_init: float = 0.1, target_entropy: float = -2.0,
                  critic_factory=None):
         self.env = env
@@ -115,13 +115,14 @@ class MASAC:
         self.policy_delay = policy_delay
         self.batch_size = batch_size
         self.start_steps = start_steps
-        self.bid_dev_penalty = bid_dev_penalty
-        self.offer_dev_penalty = offer_dev_penalty
+        self.dev_penalty = dev_penalty
         self.target_entropy = target_entropy
 
         obs_dim = env.get_state_dim()
-        act_dim = 2
-        action_bounds = env.get_action_bounds()
+        (self.spec_by_agent, self.bounds_by_agent, self.truthful_action,
+         act_dim) = agent_action_spaces(env)
+        action_bounds = (self.bounds_by_agent[env.rl_agents[0].name]
+                         if env.rl_agents else env.get_action_bounds())
         n_agents = len(env.rl_agents)
 
         self.n_agents = n_agents
@@ -260,14 +261,14 @@ class MASAC:
                     new_act_all.view(B, -1))
                 value = torch.min(q1, q2).squeeze(-1)          # (B,)
                 a_loss = (alpha_i * logp - value).mean()
-                # Optional logit deviation penalty on the pre-tanh mean.
+                # Optional logit deviation penalty on the pre-tanh mean,
+                # anchored at this agent's truthful point. See
+                # `deviation_penalty`: the weight is dimensionless, so the
+                # reward scale is not applied to it a second time.
                 mu, _ = actor.forward_logits(obs[:, i, :])
-                if self.bid_dev_penalty > 0:
-                    a_loss = a_loss + (self.bid_dev_penalty / scale) \
-                        * (mu[:, 0] ** 2).mean()
-                if self.offer_dev_penalty > 0:
-                    a_loss = a_loss + (self.offer_dev_penalty / scale) \
-                        * (mu[:, 1] ** 2).mean()
+                a_loss = a_loss + deviation_penalty(
+                    mu, self.truthful_action[nm],
+                    self.bounds_by_agent[nm], self.dev_penalty)
                 opt.zero_grad()
                 a_loss.backward()
                 nn.utils.clip_grad_norm_(actor.parameters(), 1.0)

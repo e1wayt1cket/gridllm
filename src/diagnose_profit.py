@@ -198,7 +198,7 @@ def main():
               f"({100 * tot_arb / tot_dp:+.0f}%) | "
               f"market_power={tot_pow:+.0f} ({100 * tot_pow / tot_dp:+.0f}%)")
 
-    # ---- Welfare side: which agents lose the surplus ----
+    # ---- Objective side: which agents lose the surplus ----
     storage_names = set(rl_names)
     d_all = {}
     for a in agents:
@@ -220,10 +220,10 @@ def main():
                 float(config.storage.cycle_cost
                       * np.sum(s["p_ch"] + s["p_dis"])))
 
-    print(f"\nwelfare-side (sum over ALL agents = surrogate welfare delta):")
+    print(f"\nobjective-side (sum over ALL agents = surrogate objective delta):")
     print(f"  storage   : {d_stor:+.0f}")
     print(f"  non-storage: {d_other:+.0f}")
-    print(f"  total     : {d_total:+.0f}   (compare vs eval CSV welfare_delta)")
+    print(f"  total     : {d_total:+.0f}   (compare vs eval CSV clearing_objective_delta)")
     print("  top non-storage losers (component deltas: mkt/cons/gen/pen/cyc):")
     losers = sorted(((n, v) for n, v in d_all.items()
                      if n not in storage_names), key=lambda x: x[1])[:5]
@@ -242,7 +242,7 @@ def main():
               f"pwr={r[3]:+.0f} other={r[4]:+.0f})")
 
     # ---- Valuation-artifact check ----
-    # eval welfare_delta = genuine dispatch effect + bid-shading artifact.
+    # eval clearing_objective_delta = genuine dispatch effect + bid-shading artifact.
     # The artifact is computed exactly (only the storage bid/offer valuation
     # terms in the objective differ between declared and truthful values).
     tag = os.path.basename(args.policies.rstrip("/\\"))
@@ -254,13 +254,13 @@ def main():
         df = df[df["agent"] == "ALL"]
         row = df[df["scenario"] == args.scenario]
         if len(row):
-            eval_delta = float(row["welfare_delta"].iloc[0])
+            eval_delta = float(row["clearing_objective_delta"].iloc[0])
     artifact = valuation_artifact(s_rl, decl_rl, agents, config)
     genuine = (eval_delta - artifact) if eval_delta is not None else None
-    print(f"\nwelfare decomposition (eval welfare_delta = genuine + artifact):")
-    print(f"  eval welfare_delta      : "
+    print(f"\nobjective decomposition (eval clearing_objective_delta = genuine + artifact):")
+    print(f"  eval clearing_objective_delta      : "
           f"{eval_delta:+,.0f}" if eval_delta is not None
-          else "  eval welfare_delta      : (no eval CSV found)")
+          else "  eval clearing_objective_delta      : (no eval CSV found)")
     print(f"  bid-shading artifact     : {artifact:+,.0f}   "
           f"(storage valued at declared bid/offer vs truthful)")
     if genuine is not None:

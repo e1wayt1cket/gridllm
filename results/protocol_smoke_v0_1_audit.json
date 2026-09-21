@@ -1,0 +1,92 @@
+{
+  "counterfactual": {
+    "n_days": 20,
+    "ok": true,
+    "problems": [],
+    "stats": {
+      "mean_delta_pi": -44.09294098532214,
+      "mean_pi_ai": 286.8674076599038,
+      "mean_pi_baseline": 330.96034864522596,
+      "median_delta_pi": -15.52679313397634,
+      "n_days": 20,
+      "p_delta_pi_positive": 0.1
+    }
+  },
+  "day_rotation": {
+    "cycles": {
+      "0": [
+        8,
+        30,
+        0,
+        33,
+        16,
+        38,
+        35,
+        4,
+        36,
+        29,
+        15,
+        28,
+        1,
+        19,
+        37,
+        2,
+        11,
+        6,
+        20,
+        22
+      ],
+      "1": [
+        16,
+        36,
+        1,
+        8,
+        28,
+        6,
+        38,
+        37,
+        35,
+        11,
+        4,
+        2,
+        20,
+        15,
+        33,
+        29,
+        30,
+        19,
+        0,
+        22
+      ]
+    },
+    "ok": true,
+    "problems": []
+  },
+  "git_sha": "e98e11609a7d1fcd81a6014ce3ba99346179aca2",
+  "held_out_isolation": {
+    "ok": true,
+    "problems": []
+  },
+  "kpi_completeness": {
+    "n_cycles": 2,
+    "ok": true,
+    "problems": []
+  },
+  "ok": true,
+  "run_id": "run-20260921-164045-d13a80cc",
+  "seed": 1,
+  "training_health": {
+    "absent_cells": {
+      "actor_loss": 20,
+      "critic_loss": 20,
+      "q1_mean": 20,
+      "q2_mean": 20,
+      "q_gap": 20
+    },
+    "fallback_episodes": 0,
+    "n_episodes": 40,
+    "ok": true,
+    "problems": [],
+    "warmup_episodes": 20
+  }
+}

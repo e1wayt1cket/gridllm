@@ -25,6 +25,17 @@ from models import Agent, MarketConfig
 from rl_env import BiddingEnv, N_BLOCKS, BID_MULT_LOW, BID_MULT_HIGH, \
     OFFER_ADDER_LOW, OFFER_ADDER_HIGH
 
+#: The deviation-penalty weight the formal experiments run at.
+#:
+#: Selected by `calibrate_dev_penalty.select`, not by profit: the largest
+#: weight on its grid that leaves the policy within 20% of the no-penalty mean
+#: deviation and 30% of its quote spread. The grid is re-measured whenever the
+#: actor or the penalty changes, because a weight's justification belongs to
+#: the implementation that was measured -- the per-agent action-space
+#: migration moved the selected weight from 0.25 to 0.10 without any weight
+#: itself changing meaning. See docs/2026-09-18-dev-penalty-calibration.md.
+CALIBRATED_DEV_PENALTY = 0.10
+
 
 # ---------------------------------------------------------------------------
 # Actor network — decentralized, sees only local observations
@@ -64,41 +75,65 @@ class Actor(nn.Module):
         return logits, mid + raw * half
 
 
-# A truthful point that sits on a corner of its own box has no finite `atanh`,
-# so the reference logit below is clamped this far short of the edge. One part
-# in a thousand of the half-range is orders of magnitude below any quote
-# difference the clearing can price, so the action the reference stands for is
-# unchanged by the clamp.
-_LOGIT_CLAMP = 1.0 - 1e-3
+def normalized_deviation(logits: torch.Tensor, truthful_action: torch.Tensor,
+                         action_bounds: torch.Tensor) -> torch.Tensor:
+    """Each action's distance from truthful, as a fraction of its own box width.
 
+        d_i = |a_i - truthful_i| / (high_i - low_i),  a = mid + tanh(logit) * half
 
-def truthful_logits(truthful_action: torch.Tensor,
-                    action_bounds: torch.Tensor) -> torch.Tensor:
-    """The pre-tanh logits that reproduce `truthful_action` in this box.
+    Dividing by the box width is what makes the two legs comparable. The
+    discharge box is twice as wide as the charge box in CNY/MWh, so a raw
+    deviation would weigh a 10 CNY/MWh move on the discharge leg the same as a
+    10 CNY/MWh move on the charge leg, even though the second is twice as far
+    from truthful in the only terms the mechanism sees. Normalized, `d` is the
+    same number for the same fractional position in either box, and it lies in
+    `[0, 1]` for any truthful point inside the box.
 
-    A deviation penalty has to be applied to the logits (see `TD3.update`), so
-    its reference point has to be a logit rather than an action. Since
-    `action = mid + tanh(logit) * half`, that logit is
-    `atanh((action - mid) / half)` -- not zero, unless the truthful action is
-    the box midpoint.
-
-    Getting this wrong is not a subtle bias. The storage box is
-    `[0, 150] x [0, 300]` with a truthful point of `(0, 0)`, so its midpoint is
-    `(75, 150)`: a penalty referencing the logit zero would anchor the policy
-    at "charge at 75, discharge at 150", which is as far from declaring no
-    premium as the box allows.
-
-    A caller that passes no truthful action keeps the old reference of logit
-    zero, which is the box midpoint. That is wrong for every spec in the
-    registry -- the prosumer pair's own truthful point is `(1.0, 0.0)` against
-    a midpoint of `(1.05, 25.0)` -- and survives only so a checkpoint trained
-    against the old reference can still be reproduced.
+    It is also what keeps the penalty from pinning the policy. The previous
+    form penalized `(logit - reference)^2`, whose gradient grows without bound
+    as the policy moves away from the reference -- so far from truthful the
+    regularizer outweighed the economic term and held the policy against the
+    corner. Here the gradient is bounded (see `deviation_penalty`) and vanishes
+    at the box edges, so the penalty shapes the policy near truthful without
+    being able to decide for it far from it.
     """
     low, high = action_bounds[0], action_bounds[1]
+    width = (high - low).clamp(min=1e-12)
     mid = (low + high) / 2.0
-    half = (high - low) / 2.0
-    position = (truthful_action - mid) / half
-    return torch.atanh(position.clamp(-_LOGIT_CLAMP, _LOGIT_CLAMP))
+    action = mid + torch.tanh(logits) * (width / 2.0)
+    truthful = torch.as_tensor(truthful_action, dtype=torch.float32,
+                               device=logits.device)
+    return (action - truthful).abs() / width
+
+
+def deviation_penalty(logits: torch.Tensor, truthful_action: torch.Tensor,
+                      action_bounds: torch.Tensor, weight: float) -> torch.Tensor:
+    """`weight` times the squared normalized deviation, summed over actions.
+
+    One coefficient for every action, because the deviation is already
+    normalized: the two legs of a quote pair are the same quantity in the same
+    units, and any asymmetry a caller wanted is expressible by how it built the
+    box. The previous per-leg weights existed to compensate for the raw logit
+    deviation not being comparable between legs, which this form fixes at the
+    source.
+
+    The weight is dimensionless and so is `d`, which is what lets it be chosen
+    against the economic term: `-min(q1, q2)` is in reward-standard-deviation
+    units (the reward is divided by its running std before the critic target),
+    and this penalty lies in `[0, weight]` in those same units. Scaling it by
+    the reward as well made the effective regularization inversely proportional
+    to the reward magnitude, so any rescaling of the reward silently re-tuned
+    the actor.
+
+    The gradient is bounded. For a truthful point at a box edge,
+    `d = (1 + t)/2` with `t = tanh(x)`, so `d(d^2)/dx = d * (1 - t^2)
+    = (1 + t)(1 - t^2)/2`, whose maximum over `t` is at `t = 1/3` and equals
+    **16/27 ≈ 0.593**. It falls to zero at both box edges, so a penalty whose
+    pull weakens exactly where the policy is furthest from truthful cannot hold
+    it there -- the failure mode of the previous unbounded form.
+    """
+    d = normalized_deviation(logits, truthful_action, action_bounds)
+    return weight * (d ** 2).sum(dim=1).mean()
 
 
 # ---------------------------------------------------------------------------
@@ -212,8 +247,7 @@ class TD3:
                  noise_clip: float = 0.5,
                  batch_size: int = 128, buffer_capacity: int = 100_000,
                  start_steps: int = 500,
-                 bid_dev_penalty: float = 0.0,
-                 offer_dev_penalty: float = 0.0,
+                 dev_penalty: float = 0.0,
                  truthful_action: torch.Tensor = None):
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -225,22 +259,24 @@ class TD3:
         self.noise_clip = noise_clip
         self.batch_size = batch_size
         self.start_steps = start_steps
-        self.bid_dev_penalty = bid_dev_penalty
-        self.offer_dev_penalty = offer_dev_penalty
+        self.dev_penalty = dev_penalty
 
         self.action_low = action_bounds[0]
         self.action_high = action_bounds[1]
 
-        # Where the deviation penalty pulls the policy back to. Held as logits
-        # because that is what the penalty acts on; a logit-zero reference is
-        # the box midpoint, which is the truthful point only for a box drawn
-        # symmetrically around it. See `truthful_logits`.
+        # Where the deviation penalty measures from. There is no fallback: the
+        # box midpoint is the truthful point for no registered spec, and for
+        # the storage box it is "charge at 75, discharge at 150" -- the region
+        # where the thin-margin batteries cannot trade at all. So an absent
+        # truthful action is an error rather than a convention.
         if truthful_action is None:
-            self.deviation_reference = torch.zeros(act_dim)
-        else:
-            self.deviation_reference = truthful_logits(
-                torch.as_tensor(truthful_action, dtype=torch.float32),
-                action_bounds)
+            raise ValueError(
+                "TD3 needs the agent's truthful action to measure the deviation "
+                "penalty from; without it the reference would silently be the "
+                "box midpoint. Pass `env.spec_for(agent).truthful_array()`.")
+        self.truthful_action = torch.as_tensor(truthful_action,
+                                               dtype=torch.float32)
+        self.action_bounds = torch.stack([self.action_low, self.action_high])
 
         # Networks
         self.actor = Actor(obs_dim, act_dim, action_bounds)
@@ -337,30 +373,12 @@ class TD3:
             # critic inflates and the bootstrap inflates Q further.
             q1, q2 = self.critic(obs, actor_action)
             actor_loss = -torch.min(q1, q2).mean()
-            # Deviation penalty applied to the pre-tanh logits. Penalizing the
-            # squashed action fails because d(tanh)/dx -> 0 at the bounds, so
-            # the gradient vanishes exactly when the policy saturates. An L2
-            # term on the raw logits has gradient 2*coef*(logit - reference)
-            # that survives saturation and pulls the policy back toward the
-            # point it is measured from -- the agent's own truthful
-            # declaration, not the midpoint of its box.
-            #
-            # The two weights index `action_names[0]` and `action_names[1]`.
-            # The names are historical: the first action has always been the
-            # one a participant shades its buying price by and the second the
-            # one it shades its selling price by.
-            #
-            # The weight is dimensionless because -min(q1, q2) is already in
-            # reward-standard-deviation units: the reward was divided by `scale`
-            # above. Dividing the penalty by `scale` as well made the effective
-            # regularization inversely proportional to the reward magnitude, so
-            # any rescaling of the reward silently re-tuned the actor.
-            if self.bid_dev_penalty > 0:
-                actor_loss = actor_loss + self.bid_dev_penalty * (
-                    (logits[:, 0] - self.deviation_reference[0]) ** 2).mean()
-            if self.offer_dev_penalty > 0:
-                actor_loss = actor_loss + self.offer_dev_penalty * (
-                    (logits[:, 1] - self.deviation_reference[1]) ** 2).mean()
+            # Deviation penalty on the box-normalized deviation. See
+            # `deviation_penalty` for the normalization and for why its pull
+            # weakens rather than strengthens away from truthful.
+            actor_loss = actor_loss + deviation_penalty(
+                logits, self.truthful_action, self.action_bounds,
+                self.dev_penalty)
 
             self.actor_opt.zero_grad()
             actor_loss.backward()
@@ -408,12 +426,12 @@ class TD3:
 
         Returns
         -------
-        dict with keys "reward", "welfare", "re_rate", "scenario".
+        dict with keys "reward", "clearing_objective", "re_rate", "scenario".
         """
         import copy as _copy
         from scenarios import get_scenario
 
-        history = {"reward": [], "welfare": [], "re_rate": [],
+        history = {"reward": [], "clearing_objective": [], "re_rate": [],
                    "scenario": []}
         agent_name = env.rl_agents[0].name
 
@@ -430,7 +448,7 @@ class TD3:
             obs = env.reset()
 
             ep_reward = 0.0
-            ep_welfare = 0.0
+            ep_clearing_objective = 0.0
             ep_re_rate = 0.0
 
             for _ in range(N_BLOCKS):
@@ -446,7 +464,7 @@ class TD3:
                 next_obs, rewards, done, info = env.step(
                     {agent_name: action})
                 ep_reward += rewards.get(agent_name, 0.0)
-                ep_welfare = info.get("welfare", 0.0)
+                ep_clearing_objective = info.get("clearing_objective", 0.0)
                 ep_re_rate = info.get("re_rate", 0.0)
 
                 self.buffer.add(
@@ -469,7 +487,7 @@ class TD3:
                         ep_a_losses.append(loss_info["actor_loss"])
 
             history["reward"].append(ep_reward)
-            history["welfare"].append(ep_welfare)
+            history["clearing_objective"].append(ep_clearing_objective)
             history["re_rate"].append(ep_re_rate)
             history["scenario"].append(sc_name or "fixed")
 
@@ -479,7 +497,7 @@ class TD3:
                 a_str = f"actor={np.mean(ep_a_losses):.4f}" \
                     if ep_a_losses else "actor=N/A"
                 print(f"  Ep {ep+1}/{n_episodes}: reward={ep_reward:+.1f} | "
-                      f"welfare={ep_welfare:.0f} | RE={ep_re_rate:.1f}% | "
+                      f"objective={ep_clearing_objective:.0f} | RE={ep_re_rate:.1f}% | "
                       f"{c_str} {a_str} | sc={sc_name or 'fixed'}",
                       flush=True)
 
@@ -547,11 +565,21 @@ def load_policy(path: str, obs_dim: int,
                 f"'{saved.get('name')}' (v{saved.get('version')}) but the "
                 f"environment uses '{action_spec.name}' "
                 f"(v{action_spec.version}); refusing to load.")
+    # The actor's output width is the action dimension, and the bounds are
+    # (low, high) rows over it -- so it is read off the box rather than
+    # written here. A literal would rebuild the net at a width the saved
+    # weights do not have whenever the action space changes size.
+    act_dim = int(action_bounds.shape[1])
+    if action_spec is not None and action_spec.dim != act_dim:
+        raise ValueError(
+            f"Policy {path} is being loaded into an action box of width "
+            f"{act_dim} but the action spec '{action_spec.name}' declares "
+            f"{action_spec.dim} actions; refusing to load.")
     actor_type = (meta or {}).get("actor_type", "Actor")
     if actor_type == "StochasticActor":
         from rl_masac import StochasticActor  # lazy: avoids import cycle
-        net = StochasticActor(obs_dim, 2, action_bounds)
+        net = StochasticActor(obs_dim, act_dim, action_bounds)
     else:
-        net = Actor(obs_dim, 2, action_bounds)
+        net = Actor(obs_dim, act_dim, action_bounds)
     net.load_state_dict(state)
     return net

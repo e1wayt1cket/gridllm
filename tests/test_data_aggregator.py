@@ -51,7 +51,7 @@ def _write_run(root, run_id, timestamp, metrics_rows=None, metrics_header=None,
     return run_dir
 
 
-_LEGACY_HEADER = ["episode", "mean_reward", "welfare", "re_rate",
+_LEGACY_HEADER = ["episode", "mean_reward", "clearing_objective", "re_rate",
                   "critic_loss", "actor_loss", "scenario"]
 _NEW_HEADER = _LEGACY_HEADER + ["reward__A", "reward__B",
                                 "q1_mean", "q2_mean", "q_gap",
@@ -105,7 +105,7 @@ def test_load_metrics_backfills_canonical_columns_for_a_legacy_file(tmp_path):
     root = str(tmp_path / "outputs" / "rl")
     _write_run(root, "run-legacy-aaaaaaaa", "2026-09-10T12:00:00",
                metrics_rows=[{"episode": 1, "mean_reward": -100.0,
-                              "welfare": 8000.0, "re_rate": 52.0,
+                              "clearing_objective": 8000.0, "re_rate": 52.0,
                               "critic_loss": 1.0, "actor_loss": 0.5,
                               "scenario": "baseline"}],
                metrics_header=_LEGACY_HEADER)
@@ -113,7 +113,7 @@ def test_load_metrics_backfills_canonical_columns_for_a_legacy_file(tmp_path):
     df = da.load_metrics("run-legacy-aaaaaaaa", root)
     # Existing columns are intact and the reader does not raise.
     assert df["mean_reward"].tolist() == [-100.0]
-    assert df["welfare"].tolist() == [8000.0]
+    assert df["clearing_objective"].tolist() == [8000.0]
     # Every canonical column is addressable; the ones a legacy file lacks are
     # present but empty.
     for col in da.CANONICAL_METRIC_COLUMNS:
@@ -277,7 +277,7 @@ def test_list_eval_results_tolerates_files_without_consumer_columns(tmp_path):
     root = str(tmp_path / "results")
     os.makedirs(root)
     with open(os.path.join(root, "a_eval.csv"), "w") as f:
-        f.write("scenario,agent,profit_delta,welfare_delta\n")
+        f.write("scenario,agent,profit_delta,clearing_objective_delta\n")
         f.write("baseline,ALL,1509.0,765.0\n")
     with open(os.path.join(root, "b_eval.csv"), "w") as f:
         f.write("scenario,agent,profit_delta,cs_delta,cp_delta\n")
@@ -341,7 +341,7 @@ def test_repo_root_functions_are_consistent():
 # --------------------------------------------------------------------------
 def _write_eval_file(root, name, rows):
     os.makedirs(root, exist_ok=True)
-    cols = ["scenario", "agent", "profit_delta", "genuine_welfare_delta",
+    cols = ["scenario", "agent", "profit_delta", "genuine_clearing_objective_delta",
             "cs_delta", "cp_delta", "lmp_markup_delta", "market_power_power"]
     with open(os.path.join(root, name), "w") as f:
         f.write(",".join(cols) + "\n")
@@ -355,7 +355,7 @@ def test_fleet_rows_keeps_only_the_aggregate_row(tmp_path):
     root = str(tmp_path / "results")
     _write_eval_file(root, "exp_a_eval.csv", [
         {"scenario": "baseline", "agent": "ALL", "profit_delta": 1509.0,
-         "genuine_welfare_delta": 765.0, "cs_delta": 193.4, "cp_delta": -193.4,
+         "genuine_clearing_objective_delta": 765.0, "cs_delta": 193.4, "cp_delta": -193.4,
          "lmp_markup_delta": -0.01, "market_power_power": 153.5},
         {"scenario": "baseline", "agent": "Bus5R", "profit_delta": 100.0},
     ])
@@ -534,7 +534,7 @@ def test_pareto_pairs_joins_profit_and_surplus_per_policy_scenario(tmp_path):
     root = str(tmp_path / "results")
     _write_eval_file(root, "p_a_eval.csv", [
         {"scenario": "peak_load", "agent": "ALL", "profit_delta": 14509.2,
-         "cs_delta": 3640.6, "genuine_welfare_delta": -16410.7},
+         "cs_delta": 3640.6, "genuine_clearing_objective_delta": -16410.7},
         {"scenario": "peak_load", "agent": "Bus5R", "profit_delta": 100.0}])
     df = da.pareto_pairs(root)
     assert len(df) == 1                       # per-agent row excluded
@@ -616,7 +616,7 @@ def test_experiment_table_annotates_every_fleet_row(tmp_path):
     root = str(tmp_path / "results")
     _write_eval_file(root, "e8_matd3_08_eval.csv", [
         {"scenario": "congestion", "agent": "ALL", "profit_delta": 18400.0,
-         "genuine_welfare_delta": 1440.0, "cs_delta": 8560.0,
+         "genuine_clearing_objective_delta": 1440.0, "cs_delta": 8560.0,
          "cp_delta": -8570.0, "lmp_markup_delta": -0.036,
          "market_power_power": 4150.0}])
     df = da.experiment_table(root, convention=None)
@@ -749,3 +749,51 @@ def test_eval_summary_returns_empty_frame_without_results(tmp_path):
     s = da.eval_summary(str(tmp_path / "nothing"))
     assert len(s) == 0
     assert "cs_convention" in s.columns and "scenario" in s.columns
+
+
+# --------------------------------------------------------------------------
+# eval.csv carries two grains; the history accessor returns one of them
+# --------------------------------------------------------------------------
+def _write_eval_csv(run_dir, lines):
+    with open(os.path.join(run_dir, "eval.csv"), "w", newline="") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def test_load_evals_returns_only_the_summary_rows(tmp_path):
+    """Per-day validation rows must not reach a caller charting the history.
+
+    eval.csv holds one summary row per evaluation and one row per held-out day
+    of each validation pass. A consumer plotting `mean_reward` against
+    `episode` would otherwise be handed rows that carry neither column.
+    """
+    root = str(tmp_path / "outputs" / "rl")
+    run_dir = _write_run(root, "run-two-grains-aaaaaaaa", "2026-09-10T12:00:00")
+    _write_eval_csv(run_dir, [
+        "episode,mean_reward,clearing_objective,re_rate,is_best,early_stopped,"
+        "cycle,day_id,pi_ai,pi_baseline,delta_pi,delta_pi_percent",
+        "20,5.0,900.0,40.0,True,False,0,,,,,",
+        "20,,,,,,0,3,-100.0,-110.0,10.0,0.0909",
+        "20,,,,,,0,5,-98.0,-110.0,12.0,0.1091",
+        "40,7.0,910.0,41.0,True,False,1,,,,,",
+        "40,,,,,,1,9,-96.0,-110.0,14.0,0.1273",
+    ])
+
+    frame = da.load_evals("run-two-grains-aaaaaaaa", root)
+    assert list(frame["episode"]) == [20, 40]
+    assert list(frame["mean_reward"]) == [5.0, 7.0]
+    assert frame["day_id"].isna().all()
+
+
+def test_load_evals_still_reads_a_file_with_no_per_day_rows(tmp_path):
+    """The older single-grain file keeps working unchanged."""
+    root = str(tmp_path / "outputs" / "rl")
+    run_dir = _write_run(root, "run-one-grain-aaaaaaaa", "2026-09-10T12:00:00")
+    _write_eval_csv(run_dir, [
+        "episode,mean_reward,clearing_objective,re_rate,is_best,early_stopped",
+        "5,1.0,100.0,20.0,False,False",
+        "10,2.0,200.0,21.0,True,False",
+    ])
+
+    frame = da.load_evals("run-one-grain-aaaaaaaa", root)
+    assert len(frame) == 2
+    assert list(frame["mean_reward"]) == [1.0, 2.0]

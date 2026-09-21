@@ -179,13 +179,13 @@ def _available_checkpoints(policy_dir):
 _CKPT_COLUMNS = [
     ("checkpoint", "Checkpoint"), ("scenario", "场景"),
     ("profit_delta", "利润增量"),
-    ("genuine_welfare_delta", "真实福利增量"),
+    ("genuine_clearing_objective_delta", "真实出清目标增量"),
     ("cs_delta", "CS 增量"), ("cp_delta", "CP 增量"),
     ("lmp_markup_delta", "markup 增量"),
     ("market_power_power", "市场力"),
 ]
 # Columns where a sign is meaningful and worth colouring.
-_SIGNED_COLUMNS = {"profit_delta", "genuine_welfare_delta", "cs_delta",
+_SIGNED_COLUMNS = {"profit_delta", "genuine_clearing_objective_delta", "cs_delta",
                    "cp_delta"}
 
 

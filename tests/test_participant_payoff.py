@@ -172,37 +172,25 @@ def test_unknown_participant_type_is_rejected():
 # --------------------------------------------------------------------------
 # Terminal state of charge
 # --------------------------------------------------------------------------
-def test_soc_neutral_adjustment_is_zero_at_the_starting_soc():
-    assert pp.soc_neutral_adjustment(0.5, 0.5, 2.0, 400.0) == pytest.approx(0.0)
+def test_the_breakdown_has_no_terminal_soc_term():
+    """Terminal SOC is neutralized by the settlement, not by a money adjustment.
+
+    Both arms of a comparison are cleared over the whole day with the endpoints
+    pinned, so neither can end fuller than the other. A price adjustment on top
+    of that would value a difference the constraint has already removed.
+    """
+    assert "terminal_adjustment" not in pp.PayoffBreakdown.__dataclass_fields__
+    assert not hasattr(pp.PayoffBreakdown(), "soc_neutral_total")
+    assert not hasattr(pp, "soc_neutral_adjustment")
+    assert not hasattr(pp, "resolve_terminal_price")
 
 
-def test_soc_neutral_adjustment_values_the_residual_energy():
-    # Ending 0.2 of a 2 MWh battery fuller is 0.4 MWh of unsold energy.
-    assert pp.soc_neutral_adjustment(0.7, 0.5, 2.0, 400.0) \
-        == pytest.approx(0.4 * 400.0)
-    # Running it down is a charge against the arm that did so.
-    assert pp.soc_neutral_adjustment(0.3, 0.5, 2.0, 400.0) \
-        == pytest.approx(-0.4 * 400.0)
-
-
-def test_terminal_adjustment_stays_out_of_the_decomposition():
-    """The components must sum to the cash profit, not to the adjusted one."""
+def test_the_components_sum_to_the_settled_profit():
+    """The decomposition is the cash figure and nothing else."""
     b = pp.PayoffBreakdown(revenue=100.0, purchase_cost=20.0,
-                           degradation_cost=5.0, terminal_adjustment=-30.0)
+                           degradation_cost=5.0)
     assert b.total == pytest.approx(75.0)
-    assert b.soc_neutral_total == pytest.approx(45.0)
-    d = b.as_dict()
-    assert d["total"] == pytest.approx(75.0)
-
-
-def test_terminal_price_falls_back_to_the_mean_wholesale():
-    cfg = _config(terminal_value=None)
-    assert pp.resolve_terminal_price(cfg, np.array([100.0, 300.0])) \
-        == pytest.approx(200.0)
-    assert pp.resolve_terminal_price(_config(terminal_value=123.0)) \
-        == pytest.approx(123.0)
-    with pytest.raises(ValueError, match="no terminal price"):
-        pp.resolve_terminal_price(_config(terminal_value=None), None)
+    assert b.as_dict()["total"] == pytest.approx(75.0)
 
 
 def test_breakdown_is_money_not_per_period_power():

@@ -4,7 +4,7 @@
 Load any combination of trained policy files and run market simulations to
 measure:
   - Per-agent profit vs baseline
-  - Social welfare change
+  - Clearing-objective change
   - RE consumption rate change
   - Carbon emissions change
 
@@ -29,6 +29,7 @@ from rl_env import BiddingEnv, DayCapture, N_BLOCKS, BLOCK_SIZE
 from rl_td3 import Actor, load_policy
 from rl_spec import action_spec_for
 from rl_profit_diagnostics import valuation_artifact
+from counterfactual_eval import settle_day, summarize as summarize_payoff
 from surplus_metrics import consumer_metrics, day_econ_metrics, \
     DAY_ECON_COLUMNS
 
@@ -95,11 +96,11 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
 
     Returns
     -------
-    dict with keys: welfare, re_rate, carbon, profits (per-agent dict), plus
-    sched/lmp/wholesale when capture is True.
+    dict with keys: clearing_objective, re_rate, carbon, profits (per-agent
+    dict), plus sched/lmp/wholesale when capture is True.
     """
     obs = env.reset()
-    total_welfare = 0.0
+    total_clearing_objective = 0.0
     total_re_rate = 0.0
     agent_profits: Dict[str, float] = {}
     cap = DayCapture.from_env(env) if capture else None
@@ -119,11 +120,16 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
             acts = {}
 
         next_obs, rewards, done, info = env.step(acts)
-        total_welfare += info.get("welfare", 0.0)
+        total_clearing_objective += info.get("clearing_objective", 0.0)
         total_re_rate = info.get("re_rate", 0.0)  # last block's value
 
         if cap is not None:
             cap.add_block(env._last_result, t_start, env._last_wholesale)
+            # Captured for the baseline arm as well, so both arms are settled
+            # from their own declared quotes by the same code. For this arm
+            # they are the env's default (truthful) declaration, which reset()
+            # already installed.
+            cap.add_declared(env.current_actions, t_start)
 
         # Accumulate per-agent profit from per-block rewards
         if info.get("lmp") is not None:
@@ -138,7 +144,7 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
         obs = next_obs
 
     carbon = 0.0  # will be extracted from last info if available
-    out = {"welfare": total_welfare,
+    out = {"clearing_objective": total_clearing_objective,
            "re_rate": total_re_rate,
            "carbon": carbon,
            "profits": agent_profits}
@@ -167,9 +173,9 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
     Returns
     -------
     dict with keys:
-      profits  per-rl-agent accumulated reward
-      welfare  accumulated system welfare
-      re_rate  renewable consumption rate from the last block
+      profits             per-rl-agent accumulated reward
+      clearing_objective  accumulated clearing objective
+      re_rate             renewable consumption rate from the last block
       sched    per-agent committed schedules padded to length env.T
       declared per-rl-agent quotes padded to length env.T, in each agent's
                own action space
@@ -177,7 +183,7 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
     obs = env.reset()
     rl_names = [a.name for a in env.rl_agents]
     profits: Dict[str, float] = {nm: 0.0 for nm in rl_names}
-    welfare = 0.0
+    clearing_objective = 0.0
     re_rate = 0.0
     cap = DayCapture.from_env(env)
     for block in range(n_blocks):
@@ -186,14 +192,15 @@ def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
         next_obs, rewards, done, info = env.step(acts)
         cap.add_block(env._last_result, t_start, env._last_wholesale)
         cap.add_declared(env.current_actions, t_start)
-        welfare += info.get("welfare", 0.0)
+        clearing_objective += info.get("clearing_objective", 0.0)
         re_rate = info.get("re_rate", 0.0)
         for nm in rl_names:
             profits[nm] = profits.get(nm, 0.0) + rewards.get(nm, 0.0)
         if done:
             break
         obs = next_obs
-    out = {"profits": profits, "welfare": welfare, "re_rate": re_rate}
+    out = {"profits": profits, "clearing_objective": clearing_objective,
+           "re_rate": re_rate}
     out.update(cap.finish())
     out["capture_complete"] = out["complete"]
     if not capture:
@@ -291,8 +298,8 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
     -------
     dict with keys policy_dir, loaded, obs_spec_name and scenarios (one entry
     per scenario). Each scenario entry carries the aggregate columns
-    baseline_profit / rl_profit / profit_delta / welfare_baseline /
-    welfare_rl / welfare_delta / valuation_artifact / genuine_welfare_delta /
+    baseline_profit / rl_profit / profit_delta / clearing_objective_baseline /
+    clearing_objective_rl / clearing_objective_delta / valuation_artifact / genuine_clearing_objective_delta /
     re_rate_baseline / re_rate_rl and n_rl (matched policies), plus the
     consumer columns when consumer_metrics is set.
     """
@@ -342,13 +349,16 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
         # carries that spread.
         np.random.seed(seed)
         env_base = BiddingEnv(agents, cfg)
+        # Capture always: both arms are re-settled from their captured declared
+        # quotes below, so the baseline's capture is not only for the consumer
+        # columns.
         base = run_episode(env_base, policy=None, n_blocks=n_blocks,
-                           capture=consumer_metrics)
+                           capture=True)
 
         # Combined-fleet episode (all matched policies act together).
         np.random.seed(seed)
         env_comb = BiddingEnv(agents, cfg, rl_agent_names=rl_names)
-# The welfare artifact is revalued from the captured day schedule, so
+# The objective artifact is revalued from the captured day schedule, so
         # the combined run must always capture it; `consumer_metrics`
         # controls only the consumer accounting columns below.
         comb = run_combined_episode(env_comb, policies, n_blocks=n_blocks,
@@ -356,22 +366,40 @@ def evaluate_policy_dir(policy_dir: str, scenarios: List[str],
 
         artifact = valuation_artifact(comb["sched"], comb["declared"],
                                       agents, cfg)
-        welfare_delta = comb["welfare"] - base["welfare"]
-        total_base_profit = sum(base["profits"].get(nm, 0.0)
-                                for nm in rl_names)
-        total_rl_profit = sum(comb["profits"].get(nm, 0.0)
-                              for nm in rl_names)
+        clearing_objective_delta = comb["clearing_objective"] - base["clearing_objective"]
+
+        # Both arms settled the same way: one joint clear of the whole day with
+        # the state of charge pinned at both ends. The block-by-block sums the
+        # episodes carry are a *learning* signal, not a payoff -- a policy that
+        # runs its battery down collects more cash across blocks and is not
+        # corrected for it there, so reporting them as profit let a policy win
+        # by ending the day emptier. Reused from counterfactual_eval so the two
+        # reported evaluations cannot settle the same day differently.
+        base_settled, base_clean, _ = settle_day(
+            agents, cfg, rl_names, base["declared"], base["wholesale"], 96)
+        comb_settled, comb_clean, _ = settle_day(
+            agents, cfg, rl_names, comb["declared"], comb["wholesale"], 96)
+        settled_clean = base_clean and comb_clean
+        if settled_clean:
+            total_base_profit = sum(base_settled.get(nm, 0.0) for nm in rl_names)
+            total_rl_profit = sum(comb_settled.get(nm, 0.0) for nm in rl_names)
+        else:
+            # A degraded settlement is reported as degraded, never averaged in
+            # as if it were a payoff.
+            total_base_profit = float("nan")
+            total_rl_profit = float("nan")
         row = {
             "scenario": sc_name,
             "n_rl": len(rl_names),
+            "settled_clean": settled_clean,
             "baseline_profit": total_base_profit,
             "rl_profit": total_rl_profit,
             "profit_delta": total_rl_profit - total_base_profit,
-            "welfare_baseline": base["welfare"],
-            "welfare_rl": comb["welfare"],
-            "welfare_delta": welfare_delta,
+            "clearing_objective_baseline": base["clearing_objective"],
+            "clearing_objective_rl": comb["clearing_objective"],
+            "clearing_objective_delta": clearing_objective_delta,
             "valuation_artifact": artifact,
-            "genuine_welfare_delta": welfare_delta - artifact,
+            "genuine_clearing_objective_delta": clearing_objective_delta - artifact,
             "re_rate_baseline": base["re_rate"],
             "re_rate_rl": comb["re_rate"],
             "n_blocks": n_blocks,
@@ -549,8 +577,8 @@ def main():
     # ---- Evaluate ----
     results = []
     header = ["scenario", "agent", "baseline_profit", "rl_profit",
-              "profit_delta", "welfare_baseline", "welfare_rl",
-              "welfare_delta", "valuation_artifact", "genuine_welfare_delta",
+              "profit_delta", "clearing_objective_baseline", "clearing_objective_rl",
+              "clearing_objective_delta", "valuation_artifact", "genuine_clearing_objective_delta",
               "re_rate_baseline", "re_rate_rl", "total_regret"]
     if args.consumer_metrics:
         header += _CONSUMER_COLUMNS
@@ -594,7 +622,7 @@ def main():
             base_result = run_episode(env_base, policy=None,
                                       capture=args.consumer_metrics)
             if k == 0:
-                print(f"  Baseline: welfare={base_result['welfare']:.0f}  "
+                print(f"  Baseline: objective={base_result['clearing_objective']:.0f}  "
                       f"RE={base_result['re_rate']:.1f}%")
 
             # ---- RL run (with trained policies) ----
@@ -619,27 +647,27 @@ def main():
                     rl_result = run_episode(env_rl, policy=pol_net)
                     if k == 0:
                         print(f"  RL ({pol_agent_name}): "
-                              f"welfare={rl_result['welfare']:.0f}  "
+                              f"objective={rl_result['clearing_objective']:.0f}  "
                               f"RE={rl_result['re_rate']:.1f}%")
 
                     base_profit = base_result["profits"].get(pol_agent_name, 0.0)
                     rl_profit = rl_result["profits"].get(pol_agent_name, 0.0)
                     profit_delta = rl_profit - base_profit
-                    welfare_delta = rl_result["welfare"] - base_result["welfare"]
+                    clearing_objective_delta = rl_result["clearing_objective"] - base_result["clearing_objective"]
                     re_delta = rl_result["re_rate"] - base_result["re_rate"]
                     if k == 0:
                         print(f"    Profit: baseline={base_profit:.1f}  "
                               f"RL={rl_profit:.1f}  delta={profit_delta:+.1f}  "
-                              f"welfare_delta={welfare_delta:+.0f}  "
+                              f"clearing_objective_delta={clearing_objective_delta:+.0f}  "
                               f"RE_delta={re_delta:+.1f}pp")
 
                     rows_ep.append({
                         "agent": pol_agent_name,
                         "baseline_profit": base_profit, "rl_profit": rl_profit,
                         "profit_delta": profit_delta,
-                        "welfare_baseline": base_result["welfare"],
-                        "welfare_rl": rl_result["welfare"],
-                        "welfare_delta": welfare_delta,
+                        "clearing_objective_baseline": base_result["clearing_objective"],
+                        "clearing_objective_rl": rl_result["clearing_objective"],
+                        "clearing_objective_delta": clearing_objective_delta,
                         "re_rate_baseline": base_result["re_rate"],
                         "re_rate_rl": rl_result["re_rate"],
                     })
@@ -648,23 +676,23 @@ def main():
             if env_comb is not None:
                 if S is not None:
                     np.random.seed(S)
-                # Always capture: the welfare artifact below is revalued from
+                # Always capture: the objective artifact below is revalued from
                 # the captured day schedule, and valuation_artifact cannot be
                 # computed without it. `consumer_metrics` controls only the
                 # consumer accounting columns.
                 comb = run_combined_episode(env_comb, policies,
                                             capture=True)
-                comb_welfare = comb["welfare"]
+                comb_clearing_objective = comb["clearing_objective"]
                 comb_re_rate = comb["re_rate"]
                 comb_profits = comb["profits"]
-                comb_welfare_delta = comb_welfare - base_result["welfare"]
+                comb_clearing_objective_delta = comb_clearing_objective - base_result["clearing_objective"]
                 comb_re_delta = comb_re_rate - base_result["re_rate"]
                 artifact = valuation_artifact(comb["sched"], comb["declared"],
                                               agents, config_copy)
-                genuine = comb_welfare_delta - artifact
+                genuine = comb_clearing_objective_delta - artifact
                 if k == 0:
                     print(f"  Combined ({len(rl_names)} policies): "
-                          f"welfare_delta={comb_welfare_delta:+.0f}  "
+                          f"clearing_objective_delta={comb_clearing_objective_delta:+.0f}  "
                           f"artifact={artifact:+.0f}  "
                           f"genuine={genuine:+.0f}  "
                           f"RE_delta={comb_re_delta:+.1f}pp")
@@ -697,11 +725,11 @@ def main():
                     "baseline_profit": total_base_profit,
                     "rl_profit": total_rl_profit,
                     "profit_delta": total_rl_profit - total_base_profit,
-                    "welfare_baseline": base_result["welfare"],
-                    "welfare_rl": comb_welfare,
-                    "welfare_delta": comb_welfare_delta,
+                    "clearing_objective_baseline": base_result["clearing_objective"],
+                    "clearing_objective_rl": comb_clearing_objective,
+                    "clearing_objective_delta": comb_clearing_objective_delta,
                     "valuation_artifact": artifact,
-                    "genuine_welfare_delta": genuine,
+                    "genuine_clearing_objective_delta": genuine,
                     "re_rate_baseline": base_result["re_rate"],
                     "re_rate_rl": comb_re_rate,
                     **metric,
@@ -713,8 +741,8 @@ def main():
         for r in rows_ep:
             by_agent.setdefault(r["agent"], []).append(r)
         num_keys = ["baseline_profit", "rl_profit", "profit_delta",
-                    "welfare_baseline", "welfare_rl", "welfare_delta",
-                    "valuation_artifact", "genuine_welfare_delta",
+                    "clearing_objective_baseline", "clearing_objective_rl", "clearing_objective_delta",
+                    "valuation_artifact", "genuine_clearing_objective_delta",
                     "re_rate_baseline", "re_rate_rl"]
         if args.consumer_metrics:
             num_keys += _CONSUMER_COLUMNS
@@ -723,7 +751,19 @@ def main():
                    "total_regret": ""}
             for key in num_keys:
                 vals = [r[key] for r in rows if r.get(key) is not None]
-                agg[key] = float(np.mean(vals)) if vals else None
+                # The mean alone cannot answer whether a gain is stable: a mean
+                # lifted by two lucky episodes and a share-near-half are
+                # different findings. The distribution is reported alongside it
+                # under the same `{quantity}_{stat}` spelling the paired
+                # evaluator uses.
+                if not vals:
+                    agg[key] = None
+                    continue
+                stats = summarize_payoff(vals)
+                agg[key] = stats["mean"]
+                for stat, value in stats.items():
+                    if stat != "mean":
+                        agg[f"{key}_{stat}"] = value
             results.append(agg)
 
         # Optional best-response regret test (once, explicit opt-in).

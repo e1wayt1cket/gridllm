@@ -3,11 +3,27 @@
 import pytest
 
 
-def test_deviation_penalty_defaults():
+def test_deviation_penalty_defaults_to_the_calibrated_weight():
+    """The default is the frozen calibrated weight, not 0.0.
+
+    It used to default to 0.0 so the coefficient had to be chosen explicitly by
+    every caller -- which left any run that omitted the flag silently
+    unregularized, with nothing in its artifacts to say so. The calibrated
+    weight now lives in one place and both trainers default to it, so a formal
+    run cannot start without one.
+
+    The retired pair (5.0 / 0.5) is still gone: it was tuned for a penalty
+    anchored at the box midpoint, while this one is measured from the truthful
+    point, which for storage is a box corner.
+    """
     from train_rl import build_parser
+    from rl_td3 import CALIBRATED_DEV_PENALTY
+
     args = build_parser().parse_args([])
-    assert args.bid_dev_penalty == 5.0
-    assert args.offer_dev_penalty == 0.5
+    assert args.dev_penalty == CALIBRATED_DEV_PENALTY
+    assert CALIBRATED_DEV_PENALTY > 0.0
+    assert not hasattr(args, "bid_dev_penalty")
+    assert not hasattr(args, "offer_dev_penalty")
 
 
 def test_algo_and_bounds_defaults():

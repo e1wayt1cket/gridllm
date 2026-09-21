@@ -12,8 +12,10 @@ declares its two reservation prices in CNY/MWh, and a load or prosumer
 declares the multiplier/adder pair its own `bid_value`/`offer_cost` live in.
 
 Optional differential reward: reward = raw profit - profit under truthful
-bidding (bid=1.0, offer=0.0) for the same block, anchoring the truthful
-policy at zero advantage and sharpening the critic gradient.
+bidding for the same block, anchoring the truthful policy at zero advantage
+and sharpening the critic gradient. The truthful point is each agent's own
+spec's, not a literal: it is (0, 0) for a battery's two declared prices and
+(1, 0) for a load's multiplier pair.
 
 Supports both multi-agent (all agents are RL) and single-agent
 (rl_agent_names filters to specific agents) modes.
@@ -31,15 +33,30 @@ from models import Agent, MarketConfig
 from market import adaptive_bidding
 from price_forecaster import NodalPriceForecaster
 from rl_spec import (OBS_V3, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
-                    ObservationSpec, ActionSpec)
+                    ObservationSpec, ActionSpec, action_spec_for)
 
-# Continuous action space bounds
-BID_MULT_LOW, BID_MULT_HIGH = 0.3, 1.8
-OFFER_ADDER_LOW, OFFER_ADDER_HIGH = 0.0, 50.0
+# Bounds of the non-storage action space, read off the spec rather than
+# restated. A second copy here would be a box the policies could be trained in
+# while the clearing reads a different one; these names survive because older
+# callers import them.
+BID_MULT_LOW, BID_MULT_HIGH = ACTION_BID_OFFER_V1.bounds["bid_mult"]
+OFFER_ADDER_LOW, OFFER_ADDER_HIGH = ACTION_BID_OFFER_V1.bounds["offer_adder"]
 
 # Decision granularity
 BLOCK_SIZE = 4        # periods per decision block
 N_BLOCKS = 24         # 96 / 4
+
+
+def bounds_tensor(spec: ActionSpec) -> torch.Tensor:
+    """A spec's (low, high) bounds as a tensor, in `action_names` order.
+
+    The actor parameterizes an action as `mid + tanh(logit) * half`, so a
+    policy is built in one agent's box. Deriving that box from the spec here
+    keeps the two from drifting apart.
+    """
+    low = [spec.bounds[n][0] for n in spec.action_names]
+    high = [spec.bounds[n][1] for n in spec.action_names]
+    return torch.tensor([low, high], dtype=torch.float32)
 
 # Schedule keys stitched when assembling a captured day (mirrors the keys
 # every clear engine returns per agent).
@@ -197,6 +214,10 @@ class BiddingEnv:
         self.T = 96
         self.stage = stage
         self.wholesale = None
+        # Which day of the wholesale library this episode is priced on; set by
+        # `set_agents`. None means "whatever the configuration says", which is
+        # what every caller that predates day rotation expects.
+        self.day_id = None
         self.roll_horizon = roll_horizon  # look-ahead periods per window
 
         # Per-agent action bounds (configurable per training run)
@@ -273,11 +294,16 @@ class BiddingEnv:
 
     def get_action_bounds(self) -> torch.Tensor:
         """Return (low, high) bounds tensor for the continuous action space."""
-        low = [self.action_spec.bounds[nm][0]
-               for nm in self.action_spec.action_names]
-        high = [self.action_spec.bounds[nm][1]
-                for nm in self.action_spec.action_names]
-        return torch.tensor([low, high], dtype=torch.float32)
+        return bounds_tensor(self.action_spec)
+
+    def action_bounds_for(self, agent) -> torch.Tensor:
+        """The action box of one agent, from that agent's own spec.
+
+        The environment can hold a mixed population, and a prosumer's
+        multiplier pair is not the battery's price pair, so the box a policy is
+        built in has to follow the agent rather than the environment.
+        """
+        return bounds_tensor(self.spec_for(agent))
 
     def get_state_dim(self) -> int:
         return self.obs_spec.total_dim
@@ -324,20 +350,23 @@ class BiddingEnv:
     def spec_for(self, agent) -> ActionSpec:
         """Which action space this agent's quotes live in.
 
-        Chosen by participant type, so a prosumer that happens to carry a
-        battery keeps the declared-price ontology its load and generation give
-        it, and only a battery alone declares reservation prices.
+        Delegates to `rl_spec.action_spec_for` with this environment's two
+        configured specs. The rule -- chosen by participant type, so a prosumer
+        that happens to carry a battery keeps the declared-price ontology its
+        load and generation give it, and only a battery alone declares
+        reservation prices -- lives there, so it cannot drift between the
+        environment, the trainers and the clearing.
         """
-        if getattr(agent, "participant_type", "prosumer") == "storage":
-            return self.action_spec
-        return self._legacy_action_spec
+        return action_spec_for(agent, storage_spec=self.action_spec,
+                               other_spec=self._legacy_action_spec)
 
     # ------------------------------------------------------------------
     # Scenario switching
     # ------------------------------------------------------------------
 
     def set_agents(self, agents: List[Agent],
-                   wholesale: Optional[np.ndarray] = None):
+                   wholesale: Optional[np.ndarray] = None,
+                   day_id: Optional[int] = None):
         """Replace the agent population for scenario switching.
 
         Rebuilds per-RL-agent forecasters and resets SOC/history state.
@@ -345,7 +374,18 @@ class BiddingEnv:
         the names originally passed to __init__.
 
         Call this between episodes when cycling scenarios.
+
+        `day_id` is which day of the wholesale library this episode is priced
+        on. It is carried as environment *metadata*: it selects the price, and
+        it is logged and fingerprint-checked, but it never enters an
+        observation -- the layout of OBS_V3 is the same on every day, so a
+        policy cannot learn to recognise a day rather than to bid. Both
+        `reset` and `step` pass it down, because each regenerates the price and
+        a window priced off the wrong day is silent. None leaves whatever the
+        configuration says, which is the behaviour every caller had before
+        rotation existed.
         """
+        self.day_id = day_id
         self.all_agents = agents
         # Re-filter RL agents from the new population
         rl_names = {a.name for a in self.rl_agents}
@@ -597,7 +637,8 @@ class BiddingEnv:
         if wholesale is None:
             from grid import day_ahead_price_china
             self.wholesale = day_ahead_price_china(
-                self.T, agents=self.all_agents, config=self.config)
+                self.T, agents=self.all_agents, config=self.config,
+                day_id=self.day_id)
         else:
             self.wholesale = wholesale
 
@@ -719,8 +760,18 @@ class BiddingEnv:
         # differential-reward baseline re-clear. Regenerating it inside each
         # clear_market call would draw different unseeded price noise for the
         # two clears, corrupting reward = profit(price A) - profit(price B).
+        #
+        # `t_start` is what makes the window the window's own periods. The
+        # retired net-load map could leave it out because it derived the price
+        # from the agents it was handed, and a window's agents carry the
+        # window's own net load -- so asking for `window_T` periods landed on
+        # the right ones by construction. An external market does not read the
+        # agents, so without an offset every block would be priced off the
+        # first `window_T` periods of the day and block 20 would be charged
+        # 05:00's prices.
         wholesale = day_ahead_price_china(
-            window_T, agents=window_agents, config=window_config)
+            window_T, agents=window_agents, config=window_config,
+            t_start=t_start, day_id=self.day_id)
         self._last_wholesale = wholesale
 
         try:
@@ -741,10 +792,12 @@ class BiddingEnv:
                   f"None; rewards set to 0.", flush=True)
 
         # ---- Differential-reward baseline ----
-        # Baseline = this same window under truthful bidding (bid=1.0,
-        # offer=0.0) for every RL agent's committed block, with opponents kept
-        # at their RL actions and identical prev_soc. It must NOT advance
-        # prev_soc or the forecasters; it only supplies the profit to subtract.
+        # Baseline = this same window under truthful bidding for every RL
+        # agent's committed block, with opponents kept at their RL actions and
+        # identical prev_soc. The truthful point comes from each agent's spec,
+        # since it is a different pair of numbers per action space. It must NOT
+        # advance prev_soc or the forecasters; it only supplies the profit to
+        # subtract.
         base_rewards = {}
         if self.use_differential_reward and result is not None:
             base_window_agents = _make_window_agents(
@@ -887,7 +940,7 @@ class BiddingEnv:
                 obs[a.name] = np.zeros(self.obs_dim, dtype=np.float32)
 
         info = {"lmp": result["lmp"] if result else None,
-                "welfare": result["welfare"] if result else 0.0,
+                "clearing_objective": result["clearing_objective"] if result else 0.0,
                 # Per-RL-agent block accounting, kept separate: `reward` is the
                 # learning signal, `raw_profit` the settled money it is measured
                 # against, `local_baseline_profit` the in-window truthful

@@ -25,10 +25,18 @@ def deterministic_fleet_episode(env: BiddingEnv, actors: dict,
     """Run one deterministic episode (no exploration noise) for a policy fleet.
 
     actors maps agent name to a torch Actor (or any obs->action callable).
-    Agents without an actor fall back to truthful-bidding defaults.
+    An agent without an actor declares its own truthful point.
+
+    The fallback is read per agent from its action spec rather than written
+    here as a literal. "Declare no premium" is a different pair of numbers in
+    each action space -- it is (0, 0) for a battery's two prices and (1, 0) for
+    a load's multiplier pair -- so a literal would be read positionally as
+    whatever space the agent happens to be in, and would silently declare a
+    premium on the agents whose space it does not belong to.
     """
+    by_name = {a.name: a for a in env.all_agents}
     obs = env.reset()
-    total_welfare = 0.0
+    total_clearing_objective = 0.0
     re_rate = 0.0
     profits = {nm: 0.0 for nm in rl_agent_names}
     for _ in range(N_BLOCKS):
@@ -36,17 +44,17 @@ def deterministic_fleet_episode(env: BiddingEnv, actors: dict,
         for nm in rl_agent_names:
             actor = actors.get(nm)
             acts[nm] = actor_predict(actor, obs[nm]) if actor is not None \
-                else np.array([1.0, 0.0], dtype=np.float32)
+                else env.spec_for(by_name[nm]).truthful_array()
         next_obs, rewards, done, info = env.step(acts)
         for nm in rl_agent_names:
             profits[nm] += rewards.get(nm, 0.0)
-        total_welfare += info.get("welfare", 0.0)
+        total_clearing_objective += info.get("clearing_objective", 0.0)
         re_rate = info.get("re_rate", 0.0)
         if done:
             break
         obs = next_obs
     mean_reward = sum(profits.values()) / max(len(profits), 1)
-    return {"mean_reward": mean_reward, "welfare": total_welfare,
+    return {"mean_reward": mean_reward, "clearing_objective": total_clearing_objective,
             "re_rate": re_rate, "profits": profits}
 
 
@@ -109,12 +117,12 @@ class PolicyTracker:
         """
         env_list = list(envs) if isinstance(envs, (list, tuple)) else [envs]
         n = max(1, self.eval_episodes)
-        agg = {"mean_reward": 0.0, "welfare": 0.0, "re_rate": 0.0}
+        agg = {"mean_reward": 0.0, "clearing_objective": 0.0, "re_rate": 0.0}
         by_scenario = {}
         for idx, env in enumerate(env_list):
             sc_name = self.eval_scenarios[idx] \
                 if idx < len(self.eval_scenarios) else str(idx)
-            acc = {"mean_reward": 0.0, "welfare": 0.0, "re_rate": 0.0}
+            acc = {"mean_reward": 0.0, "clearing_objective": 0.0, "re_rate": 0.0}
             for _ in range(n):
                 r = deterministic_fleet_episode(env, actors, self.agent_names)
                 for k in acc:

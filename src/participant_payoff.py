@@ -46,9 +46,13 @@ class PayoffBreakdown:
     ``total`` is derived from the components rather than stored alongside them,
     so a component can never drift out of the total.
 
-    ``terminal_adjustment`` stays outside the components on purpose. It corrects
-    for ending the day at a different state of charge; it is not a cash flow, so
-    folding it in would corrupt every decomposition that sums the components.
+    There is deliberately no terminal-state-of-charge term here. Ending the day
+    with a fuller battery has banked energy it did not sell, and the way that
+    is neutralized is the *settlement*: both arms of a comparison are cleared
+    over the whole day with the endpoints pinned (`counterfactual_eval`), so
+    neither can end fuller than the other. A money adjustment on top of that
+    would price a difference the constraint has already removed, and one that
+    was never activated sat here unread for several rounds.
     """
 
     revenue: float = 0.0
@@ -57,7 +61,6 @@ class PayoffBreakdown:
     degradation_cost: float = 0.0
     other_cost: float = 0.0
     penalty: float = 0.0
-    terminal_adjustment: float = 0.0
     energy_sold_mwh: float = 0.0
     energy_bought_mwh: float = 0.0
     charge_mwh: float = 0.0
@@ -66,53 +69,15 @@ class PayoffBreakdown:
 
     @property
     def total(self) -> float:
-        """Settled profit (CNY), excluding the terminal adjustment."""
+        """Settled profit (CNY)."""
         return (self.revenue - self.purchase_cost - self.generation_cost
                 - self.degradation_cost - self.other_cost - self.penalty)
-
-    @property
-    def soc_neutral_total(self) -> float:
-        """Profit adjusted to a common terminal state of charge."""
-        return self.total + self.terminal_adjustment
 
     def as_dict(self) -> dict:
         out = {name: getattr(self, name)
                for name in self.__dataclass_fields__}
         out["total"] = self.total
-        out["soc_neutral_total"] = self.soc_neutral_total
         return out
-
-
-def soc_neutral_adjustment(soc_T: float, soc_0: float, e_max: float,
-                           terminal_price: float) -> float:
-    """Value of ending the day at a different state of charge (CNY).
-
-    A day that finishes with a fuller battery has banked energy it did not
-    sell, so comparing two arms on cash alone rewards the one that ran the
-    battery down. Valuing the difference at one common price makes the
-    comparison like for like. Apply the same price to both arms; the adjustment
-    removes the level difference, not the risk difference, which remains a
-    documented limitation.
-    """
-    return float(terminal_price) * (float(soc_T) - float(soc_0)) * float(e_max)
-
-
-def resolve_terminal_price(config: MarketConfig,
-                           wholesale: Optional[np.ndarray] = None) -> float:
-    """The one terminal-SOC price to use for a pair of arms.
-
-    ``config.storage.terminal_value`` when set, otherwise the day's mean
-    wholesale price — the same fallback the clearing optimizers use, so the
-    optimizer's incentive and the reported adjustment are the same number.
-    """
-    configured = config.storage.terminal_value
-    if configured is not None:
-        return float(configured)
-    if wholesale is None or len(wholesale) == 0:
-        raise ValueError(
-            "no terminal price: config.storage.terminal_value is unset and no "
-            "wholesale curve was given to fall back to")
-    return float(np.mean(np.asarray(wholesale, dtype=float)))
 
 
 class PayoffModel:
