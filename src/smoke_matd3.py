@@ -1,9 +1,9 @@
 # smoke_matd3.py
-"""A short MATD3 run, instrumented for the failures that waste a long one.
+"""Environment and policy instrumentation over the calibrated B3 day.
 
-This is not the experiment. It is the check that a full multi-seed run is worth
-starting: a short training on the calibrated B3 day, with every one of these
-looked at directly rather than inferred from a reward curve.
+Not a training run and not the experiment. It walks the facilities through the
+environment for a fixed number of episodes and reports these directly rather
+than inferring them from a reward curve:
 
   no NaN                  in rewards, losses, actions or the clearing
   valid actions           every declared quote inside its own box
@@ -13,7 +13,15 @@ looked at directly rather than inferred from a reward curve.
   non-degenerate actions  the fleet does not declare one identical quote
   no corner collapse      the policy does not sit on its truthful corner
 
-A reward curve cannot show any of these. A run that has collapsed to the
+It never calls `trainer.remember()`, so the replay buffer stays empty,
+`MATD3.update()` returns before its first gradient step, and the quotes recorded
+here come from the seeded actor plus exploration noise. The readings therefore
+describe the environment and the action box -- that the box is reachable, that
+the clearing is stable, that the SOC constraints hold -- and not a learned
+policy. `audit_protocol_smoke.check_policy_behaviour` is where the checks that
+are about a trained policy live; it replays a finished run's saved policies.
+
+A reward curve can show none of the seven. A run that has collapsed to the
 truthful corner still produces a flat, plausible-looking reward.
 """
 

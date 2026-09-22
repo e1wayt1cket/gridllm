@@ -128,6 +128,17 @@ the frozen constant and the rule disagree, so a changed actor, penalty or box
 cannot leave the formal runs using a value whose supporting measurement no
 longer exists.
 
+**This is the weight Experiment Baseline v0.1 is frozen at.** The value is a
+protocol constant, not a tunable: it was chosen once, against the grid above and
+the selection rule rather than against any profit, and the formal runs declare
+it rather than search it. A formal result is not a reason to revisit it. If a
+future change to the actor, the penalty or the action box moves what the rule
+selects, that is a new protocol version, and the test above is what makes the
+disagreement visible instead of silent.
+
+The frozen value is recorded in `reports/experiment_baseline_v0.1_freeze.md`
+along with the rest of the protocol it belongs to.
+
 ## Two things the table is not
 
 **The spread is not monotone across the whole grid, and is not claimed to be.**
@@ -145,15 +156,24 @@ of eight. A non-zero corner fraction is therefore not by itself evidence that
 the penalty is pinning the fleet; the spread is the signal that shows a policy
 being decided for rather than shaped, which is why the rule keys on the spread.
 
-## The smoke test
+## The instrumentation run
 
 ```bash
 PYTHONPATH=src python src/smoke_matd3.py --seeds 1,2 --episodes 60
 ```
 
-A short run instrumented for the failures a reward curve cannot show — a run
-that has collapsed to the truthful corner still produces a flat, plausible
-reward. It runs at `CALIBRATED_DEV_PENALTY` unless overridden. See
-`docs/2026-09-18-matd3-smoke.md` for the results, and
+An environment and policy instrument, not a training smoke: it walks the B3
+facilities through the environment for a fixed number of episodes and looks
+directly at what a reward curve cannot show — NaN, quotes outside their own
+box, SOC bounds, clearing fallbacks, terminal SOC equality, degenerate or
+corner-collapsed quotes. **It does not train.** It never calls
+`trainer.remember()`, so the replay buffer stays empty, `MATD3.update()` returns
+before its first gradient step, and the actor it samples from is the seeded
+initialization rather than a learned policy. Reading its checks as evidence
+about a trained policy would be wrong; `docs/2026-09-18-matd3-smoke.md` records
+what they do and do not establish.
+
+It runs at `CALIBRATED_DEV_PENALTY` unless overridden. See
+`docs/2026-09-18-matd3-smoke.md` for the recorded run, and
 `reports/protocol_smoke_v0.1_lambda010.md` for the protocol smoke at this
 weight.

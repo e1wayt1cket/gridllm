@@ -248,16 +248,18 @@ than the open-ended one it was when the margin was zero — and the space is rea
 on one day in ten rather than never. But `verdict_box` is INSUFFICIENT and no
 MATD3 run should start on the strength of the profit figure.
 
-## Smoke training on the new price
+## Instrumented comparison on the new price
 
 `src/smoke_matd3.py --seeds 1,2 --episodes 60`, B3, band [0.93, 1.05],
 dev-penalty 0.25. All seven checks pass on both seeds: no NaN, every declared
 quote inside its box, every SOC inside its band, 1440 clears with zero fallbacks,
 terminal SOC exactly equal, no degenerate quotes, no corner collapse.
 
-This is a **health check, not evidence about learning** -- 60 episodes, one day,
-two seeds. It says a longer run would not be wasted; it does not say one would
-succeed.
+This is an **environment and action-box instrument, not evidence about
+learning** -- `smoke_matd3.py` never calls `trainer.remember()`, so no gradient
+step is ever taken and the recorded quotes come from the seeded actor. See
+`docs/2026-09-18-matd3-smoke.md`. The two columns below are a property of the
+environment under each price map, not of a policy trained on either.
 
 | | retired map (documented) | synthetic_v1 |
 |---|---|---|
@@ -271,7 +273,10 @@ Two things are worth reading off this, and one of them is a caution.
 
 **The fleet now charges.** Under the retired map the recorded finding was that
 the SOC "never rose above its initial 0.5 -- only discharged net". It now reaches
-0.615 and 0.672, so the fleet genuinely cycles rather than only draining.
+0.615 and 0.672, so the sampled quotes now let the fleet cycle rather than only
+drain. Read this as a property of the environment: the instrument does not
+train, so what changed between the two columns is what `synthetic_v1` makes
+attractive, not what the policy learned.
 
 **The discharge quote saturates the box.** `quote_max` reaches 299.2 and 299.6
 against a discharge box that stops at 300. The policy wants to declare a higher

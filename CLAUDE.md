@@ -117,9 +117,14 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
   regularizer claims and how far it narrows the fleet's quotes. It never
   computes a profit, so the weight cannot be selected on one. See
   `docs/2026-09-18-dev-penalty-calibration.md`.
-- **`smoke_matd3.py`**: A short MATD3 run instrumented for what a reward curve
-  cannot show — NaN, out-of-box actions, SOC bounds, clearing fallbacks,
-  terminal SOC equality, degenerate or corner-collapsed quotes.
+- **`smoke_matd3.py`**: Environment and policy instrumentation, not training. It
+  walks the B3 facilities through the environment and reports what a reward
+  curve cannot show — NaN, out-of-box actions, SOC bounds, clearing fallbacks,
+  terminal SOC equality, degenerate or corner-collapsed quotes. It never calls
+  `trainer.remember()`, so no gradient step runs and its checks describe the
+  environment and the action box rather than a learned policy; policy-level
+  checks come from `audit_protocol_smoke.check_policy_behaviour` replaying a
+  finished run's saved policies.
 - **Deviation penalty**: one dimensionless weight `--dev-penalty` on the sum of
   squared **box-normalized** deviations, `d = |a - truthful| / (high - low)`,
   differentiated through the tanh so its pull is bounded and vanishes at the box

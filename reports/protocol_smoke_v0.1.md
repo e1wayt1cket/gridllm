@@ -86,7 +86,11 @@ validation or test day appears in any training episode.
 
 ### Action check — PASS
 
-From the instrumented run (`src/smoke_matd3.py`, seed 1, 24 episodes, λ=0.25):
+From the instrumented run (`src/smoke_matd3.py`, seed 1, 24 episodes, λ=0.25).
+That script does not train — it never calls `trainer.remember()` — so the rows
+below describe the action box and the environment against a seeded actor, not a
+trained policy. `reports/protocol_smoke_v0.1_lambda010.md` records this and
+replaces the policy-level check with a replay of the saved policies:
 
 | | |
 |---|---|
