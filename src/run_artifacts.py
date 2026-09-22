@@ -7,6 +7,15 @@ self-describing directory under outputs/rl/<run_id>/ containing the CLI args,
 a JSON-safe config snapshot, the observation/action specs, per-episode
 metrics, evaluation history, and the paths of every policy artifact produced.
 
+The run id is `run-<YYYYmmdd-HHMMSS>-<hash>`, where the hash covers the
+`MarketConfig` snapshot **and the run seed**. The seed is in it because it is
+the one CLI argument that changes what a run produces while leaving the config
+identical: seeds trained on one configuration would otherwise share an
+identity, and two reaching `create` inside the same second would take one
+directory between them and overwrite each other's metrics, evaluation and KPI
+files. Two runs that differ only in their start time still collide by design;
+two runs that differ in their seed cannot.
+
 outputs/ is gitignored, so these artifacts never enter version control.
 """
 
@@ -46,9 +55,22 @@ def _json_safe(obj):
     return str(obj)
 
 
-def _config_hash(config) -> str:
-    """Short md5 of the JSON-safe config snapshot, used in the run id."""
+def _config_hash(config, run_seed=None) -> str:
+    """Short md5 of the JSON-safe config snapshot and the run seed.
+
+    The seed belongs in a run's identity because it is the one CLI argument
+    that changes what a run produces while leaving `MarketConfig` identical.
+    Without it, seeds trained on the same configuration hash the same, and two
+    of them reaching `create` inside the same second take one run directory
+    between them -- overwriting each other's metrics, evaluation and KPI files
+    rather than colliding loudly.
+
+    The seed is appended only when the caller has one, so a config snapshot on
+    its own still hashes to what it always did.
+    """
     payload = json.dumps(_json_safe(config), sort_keys=True, default=str)
+    if run_seed is not None:
+        payload = f"{payload}|seed={run_seed}"
     return hashlib.md5(payload.encode()).hexdigest()
 
 
@@ -138,7 +160,9 @@ class RunArtifacts:
                base_dir: str = "outputs/rl") -> "RunArtifacts":
         """Create a fresh artifacts container for a training run."""
         ts = datetime.now()
-        run_id = f"run-{ts:%Y%m%d-%H%M%S}-{_config_hash(config)[:8]}"
+        run_seed = (cli_args or {}).get("seed")
+        run_id = (
+            f"run-{ts:%Y%m%d-%H%M%S}-{_config_hash(config, run_seed)[:8]}")
         root_dir = os.path.join(base_dir, run_id)
         return cls(
             run_id=run_id, root_dir=root_dir,

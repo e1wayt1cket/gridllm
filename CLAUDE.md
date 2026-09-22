@@ -88,7 +88,13 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
 - **Voltage bands**: primary `0.93 <= V <= 1.05` (GB/T 12325 ±7%), strict
   `0.95 <= V <= 1.05` (sensitivity). They differ in the lower bound alone,
   which is the only one this network binds on. A band is a constraint the
-  market clears against, never a property to tune the scenarios toward.
+  market clears against, never a property to tune the scenarios toward. The
+  voltage variables carry no slack, so a cleared day cannot sit outside its
+  band at any bus or period; the invariant worth gating is that, not whether a
+  given rung *pins*. `baseline_ladder`'s `voltage_binding` is the clearing's
+  own active-constraint report — the cleared extremum sits on a band edge — and
+  it holds only for a rung stressed enough to need the bound. It is not the
+  forced-service diagnostic's answer, and it is not a property of a rung.
 - **Scenario scale is declared, never inherited** (`config/scenarios.yaml`).
   `defaults.yaml` holds the IEEE33 benchmark and no study scale. `typical_day`
   is `load_scale_mode: native_peak` with `load_shape: native`, so one shared
@@ -107,11 +113,18 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
   (`counterfactual_eval`), defined on participant payoff from
   `participant_payoff`, never on the clearing objective and never on a training
   reward. A reward is not a payoff.
-- **Shed diagnostics** (diagnostic only, not market outcomes):
-  `diagnose_typical_day.py --min-shed` separates the shed the market declined
-  to serve (0.042 MWh) from the shed the network cannot serve (0.1286 MWh);
-  `--no-shed-voltage` forces every unit served and reports that the **voltage**
-  band breaks first, in all 96 periods, with no line ever reaching its limit.
+- **Shed diagnostics** (diagnostic only, not market outcomes): two questions
+  that answer different things and must not be conflated.
+  `diagnose_typical_day.py --min-shed` clears the same day with total shed
+  ranked above every price, so `shed_economic - shed_min` is the load the
+  *market declined* to buy and `shed_min` is what the constraints make
+  unservable. That is a statement about **market-clear** shed.
+  `--no-shed-voltage` has no clearing at all: it forces every unit served, runs
+  a power flow per period, and fixes shed at zero by construction to report
+  which limit breaks first. It reports the **voltage** band breaking first with
+  no line ever reaching its limit. How many periods violate, and how deep the
+  sag goes, are properties of the scenario's load rather than of the mechanism,
+  so they are reported and never gated.
 - **`calibrate_dev_penalty.py`**: Chooses the deviation-penalty weight on a
   fixed B3 + SOCP day with no learning, by how much of the actor gradient the
   regularizer claims and how far it narrows the fleet's quotes. It never

@@ -9,20 +9,24 @@ same configuration, seed and scenario.
 PYTHONPATH=src python src/baseline_ladder.py --rung all --bands both --json outputs/ladder.json
 ```
 
+Every number below is a measurement at seed 123 on the configuration in
+`config/`, not a target. The record is regenerated from the code, so a number
+here that the code no longer produces is a documentation defect and not a
+result.
+
 ## B0 is a benchmark reference; B1-B3 are the project scenario
 
 This is the one distinction that must not be lost. **B0 is not a baseline for
 B1.** They are different networks at different loads, and the step between them
 is a change of question, not a change of parameter.
 
-| | B0 | B1 |
+| | B0 | B1-B3 |
 |---|---|---|
 | what it is | the published IEEE 33-bus | this study's operating scenario |
-| load | **3.715 MW / 2.3 MVAr**, the native per-bus distribution | **10 MW coincident peak, 179 MWh/day** |
+| load | **3.715 MW / 2.3 MVAr**, the native per-bus distribution | `typical_day`'s own declared scale |
 | time | one snapshot, no horizon | 96 periods at 15 minutes |
 | market | none | day-ahead clearing at the SOCP engine |
-| shedding | no mechanism exists | 0.42 MWh at the primary band |
-| answers | what does the untuned network do at its own load? | what does this study's facility set do on a real day? |
+| shedding | no mechanism exists | reported per rung |
 
 The rungs are therefore **not required to share a load level**, and B0's
 `energy_load` is `null` with `metric_not_applicable: true` — a snapshot has no
@@ -32,14 +36,30 @@ B0's `shed` is reported as `0.0` with `shed_mechanism: "absent"`. It is not
 evidence the network is feasible: B0 cannot shed, so it cannot demonstrate
 anything by not shedding.
 
+### How stressed B1-B3 are is a property of the scenario's scale
+
+`typical_day` declares `load_scale_mode: native_peak` and `load_shape: native`,
+so one shared peak-normalized `lambda_t` gives `P_i(t) = P_i_base * lambda_t`
+and the day's real coincident peak is the network's own nominal demand. Its
+renewables are declared per bus in MW and its fleet is sized against that
+scale.
+
+Every stress quantity the ladder reports — how deep the voltage sags, how much
+load is shed, how far the clearing pushes the band — follows from that
+declaration and moves with it. A scenario that declares a larger peak is a
+harder day and sheds more; nothing about the mechanism changes. Reading the
+ladder's absolute numbers as properties of the *network* rather than of the
+scenario that was declared for it is the mistake this section exists to
+prevent.
+
 ## The rungs
 
 | rung | built from | has DER | has ESS |
 |---|---|---|---|
 | B0 | `pandapower.networks.case33bw()` + `runpp` | no | no |
 | B1 | `typical_day` with the DER zeroed | no | no |
-| B2 | `typical_day` | PV 25.4 MWh + wind 19.5 MWh | no |
-| B3 | `typical_day` | yes | `[2, 12, 13, 19]`, rule policy |
+| B2 | `typical_day` | PV + wind | no |
+| B3 | `typical_day` | yes | the configured fleet, rule policy |
 
 No new physics was added for any rung. B1's absent DER is the scenario's own
 fleet zeroed on the agents, and B2's absent battery is `ess_buses=[]`, which
@@ -48,60 +68,72 @@ fleet zeroed on the agents, and B2's absent battery is `ess_buses=[]`, which
 ## The two voltage bands
 
 ```python
-PRIMARY_BAND = (0.93, 1.07)   # operational; GB/T 12325 +/-7%
-STRICT_BAND  = (0.95, 1.05)   # sensitivity; the enhanced-IEEE33 convention
+PRIMARY_BAND = (0.93, 1.05)   # operational; GB/T 12325, the lower bound is the binding one
+STRICT_BAND  = (0.95, 1.05)   # sensitivity
 ```
 
 Every rung runs at both. **Neither band is reached by tuning**, and no rung's
 scenario parameters differ between them — the difference is the band's own.
 
-The reason this has to be stated so plainly is measured:
+A band is a constraint the market clears against. The voltage variables are
+created with hard bounds and **carry no slack**, so a cleared day cannot sit
+outside its band at any bus or period; the only slack variables in the model
+are the carbon and renewable-share ones. That is the invariant worth gating.
 
-- The original IEEE 33-bus at its **own** nominal load has Vmin `0.9131` pu at
-  bus 17 — **21 of 33 buses below 0.95 and 14 below 0.93**. B0 therefore
-  violates both bands without anything being wrong with it.
-- At this study's 10 MW level the unconstrained minimum is `0.7209` pu.
+**`voltage_binding` is the clearing's own active-constraint report.** It is
+true when the cleared extremum sits numerically on a band edge
+(`|vmin - lo| <= 1e-6` or `|vmax - hi| <= 1e-6`), which is how a solver's active
+set is read off a solution. Two consequences follow, and both matter:
 
-So a voltage band is a *constraint the market clears against*, not a property
-of the network. Enhanced-IEEE33 papers that use 0.95-1.05 pair it with DG,
-reactive compensation, reconfigurable lines and time-series DER; taking the
-band alone and calling the bare network "enhanced" is not a reading this
-project supports.
-
-The project's operational band stays at 0.93. `defaults.yaml` keeps
-`v_max_pu: 1.05`; the primary band's `1.07` is supplied by the ladder as an
-explicit run parameter, so the project's default model is unchanged. Measured,
-`v_max` is only *weakly* binding: raising it 1.05 → 1.07 moves the objective by
-2.9e-8 relative and the LMPs by 3.6e-4, while repeated runs at one setting are
-bit-identical. It is not the constraint that matters — `v_min` is, and it pins
-exactly on the band in every market rung.
+- It holds only for a rung stressed enough to *need* the bound. A rung that
+  meets its band with room to spare is not binding, and reporting it as such
+  would be wrong.
+- It is not the forced-service diagnostic's answer. `--no-shed-voltage` asks
+  which limit breaks first if nothing may be shed; `voltage_binding` asks
+  whether this clearing pushed against a bound. They are different questions
+  asked of different objects, and a day can have one without the other.
 
 ## What the ladder measures
 
-At seed 123, primary band:
+At seed 123, current configuration. `Vmin` is the cleared minimum over all
+buses and periods; `binding` is `voltage_binding`; `util` is the worst line
+utilization over the day.
 
-| rung | Vmin | shed MWh | curtail MWh | fleet Pi |
-|---|---|---|---|---|
-| B0 | 0.9131 | — (absent) | — | — |
-| B1 | 0.9300 | 32.94 | 0.00 | — |
-| B2 | 0.9300 | 2.37 | 1.64 | — |
-| B3 | 0.9300 | 0.42 | 1.64 | 613.29 |
+| rung | band | Vmin | binding | shed MWh | curtailment MWh | util |
+|---|---|---|---|---|---|---|
+| B0 | both | 0.913090 | False | — (absent) | — | 0.5256 |
+| B1 | primary | 0.949731 | False | 2.05e-07 | 0.0000 | 0.2191 |
+| B1 | strict | 0.950000 | **True** | 1.283e-03 | 0.0000 | 0.2185 |
+| B2 | primary | 0.958347 | False | 4.53e-09 | 13.4052 | 0.1755 |
+| B2 | strict | 0.958347 | False | 8.33e-08 | 13.4052 | 0.1755 |
+| B3 | primary | 0.952631 | False | 3.45e-07 | 13.3968 | 0.2056 |
+| B3 | strict | 0.952627 | False | 4.35e-07 | 13.3968 | 0.2056 |
 
-At the strict band, shed rises at every market rung: B1 32.94 → 54.62, B2 2.37
-→ 10.24, B3 0.42 → 4.62 MWh. That cost is the band's own, and it is reported
-rather than optimised away.
+Shed below ~1e-5 MWh is the solver's residue on the served/unserved split
+rather than a decision to shed; the tests state that line once as
+`SHED_TOL_MWH`. The one row that sheds above it is B1 at the strict band.
 
-Two things follow that are worth carrying forward:
+B3's fleet over the primary-band day:
 
-- **Renewables and storage are principally voltage support here.** Adding the
-  DER cuts shed by 14× (32.94 → 2.37 MWh) and adding the battery cuts it again
-  by 5.7× (2.37 → 0.42). `v_min` pins on the band in every market rung, so
-  voltage is the only binding constraint at any of them.
-- **B3's rule policy loses money against truthful** (`pi_ai` 613.29 vs
-  `pi_baseline` 664.60, `delta_pi` −51.32). That is a legitimate result, not a
-  defect: the deterministic rule is a *baseline* the AI policy has to beat, and
-  on this day doing nothing special pays better. It is the reason the research
-  question is worth asking.
+| | |
+|---|---|
+| active units | 4 of 4 |
+| charge / discharge | 1.4284 / 1.2090 MWh |
+| equivalent cycles | 0.8242 |
+| fleet profit (rule policy) | 104.12 CNY |
+| truthful arm | 205.86 CNY |
+| `delta_pi` | **−101.73** (−49.4%) |
+
+**B3's rule policy loses money against truthful.** That is a legitimate result,
+not a defect: the deterministic rule is a *baseline* the AI policy has to beat,
+and on this day doing nothing special pays better. It is the reason the
+research question is worth asking.
+
+At the strict band, only B1's shed moves materially (2.05e-07 → 1.283e-03 MWh).
+B2 and B3 hold the tighter bound with their own devices and their differences
+sit at the floor. A tighter band is a strictly smaller feasible set, so no rung
+can shed *less* under it — that direction is the invariant; the magnitude at
+B2 and B3 is not.
 
 ## Shed is a voltage result
 
@@ -116,25 +148,47 @@ PYTHONPATH=src python src/diagnose_typical_day.py --no-shed-voltage
 **`--min-shed` (MIN_SHED_RUN)** clears the same day with total shed ahead of
 every economic term (`penalty_unserved` at 1e7, well above every price and bid
 in the study) and every constraint untouched. It answers how much of the shed
-the *market declined* to serve:
+the *market declined* to serve. On this configuration both arms sit at the
+floor:
 
 | | MWh |
 |---|---|
-| economic clearing | 0.1709 |
-| minimum under identical physics | 0.1286 |
-| **declined by the market** | **0.042** (0.024% of a 179 MWh day) |
+| economic clearing | 8.73e-08 |
+| minimum under identical physics | 2.00e-10 |
+| **declined by the market** | **~0** |
 
-**`--no-shed-voltage` (NO_SHED_VOLTAGE_DIAGNOSTIC)** forces every unit served
-and every renewable at its available output, then runs a power flow per period
-with no market at all. The result is unambiguous:
+The invariant this establishes is directional: the minimum can never serve less
+than the economic run did, because the constraints are identical and only the
+objective's ordering changed. Its *magnitude* is zero here because the day is
+served in full — see the `stress case` below for where the attribution question
+is actually exercised.
 
-- **all 96 periods** violate the voltage band
-- **1968 bus-periods** below the bound; worst sag `0.7209` pu at bus 17
-- **zero periods** overload a line; the worst line loading is 0.914
-- `binding_constraint: "voltage"`
+**`--no-shed-voltage` (NO_SHED_VOLTAGE_DIAGNOSTIC)** is a different object and
+has no clearing in it at all. It forces every unit served and every renewable
+at its available output, fixes shed at zero by construction, and runs a power
+flow per period. Whichever limit is reached first is what has to give if shed
+is to be zero:
 
-So shed is a voltage-constraint phenomenon. It is not an energy shortage, not a
-line-capacity limit, and not an artifact of the clearing's objective.
+| | |
+|---|---|
+| periods violating the band | **3** of 96 |
+| bus-periods below the bound | 11 |
+| worst sag | **0.918157** pu at bus 17 |
+| periods overloading a line | **0** |
+| worst line loading | 0.3099 |
+| `binding_constraint` | **voltage** |
+
+So shed is a voltage-constraint phenomenon: not an energy shortage, not a
+line-capacity limit, and not an artifact of the clearing's objective. How many
+periods violate is a property of the declared scale, which is why it is
+reported rather than gated.
+
+**The stress case.** B1 carries neither DER nor a battery, so a bound it does
+not naturally satisfy can only be met by dropping load — and a bound met that
+way is met exactly. At the strict band that is what happens: B1 sheds
+1.283e-03 MWh, two orders above the floor, and its cleared `vmin` pins on
+0.950000. That is where the ladder is required to show the voltage constraint
+actually binding, since most rungs at the native scale do not need to.
 
 ## Reproducibility
 
@@ -142,13 +196,14 @@ line-capacity limit, and not an artifact of the clearing's objective.
 configuration, seed and scenario produce a byte-identical file. Verified across
 all eight runs (four rungs × two bands) with `cmp`. Repeated runs at one
 configuration are also bit-identical at the solver level, so the ladder's
-determinism is not merely the serializer's.
+determinism is not merely the serializer's. The profiles carry fixed noise
+seeds (`forecast_noise_seed` / `real_noise_seed`), so a repeat is a repeat and
+not a redraw.
 
 ## Not done in this round
 
-- **No α scenario family was added.** The pre-stated trigger was "only if B0-B3
-  all look too healthy"; the measured state is the opposite, so the spatial
-  load structure stays frozen and `congestion`'s weights are untouched. Nothing
-  may be retuned toward `v_min = 0.95`.
+- **No α scenario family was added.** The spatial load structure stays frozen
+  and `congestion`'s weights are untouched. Nothing may be retuned toward a
+  chosen `v_min`.
 - **B3 runs one deterministic policy** (`rule`, from `baselines.py`). No RL is
   involved in this ladder, and no MATD3 training was started.

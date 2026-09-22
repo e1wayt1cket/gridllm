@@ -6,7 +6,7 @@ import os
 import pytest
 
 from models import MarketConfig
-from run_artifacts import RunArtifacts, _json_safe
+from run_artifacts import RunArtifacts, _config_hash, _json_safe
 from rl_spec import OBS_V3, ACTION_BID_OFFER_V1
 
 
@@ -268,3 +268,52 @@ def test_episode_log_records_which_day_priced_it(tmp_path):
     art.record_episode(21, 1.0, 2.0, 3.0, None, None, "baseline")
     assert "day_id" not in art.metrics[-1]
     assert "cycle" not in art.metrics[-1]
+
+
+def test_the_run_seed_is_part_of_a_runs_identity():
+    """Same configuration and same seed is the same identity; a new seed is not.
+
+    The seed is the one CLI argument that changes what a run produces while
+    leaving `MarketConfig` identical, so it has to reach the run id. Without it
+    five seeds trained on one configuration are one identity, and five processes
+    started together land in one directory and overwrite each other.
+    """
+    config = MarketConfig(opf_mode="socp", verbose=False)
+    assert _config_hash(config, 1) == _config_hash(config, 1)
+    assert _config_hash(config, 1) != _config_hash(config, 2)
+
+
+def test_the_formal_seed_set_gives_five_distinct_run_ids():
+    """The property the parallel formal run rests on, asserted on its own set."""
+    config = MarketConfig(opf_mode="socp", verbose=False)
+    seeds = [1, 2, 3, 4, 5]
+    hashes = {_config_hash(config, s) for s in seeds}
+    assert len(hashes) == len(seeds)
+
+    # And through the public entry point, which is what a run actually uses.
+    args = {"algo": "matd3", "episodes": 800}
+    run_ids = {RunArtifacts.create(
+        config, dict(args, seed=s),
+        OBS_V3.to_dict(), ACTION_BID_OFFER_V1.to_dict()).run_id
+        for s in seeds}
+    assert len(run_ids) == len(seeds)
+
+
+def test_a_config_without_a_seed_hashes_as_it_always_did():
+    """A caller that carries no seed is not moved by the seed's arrival."""
+    config = MarketConfig(opf_mode="socp", verbose=False)
+    assert _config_hash(config) == _config_hash(config, None)
+
+
+def test_the_seed_reaches_the_run_id_through_create(tmp_path):
+    """The identity `create` writes is the seed-sensitive one."""
+    config = MarketConfig(opf_mode="socp", verbose=False)
+    one = RunArtifacts.create(config, {"seed": 1}, OBS_V3.to_dict(),
+                              ACTION_BID_OFFER_V1.to_dict(),
+                              base_dir=str(tmp_path))
+    two = RunArtifacts.create(config, {"seed": 2}, OBS_V3.to_dict(),
+                              ACTION_BID_OFFER_V1.to_dict(),
+                              base_dir=str(tmp_path))
+    assert one.run_id != two.run_id
+    assert one.run_id.endswith(_config_hash(config, 1)[:8])
+    assert two.run_id.endswith(_config_hash(config, 2)[:8])
