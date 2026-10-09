@@ -242,6 +242,40 @@ def test_both_load_shape_days_are_physically_feasible():
         assert all(s["all_transitions_verified"] for s in c["storage"].values()), name
 
 
+def test_the_native_day_sits_on_breakeven_at_the_configured_buses():
+    """The knife edge the report records, asserted rather than transcribed.
+
+    On `typical_day` the configured fleet's own buses land within a few
+    CNY/MWh of the requirement -- close enough that reading a margin off
+    rounded figures flips its sign. What is worth gating is that closeness,
+    not any one bus's last decimal: at most one of the four is nominally
+    above the requirement, and by well under 1 CNY/MWh.
+    """
+    try:
+        result = p9.load_shape_comparison()
+    finally:
+        p9._fresh()
+    unit, _ = p9._fleet_unit()
+    native = result["typical_day"]
+    own = {r["bus"]: r for r in native["nodal_per_bus"]}
+    assert set(own) >= {9, 14, 17, 27}
+
+    shortfalls = {bus: own[bus]["shortfall"] for bus in (9, 14, 17, 27)}
+    for bus, shortfall in shortfalls.items():
+        # The margin is the formula applied to this bus's own prices, so a
+        # table that drifted from the clearing would fail here.
+        assert own[bus]["margin"] == pytest.approx(
+            unit.eta_dis * own[bus]["lmp_max"] - own[bus]["lmp_min"] / unit.eta_ch)
+        assert shortfall == pytest.approx(
+            own[bus]["margin"] - native["required_margin"])
+        assert abs(shortfall) < 3.0, (bus, shortfall)
+
+    above = [bus for bus, s in shortfalls.items() if s > 0]
+    assert len(above) <= 1, above
+    for bus in above:
+        assert shortfalls[bus] < 1.0, (bus, shortfalls[bus])
+
+
 # ---------------------------------------------------------------------------
 # Siting runs, but not to rank
 # ---------------------------------------------------------------------------

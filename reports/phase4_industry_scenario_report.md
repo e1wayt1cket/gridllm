@@ -121,9 +121,11 @@ Restating the boundaries, because the scenario is easy to over-describe:
   declared rating for 87 of 200 checkable meters and contradicts it for 113).
   The day is *IEEE 33-bus demand redistributed by Jiangsu industry shapes*.
 - **Not a geographic mapping.** `industry_map` is a simulation rule.
-- **Not a real daily price.** `wholesale_curve_index: 0` selects the `261009`
-  mean curve. All four curves are means; `describe()` reports
-  `is_measured: false` and the reader carries the raw header.
+- **Not a confirmed real daily price.** `wholesale_curve_index: 0` selects the
+  `261009` curve. All four derive from real historical market data, but none is
+  confirmed to be a single day's series: the three trailing sheets are means,
+  and `261009`'s aggregation is unresolved. `describe()` reports
+  `is_measured: false` throughout and the reader carries the raw header.
 - **Not a facility change.** PV 0.6 MW and wind 1.0 MW are unchanged, the fleet
   is still `ESS9/14/17/27`, and the workbook's 分布式光伏 is **excluded by
   name** so its generation cannot re-enter as a device.

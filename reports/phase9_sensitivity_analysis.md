@@ -15,8 +15,8 @@ curve, for every battery size.** The screen's argument is an inequality rather
 than an observation: the most any battery can capture is the day's extremes,
 `eta_dis · max − min / eta_ch`, which ignores both the power and the energy
 limit and is therefore an optimistic bound on *every* capacity and *every*
-location at once. On all four curves that bound falls short of the required
-`2 × cycle_cost` at all 33 buses. Capacity therefore cannot open the window —
+location at once. On all four curves that bound falls short of the required margin -- which is
+derived from the clearing's objective, not assumed -- at all 33 buses. Capacity therefore cannot open the window —
 the bound does not contain the capacity at all — and no placement can either.
 **Nothing was tuned to change that**, and the physical half of each sensitivity
 is reported as measured.
@@ -28,7 +28,7 @@ is reported as measured.
 | scenario | `typical_day_industry` (IEEE 33-bus, 3.715 MW coincident peak) |
 | fleet | 4 × (0.4 MW / 1.6 MWh), buses 9, 14, 17, 27 |
 | `eta_ch` / `eta_dis` | 0.92 / 0.92; SOC 0.10–0.90 from 0.50 |
-| `cycle_cost` | 100 CNY/MWh per leg → **a cycle must clear 200 CNY/MWh** |
+| `cycle_cost` | 100 CNY/MWh per leg → **a cycle must clear 200.6957 CNY/MWh** |
 | horizon | 96 × 15 min, `dt = 0.25 h` |
 | strategy | `fixed` (truthful) throughout |
 | settlement | `counterfactual_eval.settle_day` |
@@ -57,10 +57,10 @@ here or there. If it does not clear the requirement, nothing does.
 
 | curve | role | mean | min | max | available spread | optimistic margin | required | shortfall |
 |---|---|---|---|---|---|---|---|---|
-| `261009` | `same_day_mean` | 386.83 | 225.90 | 445.00 | 219.10 | 163.86 | 200 | **−36.14** |
-| `7days` | `trailing_7_day_mean` | 395.55 | 257.50 | 477.87 | 220.37 | 159.75 | 200 | **−40.25** |
-| `30days` | `trailing_30_day_mean` | 407.82 | 333.08 | 450.86 | 117.78 | 52.75 | 200 | **−147.25** |
-| `halfyear` | `trailing_180_day_mean` | 346.33 | 284.93 | 393.86 | 108.93 | 52.64 | 200 | **−147.36** |
+| `261009` | `same_day_or_same_day_mean` | 386.83 | 225.90 | 445.00 | 219.10 | 163.86 | 200.70 | **−36.83** |
+| `7days` | `trailing_7_day_mean` | 395.55 | 257.50 | 477.87 | 220.37 | 159.75 | 200.70 | **−40.95** |
+| `30days` | `trailing_30_day_mean` | 407.82 | 333.08 | 450.86 | 117.78 | 52.75 | 200.70 | **−147.95** |
+| `halfyear` | `trailing_180_day_mean` | 346.33 | 284.93 | 393.86 | 108.93 | 52.64 | 200.70 | **−148.05** |
 
 ### The network's own nodal prices
 
@@ -69,10 +69,10 @@ clears the day and measures each bus.
 
 | curve | best nodal margin | at bus | buses clearing (of 33) | best shortfall |
 |---|---|---|---|---|
-| `261009` | 173.74 | 17 | **0** | −26.26 |
-| `7days` | 169.56 | 17 | **0** | −30.44 |
-| `30days` | 52.75 | 0 | **0** | −147.25 |
-| `halfyear` | 52.64 | 0 | **0** | −147.36 |
+| `261009` | 173.74 | 17 | **0** | −26.96 |
+| `7days` | 169.56 | 17 | **0** | −31.14 |
+| `30days` | 52.75 | 0 | **0** | −147.95 |
+| `halfyear` | 52.64 | 0 | **0** | −148.05 |
 
 The deepest-feeder buses (17 among them) carry a nodal premium over the
 wholesale curve, and it is real — bus 17 reaches 468.07 CNY/MWh against a curve
@@ -141,26 +141,41 @@ that report; it is restated here because it is the one clean load-shape result.
 
 ### A knife-edge worth recording
 
-`typical_day`'s network-best nodal margin is **201.03 CNY/MWh against a 200
-requirement** — nominally above break-even. Checking the configured fleet
-itself:
+`typical_day`'s network-best nodal margin is **201.03 CNY/MWh against a
+200.6957 requirement** — nominally above break-even. Checking the configured
+fleet itself:
 
 | bus | nodal range | margin | shortfall | LP margin |
 |---|---|---|---|---|
-| 9 | 149.95 – 395.20 | 200.59 | **+0.59** | 0.0000 |
-| 14 | 150.72 – 396.22 | 200.70 | **+0.70** | 0.0000 |
-| 17 | 151.42 – 397.04 | 200.69 | **+0.69** | 0.0000 |
-| 27 | 149.92 – 392.80 | 198.42 | −1.58 | 0.0000 |
+| 9 | 149.95313 – 395.19594 | 200.587736 | −0.107916 | 0.0000 |
+| 14 | 150.71820 – 396.21726 | 200.695749 | **+0.000097** | 0.0000 |
+| 17 | 151.41801 – 397.03627 | 200.688574 | −0.007078 | 0.0000 |
+| 27 | 149.91974 – 392.80198 | 198.421588 | −2.274064 | 0.0000 |
 
-Three of the four configured buses are above break-even by the *optimistic*
-measure, and the fleet does move — **0.0405 MWh**, not the 1e-6 noise of the
-industry day. Yet the LP, which must respect 0.4 MW and 1.6 MWh over the actual
-time separation between trough and peak, returns **exactly zero** at every one
-of them, and the settled profit is still ≈ 0.
+**One** of the four configured buses is above break-even by the *optimistic*
+measure, and by **0.0001 CNY/MWh** — a knife edge in the literal sense. The
+fleet does move — **0.0405 MWh**, not the 1e-6 noise of the industry day. Yet
+the LP, which must respect 0.4 MW and 1.6 MWh over the actual time separation
+between trough and peak, returns **exactly zero** at every one of them, and the
+settled profit is still ≈ 0.
+
+> **Corrected in Phase 10.** This table was first written against the lossless
+> `2 * cycle_cost = 200` and reported three of four buses above break-even
+> (+0.59, +0.70, +0.69). The requirement is the derived
+> `cycle_cost * (1/eta_ch + eta_dis) = 200.6957`, under which only bus 14
+> nominally clears. Its shortfall is **+0.000097**, not the +0.004 this report
+> carried for one revision: that figure was the difference of two *rounded*
+> margins (`200.70 − 200.6957`) at 2-dp precision, 43× the real value. The rows
+> are now read from `outputs/phase9_sensitivity.json`, where `load_shape`
+> carries the per-bus table, and `test_the_native_day_sits_on_breakeven_at_the_configured_buses`
+> re-derives each margin from that bus's own prices. The reading of the finding
+> is unchanged and in fact sharpened — the window is shut at every one of these
+> buses by the LP's own measure — but the recorded numbers had to move with the
+> formula. See `reports/final_research_summary.md` §5.
 
 This is the clearest possible illustration of why the optimistic bound is only
-a screen: **a margin of +0.6 CNY/MWh is not capturable by a battery that cannot
-be in two places at once.** It also shows how close the native day sits to the
+a screen: **a margin of +0.0001 CNY/MWh is not capturable by a battery that
+cannot be in two places at once.** It also shows how close the native day sits to the
 edge — which is why the fleet behaved as idle there in every earlier phase
 without anything being wrong.
 
@@ -228,7 +243,7 @@ experiment introduced an unverified industry load scale.
 
 | curve | role | mean | min | max | spread | optimistic margin | clears | best nodal margin | buses clearing | curtailment |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `261009` | `same_day_mean` | 386.83 | 225.90 | 445.00 | 219.10 | 163.86 | **no** | 173.74 | 0 | 2.180 |
+| `261009` | `same_day_or_same_day_mean` | 386.83 | 225.90 | 445.00 | 219.10 | 163.86 | **no** | 173.74 | 0 | 2.180 |
 | `7days` | `trailing_7_day_mean` | 395.55 | 257.50 | 477.87 | 220.37 | 159.75 | **no** | 169.56 | 0 | 1.611 |
 | `30days` | `trailing_30_day_mean` | 407.82 | 333.08 | 450.86 | 117.78 | 52.75 | **no** | 52.75 | 0 | 0.155 |
 | `halfyear` | `trailing_180_day_mean` | 346.33 | 284.93 | 393.86 | 108.93 | 52.64 | **no** | 52.64 | 0 | 0.916 |

@@ -270,6 +270,13 @@ def load_shape_comparison(T: int = 96) -> dict:
             "nodal_best_margin": nodal["best_margin"],
             "nodal_best_bus": nodal["best_bus"],
             "nodal_buses_clearing": nodal["n_buses_clearing"],
+            # The whole per-bus margin table, not just the best bus. On the
+            # native day the configured fleet's own buses sit within a few
+            # CNY/MWh of the requirement, and the report quotes them; keeping
+            # the rows here is what makes that table a reading of an artefact
+            # rather than a figure transcribed once and never re-derivable.
+            "required_margin": nodal["required_margin"],
+            "nodal_per_bus": nodal["per_bus"],
         }
     return out
 

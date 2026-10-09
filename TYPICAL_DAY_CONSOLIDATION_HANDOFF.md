@@ -1,5 +1,16 @@
 # Typical-day consolidation round — handoff
 
+> **Correction note (later).** This round recorded the floor a cycle must clear
+> as `2*cycle_cost = 200` CNY/MWh. That is the lossless-round-trip special case;
+> the floor derived from the clearing's own objective is
+> `cycle_cost * (1/eta_ch + eta_dis)`, i.e. **200.6957** at the configured
+> `cycle_cost = 100` and `eta = 0.92`. See `reports/final_research_summary.md`
+> §5. Every margin quoted below is 0.6957 CNY/MWh too optimistic. The siting
+> rule turns on whether a margin reaches 150, and all four units stay on the
+> same side of that level, so **the selection this round made is unchanged** —
+> but note that ESS31's margin crosses zero in the correction, from +0.7 to
+> −0.002. The measurements below are kept as recorded.
+
 The plan this round executes is `C:\Users\26036\.claude\plans\claude-code-cc-matd3-wondrous-dahl.md`.
 It has ten steps, S0–S10. **S0–S6 are done. S6 escalated rather than
 succeeded — see §4d — so `[2,12,13,19]` at headroom 1.10 with 0.0556 MWh of

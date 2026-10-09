@@ -163,10 +163,14 @@ Four sheets, **96 points each, no missing values**, units **CNY/MWh**:
 | `30days` | `日前均价` | 333.08 | 450.86 | 407.82 |
 | `halfyear` | `日前均价` | 284.93 | 393.86 | 346.33 |
 
-**All four are mean curves.** The `261009` column header says 均值, not a
-single day's clearing. There is therefore **no real daily day-ahead price
-series anywhere in the project** — only four curves differing by averaging
-window. Any claim of "real daily price" would be unsupported.
+**All four derive from real historical market data, and none is confirmed to be
+a single day's series.** The three trailing sheets are means over a named
+window. `261009` is the unresolved one: its column header says 均值, "mean",
+while its period column names a date, and nothing in the workbook settles which
+it is — see `reports/final_research_summary.md` §2.1, which records both
+readings rather than choosing. There is therefore **no confirmed real daily
+day-ahead price series anywhere in the project**, and any claim of "real daily
+price" would be unsupported.
 
 **Time labels are interval-END.** `261009` runs `00:15` → `24:00`, where the
 last label arrives as a `datetime` (`1900-01-01 00:00:00`, Excel's rendering of

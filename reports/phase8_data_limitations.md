@@ -183,7 +183,10 @@ about 1.6e-8 of one fleet cycle (6.4 MWh).
 **[LIMITED]** The perfect-foresight arbitrage LP returned **exactly zero** on
 all four curves, both on the exogenous curve and on each unit's own cleared
 nodal LMP. Every curve's round-trip margin (52.6–163.9 CNY/MWh) falls short of
-the 200 CNY/MWh the clearing charges per cycle.
+the derived floor the clearing charges per cycle,
+`cycle_cost * (1/eta_ch + eta_dis)` = 200.6957 CNY/MWh. (This report first wrote
+the lossless `2 * cycle_cost` = 200; see `reports/final_research_summary.md` §5
+for the derivation.)
 
 **[LIMITED]** The zero is not a broken LP: the same LP returns **344.29 CNY**
 per unit on a synthetic 120→1000 CNY/MWh band and **30.85 CNY** on a flat-500

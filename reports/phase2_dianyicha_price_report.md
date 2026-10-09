@@ -69,7 +69,7 @@ Every one is a **mean**, as the workbook's own column headers state — includin
 
 | sheet | header (verbatim) | role | min | max | mean | trough | peak |
 |---|---|---|---|---|---|---|---|
-| `261009` | 日前均值（CNY/MWh） | `same_day_mean` | 225.90 | 445.00 | 386.83 | 11:15 | 16:00 |
+| `261009` | 日前均值（CNY/MWh） | `same_day_or_same_day_mean` | 225.90 | 445.00 | 386.83 | 11:15 | 16:00 |
 | `7days` | 日前均价 | `trailing_7_day_mean` | 257.50 | 477.87 | 395.55 | 11:30 | 17:45 |
 | `30days` | 日前均价 | `trailing_30_day_mean` | 333.08 | 450.86 | 407.82 | 11:45 | 02:15 |
 | `halfyear` | 日前均价 | `trailing_180_day_mean` | 284.93 | 393.86 | 346.33 | 09:45 | 02:00 |

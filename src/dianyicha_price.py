@@ -10,14 +10,20 @@
 | `30days` | 日前均价 |
 | `halfyear` | 日前均价 |
 
-**All four are means.** The header on `261009` says so outright, and the other
-three are labelled the same way. None of them is a single day's clearing, so
-none may be described as a measured daily price. What separates them is the
-averaging window, which is what `role` records; what they have in common is that
-each period's value is an average over that window rather than one settlement.
-The consequence is stated once here and carried in every `Curve`: a study built
-on this file has four *price scenarios*, not four days, and cannot make a
-statement about day-to-day variation or about generalisation across days.
+**All four derive from real historical market data; they differ in aggregation.**
+The three trailing sheets are means over a known window -- 7, 30 and 180 days --
+which is what `role` records. **`261009`'s aggregation is unresolved**: its sheet
+name carries the date 26/10/09 and its column header says `日前均值`, "day-ahead
+mean", and nothing in the file says whether its 96 values are that day's actual
+period prices or a statistical single-day mean. `CURVE_META` records both
+readings rather than choosing between them.
+
+What follows holds under either reading: no curve here is *confirmed* to be a
+single day's measured series, so none may be described as a measured daily
+price, and `is_measured` is False throughout. The consequence is stated once
+here and carried in every `Curve`: a study built on this file has four *price
+scenarios*, not four days, and cannot make a statement about day-to-day
+variation or about generalisation across days.
 
 **Time labels are interval-END, and the mapping is positional.** A label is the
 *close* of the interval it belongs to: `00:15` closes the interval that runs

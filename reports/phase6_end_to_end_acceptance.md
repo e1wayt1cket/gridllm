@@ -21,7 +21,7 @@ tuned to change it.
 | shapes SHA-256 | `0a19913e7d068390…` |
 | price workbook | `docs/日前价格261009.xlsx` |
 | workbook SHA-256 | `5fc8f9a8461b680fd38a6d2fefb3d2ff99f239c8bd13a6c77df27de3bb9612f3` |
-| curve used | `261009`, index **0**, role `same_day_mean` |
+| curve used | `261009`, index **0**, role `same_day_or_same_day_mean` |
 | `is_measured` | **false** |
 | interval convention | `label_is_interval_end`, `label_index == period_index` |
 | units | CNY/MWh, `dt = 0.25 h` |
@@ -29,10 +29,13 @@ tuned to change it.
 | acceptance driver | `src/accept_typical_day_industry.py` |
 | raw report | `outputs/phase6_acceptance.json` |
 
-**This is not a verified real day.** `261009` is the sheet's day-ahead **mean**
-curve, as its own header (`日前均值（CNY/MWh）`) states. In this report it is the
-*"261009 day-ahead mean price scenario"* — a representative 96-period price
-scenario, never a measured daily clearing.
+**`261009` derives from real historical market data, but its aggregation is
+not settled.** Its sheet name carries the date 26/10/09 and its column header
+says `日前均值（CNY/MWh）`. Nothing in the file resolves whether it is that day's
+96 actual period prices or a statistical day-mean, so it is **not** treated as
+a confirmed daily series. In this report it is the *"261009 day-ahead price
+scenario"* — a representative 96-period price scenario, never a verified daily
+clearing. See `reports/final_research_summary.md` §2.
 
 **All four curves were read**, and their metadata checked: `261009`, `7days`,
 `30days`, `halfyear`, each 96 points, finite, CNY/MWh, `is_measured: false`.
@@ -271,17 +274,20 @@ clear can report `None` for the target rather than a value, which
 
 ## 7. Why the fleet is idle
 
-The clearing charges a cycle at `2 × cycle_cost = 200` CNY/MWh of throughput. A
+The clearing charges a cycle at its derived floor,
+`cycle_cost * (1/eta_ch + eta_dis) = 200.6957` CNY/MWh of throughput. (This
+report originally wrote `2 × cycle_cost = 200`; the derivation is in
+`reports/final_research_summary.md` §5.) A
 unit can only profit if its own bus delivers more than that across the day:
 
 | unit | bus | LMP min | LMP max | round-trip margin | required | shortfall |
 |---|---|---|---|---|---|---|
-| ESS9 | 9 | 234.30 | 463.86 | 172.08 | 200 | **−27.92** |
-| ESS14 | 14 | 235.39 | 466.10 | 172.96 | 200 | **−27.04** |
-| ESS17 | 17 | 236.33 | 468.07 | 173.74 | 200 | **−26.26** |
-| ESS27 | 27 | 236.64 | 463.53 | 169.22 | 200 | **−30.78** |
+| ESS9 | 9 | 234.30 | 463.86 | 172.08 | 200.70 | **−28.62** |
+| ESS14 | 14 | 235.39 | 466.10 | 172.96 | 200.70 | **−27.74** |
+| ESS17 | 17 | 236.33 | 468.07 | 173.74 | 200.70 | **−26.96** |
+| ESS27 | 27 | 236.64 | 463.53 | 169.22 | 200.70 | **−31.47** |
 
-Every unit falls short by 26–31 CNY/MWh. The cause is structural and was
+Every unit falls short by 27–31 CNY/MWh. The cause is structural and was
 anticipated: the real Jiangsu mean curve spans 225.90–445.00 CNY/MWh, against a
 `cycle_cost` of 100 per leg inherited from a synthetic market configured with a
 120–1000 band. **The window is closed, so the fleet correctly does not move.**

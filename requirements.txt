@@ -1,6 +1,7 @@
 numpy
 scipy
 pandas
+openpyxl
 pandapower==2.14.1
 gurobipy
 ortools>=9.9.0

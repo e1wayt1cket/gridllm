@@ -8,8 +8,8 @@ policy was trained or loaded, and no capacity, siting or threshold was moved.
 **Every unit is idle under every strategy on every curve, and the
 perfect-foresight reference is exactly zero on all four.** The fleet cannot
 profitably cycle because the round-trip margin the real Jiangsu mean curves
-offer (52.6–163.9 CNY/MWh) is below the 200 CNY/MWh the clearing charges for a
-cycle. This is not a failure of any strategy: **the perfect forecaster, who
+offer (52.6–163.9 CNY/MWh) is below what the clearing charges for a cycle
+(200.6957 CNY/MWh). This is not a failure of any strategy: **the perfect forecaster, who
 knows the whole day in advance and faces no network, no competition and no
 bidding, also earns nothing.** A closed window is the finding, and it is stated
 as an inequality a test can re-check rather than as a number in a table.
@@ -22,16 +22,18 @@ as an inequality a test can re-check rather than as a number in a table.
 | fleet | 4 × (0.4 MW / 1.6 MWh), buses 9, 14, 17, 27 |
 | `eta_ch` / `eta_dis` | 0.92 / 0.92 |
 | SOC band | 0.10 – 0.90, start 0.50, terminal pinned to start |
-| `cycle_cost` | 100 CNY/MWh **per leg** → 200 per cycle |
+| `cycle_cost` | 100 CNY/MWh **per leg** → 200.6957 required per cycle |
 | horizon | 96 × 15 min, `dt = 0.25 h` |
 | price source | `dianyicha`, all four sheets |
 | settlement | `counterfactual_eval.settle_day` |
 | driver | `src/phase7_strategy_comparison.py` |
 | raw output | `outputs/phase7_strategy_comparison.json` |
 
-**All four curves are means**, each over the window its role names. They are
-four **price scenarios**, not four dates. Nothing here is a cross-day statistic
-and no cross-day claim is made.
+**All four curves derive from real historical market data.** Three are means,
+each over the window its role names; `261009`'s aggregation is unresolved (see
+`reports/final_research_summary.md` §2.1). They are four **price scenarios**,
+not four dates. Nothing here is a cross-day statistic and no cross-day claim is
+made.
 
 ## 2. Strategy audit: what each one actually uses
 
@@ -91,7 +93,8 @@ maximise  Σ_t price[t] · (dis[t] − ch[t]) · dt  −  cycle_cost · (ch[t] +
 
 subject to the SOC transition, the power limits, the SOC band, and
 `soc[T] == soc[0]`. Both legs are costed, which is why the requirement is
-`2 × cycle_cost`. Units are MW / h / MWh / CNY/MWh throughout, and `soc` is a
+the derived floor `cycle_cost * (1/eta_ch + eta_dis)`. Units are MW / h / MWh /
+CNY/MWh throughout, and `soc` is a
 fraction of `e_max` carrying the same `dt / e_max` factor the clearing writes.
 
 | | |
@@ -121,13 +124,14 @@ shown to reach. Nothing below claims any strategy attains it.
 
 | curve | band min | band max | round-trip margin | required | bound / unit | bound / fleet |
 |---|---|---|---|---|---|---|
-| `261009` | 225.90 | 445.00 | 163.86 | 200 | **0.000000** | **0.000000** |
-| `7days` | 257.50 | 477.87 | 159.75 | 200 | **0.000000** | **0.000000** |
-| `30days` | 333.08 | 450.86 | 52.75 | 200 | **0.000000** | **0.000000** |
-| `halfyear` | 284.93 | 393.86 | 52.64 | 200 | **0.000000** | **0.000000** |
+| `261009` | 225.90 | 445.00 | 163.86 | 200.70 | **0.000000** | **0.000000** |
+| `7days` | 257.50 | 477.87 | 159.75 | 200.70 | **0.000000** | **0.000000** |
+| `30days` | 333.08 | 450.86 | 52.75 | 200.70 | **0.000000** | **0.000000** |
+| `halfyear` | 284.93 | 393.86 | 52.64 | 200.70 | **0.000000** | **0.000000** |
 
-`round-trip margin = eta_dis · max − min / eta_ch`; `required = 2 · cycle_cost`.
-Every curve fails, by between 36 and 147 CNY/MWh.
+`round-trip margin = eta_dis · max − min / eta_ch`; `required` is the derived
+floor `cycle_cost * (1/eta_ch + eta_dis)` = 200.6957, not the lossless
+`2 * cycle_cost`. Every curve fails, by between 36.8 and 148.1 CNY/MWh.
 
 **A zero bound demands a control**, because an LP that silently stopped working
 would produce it too:
@@ -255,7 +259,7 @@ assumptions (no network, no clearing, no competition) would matter only if the
 window were open.
 
 **Why can a strategy declare and still earn zero?** Because the clearing charges
-`2 × cycle_cost` on throughput a spread of 52–164 cannot cover. Declaring an
+its derived floor on throughput a spread of 52–164 cannot cover. Declaring an
 aggressive corner makes a unit *willing*; it does not make the cycle *profitable*,
 and the clearing will not take a trade that loses money at its own prices.
 
