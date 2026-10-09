@@ -32,29 +32,54 @@ def test_action_box_is_the_specs_own_bounds():
                    ACTION_STORAGE_QUOTE_V2.bounds["discharge_price"])
 
 
-def test_margin_reproduces_the_published_per_unit_numbers():
+def test_margin_reproduces_the_per_unit_numbers_the_siting_round_used():
     """The four margins the siting round is argued from.
 
     Recomputed from the valley and peak each unit's bus cleared at, so the
     reported table and the rule cannot disagree about what the margin is.
+
+    **These expectations moved by 0.6957 CNY/MWh in Phase 10**, when the
+    degradation floor was corrected from the lossless `2 * cycle_cost` to the
+    derived `cycle_cost * (1/eta_ch + eta_dis)`; see
+    `arbitrage_lp.required_margin`. The old figures were 17.4, 416.5, 9.4 and
+    0.7. The rule turns on whether a margin is at least 150, and every unit
+    stays on the same side of that level, so **the selection the round made is
+    unchanged** -- but the recorded values had to move with the formula.
     """
-    published = {  # name: (valley, peak, margin CNY/MWh)
-        "ESS6": (547.277532388794, 882.8668782709076, 17.4),
-        "ESS20": (518.4151340251901, 1282.6000183930653, 416.5),
-        "ESS24": (586.7928237830914, 920.9037381268764, 9.4),
-        "ESS31": (604.9732745272252, 932.9054842815647, 0.7),
+    published = {  # name: (valley, peak, corrected margin CNY/MWh)
+        "ESS6": (547.277532388794, 882.8668782709076, 16.675),
+        "ESS20": (518.4151340251901, 1282.6000183930653, 415.802),
+        "ESS24": (586.7928237830914, 920.9037381268764, 8.718),
+        "ESS31": (604.9732745272252, 932.9054842815647, -0.002),
     }
+    from arbitrage_lp import required_margin
+
+    shift = required_margin(CYCLE, ETA, ETA) - 2 * CYCLE
+    assert shift == pytest.approx(0.6957, abs=1e-4)
     for name, (valley, peak, expected) in published.items():
         got = round_trip_margin_cny_mwh(np.array([valley, peak]), ETA, ETA, CYCLE)
         assert got == pytest.approx(expected, abs=0.05), name
+        # The pre-Phase-10 value, recomputed rather than remembered: the
+        # correction moved every unit down by the same `shift`. The rule turns
+        # on a margin of at least 150, so each stays on the same side of that
+        # level and the round's selection is unchanged.
+        old = ETA * peak - valley / ETA - 2 * CYCLE
+        assert got == pytest.approx(old - shift, abs=1e-9), name
+        assert (got >= 150.0) == (old >= 150.0), name
 
 
-def test_margin_is_the_round_trip_less_the_degradation_floor():
-    """One MWh stored costs valley/eta to put in and returns eta*peak."""
+def test_margin_is_the_round_trip_less_the_derived_degradation_floor():
+    """One MWh stored costs valley/eta to put in and returns eta*peak; the
+    degradation floor is the derived one, not the lossless `2 * cycle_cost`."""
+    from arbitrage_lp import required_margin
+
     valley, peak = 500.0, 1000.0
     got = round_trip_margin_cny_mwh(np.array([valley, peak]), ETA, ETA, CYCLE)
-    assert got == pytest.approx(ETA * peak - valley / ETA - 2 * CYCLE)
-    assert got == pytest.approx(920.0 - 543.47826087 - 200.0, abs=1e-6)
+    floor = required_margin(CYCLE, ETA, ETA)
+    assert got == pytest.approx(ETA * peak - valley / ETA - floor)
+    assert got == pytest.approx(920.0 - 543.47826087 - 200.69565217, abs=1e-6)
+    # ...and the lossless form would have overstated it.
+    assert got < ETA * peak - valley / ETA - 2 * CYCLE
 
 
 def test_a_flat_price_leaves_no_margin():

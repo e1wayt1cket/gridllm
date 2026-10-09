@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from collections import deque
 import random
 
@@ -96,9 +96,6 @@ class CentralizedCritic(nn.Module):
     def forward(self, obs: torch.Tensor, actions: torch.Tensor):
         xu = torch.cat([obs, actions], dim=-1)
         return self.q1(xu), self.q2(xu)
-
-    def q1_forward(self, obs: torch.Tensor, actions: torch.Tensor):
-        return self.q1(torch.cat([obs, actions], dim=-1))
 
 
 # ---------------------------------------------------------------------------
@@ -544,6 +541,57 @@ class MATD3:
 # Global cache for trained policies
 _TRAINED_POLICIES: Dict[str, Actor] = {}
 
+#: Where each cached policy came from, and what it was built for.
+#:
+#: `_TRAINED_POLICIES` is keyed by agent name, and independent-storage names are
+#: stable across every scenario (`ESS9`, `ESS14`, ...). The name therefore
+#: cannot say whether a cached network belongs to the scenario about to use it,
+#: so a policy trained for one day was applied to another without a word. This
+#: records the origin and the spec identity beside the network, so a consumer
+#: can tell, and refuse.
+_POLICY_PROVENANCE: Dict[str, dict] = {}
+
+#: Bumped on every cache write, so a policy loaded later can be told from an
+#: earlier one even when both name the same file.
+_POLICY_GENERATION = 0
+
+
+def _record_provenance(names, source, obs_spec=None, action_spec=None,
+                       meta: Optional[dict] = None) -> None:
+    """Record where a set of policies came from.
+
+    The spec identity recorded is the one the policy was BUILT with, taken from
+    the checkpoint's own metadata where it exists; the caller's spec is only a
+    fallback for a checkpoint that carries none.
+    """
+    global _POLICY_GENERATION
+    _POLICY_GENERATION += 1
+    saved = (meta or {}).get("obs_spec") or {}
+    saved_act = (meta or {}).get("action_spec") or {}
+    for nm in names:
+        _POLICY_PROVENANCE[str(nm)] = {
+            "source": str(source),
+            "obs_spec": saved.get("name") or getattr(obs_spec, "name", None),
+            "action_spec": (saved_act.get("name")
+                            or getattr(action_spec, "name", None)),
+            "generation": _POLICY_GENERATION,
+        }
+
+
+def policy_provenance(name: str) -> Optional[dict]:
+    """Where the cached policy for `name` came from, or None if unrecorded."""
+    return _POLICY_PROVENANCE.get(name)
+
+
+def reset_trained_policies() -> None:
+    """Drop the cached policies and their provenance together.
+
+    Clearing one without the other would leave a network with no recorded
+    origin -- precisely the state the provenance exists to prevent.
+    """
+    _TRAINED_POLICIES.clear()
+    _POLICY_PROVENANCE.clear()
+
 
 def train_rl_agents(agents: List[Agent], config: MarketConfig,
                     n_episodes: int = 100, verbose: bool = True) \
@@ -555,8 +603,19 @@ def train_rl_agents(agents: List[Agent], config: MarketConfig,
 
     global _TRAINED_POLICIES
     _TRAINED_POLICIES.update(matd3.actors)
-
+    _record_provenance(matd3.actors.keys(), source=f"train:{_config_id(config)}")
     return matd3.actors, history
+
+
+def _config_id(config) -> str:
+    """The configuration's own hash, so provenance names a config not an object.
+
+    Reuses the artifact writer's digest rather than adding a second definition
+    of "the same configuration"; it is derived from content, never from a
+    memory address.
+    """
+    from run_artifacts import _config_hash
+    return _config_hash(config)
 
 
 def save_policies(policies: dict, path: str, obs_spec=None, action_spec=None):
@@ -598,6 +657,13 @@ def load_policies(path: str, obs_dim: int,
                 f"'{saved.get('name')}' (v{saved.get('version')}) but the "
                 f"environment uses '{obs_spec.name}' "
                 f"(v{obs_spec.version}); refusing to load.")
+    if meta is not None and action_spec is not None:
+        saved_act = meta.get("action_spec") or {}
+        if saved_act.get("name") not in (None, action_spec.name):
+            raise ValueError(
+                f"Policy {path} was trained with action spec "
+                f"'{saved_act.get('name')}' but the environment uses "
+                f"'{action_spec.name}'; refusing to load.")
     # The actor's output width is the action dimension, read off the (low,
     # high) box rather than written here; a literal would rebuild every net at
     # a width the saved weights do not have once the action space changes size.
@@ -611,4 +677,9 @@ def load_policies(path: str, obs_dim: int,
         policies[nm] = net
     global _TRAINED_POLICIES
     _TRAINED_POLICIES.update(policies)
+    # Recorded per agent, so an agent whose policy came from a different file
+    # is distinguishable from one that did not: loading a second directory does
+    # not leave a stale network behind under a name this file also carries.
+    _record_provenance(policies.keys(), source=path, obs_spec=obs_spec,
+                       action_spec=action_spec, meta=meta)
     return policies

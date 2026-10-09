@@ -84,12 +84,8 @@ def _pd():
 
 
 def warnings() -> List[str]:
-    """Non-fatal problems found during discovery since the last clear()."""
+    """Non-fatal problems found during discovery."""
     return list(_WARNINGS)
-
-
-def clear_warnings() -> None:
-    _WARNINGS.clear()
 
 
 # ---------------------------------------------------------------------------

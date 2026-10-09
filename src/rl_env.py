@@ -323,10 +323,6 @@ class BiddingEnv:
         """Shared observation features (LMP, price, system indicators)."""
         return self.obs_spec.shared_dim
 
-    def _compute_obs_dim(self) -> int:
-        """Flattened observation dimension per agent (retained shim)."""
-        return self.obs_spec.total_dim
-
     # ------------------------------------------------------------------
     # Default actions for non-RL agents
     # ------------------------------------------------------------------

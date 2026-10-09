@@ -352,7 +352,7 @@ price_curve:
 # that is `lmp`, recovered from the power-balance duals of the network-
 # constrained clearing. The two are different quantities at different levels.
 wholesale_market:
-  # legacy | synthetic_v1 | library | guangdong
+  # legacy | synthetic_v1 | library | guangdong | dianyicha
   #
   # `synthetic_v1` prices from an external market with its own demand, its own
   # renewables and its own supply stack, so the distribution network's own
@@ -381,6 +381,13 @@ wholesale_market:
   # silently drifting to a different day.
   day_id: 11
   library_file: data/wholesale/synthetic_da_v1.csv
+  # The Jiangsu curves, read straight from the 电易电查 workbook by
+  # `dianyicha_price.read_curves`. All four sheets are MEANS over the window
+  # named by their role, so `day_id` here selects a PRICE SCENARIO by index
+  # rather than a calendar day, and no result may be described as measured
+  # daily data. Quoted because `261009` would otherwise parse as an integer.
+  dianyicha_file: docs/日前价格261009.xlsx
+  dianyicha_curves: ["261009", "7days", "30days", "halfyear"]
   master_seed: 20260920
   number_of_days: 40
   price_floor: 120.0
@@ -441,3 +448,30 @@ wholesale_market:
     wind_ar_coef: 0.90
     wind_noise_std: 0.15
     wind_peak_hour: 3.0
+
+# ---------------------------------------------------------------------------
+# Threshold greedy bidding (`strategies/greedy_bidding.py`)
+# ---------------------------------------------------------------------------
+#
+# A per-period rule with no look-ahead, used as the third baseline beside
+# truthful (`fixed`) and look-ahead MPC. It declares quotes; the clearing
+# decides what is taken.
+#
+# The pair shipped here is a PRE-REGISTERED heuristic, chosen from the real
+# price band these curves occupy (roughly 226-478 CNY/MWh) so that the low
+# threshold sits in the midday trough and the high one above the night
+# plateau. It is not the result of a search over outcomes, and it must not be
+# moved after seeing what the strategies earn -- a threshold tuned on the
+# evaluation day would not be a baseline.
+greedy:
+  # "fixed"            read the two constants below
+  # "historical_mean"  derive them from the trailing-window curves by quantile
+  threshold_source: fixed
+  low_threshold: 300.0
+  high_threshold: 400.0
+  threshold_unit: CNY/MWh
+  # The quantiles `historical_mean` reduces each curve on, one curve at a time.
+  # A descriptive sensitivity source only: the trailing curves' window end
+  # dates are unverified, so a pair derived this way may not be called strictly
+  # non-anticipative.
+  quantiles: [0.25, 0.75]

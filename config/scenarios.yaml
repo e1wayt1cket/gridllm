@@ -32,6 +32,10 @@ scenarios:
     # retired net-load map, since they exist only for comparison against
     # results recorded before the external market was built.
     wholesale_source: synthetic_v1
+    # The synthetic library's median-range reference day, declared here rather
+    # than left to the file default so that every price-bearing scenario states
+    # its own index and none depends on another's build order.
+    wholesale_curve_index: 11
     # 3.715 / sqrt(3.715^2 + 2.3^2) -- the power factor that makes the day's
     # reactive load the benchmark's own 2.3 MVAr rather than a convention.
     load_power_factor: 0.8503
@@ -61,6 +65,104 @@ scenarios:
       # voltage band is a MWh of renewable output that cannot be delivered. A
       # scenario-scoped value rather than a default, because it is a choice
       # about this study's facilities and not a property of the network.
+      network.inverter_smax_multiplier: 1.10
+
+  # The research scenario with metered industry shapes.
+  #
+  # Same network, same declared scale, same facilities as `typical_day`. The
+  # only difference is where the intraday *shape* comes from: `typical_day`
+  # synthesises one peak-normalised diurnal profile and applies it to every
+  # bus, while here each bus takes the standard daily shape of the industry
+  # `industry_map` assigns it.
+  #
+  # What this does NOT change. The load LEVEL is untouched -- `native_peak`
+  # still pins the fleet's coincident peak to the network's own nominal demand,
+  # so this day draws IEEE33's own load, redistributed within the day. It is
+  # NOT measured Jiangsu load. The industry workbook carries normalised shapes
+  # only (no absolute MW conversion has been verified), and the bus assignment
+  # below is a simulation rule, not a geographic one.
+  typical_day_industry:
+    description: "IEEE33 native scale; intraday load shape from metered Jiangsu industry curves"
+    with_wind: true
+    load_scale_mode: native_peak
+    scenario_scale_source: ieee33_native_industry_shape
+    load_shape: industry
+    wholesale_source: dianyicha
+    # An index into `wholesale_market.dianyicha_curves`. That is a PRICE
+    # SCENARIO, not a calendar date: all four curves are means. 0 is `261009`.
+    wholesale_curve_index: 0
+    load_power_factor: 0.8503
+    renewable:
+      pv_bus_mw: {21: 0.3, 23: 0.3}
+      wind_bus_mw: {30: 1.0}
+    # ---------------------------------------------------------------------
+    # A SIMULATION mapping, not a geographic one.
+    #
+    # This feeder carries no user-to-node connection table. The assignment
+    # states which industry's standard shape each bus takes, so the day can be
+    # reproduced and argued with. It is NOT a claim about where Jiangsu
+    # industry is actually connected and must never be described as one.
+    #
+    # The rule, stated so it can be checked and replaced:
+    #   - every residential and commercial bus takes 商业综合体, because the
+    #     workbook contains no residential or general-retail class. The
+    #     commercial-complex curve is the closest available shape -- a night
+    #     trough and an evening peak -- which is also how these buses behave.
+    #   - each industrial bus takes one distinct industrial industry, so the
+    #     feeder's industrial load is not one curve wearing twelve names.
+    #
+    # Only RELIABLE quality-assessed industries appear. 分布式光伏 is a
+    # generator rather than a load; 5G基站 and 电解铝 fall below the sample
+    # threshold. All three are excluded here and remain available for
+    # exploratory runs, marked limited. The list is enforced:
+    # `_industry_load_shapes` raises if a load bus is left out, if a bus that
+    # carries no load is named, or if an excluded industry is used.
+    # ---------------------------------------------------------------------
+    industry_map:
+      simulation_mapping: true
+      source: "docs/16类行业用户.xlsx"
+      shapes_file: data/processed/industry_typical_profiles.csv
+      excluded_industries: ["分布式光伏", "5G基站", "电解铝"]
+      buses:
+        # 32 buses: 1..32. Bus 0 is the slack and carries no load, so it is
+        # not assigned here even though `load_types` names it.
+        # residential
+        1: "商业综合体"
+        2: "商业综合体"
+        3: "商业综合体"
+        4: "商业综合体"
+        5: "商业综合体"
+        6: "商业综合体"
+        18: "商业综合体"
+        19: "商业综合体"
+        20: "商业综合体"
+        21: "商业综合体"
+        # commercial
+        7: "商业综合体"
+        8: "商业综合体"
+        9: "商业综合体"
+        10: "商业综合体"
+        11: "商业综合体"
+        12: "商业综合体"
+        13: "商业综合体"
+        14: "商业综合体"
+        15: "商业综合体"
+        17: "商业综合体"
+        # industrial
+        16: "钢铁"
+        22: "水泥制造"
+        23: "化工业"
+        24: "汽车制造业"
+        25: "通用设备制造业"
+        26: "电子设备制造业"
+        27: "纺织业"
+        28: "机械"
+        29: "印刷业"
+        30: "电制氢"
+        31: "电动汽车（充换电）"
+        32: "数据中心"
+    override_config:
+      network.line_capacity_multiplier: 1.5
       network.inverter_smax_multiplier: 1.10
 
   # --- Legacy scenarios -----------------------------------------------------

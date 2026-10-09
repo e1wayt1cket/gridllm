@@ -158,7 +158,7 @@ def library_opportunity(provider) -> dict:
     that the round trip does not pay at all, which is a property of that day
     and not of the market.
     """
-    from arbitrage_lp import arbitrage_lp, spec_from_storage
+    from arbitrage_lp import arbitrage_lp, required_margin, spec_from_storage
     from models import StorageSpec
 
     unit = spec_from_storage(StorageSpec(
@@ -174,7 +174,7 @@ def library_opportunity(provider) -> dict:
             "range_cny_mwh": float(w.max() - w.min()),
             "naive_margin_cny_mwh": float(
                 unit.eta_dis * w.max() - w.min() / unit.eta_ch
-                - 2.0 * cycle_cost),
+                - required_margin(cycle_cost, unit.eta_ch, unit.eta_dis)),
             "lp_margin_cny": float(res.margin_cny),
         })
     ranges = np.array([r["range_cny_mwh"] for r in rows])

@@ -5,8 +5,42 @@ import torch
 from typing import Dict, List, Optional
 
 from models import Agent, MarketConfig
-from rl_spec import action_spec_for
+from rl_spec import action_spec_for, OBS_V3
 from strategies import BiddingStrategy, register_strategy
+
+
+def _reject_foreign_cached_policies(policies: dict, agents: List[Agent]) -> None:
+    """Refuse a cached policy that was not built for this environment.
+
+    The global cache is keyed by agent name, and independent-storage names are
+    identical in every scenario -- `ESS9` is `ESS9` in the native day and in the
+    industry day alike. The name therefore cannot say whether the cached network
+    belongs to the fleet about to use it, and a policy trained for one day
+    applied to another produces a plausible, wrong answer rather than an error.
+
+    The recorded spec identity is what distinguishes them. A policy whose
+    observation spec is not the one this environment builds is refused here,
+    loudly, instead of being mixed with policies that do belong.
+    """
+    from rl_bidding import policy_provenance
+
+    present = {a.name for a in agents}
+    for nm in list(policies):
+        if nm not in present:
+            continue
+        prov = policy_provenance(nm)
+        if not prov:
+            # Unrecorded provenance is an older checkpoint; the loader has
+            # already checked its spec against the file's own metadata.
+            continue
+        obs_name = prov.get("obs_spec")
+        if obs_name not in (None, OBS_V3.name):
+            raise ValueError(
+                f"the cached policy for {nm!r} was built with observation spec "
+                f"{obs_name!r}, but this environment uses {OBS_V3.name!r}; "
+                f"refusing to apply it. Pass the policy explicitly, load it "
+                f"with rl_bidding.load_policies, or clear the cache with "
+                f"rl_bidding.reset_trained_policies().")
 
 
 @register_strategy("rl")
@@ -16,10 +50,6 @@ class RLBiddingStrategy(BiddingStrategy):
     def __init__(self):
         self.policies: dict = {}
 
-    def set_policies(self, policies: dict):
-        """Inject trained Actor instances."""
-        self.policies = policies
-
     def formulate(
         self, agents: List[Agent], config: MarketConfig,
         market_history: Optional[dict] = None, T: int = 96,
@@ -28,6 +58,10 @@ class RLBiddingStrategy(BiddingStrategy):
         if not policies:
             from rl_bidding import _TRAINED_POLICIES
             policies = _TRAINED_POLICIES
+            # Only the shared cache is checked. Policies handed in explicitly
+            # through `self.policies` are the caller's decision, not a silent
+            # reuse of whatever happened to be cached.
+            _reject_foreign_cached_policies(policies, agents)
         if not policies:
             # Try auto-loading from default path (skipped during training)
             import os as _os

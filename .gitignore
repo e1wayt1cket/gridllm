@@ -34,6 +34,12 @@ dash.log
 # 独立复现；否则复现依赖生成器一个字都没改。
 !data/wholesale/*.csv
 
+# 行业标准日曲线：同样是研究输入而非数据产物。`typical_day_industry` 场景
+# 直接消费这个文件来构造各母线日内形状，没有它场景无法构建；而 67 MB 的原始
+# 工作簿不在版本库内，只能靠 `industry_load.py` 从工作簿重新生成。把它入库，
+# 场景才与工作簿的可得性无关，重建也能被逐值比对。
+!data/processed/industry_typical_profiles.csv
+
 # 系统文件
 .DS_Store
 Thumbs.db

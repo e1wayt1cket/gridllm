@@ -255,11 +255,49 @@ def test_the_spread_decomposition_adds_up():
     """Gross less its two named costs is the adjusted spread, exactly."""
     price = 450.0 + 350.0 * np.sin(np.arange(96) / 96 * 2 * np.pi - 1.0)
     res = al.arbitrage_lp(price, unit(), cycle_cost=100.0)
-    assert res.degradation_cost_cny_mwh == pytest.approx(200.0)
+    u = unit()
+    # The degradation floor is the derived one, not the lossless-round-trip
+    # `2 * cycle_cost`: the charge leg draws 1/eta_ch MWh from the grid per MWh
+    # stored and the discharge leg returns eta_dis, so the two legs are not
+    # equal in energy. See `arbitrage_lp.required_margin`.
+    assert res.degradation_cost_cny_mwh == pytest.approx(
+        al.required_margin(100.0, u.eta_ch, u.eta_dis))
+    assert res.degradation_cost_cny_mwh == pytest.approx(200.6957, abs=1e-4)
     assert res.adjusted_spread_cny_mwh == pytest.approx(
         res.gross_spread_cny_mwh
         - res.efficiency_loss_cny_mwh
         - res.degradation_cost_cny_mwh, rel=1e-9)
+
+
+def test_the_required_margin_reduces_to_the_lossless_case():
+    """At unit efficiency the derived floor is the familiar `2 * cycle_cost`."""
+    assert al.required_margin(100.0, 1.0, 1.0) == pytest.approx(200.0)
+
+
+def test_the_required_margin_is_what_the_lp_actually_breaks_even_on():
+    """The formula is checked against the optimiser, not asserted.
+
+    Two prices are chosen so the margin equals the derived floor exactly; the
+    LP's optimum must be zero there and positive just above it.
+    """
+    u = unit()
+    cc, ec, ed = 100.0, u.eta_ch, u.eta_dis
+    req = al.required_margin(cc, ec, ed)
+    p_lo = 300.0
+    for delta, expect_positive in ((0.0, False), (0.5, True), (2.0, True)):
+        p_hi = (req + delta + p_lo / ec) / ed
+        price = np.full(96, p_lo)
+        price[44:52] = p_hi
+        res = al.arbitrage_lp(price, u, cc)
+        if expect_positive:
+            assert res.margin_cny > 0, delta
+        else:
+            assert res.margin_cny == pytest.approx(0.0, abs=1e-9), delta
+    # ...and the lossless form would have called this day profitable.
+    p_hi = (2.0 * cc + 0.5 + p_lo / ec) / ed
+    price = np.full(96, p_lo)
+    price[44:52] = p_hi
+    assert al.arbitrage_lp(price, u, cc).margin_cny == pytest.approx(0.0, abs=1e-9)
 
 
 def test_the_same_series_gives_a_bit_identical_answer_twice():

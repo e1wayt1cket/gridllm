@@ -382,6 +382,7 @@ def test_every_declared_source_name_has_a_provider():
         "synthetic_v1": wp.SyntheticWholesalePriceProvider,
         "library": wp.LibraryPriceProvider,
         "guangdong": wp.GuangdongWholesalePriceProvider,
+        "dianyicha": wp.DianyichaPriceProvider,
         "legacy": wp.LegacyMeritOrderProvider,
     }
     assert set(classes) == set(wp.SOURCES)

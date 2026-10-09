@@ -103,14 +103,6 @@ def set_default(key_path: str, value: Any) -> None:
     _deep_set(load_defaults(), key_path, value)
 
 
-def save_defaults(path: Optional[str] = None) -> None:
-    """Persist the current defaults cache to YAML."""
-    target = path or _DEFAULTS_PATH
-    with open(target, "w", encoding="utf-8") as f:
-        yaml.dump(load_defaults(), f, allow_unicode=True, default_flow_style=False,
-                  sort_keys=False)
-
-
 def reload_defaults() -> None:
     """Clear cache so the next load re-reads from disk."""
     global _defaults_cache
@@ -156,9 +148,3 @@ def set_scenario_override(scenario_name: str, key: str, value: Any) -> None:
     cfg.setdefault("override_config", {})[key] = value
 
 
-def save_scenarios(path: Optional[str] = None) -> None:
-    """Persist the current scenarios cache to YAML."""
-    target = path or _SCENARIOS_PATH
-    with open(target, "w", encoding="utf-8") as f:
-        yaml.dump(load_scenarios(), f, allow_unicode=True, default_flow_style=False,
-                  sort_keys=False)

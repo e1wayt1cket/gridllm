@@ -13,7 +13,7 @@ import json
 import re
 import numpy as np
 import requests
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from models import MarketConfig
 from grid import pv_profile, wind_profile
@@ -370,28 +370,6 @@ baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge
                              "params": {"capacity_mw": capacity}})
 
         return mods
-
-    # ------------------------------------------------------------------
-    # Apply overrides to config_loader caches
-    # ------------------------------------------------------------------
-    def apply_defaults_overrides(self, overrides: Dict[str, Any]) -> None:
-        """Write dotted-key overrides into the config_loader defaults cache.
-        Call BEFORE get_scenario() so agents pick up the modified config.
-        """
-        if not overrides:
-            return
-        from config_loader import set_default
-        for key_path, value in overrides.items():
-            set_default(key_path, value)
-
-    def apply_scenario_overrides(self, overrides: Dict[str, Dict[str, Any]]) -> None:
-        """Write per-scenario parameter overrides into the config_loader cache."""
-        if not overrides:
-            return
-        from config_loader import set_scenario_param
-        for scenario_name, params in overrides.items():
-            for key_path, value in params.items():
-                set_scenario_param(scenario_name, key_path, value)
 
     # ------------------------------------------------------------------
     # Apply LLM config to build MarketConfig and modify agents

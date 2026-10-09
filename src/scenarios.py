@@ -1,11 +1,11 @@
 # scenarios.py
 import numpy as np
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 import money
 from models import MarketConfig, Agent
 from ess import build_ess_fleet
 from grid import build_base_network, create_agents_from_network, day_ahead_price_china
-from config_loader import get_scenario_cfg, set_default
+from config_loader import get_default, get_scenario_cfg, set_default
 
 
 def scenario_scale(cfg: dict) -> dict:
@@ -161,9 +161,88 @@ def relocate_renewables(agents: List[Agent], moves) -> None:
             raise ValueError(f"move {move}: unknown kind {kind!r}")
 
 
+def _industry_load_shapes(industry_map: dict, net, T: int
+                          ) -> Dict[int, np.ndarray]:
+    """Resolve a scenario's `industry_map` into per-bus 96-point shapes.
+
+    `industry_map.buses` is an **explicit** assignment of every load bus to one
+    industry. It is a *simulation* mapping and nothing more: this feeder carries
+    no real user-to-node connection table, so the assignment is not a claim
+    about where Jiangsu industry actually connects. It is written out in
+    `config/scenarios.yaml` so a reader can reproduce the day and disagree with
+    the assignment, instead of having to reverse-engineer a rule from code.
+
+    Every load bus must be assigned exactly once. A bus left out raises rather
+    than taking a default: a silent default would make the day's shape depend on
+    something the scenario never declared.
+    """
+    from pathlib import Path
+
+    from industry_load import load_shapes_csv
+
+    if not industry_map:
+        raise ValueError(
+            "load_shape 'industry' needs an `industry_map` naming the shapes "
+            "artifact and assigning every load bus")
+
+    shapes_file = industry_map.get("shapes_file")
+    if not shapes_file:
+        raise ValueError("industry_map declares no `shapes_file`")
+    path = Path(shapes_file)
+    if not path.is_absolute():
+        path = Path(__file__).resolve().parent.parent / path
+    if not path.exists():
+        raise FileNotFoundError(
+            f"industry_map names shapes_file {shapes_file!r}, which does not "
+            f"exist at {path}. Build it with:\n"
+            f"  PYTHONPATH=src python src/industry_load.py")
+    shape_set = load_shapes_csv(str(path))
+
+    assignments = {int(b): str(i)
+                   for b, i in (industry_map.get("buses") or {}).items()}
+    excluded = {str(i) for i in (industry_map.get("excluded_industries") or [])}
+
+    load_buses = [int(b) for b in net.load.bus]
+    missing = sorted(set(load_buses) - set(assignments))
+    if missing:
+        raise ValueError(
+            f"industry_map leaves load bus(es) {missing} unassigned; every "
+            f"load bus must be assigned exactly once")
+    extra = sorted(set(assignments) - set(load_buses))
+    if extra:
+        raise ValueError(
+            f"industry_map assigns bus(es) {extra}, which carry no load in "
+            f"this network")
+
+    used = sorted(set(assignments.values()))
+    banned = sorted(set(used) & excluded)
+    if banned:
+        raise ValueError(
+            f"industry_map uses industry(ies) {banned}, which it also lists "
+            f"in `excluded_industries`. A generator or an unreliable sample "
+            f"must not shape a load bus.")
+    unknown = sorted(i for i in used if i not in shape_set.shapes)
+    if unknown:
+        raise ValueError(
+            f"industry_map names industry(ies) {unknown} that carry no shape "
+            f"in {path}; the artifact holds {shape_set.industries()}")
+
+    out: Dict[int, np.ndarray] = {}
+    for bus, industry in assignments.items():
+        arr = shape_set.shape_of(industry)
+        if arr.size != int(T):
+            raise ValueError(
+                f"industry {industry!r} carries {arr.size} slots but the "
+                f"scenario horizon is {T}")
+        out[bus] = arr
+    return out
+
+
 def _build_scenario(name: str, T: int, config: MarketConfig = None,
                     ess_buses: Optional[List[int]] = None,
-                    der_moves=None) -> Tuple[List[Agent], np.ndarray]:
+                    der_moves=None,
+                    day_id: Optional[int] = None) \
+        -> Tuple[List[Agent], np.ndarray]:
     """Generic scenario builder driven by config/scenarios.yaml.
 
     Supported YAML keys per scenario:
@@ -209,8 +288,13 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None,
         config.network.load_power_factor = config_load_pf
 
     net = build_base_network(config)
+    scale = scenario_scale(cfg)
+    # Only the `industry` shape carries per-bus shapes; every other shape gets
+    # None and is built exactly as before.
+    load_shapes = (_industry_load_shapes(cfg.get("industry_map") or {}, net, T)
+                   if scale["shape"] == "industry" else None)
     agents = create_agents_from_network(net, T, with_wind=with_wind,
-                                        scale=scenario_scale(cfg))
+                                        scale=scale, load_shapes=load_shapes)
     # Which market prices this scenario, written where every regeneration site
     # reads it. Written on every build, including when the scenario declares
     # nothing, so that building the native scenario and then a legacy one
@@ -223,6 +307,26 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None,
     # market existed, and is priced the way those results were.
     set_default("wholesale_market.source",
                 str(cfg.get("wholesale_source", "legacy")))
+    # Which price curve prices this day. A scenario may declare
+    # `wholesale_curve_index` -- for `dianyicha` an index into the configured
+    # curve list, which is a PRICE SCENARIO and not a calendar date. A caller's
+    # explicit `day_id` wins, so `train_rl`'s rotation is unaffected.
+    #
+    # Written into the configuration cache rather than passed to this one call,
+    # for the reason `get_scenario` gives for the same choice: the price has ten
+    # creation sites and only this one knows which scenario is being built.
+    # Passing it here fixed this call and left the other nine -- including
+    # `BiddingEnv.reset`, which re-derives the curve for every episode -- still
+    # reading the global. On a `dianyicha` scenario that global holds a library
+    # index, which is out of range there and raises; on a synthetic scenario it
+    # would have priced the wrong day in silence.
+    #
+    # Every price-bearing scenario declares its own index, so writing it cannot
+    # leak from one scenario into the next.
+    curve = day_id if day_id is not None else cfg.get("wholesale_curve_index")
+    if curve is None:
+        curve = get_default("wholesale_market.day_id", 0)
+    set_default("wholesale_market.day_id", int(curve))
     wholesale = day_ahead_price_china(T, agents=agents, config=config)
 
     # --- apply multipliers ---
@@ -395,7 +499,7 @@ def get_scenario(name: str, T: int = 96, config: MarketConfig = None,
     if day_id is not None:
         set_default("wholesale_market.day_id", int(day_id))
     return _build_scenario(name, T, config, ess_buses=ess_buses,
-                           der_moves=der_moves)
+                           der_moves=der_moves, day_id=day_id)
 
 
 def list_scenarios() -> List[str]:
@@ -403,13 +507,3 @@ def list_scenarios() -> List[str]:
     return list(SCENARIO_REGISTRY.keys())
 
 
-def print_scenario_info():
-    """Print all available scenarios with descriptions from config."""
-    print("=" * 60)
-    print("Available scenarios")
-    print("=" * 60)
-    for key in list_scenarios():
-        cfg = get_scenario_cfg(key)
-        desc = cfg.get("description", "") if cfg else ""
-        print(f"  {key:<20s}: {desc}")
-    print("=" * 60)

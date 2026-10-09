@@ -1,5 +1,37 @@
 # Typical day physical baseline
 
+> ## SUPERSEDED — HISTORICAL RECORD
+>
+> **This document is not the current baseline. Its measurements are kept as
+> recorded and have not been updated.**
+>
+> It describes an earlier study scale: a **10 MW** coincident peak, four
+> batteries at **1.0 MW / 4.0 MWh** sited at buses **6/20/24/31**, with a
+> shed load of about **1.0 MWh**. Every number below was measured at that
+> configuration.
+>
+> The research baseline has since moved to the **native-scale `typical_day`**:
+> `load_scale_mode: native_peak`, so the day's coincident peak is the network's
+> own nominal demand (3.715 MW / 2.3 MVAr), with PV 0.6 MW, wind 1.0 MW, and
+> four 0.4 MW / 1.6 MWh batteries sited at **buses 9/14/17/27**. At that scale
+> the day is served in full at the primary band.
+>
+> Current authoritative documents:
+>
+> - **`docs/2026-09-18-baseline-ladder.md`** — the B0-B3 ladder at the current
+>   configuration, and how stress level follows from the scenario's declared
+>   scale.
+> - **`docs/2026-09-18-scenario-revision.md`** — why the scale is declared per
+>   scenario rather than inherited.
+> - **`docs/2026-09-19-native-ess-resize.md`** — the fleet's resize and siting
+>   against the native system.
+> - `docs/2026-09-18-dev-penalty-calibration.md` and
+>   `reports/experiment_baseline_v0.1_freeze.md` — the frozen protocol.
+>
+> Read this file for what was measured then, and for the reasoning that led to
+> the current declaration. Do not read its numbers as a description of the
+> code today.
+
 This is the physical base case every later bidding experiment is measured
 against: one day on the IEEE 33-bus radial feeder, cleared jointly over all 96
 fifteen-minute periods, with four independent batteries as the only storage.

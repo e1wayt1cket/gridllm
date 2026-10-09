@@ -40,7 +40,10 @@ from dispatch_core import (
     check_storage_quote_signs,
     empty_schedules,
     grid_carbon_tco2,
+    gurobi_solver_record,
     pins_terminal_soc,
+    record_last_solve,
+    solver_metadata,
     split_power,
 )
 
@@ -862,6 +865,7 @@ class _CachedOPFModel:
         for loss_iter in range(max(1, config.network.n_loss_iters)):
             m.optimize()
             if m.status != GRB.OPTIMAL:
+                record_last_solve("lindistflow", gurobi_solver_record(m))
                 return None
             if loss_iter < config.network.n_loss_iters - 1:
                 for t in range(T):
@@ -977,6 +981,9 @@ class _CachedOPFModel:
                 'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
                 'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
                 'storage_mode': ['idle'] * T,
+                'soc_boundary': np.zeros(T + 1),
+                'soc_terminal_target': None,
+                'soc_terminal_actual': None,
             }
         clearing_objective = m.ObjVal
         total_re_avail = sum(
@@ -1050,7 +1057,10 @@ class _CachedOPFModel:
                     ch[nm][t].X, dis[nm][t].X)
                 if a.storage:
                     s['soc'][t] = soc[nm][t].X
+                    s['soc_boundary'][t] = soc[nm][t].X
                     if t == T - 1:
+                        # `soc_final` predates the boundary array and is kept
+                        # for readers that already use it.
                         s['soc_final'] = soc[nm][T].X
                 else:
                     s['soc'][t] = 0.0
@@ -1076,6 +1086,7 @@ class _CachedOPFModel:
                 s['p_ch'][t] = ch[nm][t].X
                 s['p_dis'][t] = dis[nm][t].X
                 s['soc'][t] = soc[nm][t].X
+                s['soc_boundary'][t] = soc[nm][t].X
                 s['storage_mode'][t] = _classify_storage_mode(
                     ch[nm][t].X, dis[nm][t].X)
                 if t == T - 1:
@@ -1085,6 +1096,30 @@ class _CachedOPFModel:
                 s['p_buy'][t], s['p_sell'][t] = split_power(net_gen_su,
                                                             net_con_su)
                 total_served_mwh += s['served'][t] * DT_HOURS
+
+        # The boundary array's last entry, the terminal state and the terminal
+        # target, matching the SOCP engine's schema so a reader does not have to
+        # know which engine produced the day. `soc_final` is retained above for
+        # readers that already use it.
+        terminal_pinned = pins_terminal_soc(config, T, self.horizon_type)
+        for a in list(agents_list):
+            if a.storage is None or a.name not in schedules:
+                continue
+            s = schedules[a.name]
+            if a.name not in soc:
+                continue
+            s['soc_boundary'][T] = soc[a.name][T].X
+            s['soc_terminal_actual'] = float(soc[a.name][T].X)
+            s['soc_terminal_target'] = (float(soc[a.name][0].X)
+                                        if terminal_pinned else None)
+        for su in su_list:
+            if su.name not in schedules or su.name not in soc:
+                continue
+            s = schedules[su.name]
+            s['soc_boundary'][T] = soc[su.name][T].X
+            s['soc_terminal_actual'] = float(soc[su.name][T].X)
+            s['soc_terminal_target'] = (float(soc[su.name][0].X)
+                                        if terminal_pinned else None)
 
         re_rate = ((total_re_used / total_re_avail * 100)
                    if total_re_avail > 0 else 100.0)
@@ -1107,4 +1142,11 @@ class _CachedOPFModel:
             # Periods priced off the wholesale curve because no balance dual was
             # available; non-zero means those prices are not nodal.
             "lmp_fallbacks": lmp_fallbacks,
+            # Same schema as the SOCP engine, so a reader need not know which
+            # engine cleared the day.
+            "solver": solver_metadata(
+                "lindistflow", gurobi_solver_record(m),
+                used_fallback=False, fallback=None,
+                duals_available=(lmp_fallbacks == 0)),
         }
+

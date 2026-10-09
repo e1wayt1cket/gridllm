@@ -73,10 +73,11 @@ def _make_load_profile(
     load_type: str,
     load_cfg: dict,
     shape: str = "diversified",
+    bus_shape: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """The diurnal multiplier for one bus.
 
-    Two shapes, and the difference is what each one normalizes:
+    Three shapes, and the difference is what each one normalizes:
 
     `diversified` is the legacy per-load-type shape, a per-unit profile with
     mean 1.0 and a per-type phase shift and amplitude blend. Because the types
@@ -87,7 +88,34 @@ def _make_load_profile(
     the same `lambda_t`, and therefore what makes the fleet's peak exactly the
     sum of the native bus demands. No type overrides apply: a phase shift or an
     amplitude blend would give each type its own multiplier again.
+
+    `industry` takes the bus's shape from the standard industry artifact
+    (`industry_load.load_shapes_csv`), normalized to peak 1.0 as well. The
+    contract is identical to `native` -- one peak-normalized multiplier per
+    bus, applied to that bus's own rated demand and then rescaled to the
+    fleet's target -- and only the *source of the shape* differs. That is the
+    whole change, and it bounds what may be claimed: the day is still the
+    IEEE33's own demand, redistributed within the day. It is not measured
+    Jiangsu load.
     """
+    if shape == "industry":
+        if bus_shape is None:
+            raise ValueError(
+                "load_shape 'industry' needs a shape for this bus and none "
+                "was supplied; declare `industry_map` on the scenario so that "
+                "every load bus is assigned exactly once")
+        prof = np.asarray(bus_shape, dtype=float)
+        if prof.shape != hours.shape:
+            raise ValueError(
+                f"industry shape carries {prof.size} slots, expected "
+                f"{hours.size}")
+        if not np.all(np.isfinite(prof)):
+            raise ValueError("the industry shape carries non-finite values")
+        peak = float(np.max(prof))
+        if peak <= 0:
+            raise ValueError("the industry shape peaks at zero")
+        return prof / peak
+
     if shape == "native":
         prof = load_profile(
             hours,
@@ -106,7 +134,8 @@ def _make_load_profile(
 
     if shape != "diversified":
         raise ValueError(
-            f"unknown load shape {shape!r}; expected 'native' or 'diversified'")
+            f"unknown load shape {shape!r}; expected 'native', 'industry' or "
+            f"'diversified'")
 
     ov = load_cfg.get("type_overrides", {}).get(load_type, {})
     return load_profile(
@@ -148,6 +177,7 @@ def create_agents_from_network(
     T: int,
     with_wind: bool = False,
     scale: Optional[dict] = None,
+    load_shapes: Optional[Dict[int, np.ndarray]] = None,
 ) -> List[Agent]:
     """Create Agent list from network, reading defaults from config/defaults.yaml.
 
@@ -164,6 +194,12 @@ def create_agents_from_network(
       pv_bus_mw /   installed renewable capacity per bus, in MW. Explicit
       wind_bus_mw   because a capacity derived from the local load cannot be
                     defended as a property of the study rather than of the load.
+
+    `load_shapes` supplies the per-bus diurnal shape when the scenario declares
+    `load_shape: industry`; it is ignored by every other shape. The caller is
+    responsible for assigning a shape to every load bus -- see
+    `scenarios._industry_load_shapes`, which raises on a bus left unassigned
+    rather than substituting a default.
     """
     spec = dict(_DEFAULT_SCALE_SPEC)
     spec.update(scale or {})
@@ -260,11 +296,12 @@ def create_agents_from_network(
         # Deliberately NOT scaled by `load_scale`: that sets the fleet's level,
         # and letting it reach the per-bus term would make the load level
         # inflate every device on the bus as well.
-        base_load = (p_mw if shape == "native"
+        base_load = (p_mw if shape in ("native", "industry")
                      else p_mw * lt_cfg.get("load_multiplier", 1.0))
-        diurnal = _make_load_profile(hours, load_type, load_cfg, shape=shape)
+        diurnal = _make_load_profile(hours, load_type, load_cfg, shape=shape,
+                                     bus_shape=(load_shapes or {}).get(bus))
 
-        if shape == "native":
+        if shape in ("native", "industry"):
             # One system-wide error factor per period, shared by every bus.
             #
             # Per-bus noise would give each bus its own realization, so no

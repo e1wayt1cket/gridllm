@@ -40,6 +40,35 @@ import money
 DEFAULT_TOL_MW = 1e-6
 
 
+def required_margin(cycle_cost: float, eta_ch: float, eta_dis: float) -> float:
+    """The round-trip margin a cycle must clear to be worth running, CNY/MWh.
+
+    Derived from this module's own objective, per MWh **stored**. Put one MWh
+    into the battery: it costs `p_c / eta_ch` to buy at the charge price, and
+    releases `eta_dis` MWh at the discharge price, so it earns `eta_dis * p_d`.
+    `cycle_cost` is charged on **both** legs, and the two legs are not equal in
+    energy -- the charge leg draws `1 / eta_ch` MWh from the grid to store one,
+    and the discharge leg returns `eta_dis`. So the degradation on one stored
+    MWh is `cycle_cost * (1 / eta_ch + eta_dis)`, and the cycle pays only if
+
+        eta_dis * p_d - p_c / eta_ch  >  cycle_cost * (1 / eta_ch + eta_dis)
+
+    The right-hand side is this function. It is **not** `2 * cycle_cost`: that
+    is the lossless-round-trip special case, and it is short by
+    `cycle_cost * (1/eta + eta - 2)`, which at the configured 100 CNY/MWh per
+    leg and 0.92 efficiency is 0.6957 CNY/MWh -- small, but it is the whole
+    margin on a day that sits near the threshold, so it is not dropped.
+
+    The break-even was confirmed against the LP itself: with the two prices
+    chosen so the left-hand side equals this value exactly, the LP returns an
+    optimum of zero and is indifferent about charging, and half a CNY/MWh above
+    it the optimum turns positive.
+    """
+    if not eta_ch > 0 or not eta_dis > 0:
+        raise ValueError("efficiencies must be positive")
+    return float(cycle_cost) * (1.0 / float(eta_ch) + float(eta_dis))
+
+
 @dataclass(frozen=True)
 class UnitSpec:
     """One battery's own parameters, as scalars.
@@ -108,7 +137,9 @@ class ArbitrageResult:
     """What the round trip's losses cost, per MWh stored."""
 
     degradation_cost_cny_mwh: float
-    """`2 * cycle_cost`, per MWh stored: the cost is charged on both legs."""
+    """`cycle_cost * (1/eta_ch + eta_dis)` per MWh stored -- see
+    `required_margin`. Charged on both legs, and the two legs differ in energy,
+    so this is not `2 * cycle_cost`."""
 
     adjusted_spread_cny_mwh: float
     """`gross_spread - efficiency_loss - degradation_cost`, per MWh stored."""
@@ -255,11 +286,15 @@ def arbitrage_lp(price_cny_per_mwh, unit: UnitSpec, cycle_cost: float,
         # spread is what the round trip loses to conversion, separately from
         # what it loses to degradation.
         eff_loss = best_ch * (1.0 / unit.eta_ch - 1.0) + best_dis * (1.0 - unit.eta_dis)
-        deg = 2.0 * cycle_cost
+        # The degradation on one MWh *stored*, which is the unit `gross` and
+        # `eff_loss` are quoted in: the charge leg draws 1/eta_ch MWh from the
+        # grid, the discharge leg returns eta_dis. `2 * cycle_cost` would be
+        # the lossless special case; see `required_margin`.
+        deg = required_margin(cycle_cost, unit.eta_ch, unit.eta_dis)
         adjusted = gross - eff_loss - deg
     else:
         gross = eff_loss = adjusted = float("nan")
-        deg = 2.0 * cycle_cost
+        deg = required_margin(cycle_cost, unit.eta_ch, unit.eta_dis)
 
     return ArbitrageResult(
         margin_cny=margin,

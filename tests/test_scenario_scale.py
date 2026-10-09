@@ -254,7 +254,12 @@ def test_the_inventory_shows_no_implicit_inheritance():
     for r in rows:
         assert r["scenario_scale_source"] != "MISSING", r["scenario"]
         assert r["load_scale_mode"] in ("native_peak", "explicit_peak")
-        assert r["load_shape"] in ("native", "diversified")
+        assert r["load_shape"] in ("native", "industry", "diversified")
+        if r["load_shape"] == "industry":
+            # The industry shape carries per-bus curves, so it is only
+            # describable with an explicit assignment of every load bus.
+            assert (get_scenario_cfg(r["scenario"]).get("industry_map") or {}
+                    ).get("buses"), r["scenario"]
         assert "error" not in r, (r["scenario"], r.get("error"))
         assert r["realized_pv_mw"] == pytest.approx(
             sum(r["pv_bus_mw_declared"].values()), abs=1e-6), r["scenario"]
@@ -262,15 +267,24 @@ def test_the_inventory_shows_no_implicit_inheritance():
             sum(r["wind_bus_mw_declared"].values()), abs=1e-6), r["scenario"]
 
 
-def test_only_the_research_scenario_is_at_native_scale():
-    """One scenario runs at the benchmark's demand, and it is this one."""
+def test_only_the_research_scenarios_are_at_native_scale():
+    """Two scenarios run at the benchmark's demand, and they are these.
+
+    `typical_day_industry` is the same benchmark demand with a different
+    intraday shape, so it belongs at this scale by construction: the industry
+    data contributes form, never level. A third native-scale scenario appearing
+    here would mean a scenario had quietly picked up the benchmark's load
+    without saying so.
+    """
     import baseline_ladder as bl
 
     rows = {r["scenario"]: r for r in bl.scenario_inventory()}
-    native = [s for s, r in rows.items() if r["load_scale_mode"] == "native_peak"]
-    assert native == ["typical_day"]
-    assert rows["typical_day"]["realized_peak_mw"] == pytest.approx(3.715,
-                                                                    abs=1e-6)
+    native = sorted(s for s, r in rows.items()
+                    if r["load_scale_mode"] == "native_peak")
+    assert native == ["typical_day", "typical_day_industry"]
+    for scenario in native:
+        assert rows[scenario]["realized_peak_mw"] == pytest.approx(3.715,
+                                                                   abs=1e-6)
     for scenario, r in rows.items():
         if scenario in _LEGACY:
             assert r["realized_peak_mw"] > 9.0, scenario

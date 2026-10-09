@@ -167,11 +167,6 @@ class TwinCritic(nn.Module):
         xu = torch.cat([obs, action], dim=-1)
         return self.q1(xu), self.q2(xu)
 
-    def q1_forward(self, obs: torch.Tensor, action: torch.Tensor) \
-            -> torch.Tensor:
-        return self.q1(torch.cat([obs, action], dim=-1))
-
-
 # ---------------------------------------------------------------------------
 # Replay Buffer — single-agent, flat tensors
 # ---------------------------------------------------------------------------

@@ -38,6 +38,36 @@ from surplus_metrics import consumer_metrics, day_econ_metrics, \
 # and the per-episode training log can be read as one schema.
 _CONSUMER_COLUMNS = list(DAY_ECON_COLUMNS)
 
+#: What the evaluation CSV's two families of money column mean. Recorded here
+#: because both appear in the same file and only one of them is a research
+#: result; a reader of `results/*_eval.csv` should not have to recover the
+#: distinction from the source.
+#:
+#:   `*_profit`            The day's **settled payoff**: the whole horizon
+#:                         re-cleared at once with both state-of-charge
+#:                         endpoints pinned, priced at the nodal LMP, from the
+#:                         quotes the policy actually declared. Computed by
+#:                         `counterfactual_eval.settle_day`, the same call
+#:                         `evaluate_policy_dir` makes, so this file and the
+#:                         programmatic evaluator agree by construction.
+#:   `*_rolling_reward`    The episode's accumulated per-block reward. A
+#:                         **learning signal**, not a payoff. It is NOT
+#:                         endpoint-pinned, so a policy that runs its battery
+#:                         down collects more cash across blocks and scores
+#:                         higher here. Never quote it as an economic result.
+#:   `settled_clean`       Whether both arms settled without a degraded or
+#:                         fallen-back clear. A row that is not clean reports
+#:                         NaN profits rather than zeros, and is not a result.
+MONEY_COLUMN_MEANINGS = {
+    "baseline_profit": "settled payoff of the truthful arm",
+    "rl_profit": "settled payoff of the policy arm",
+    "profit_delta": ("settled payoff difference, rl_profit - baseline_profit; "
+                     "the research KPI"),
+    "baseline_rolling_reward": "training signal, not a payoff",
+    "rl_rolling_reward": "training signal, not a payoff",
+    "rolling_reward_delta": "training signal, not a payoff",
+}
+
 
 def _n_commit(env, t_start: int) -> int:
     """Committed periods of the rolling window starting at t_start."""
@@ -152,6 +182,33 @@ def run_episode(env: BiddingEnv, policy: Optional[Actor] = None,
         out.update(cap.finish())
         out["capture_complete"] = out["complete"]
     return out
+
+
+def settle_capture(agents, config, rl_names, capture: dict, T: int = 96):
+    """Settle one captured arm the way the paired evaluator does.
+
+    `capture` is a `run_episode(..., capture=True)` result. Returns
+    `(per-agent settled profit, clean)`.
+
+    This calls the same `counterfactual_eval.settle_day` that
+    `evaluate_policy_dir` calls, on the same inputs, so the CLI and the
+    programmatic entry point cannot publish two different payoffs for the same
+    day under the same column name. Before this existed the CLI reported the
+    episode's accumulated per-block rewards instead -- a quantity that rewards
+    a policy for ending the day with an emptier battery, because it collects
+    cash across blocks and is never corrected for the energy it banked.
+
+    A capture that is not `usable` (a fallen-back or failed block) settles to
+    NaN rather than to zeros: a degraded clear is reported as degraded, never
+    averaged in as a payoff.
+    """
+    if not capture or not capture.get("usable"):
+        return {nm: float("nan") for nm in rl_names}, False
+    profits, clean, _ = settle_day(agents, config, rl_names,
+                                   capture["declared"], capture["wholesale"], T)
+    if not clean:
+        return {nm: float("nan") for nm in rl_names}, False
+    return profits, True
 
 
 def run_combined_episode(env: BiddingEnv, policies: Dict[str, Actor],
@@ -577,7 +634,10 @@ def main():
     # ---- Evaluate ----
     results = []
     header = ["scenario", "agent", "baseline_profit", "rl_profit",
-              "profit_delta", "clearing_objective_baseline", "clearing_objective_rl",
+              "profit_delta", "settled_clean",
+              "baseline_rolling_reward", "rl_rolling_reward",
+              "rolling_reward_delta",
+              "clearing_objective_baseline", "clearing_objective_rl",
               "clearing_objective_delta", "valuation_artifact", "genuine_clearing_objective_delta",
               "re_rate_baseline", "re_rate_rl", "total_regret"]
     if args.consumer_metrics:
@@ -619,11 +679,22 @@ def main():
                 np.random.seed(S)
 
             # ---- Baseline run (all fixed) for this price day ----
-            base_result = run_episode(env_base, policy=None,
-                                      capture=args.consumer_metrics)
+            # Capture always: this arm is settled from its own captured
+            # declarations below, the same way `evaluate_policy_dir` settles it,
+            # so the CLI's profit columns are the same quantity the API
+            # reports. `consumer_metrics` now controls only the consumer
+            # accounting columns.
+            base_result = run_episode(env_base, policy=None, capture=True)
+            # Settled once for the whole matched set. The baseline arm declares
+            # truthfully for every agent, so naming a subset would clear
+            # identically; one settlement therefore serves both the per-agent
+            # and the combined rows.
+            base_settled, base_settled_clean = settle_capture(
+                agents, config_copy, rl_names, base_result)
             if k == 0:
                 print(f"  Baseline: objective={base_result['clearing_objective']:.0f}  "
-                      f"RE={base_result['re_rate']:.1f}%")
+                      f"RE={base_result['re_rate']:.1f}%  "
+                      f"settled={sum(base_settled.values()):+.1f}")
 
             # ---- RL run (with trained policies) ----
             # If multiple policies, run them separately or combined.
@@ -644,15 +715,24 @@ def main():
                         np.random.seed(S)
                     env_rl = BiddingEnv(agents, config_copy,
                                         rl_agent_names=[pol_agent_name])
-                    rl_result = run_episode(env_rl, policy=pol_net)
+                    rl_result = run_episode(env_rl, policy=pol_net, capture=True)
+                    rl_settled, rl_settled_clean = settle_capture(
+                        agents, config_copy, [pol_agent_name], rl_result)
                     if k == 0:
                         print(f"  RL ({pol_agent_name}): "
                               f"objective={rl_result['clearing_objective']:.0f}  "
                               f"RE={rl_result['re_rate']:.1f}%")
 
-                    base_profit = base_result["profits"].get(pol_agent_name, 0.0)
-                    rl_profit = rl_result["profits"].get(pol_agent_name, 0.0)
+                    # `profit` is the settled, endpoint-pinned payoff -- the same
+                    # quantity `evaluate_policy_dir` reports under this name. The
+                    # episode's accumulated per-block reward is reported beside
+                    # it under its own name, because it is a learning signal and
+                    # not a payoff.
+                    base_profit = base_settled.get(pol_agent_name, float("nan"))
+                    rl_profit = rl_settled.get(pol_agent_name, float("nan"))
                     profit_delta = rl_profit - base_profit
+                    base_rolling = base_result["profits"].get(pol_agent_name, 0.0)
+                    rl_rolling = rl_result["profits"].get(pol_agent_name, 0.0)
                     clearing_objective_delta = rl_result["clearing_objective"] - base_result["clearing_objective"]
                     re_delta = rl_result["re_rate"] - base_result["re_rate"]
                     if k == 0:
@@ -665,6 +745,11 @@ def main():
                         "agent": pol_agent_name,
                         "baseline_profit": base_profit, "rl_profit": rl_profit,
                         "profit_delta": profit_delta,
+                        "settled_clean": bool(base_settled_clean
+                                              and rl_settled_clean),
+                        "baseline_rolling_reward": base_rolling,
+                        "rl_rolling_reward": rl_rolling,
+                        "rolling_reward_delta": rl_rolling - base_rolling,
                         "clearing_objective_baseline": base_result["clearing_objective"],
                         "clearing_objective_rl": rl_result["clearing_objective"],
                         "clearing_objective_delta": clearing_objective_delta,
@@ -682,6 +767,8 @@ def main():
                 # consumer accounting columns.
                 comb = run_combined_episode(env_comb, policies,
                                             capture=True)
+                comb_settled, comb_settled_clean = settle_capture(
+                    agents, config_copy, rl_names, comb)
                 comb_clearing_objective = comb["clearing_objective"]
                 comb_re_rate = comb["re_rate"]
                 comb_profits = comb["profits"]
@@ -697,8 +784,9 @@ def main():
                           f"genuine={genuine:+.0f}  "
                           f"RE_delta={comb_re_delta:+.1f}pp")
                     for nm in rl_names:
-                        print(f"    {nm}: profit={comb_profits[nm]:.1f}  "
-                              f"delta={comb_profits[nm] - base_result['profits'].get(nm, 0):+.1f}")
+                        print(f"    {nm}: settled={comb_settled[nm]:.1f}  "
+                              f"delta={comb_settled[nm] - base_settled.get(nm, float('nan')):+.1f}  "
+                              f"(rolling={comb_profits[nm]:.1f})")
 
                 # Three-layer accounting metrics (only on the combined fleet,
                 # computed on the captured full-day schedule/LMP/wholesale).
@@ -716,15 +804,26 @@ def main():
                               f"{metric['market_power_arb']:+.1f}/"
                               f"{metric['market_power_power']:+.1f}")
 
-                # Aggregate combined row for the CSV
-                total_base_profit = sum(base_result["profits"].get(nm, 0.0)
+                # Aggregate combined row for the CSV. The `*_profit` columns are
+                # the fleet's settled payoff; the rolling episode rewards ride
+                # alongside under their own names.
+                total_base_profit = sum(base_settled.get(nm, float("nan"))
                                         for nm in rl_names)
-                total_rl_profit = sum(comb_profits[nm] for nm in rl_names)
+                total_rl_profit = sum(comb_settled.get(nm, float("nan"))
+                                      for nm in rl_names)
+                total_base_rolling = sum(base_result["profits"].get(nm, 0.0)
+                                         for nm in rl_names)
+                total_rl_rolling = sum(comb_profits[nm] for nm in rl_names)
                 rows_ep.append({
                     "agent": "ALL",
                     "baseline_profit": total_base_profit,
                     "rl_profit": total_rl_profit,
                     "profit_delta": total_rl_profit - total_base_profit,
+                    "settled_clean": bool(base_settled_clean
+                                          and comb_settled_clean),
+                    "baseline_rolling_reward": total_base_rolling,
+                    "rl_rolling_reward": total_rl_rolling,
+                    "rolling_reward_delta": total_rl_rolling - total_base_rolling,
                     "clearing_objective_baseline": base_result["clearing_objective"],
                     "clearing_objective_rl": comb_clearing_objective,
                     "clearing_objective_delta": comb_clearing_objective_delta,
@@ -741,6 +840,9 @@ def main():
         for r in rows_ep:
             by_agent.setdefault(r["agent"], []).append(r)
         num_keys = ["baseline_profit", "rl_profit", "profit_delta",
+                    "settled_clean",
+                    "baseline_rolling_reward", "rl_rolling_reward",
+                    "rolling_reward_delta",
                     "clearing_objective_baseline", "clearing_objective_rl", "clearing_objective_delta",
                     "valuation_artifact", "genuine_clearing_objective_delta",
                     "re_rate_baseline", "re_rate_rl"]
@@ -772,7 +874,7 @@ def main():
             out_dir = os.path.dirname(args.output) if args.output else "."
             regret_path = os.path.join(out_dir, "final_regret.csv")
             regret = run_regret_test(agents, config_copy, last_declared,
-                                     T, output_path=regret_path)
+                                     T=96, output_path=regret_path)
             for r in results:
                 if r.get("scenario") == sc_name and r.get("agent") == "ALL":
                     r["total_regret"] = regret["total_regret"]

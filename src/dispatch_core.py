@@ -193,23 +193,6 @@ class StorageConstraints:
         return p_ch_min, p_ch_max, p_dis_min, p_dis_max
 
     @staticmethod
-    def apply_ramp(prev_p_ch, prev_p_dis, target_p_ch, target_p_dis, storage):
-        prev_signed = prev_p_dis - prev_p_ch
-        target_signed = target_p_dis - target_p_ch
-        ramp_limit = storage.ramp_up_dis if storage.ramp_up_dis else float('inf')
-        delta = target_signed - prev_signed
-        if abs(delta) > ramp_limit:
-            feasible_signed = prev_signed + np.sign(delta) * ramp_limit
-        else:
-            feasible_signed = target_signed
-        if feasible_signed < -1e-6:
-            return min(abs(feasible_signed), storage.p_ch_max), 0.0
-        elif feasible_signed > 1e-6:
-            return 0.0, min(feasible_signed, storage.p_dis_max)
-        else:
-            return 0.0, 0.0
-
-    @staticmethod
     def execute_dispatch(storage, soc, p_ch, p_dis, dt=0.25):
         p_ch = max(0.0, min(p_ch, storage.p_ch_max))
         p_dis = max(0.0, min(p_dis, storage.p_dis_max))
@@ -417,7 +400,19 @@ def _build_agent_info(agents, t, stage, prev_soc, wholesale_t, action_params, co
 # ===========================================================================
 
 def empty_schedules(agents, T):
-    """Create a zero-filled schedules dict for the given agents and periods."""
+    """Create a zero-filled schedules dict for the given agents and periods.
+
+    `soc` is the per-period readout and `soc_boundary` the state *between*
+    periods: `soc_boundary[0]` is the initial state and `soc_boundary[t + 1]`
+    the state after period `t`. The two differ in length by one and the second
+    is the one a transition can be verified against -- `soc[t + 1]` is not
+    `soc[t]` after the transition of period `t`, it is a different quantity.
+
+    `soc_terminal_target` is what the horizon was pinned to, if anything, and
+    `soc_terminal_actual` what the solve actually reached. They are stored
+    separately so a pinned horizon cannot make the target masquerade as a
+    result.
+    """
     schedules = {}
     for a in agents:
         schedules[a.name] = {
@@ -427,9 +422,144 @@ def empty_schedules(agents, T):
             'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
             'q_re': np.zeros(T),
             'storage_mode': ['idle'] * T,
+            'soc_boundary': np.zeros(T + 1),
+            'soc_terminal_target': None,
+            'soc_terminal_actual': None,
         }
     schedules['GRID'] = {'g_grid': np.zeros(T)}
     return schedules
+
+
+# ===========================================================================
+# Solver provenance
+# ===========================================================================
+
+#: Gurobi status codes, spelled. A bare integer is not a report: its meaning
+#: belongs to the library version, and a reader cannot tell `3` from `9`
+#: without one.
+GUROBI_STATUS_NAMES = {
+    1: "LOADED", 2: "OPTIMAL", 3: "INFEASIBLE", 4: "INF_OR_UNBD",
+    5: "UNBOUNDED", 6: "CUTOFF", 7: "ITERATION_LIMIT", 8: "NODE_LIMIT",
+    9: "TIME_LIMIT", 10: "SOLUTION_LIMIT", 11: "INTERRUPTED",
+    12: "NUMERIC", 13: "SUBOPTIMAL", 14: "INPROGRESS",
+    15: "USER_OBJ_LIMIT", 16: "WORK_LIMIT", 17: "MEM_LIMIT",
+}
+
+#: Status codes that mean the solver ran out of something rather than that the
+#: problem has no answer.
+_LIMIT_CODES = (7, 8, 9, 10, 11, 15, 16, 17)
+
+
+def categorize_termination(code) -> str:
+    """Which kind of ending a status code is, in words a report can use.
+
+    Distinguishing "there is no feasible answer" from "the solver stopped
+    early" matters: the first is a fact about the model, the second is a fact
+    about the run and is usually fixable by allowing more of the resource.
+    """
+    if not isinstance(code, int):
+        return "unknown"
+    if code == 2:
+        return "optimal"
+    if code in (3, 4):
+        return "infeasible_or_unbounded"
+    if code in _LIMIT_CODES:
+        return "limit_reached"
+    if code == 12:
+        return "numerical_trouble"
+    if code == 13:
+        return "suboptimal"
+    if code == 5:
+        return "unbounded"
+    if code in (1, 14):
+        return "in_progress"
+    return "no_solution"
+
+
+def gurobi_solver_record(model, name: str = "gurobi") -> dict:
+    """One Gurobi solve's own outcome, as serializable data.
+
+    Deliberately does NOT report whether duals were usable. A model can return
+    OPTIMAL and still hand back no power-balance duals -- that is the whole
+    reason `BarHomogeneous` is set -- so a caller that needs prices must ask
+    about duals, not about the status. Conflating the two would let a
+    price-less result pass as a successful one.
+    """
+    code = int(getattr(model, "status", -1))
+    return {
+        "name": name,
+        "status_code": code,
+        "status_name": GUROBI_STATUS_NAMES.get(code, f"UNKNOWN_{code}"),
+        "termination": categorize_termination(code),
+        "optimal": code == 2,
+    }
+
+
+def fallback_solver_record(name: str, status_code=None, status_name=None,
+                           message=None) -> dict:
+    """A solver that is not Gurobi, described through the same fields.
+
+    The per-period fallback is a different engine solving a different problem
+    -- DC-OPF has no voltage variables and does not model the independent fleet
+    -- so its status is recorded in its own right rather than folded into
+    Gurobi's.
+    """
+    return {
+        "name": str(name),
+        "status_code": status_code,
+        "status_name": status_name,
+        "termination": categorize_termination(status_code),
+        "optimal": bool(status_name == "OPTIMAL") if status_name else None,
+        "message": message,
+    }
+
+
+#: The most recent batch solve's own outcome, from whichever engine ran.
+#:
+#: A batch engine returns None when it cannot clear, so its caller has no result
+#: to read a status from -- and "the batch returned nothing" is not a diagnosis.
+#: Rather than make the caller guess, the engine records what its solver said
+#: here. This is a last-call cache, not configuration: overwritten on every
+#: solve, never read to decide anything, and it exists only so a failure can be
+#: reported with its own status code.
+_LAST_SOLVE: dict = {}
+
+
+def record_last_solve(engine: str, record: dict) -> None:
+    """Remember what the most recent batch solve returned."""
+    _LAST_SOLVE.clear()
+    _LAST_SOLVE.update(record)
+    _LAST_SOLVE["engine"] = str(engine)
+
+
+def last_solve_metadata() -> dict:
+    """A copy of the most recent batch solve's outcome, or an empty dict."""
+    return dict(_LAST_SOLVE)
+
+
+def solver_metadata(engine: str, primary: dict, used_fallback: bool = False,
+                    fallback: dict = None, duals_available=None,
+                    duals_note: str = None) -> dict:
+    """The `solver` block a clearing result carries.
+
+    `final` names whichever solver actually produced the returned numbers. It
+    is not an alias for `primary`: after a fallback the primary failed, and
+    reporting its status as the run's outcome would describe a solve whose
+    answer was thrown away.
+    """
+    final = fallback if (used_fallback and fallback is not None) else primary
+    return {
+        "engine": str(engine),
+        "primary": primary,
+        "used_fallback": bool(used_fallback),
+        "fallback": fallback,
+        "final": final,
+        "duals_available": duals_available,
+        "duals_note": duals_note or (
+            "whether a power-balance dual was available for every period; a "
+            "dual is what an LMP is, so False means some price fell back to "
+            "the wholesale curve rather than being nodal"),
+    }
 
 
 def split_power(net_gen, net_con):

@@ -56,14 +56,19 @@ import numpy as np
 
 from config_loader import get_default
 
+#: The curve order `dianyicha` serves when the configuration declares none.
+#: Imported rather than repeated, so the reader and the provider cannot drift
+#: apart about which sheet is which index.
+from dianyicha_price import SHEETS as DEFAULT_CURVE_ORDER
+
 #: The config block that selects and parameterizes the source.
 CONFIG_KEY = "wholesale_market"
 
 #: Sources this module can serve. `legacy` is the retired net-load map, kept
 #: reachable so recorded results can still be reproduced; `guangdong` is the
 #: phase-two slot and is declared so the interface is fixed before the data
-#: arrives.
-SOURCES = ("legacy", "synthetic_v1", "library", "guangdong")
+#: arrives; `dianyicha` reads the Jiangsu curves from the 电易电查 workbook.
+SOURCES = ("legacy", "synthetic_v1", "library", "guangdong", "dianyicha")
 
 #: Periods in a library day. The library is built at 15-minute resolution and a
 #: shorter `T` is a slice of it, never a coarser rebuild.
@@ -606,6 +611,105 @@ class GuangdongWholesalePriceProvider(WholesalePriceProvider):
             f"'{CONFIG_KEY}.data_file'), not a change to any caller")
 
 
+class DianyichaPriceProvider(WholesalePriceProvider):
+    """The Jiangsu day-ahead curves, read from the 电易电查 workbook.
+
+    Unlike `synthetic_v1`, this provider has no transfer function: the price is
+    the data. `day_id` indexes the configured curve order rather than selecting
+    a simulated day, and everything about it is fixed -- no seed, no noise, no
+    draw to override.
+
+    **Every curve it serves is a mean**, and the module that reads them says so
+    in its own headers. There is no measured daily series in the file, so a
+    `day_id` here names a *price scenario*, not a calendar day. To keep that
+    from being quietly lost, an out-of-range `day_id` raises instead of
+    wrapping or falling back to the first curve, and `describe()` publishes each
+    curve's role and `is_measured: false` so no report can present one as an
+    observed day.
+    """
+
+    name = "dianyicha"
+
+    def __init__(self, cfg: Optional[dict] = None):
+        self.cfg = dict(cfg if cfg is not None
+                        else get_default(CONFIG_KEY, {}) or {})
+        self._file = self.cfg.get("dianyicha_file")
+        order = self.cfg.get("dianyicha_curves") or list(DEFAULT_CURVE_ORDER)
+        self._order: Tuple[str, ...] = tuple(str(s) for s in order)
+        self._curves: Optional[Dict[str, object]] = None
+
+    # -- loading ---------------------------------------------------------
+
+    def curves(self):
+        """Read the workbook once, on first use."""
+        if self._curves is None:
+            from dianyicha_price import read_curves
+            self._curves = read_curves(self._file, self._order)
+        return self._curves
+
+    def curve_for(self, day_id: int):
+        """The curve `day_id` names, or a refusal.
+
+        Out-of-range is an error rather than a wrap, because silently serving
+        the first curve for a stray day id would make every scenario in a sweep
+        report the same prices while appearing to differ.
+        """
+        idx = int(day_id)
+        if idx < 0 or idx >= len(self._order):
+            raise ValueError(
+                f"{CONFIG_KEY}.day_id {day_id} is not a declared dianyicha "
+                f"curve; this source serves {len(self._order)} "
+                f"({list(self._order)}), selected by index. These are price "
+                "scenarios, not calendar days.")
+        return self.curves()[self._order[idx]]
+
+    # -- interface -------------------------------------------------------
+
+    def get_day_ahead_price(self, day_id: int, T: int = LIBRARY_PERIODS,
+                            t_start: int = 0,
+                            seed: Optional[int] = None) -> np.ndarray:
+        """The window `[t_start, t_start + T)` of the curve `day_id` names.
+
+        `seed` is accepted for interface compatibility and ignored: this market
+        is a recorded curve, so there is no draw for it to override.
+        """
+        return self.curve_for(day_id).window(t_start, T)
+
+    def describe(self) -> dict:
+        from dianyicha_price import describe as describe_curves
+        payload = describe_curves(self.curves())
+        payload["kind"] = "recorded_curve"
+        payload["curve_order"] = list(self._order)
+        payload["day_id_selects"] = "curve_index"
+        return payload
+
+    def day_structure_for(self, days: Sequence) -> List[dict]:
+        """Each selected curve's own band.
+
+        There is no input to map, so the `input_*` columns the synthetic
+        provider reports are absent by construction rather than missing: the
+        price is exogenous here, and the reachable range is simply the curve's
+        own.
+        """
+        rows = []
+        for d in days:
+            day_id = int(getattr(d, "day", 0))
+            curve = self.curve_for(day_id)
+            stats = curve.stats()
+            rows.append({
+                "day": day_id,
+                "sheet": curve.sheet,
+                "role": curve.role,
+                "is_measured": curve.is_measured,
+                "reachable_price_min_cny_mwh": stats["min_cny_mwh"],
+                "reachable_price_max_cny_mwh": stats["max_cny_mwh"],
+                "mean_cny_mwh": stats["mean_cny_mwh"],
+                "input_min": None,
+                "input_max": None,
+            })
+        return rows
+
+
 class LegacyMeritOrderProvider(WholesalePriceProvider):
     """The retired net-load map, kept only so recorded results still reproduce.
 
@@ -707,6 +811,8 @@ def get_provider(source: Optional[str] = None,
             else SyntheticWholesalePriceProvider(cfg))
     elif source == "guangdong":
         provider = GuangdongWholesalePriceProvider(cfg)
+    elif source == "dianyicha":
+        provider = DianyichaPriceProvider(cfg)
     else:
         provider = LegacyMeritOrderProvider()
     if cfg is None:

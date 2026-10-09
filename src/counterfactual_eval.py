@@ -243,9 +243,133 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
 
 
 #: The truthful arm does not depend on the policy under test, so its settled
-#: profit on a validation day is computed once per process and reused. Cache
-#: keyed by `(scenario, day_id, T)`.
+#: profit on a validation day is computed once per process and reused.
+#:
+#: The key has to name everything the baseline's settled payoff depends on, not
+#: just the day. It once held `(scenario, day_id, T)` alone, which was enough
+#: while nothing varied the fleet -- and wrong the moment something did: a
+#: capacity or siting sweep passes the same `(scenario, day_id, T)` and gets a
+#: baseline belonging to a different fleet. `assert_paired` cannot catch it,
+#: because it compares only the wholesale array, which a capacity change does
+#: not move. See `baseline_cache_key`.
 _BASELINE_CACHE: Dict[tuple, dict] = {}
+
+
+def _config_fingerprint(config) -> str:
+    """A stable digest of the whole configuration.
+
+    Built from `dataclasses.asdict` rather than `repr` or `id`, so two equal
+    configurations digest the same and the same configuration digests the same
+    across processes. Every bound field is covered at once, which is what makes
+    this survive a new field being added later.
+    """
+    import dataclasses
+    import hashlib
+    import json
+
+    payload = json.dumps(dataclasses.asdict(config), sort_keys=True,
+                         default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+
+
+#: `defaults.yaml` blocks that the clearing reads but that are NOT bound to
+#: `MarketConfig`, so a config digest alone would miss them. `profiles` is the
+#: load shape and level, `independent_storage` is the whole fleet, and
+#: `wholesale_market` is which market prices the day. A capacity or siting
+#: sweep moves the second one and nothing else.
+_FINGERPRINT_BLOCKS = ("profiles", "independent_storage", "prosumers",
+                       "load_types", "non_prosumer_storage", "price_curve",
+                       "wholesale_market", "network")
+
+
+#: Keys inside those blocks that are rewritten by the build machinery rather
+#: than chosen by the study, and so must not enter the digest.
+#:
+#: `wholesale_market.source` is written by `_build_scenario` on every build and
+#: `wholesale_market.day_id` is the sticky caller knob, so reading either here
+#: would make the key depend on which scenario happened to be built last rather
+#: than on the one being keyed. Both are carried explicitly instead: the source
+#: through the scenario's own declaration, the day through the `day_id`
+#: argument. Everything else in the block -- the floor, the cap, the library
+#: identity -- is a real input and stays in.
+_VOLATILE_DEFAULT_KEYS = {"wholesale_market": ("source", "day_id")}
+
+
+def _defaults_fingerprint() -> str:
+    """A stable digest of the configuration the clearing actually reads.
+
+    Read live from `config_loader`'s cache, so `set_default` mutations -- which
+    is how a sweep moves the fleet -- are picked up rather than assumed away.
+    """
+    import hashlib
+    import json
+
+    from config_loader import load_defaults
+
+    defaults = load_defaults()
+    blocks = {}
+    for block in _FINGERPRINT_BLOCKS:
+        node = defaults.get(block)
+        volatile = _VOLATILE_DEFAULT_KEYS.get(block)
+        if isinstance(node, dict) and volatile:
+            node = {k: v for k, v in node.items() if k not in volatile}
+        blocks[block] = node
+    payload = json.dumps(blocks, sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+
+
+def _scenario_fingerprint(scenario: str) -> str:
+    """A stable digest of the scenario's own declaration.
+
+    Covers the scale, the load shape, the renewable placement, the multipliers
+    and the `industry_map`, so a scenario edited in the file cannot reuse a
+    baseline computed for its earlier self.
+    """
+    import hashlib
+    import json
+
+    from config_loader import get_scenario_cfg
+
+    payload = json.dumps(get_scenario_cfg(scenario), sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+
+
+def baseline_cache_key(scenario: str, day_id, T: int, config,
+                       rl_names: Sequence[str], obs_spec=None,
+                       action_spec=None) -> tuple:
+    """Everything the truthful arm's settled payoff depends on.
+
+    A cached baseline is sound only if an identical key would recompute the
+    same number. The key therefore carries:
+
+    * the scenario, its declaration (scale, load shape, renewables, industry
+      map) and its market;
+    * the configuration object, whole;
+    * the `defaults.yaml` blocks the clearing reads but the config object does
+      not carry -- which is where the storage fleet lives, so a capacity or
+      siting sweep lands here;
+    * `T`, `day_id`, the agents being settled, and the obs/action spec the
+      environment is built with.
+
+    The price source is read from the scenario's own declaration rather than
+    from the live global: `_build_scenario` writes that global on every build,
+    so reading it here would make the key depend on which scenario happened to
+    be built last rather than on this one.
+    """
+    from wholesale_price import get_scenario_cfg_source
+
+    return (
+        str(scenario),
+        int(day_id) if day_id is not None else None,
+        int(T),
+        _config_fingerprint(config),
+        _defaults_fingerprint(),
+        _scenario_fingerprint(scenario),
+        str(get_scenario_cfg_source(scenario)),
+        tuple(sorted(str(n) for n in rl_names)),
+        getattr(obs_spec, "name", None),
+        getattr(action_spec, "name", None),
+    )
 
 
 def day_seed_for(day_id: int) -> int:
@@ -259,6 +383,33 @@ def day_seed_for(day_id: int) -> int:
     while looking like it compared two policies.
     """
     return int(day_id) + 1_000
+
+
+def _prepare_config(config: MarketConfig, scenario: str) -> None:
+    """Put the config into the state the scenario's own build will leave it in.
+
+    `_build_scenario` applies the scenario's `override_config` and its power
+    factor to the config object **in place**. A cache key computed before the
+    first build therefore describes a different configuration from one computed
+    after it, and the baseline cache never hits -- which is how this was found:
+    the second identical `validation_kpis` call missed its own cached baseline.
+
+    Applying the same preparation first makes the key describe the
+    configuration the arm will actually run under. `apply_scenario_overrides`
+    is idempotent, so the build's own application afterwards changes nothing.
+    """
+    from config_loader import get_scenario_cfg
+    from scenarios import apply_scenario_overrides
+
+    cfg = get_scenario_cfg(scenario)
+    override = dict(cfg.get("override_config", {}) or {})
+    # `custom_loads` is a per-bus directive the builder pops before applying
+    # the rest, because it is not a configuration field. Same reason here:
+    # `apply_scenario_overrides` refuses a key that names no field.
+    override.pop("custom_loads", None)
+    apply_scenario_overrides(config, override)
+    if "load_power_factor" in cfg:
+        config.network.load_power_factor = float(cfg["load_power_factor"])
 
 
 def validation_kpis(actors: Dict[str, object], config: MarketConfig,
@@ -285,6 +436,10 @@ def validation_kpis(actors: Dict[str, object], config: MarketConfig,
     ai_arm = ArmSpec(name="ai", kind="rl", policies=dict(actors))
     base_arm = ArmSpec(name="baseline", kind="truthful")
 
+    # Before anything is keyed: the config must already be in the state the
+    # build will leave it in, or the key describes a configuration no arm ran.
+    _prepare_config(config, scenario)
+
     pi_ai: List[float] = []
     pi_base: List[float] = []
     kept: List[int] = []
@@ -292,14 +447,25 @@ def validation_kpis(actors: Dict[str, object], config: MarketConfig,
 
     for day_id in day_ids:
         seed = day_seed_for(day_id)
-        key = (scenario, int(day_id), int(T))
 
-        cached = _BASELINE_CACHE.get(key) if use_cache else None
+        # The key names the fleet and the configuration, not only the day. If it
+        # cannot be constructed, the cache is DISABLED for this call rather than
+        # keyed on something partial: a baseline reused across two fleets is a
+        # wrong number that looks like a right one, and nothing downstream could
+        # tell.
+        try:
+            key = baseline_cache_key(scenario, day_id, T, config, rl_names,
+                                     obs_spec, action_spec)
+        except Exception:
+            key = None
+        cacheable = bool(use_cache) and key is not None
+
+        cached = _BASELINE_CACHE.get(key) if cacheable else None
         if cached is None:
             base = run_arm(scenario, config, base_arm, rl_names, seed, T,
                            n_blocks, day_id=day_id, obs_spec=obs_spec,
                            action_spec=action_spec)
-            if use_cache:
+            if cacheable:
                 _BASELINE_CACHE[key] = base
         else:
             base = cached

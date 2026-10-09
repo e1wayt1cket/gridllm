@@ -52,10 +52,11 @@ def register_strategy(name: str):
 
 
 # Import strategy modules so decorators register them
-from strategies import random_bidding  # noqa: E402, F401
-from strategies import rl_bidding      # noqa: E402, F401
-from strategies import mpc_bidding     # noqa: E402, F401
-from strategies import fixed_bidding   # noqa: E402, F401
+from strategies import random_bidding   # noqa: E402, F401
+from strategies import rl_bidding       # noqa: E402, F401
+from strategies import mpc_bidding      # noqa: E402, F401
+from strategies import fixed_bidding    # noqa: E402, F401
+from strategies import greedy_bidding   # noqa: E402, F401
 
 
 # ---------------------------------------------------------------------------

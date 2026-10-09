@@ -11,7 +11,9 @@ from dispatch import (
     solve_opf_gurobi, StorageConstraints, get_clearing_mechanism,
     solve_lindist_opf_batch,
 )
-from dispatch_core import empty_schedules, split_power
+from dispatch_core import (empty_schedules, fallback_solver_record,
+                           last_solve_metadata, pins_terminal_soc,
+                           solver_metadata, split_power)
 from strategies import adaptive_bidding  # noqa: F401 — re-export
 
 
@@ -69,6 +71,8 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
     # ---- Multi-period joint optimization (LinDistFlow / SOCP) ----
     # Batch-capable engines are looked up from the clearing registry; a
     # fallback to the per-period loop below preserves the pre-registry path.
+    # Set when the batch declines, so the fallback result can name what failed.
+    batch_failure = None
     if config.opf_mode in ("lindistflow", "socp"):
         batch_fn = get_clearing_mechanism(config.opf_mode)["batch_fn"]
         result = batch_fn(base_net, agents, T, stage, config,
@@ -76,10 +80,14 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
                           horizon_type=horizon_type)
         if result is not None:
             return result
-        else:
-            print("Batch solve failed, falling back to single-period solver...")
+        # The batch returned None, so there is no result to read a status from.
+        # The engine leaves its own outcome behind; without it a caller could
+        # not tell an infeasible model from a solver that ran out of iterations.
+        batch_failure = last_solve_metadata()
+        print("Batch solve failed, falling back to single-period solver...")
 
     # ---- Per-period fallback (DC-OPF or LinDistFlow single-period) ----
+    periods_failed = 0
     n_buses = len(base_net.bus)
     lmp = np.zeros((T, n_buses))
     schedules = empty_schedules(agents, T)
@@ -100,6 +108,9 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
                 total_re_available += np.sum(a.wind_real) * 0.25
 
     prev_soc: dict[str, float] = {}
+    for a in agents:
+        if a.storage is not None and a.name in schedules:
+            schedules[a.name]['soc_boundary'][0] = float(a.storage.soc0)
 
     for t in range(T):
         success, lmp_t, clearing_objective_t, agent_res, p_grid = solve_opf_gurobi(
@@ -107,6 +118,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
             action_params, config
         )
         if not success:
+            periods_failed += 1
             if t > 0:
                 lmp[t] = lmp[t-1]
                 for a in agents:
@@ -144,6 +156,14 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
                 sched['p_ch'][t] = ch_val
                 sched['p_dis'][t] = dis_val
                 sched['soc'][t] = new_soc
+                # The boundary trajectory, so this path carries the same
+                # schema as the batch engines: boundary[t+1] is the state
+                # after period t, and none of the T+1 entries is overwritten.
+                sched['soc_boundary'][t + 1] = new_soc
+                sched['soc_terminal_actual'] = float(new_soc)
+                sched['soc_terminal_target'] = (
+                    float(a.storage.soc0)
+                    if pins_terminal_soc(config, T, horizon_type) else None)
                 prev_soc[a.name] = new_soc
             else:
                 sched['p_ch'][t] = 0.0
@@ -174,6 +194,25 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
         "total_curtailment": total_curtailment,
         "shadow_prices": {},
         "fell_back": True,  # set only on the single-period fallback path
+        # What produced these numbers, and what failed first. `final` names the
+        # per-period engine, never the batch that declined: reporting the
+        # batch's status here would describe a solve whose answer was discarded.
+        "solver": solver_metadata(
+            config.opf_mode,
+            primary=batch_failure or {
+                "name": "batch_engine", "status_code": None,
+                "status_name": "NOT_RECORDED", "termination": "unknown",
+                "optimal": None,
+            },
+            used_fallback=True,
+            fallback=fallback_solver_record(
+                f"single_period_{config.opf_mode}",
+                status_name=("COMPLETED" if periods_failed == 0 else "PARTIAL"),
+                message=(f"{periods_failed} of {T} periods failed to solve and "
+                         f"were carried forward from the previous period")),
+            # The per-period loop does not surface balance duals, so whether
+            # they were available is unknown here rather than false.
+            duals_available=None),
     }
 
 

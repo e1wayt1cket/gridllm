@@ -49,6 +49,7 @@ Exits non-zero when a hard gate fails, so it can be wired into a check later.
 import argparse
 import json
 import sys
+from typing import Dict
 
 import numpy as np
 
@@ -95,12 +96,28 @@ def round_trip_margin_cny_mwh(node, eta_ch: float, eta_dis: float,
     One MWh stored costs `valley / eta_ch` to put in and releases `eta_dis` MWh
     at the peak price, so it earns `eta_dis * peak`; degradation is charged on
     both legs. Expressed per MWh stored rather than per MWh discharged so it
-    compares directly against the `2 * cycle_cost` the pair of quotes has to
-    cover inside the action box.
+    compares directly against what the pair of quotes has to cover inside the
+    action box.
+
+    The floor is `arbitrage_lp.required_margin`, derived from that module's own
+    objective: the charge leg draws `1/eta_ch` MWh from the grid per MWh stored
+    and the discharge leg returns `eta_dis`, so degradation is
+    `cycle_cost * (1/eta_ch + eta_dis)`.
+
+    This was `2 * cycle_cost` until Phase 10, which is the lossless-round-trip
+    special case. At the configured 100 CNY/MWh per leg and 0.92 efficiency the
+    old form was **0.6957 CNY/MWh too permissive**, so every margin this
+    function reports is now that much smaller and every threshold it feeds is
+    that much stricter. On this project's days the change does not move any
+    conclusion, but it is the entire margin on a day that sits near the
+    threshold, so it is not left as an approximation.
     """
+    from arbitrage_lp import required_margin
+
     valley = float(np.min(node))
     peak = float(np.max(node))
-    return eta_dis * peak - valley / eta_ch - 2.0 * cycle_cost
+    return (eta_dis * peak - valley / eta_ch
+            - required_margin(cycle_cost, eta_ch, eta_dis))
 
 
 def tradeable_box_share(margin: float, box) -> float:
@@ -634,7 +651,13 @@ def _window(node, eta_ch, eta_dis, cycle_cost):
         return {"lmp_valley": valley, "lmp_peak": peak,
                 "ratio": float("inf"), "breakeven_ratio": float("inf"),
                 "margin": float("-inf")}
-    breakeven = ((1.0 / (eta_ch * eta_dis)) * valley + 2.0 * cycle_cost) / valley
+    # The same floor as `round_trip_margin_cny_mwh`, rearranged as a ratio:
+    # `eta_dis * peak - valley / eta_ch > required` gives
+    # `peak / valley > 1/(eta_ch*eta_dis) + required/(eta_dis*valley)`.
+    from arbitrage_lp import required_margin
+
+    required = required_margin(cycle_cost, eta_ch, eta_dis)
+    breakeven = (valley / (eta_ch * eta_dis) + required) / (eta_dis * valley)
     return {"lmp_valley": valley, "lmp_peak": peak, "ratio": peak / valley,
             "breakeven_ratio": breakeven, "margin": peak / valley - breakeven}
 

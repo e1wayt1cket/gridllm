@@ -401,3 +401,65 @@ PYTHONPATH=src python src/compare_price_sources.py --days 12
 PYTHONPATH=src python src/market_opportunity.py --days 40 --with-fleet --fleet-footprint
 python -m pytest tests/ -q
 ```
+
+## The Jiangsu curves: a second source, and what it is not
+
+Everything above describes `synthetic_v1`, a market this project simulates. A
+second source now exists — `dianyicha` — which reads real published Jiangsu
+prices. It is a different kind of object and the difference matters more than
+the prices do.
+
+**What it is.** `docs/日前价格261009.xlsx` carries four 96-point curves, read by
+`src/dianyicha_price.py` and served by `wholesale_price.DianyichaPriceProvider`.
+`day_id` selects one by index into `wholesale_market.dianyicha_curves`; it is a
+*price scenario* selector, not a calendar day, and a day id outside the declared
+list raises rather than falling back.
+
+| sheet | its own column header | min / max / mean (CNY/MWh) |
+|---|---|---|
+| `261009` | 日前均值（CNY/MWh） | 225.90 / 445.00 / 386.83 |
+| `7days` | 日前均价 | 257.50 / 477.87 / 395.55 |
+| `30days` | 日前均价 | 333.08 / 450.86 / 407.82 |
+| `halfyear` | 日前均价 | 284.93 / 393.86 / 346.33 |
+
+**What it is not, and the one thing not to get wrong.** **All four are means.**
+The workbook says so in its own headers, including on `261009`. There is
+therefore **no measured daily day-ahead series anywhere in this project** — not
+one real day, let alone a history. The four curves differ only in the window
+they average over.
+
+Consequences that bind the write-up, not just the code:
+
+- A result on these curves is a **price-scenario comparison**, never evidence
+  about day-to-day behaviour, volatility, or generalisation across days. With
+  no measured daily series there is no basis for a train/validation/test split
+  over real prices, and none is claimed.
+- `Curve.is_measured` is `False` on every curve and `describe()` publishes each
+  role, so a report cannot present a mean as an observation without
+  contradicting a recorded field.
+- These prices are far **narrower** than `synthetic_v1`'s configured band
+  (`price_floor: 120` / `price_cap: 1000`). Storage arbitrage on them is
+  correspondingly thinner. That is a finding to report, not a reason to move
+  the floor or the cap.
+
+**The slot axis is interval-END, and the mapping is positional.** A label is
+the close of its interval, so the clock runs `00:15` to `24:00` and label `i`
+belongs to period `i` — the identity, with nothing shifted. `24:00` has no
+`datetime.time` representation and arrives as Excel's epoch midnight
+(`1900-01-01 00:00:00`); it is accepted only in the final slot. The reader
+asserts the exact sequence `15 * (i + 1)` minutes and raises on an
+interval-START file rather than rotating it by one period — a rotation that
+would leave every number plausible and every result wrong.
+
+**Reproducing**
+
+```bash
+PYTHONPATH=src python src/dianyicha_price.py
+PYTHONPATH=src python src/dianyicha_price.py --json
+python -m pytest tests/test_dianyicha_price.py -v
+```
+
+The workbook is read directly with `openpyxl`; no text or CSV copy is produced,
+and the reader's `provenance` carries the workbook's SHA-256. Note that
+`.gitignore` excludes `*.xlsx`, so the workbook itself is outside version
+control — the hash is what ties a run to the bytes it read.

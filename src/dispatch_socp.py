@@ -36,6 +36,7 @@ import money
 from models import Agent, MarketConfig
 from dispatch_core import (
     _select_radial_lines, _compute_mpc_schedules, empty_schedules, split_power,
+    gurobi_solver_record, last_solve_metadata, record_last_solve, solver_metadata,
     add_grid_exchange, add_storage_net_power, check_storage_quote_signs,
     quote_arrays,
     grid_import_export, grid_carbon_tco2, pins_terminal_soc, DT_HOURS,
@@ -618,6 +619,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         if m.status == GRB.INFEASIBLE:
             m.computeIIS()
             m.write("socp_infeasible.ilp")
+        record_last_solve("socp", gurobi_solver_record(m))
         return None
 
     # Recover the duals the LMPs are read from; see the helper's docstring.
@@ -727,6 +729,9 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             'pv_used': np.zeros(T), 'wind_used': np.zeros(T),
             'p_ch': np.zeros(T), 'p_dis': np.zeros(T), 'soc': np.zeros(T),
             'storage_mode': ['idle'] * T,
+            'soc_boundary': np.zeros(T + 1),
+            'soc_terminal_target': None,
+            'soc_terminal_actual': None,
         }
     clearing_objective = m.ObjVal
     total_re_avail = sum(
@@ -758,6 +763,10 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             s['p_ch'][t] = ch[nm][t].X
             s['p_dis'][t] = dis[nm][t].X
             s['soc'][t] = soc[nm][t].X if nm in soc else 0.0
+            if nm in soc:
+                # The boundary trajectory. Filled for 0..T-1 here and for T
+                # below, so no entry is ever overwritten.
+                s['soc_boundary'][t] = soc[nm][t].X
 
             if stage == "DA":
                 pv_max = a.pv_forecast[t]
@@ -774,11 +783,25 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             s['p_buy'][t], s['p_sell'][t] = split_power(net_gen, net_con)
             total_served_mwh += s['served'][t] * DT_HOURS
 
-    # SOC for final period
-    for a in storage_agents:
-        schedules[a.name]['soc'][T - 1] = soc[a.name][T].X
-    for su in storage_units:
-        schedules[su.name]['soc'][T - 1] = soc[su.name][T].X
+    # The boundary trajectory's last entry, the per-period readout's last entry,
+    # and the terminal state kept apart from the terminal target.
+    #
+    # `soc[T-1]` keeps the meaning it already had -- the state at the END of the
+    # horizon -- so no existing reader changes. That convention is what made the
+    # trajectory unverifiable: it discards `soc[T-1]` of the model's own
+    # variable, leaving only T-1 of the T transitions checkable. `soc_boundary`
+    # carries all T+1 states without overwriting any, which is what makes every
+    # transition checkable.
+    terminal_pinned = pins_terminal_soc(config, T, horizon_type)
+    for a in list(storage_agents) + list(storage_units):
+        nm = a.name
+        if nm not in soc or nm not in schedules:
+            continue
+        s = schedules[nm]
+        s['soc_boundary'][T] = soc[nm][T].X
+        s['soc'][T - 1] = soc[nm][T].X
+        s['soc_terminal_actual'] = float(soc[nm][T].X)
+        s['soc_terminal_target'] = float(soc[nm][0].X) if terminal_pinned else None
 
     # Network-state readouts. Voltage, line current and line flow are already
     # variables of this model; they were simply never surfaced, so nothing
@@ -830,7 +853,16 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         # exchange is only available from here.
         "grid_import_mw": grid_import_mw,
         "grid_export_mw": grid_export_mw,
+        # Which solver produced this, and whether its prices are duals.
+        # `duals_available` is reported apart from `optimal` on purpose: a model
+        # can be OPTIMAL and still yield no balance dual, which is why
+        # BarHomogeneous is set and why `lmp_fallbacks` exists.
+        "solver": solver_metadata(
+            "socp", gurobi_solver_record(m),
+            used_fallback=False, fallback=None,
+            duals_available=(lmp_fallbacks == 0)),
     }
+    record_last_solve("socp", gurobi_solver_record(m))
     return result
 
 

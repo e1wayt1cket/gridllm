@@ -1,0 +1,1537 @@
+industry,time_index,time_start,shape,n_users,n_meters,n_days,method,reliable,reliability_note
+5G基站,0,00:00,0.880725595843982,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,1,00:15,0.8718328583691428,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,2,00:30,0.860863977735409,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,3,00:45,0.8519637340871203,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,4,01:00,0.8505960734494104,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,5,01:15,0.8495550881500791,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,6,01:30,0.8475396790817702,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,7,01:45,0.8444303236185935,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,8,02:00,0.8459518944197054,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,9,02:15,0.8251887381364027,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,10,02:30,0.8199187340958447,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,11,02:45,0.842159515135499,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,12,03:00,0.8402375603409779,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,13,03:15,0.8403562413864759,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,14,03:30,0.8424742715076342,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,15,03:45,0.8422768255462849,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,16,04:00,0.8376778183960817,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,17,04:15,0.8426287588470337,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,18,04:30,0.8440147325097475,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,19,04:45,0.840407572167571,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,20,05:00,0.8476250667040878,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,21,05:15,0.8583001744243248,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,22,05:30,0.8559602202525395,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,23,05:45,0.8671094495211148,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,24,06:00,0.8733956612181372,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,25,06:15,0.8858055445764771,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,26,06:30,0.8927133973556435,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,27,06:45,0.8884374903852481,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,28,07:00,0.8961107155843009,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,29,07:15,0.9110243089017822,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,30,07:30,0.9165049783410375,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,31,07:45,0.918486860078186,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,32,08:00,0.9257619854690765,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,33,08:15,0.9141348420860773,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,34,08:30,0.9281937775216967,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,35,08:45,0.9340439704226317,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,36,09:00,0.9402567503846757,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,37,09:15,0.9486304699079886,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,38,09:30,0.9548341541125759,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,39,09:45,0.9509798051028759,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,40,10:00,0.9701655943180034,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,41,10:15,0.9571461631139219,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,42,10:30,0.9594675274431804,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,43,10:45,0.9733618252973487,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,44,11:00,0.9812875474602561,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,45,11:15,0.9884883347412872,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,46,11:30,0.9885530616195061,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,47,11:45,0.9858018134902641,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,48,12:00,0.99078702297947,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,49,12:15,0.9898670104948551,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,50,12:30,0.980652422504188,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,51,12:45,0.9957826283347411,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,52,13:00,0.9866342521029178,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,53,13:15,0.9875259792031704,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,54,13:30,0.9963348509676271,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,55,13:45,1.0,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,56,14:00,0.9814084550888037,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,57,14:15,0.9922792595805902,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,58,14:30,0.9835619742283382,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,59,14:45,0.9828900387078398,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,60,15:00,0.9832017853490195,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,61,15:15,0.9765182203884949,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,62,15:30,0.9842637184687794,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,63,15:45,0.9806503976082435,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,64,16:00,0.9784613135344226,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,65,16:15,0.9738549607646326,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,66,16:30,0.9686211244176139,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,67,16:45,0.9712866215421617,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,68,17:00,0.9754474572072978,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,69,17:15,0.9631723324387146,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,70,17:30,0.9552476778274088,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,71,17:45,0.9533661079100254,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,72,18:00,0.9546294362479385,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,73,18:15,0.9463330543336608,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,74,18:30,0.9424273648522867,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,75,18:45,0.9418778835154696,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,76,19:00,0.9386031837193946,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,77,19:15,0.9483342316798966,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,78,19:30,0.9453148693296876,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,79,19:45,0.930813884495244,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,80,20:00,0.9428011438351046,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,81,20:15,0.9400316534972375,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,82,20:30,0.9364522473879353,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,83,20:45,0.9418162454523509,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,84,21:00,0.9322226604980509,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,85,21:15,0.928310837526539,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,86,21:30,0.9225252215357426,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,87,21:45,0.914126247925996,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,88,22:00,0.9144723368622129,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,89,22:15,0.9143932505644133,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,90,22:30,0.905344560139137,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,91,22:45,0.8993714896116841,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,92,23:00,0.9039560115215199,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,93,23:15,0.8941243042191362,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,94,23:30,0.8876299749279184,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+5G基站,95,23:45,0.8915712297478441,2,2,626,hierarchical_mean,False,limited: users 2 < 3
+分布式光伏,0,00:00,0.14168989423721928,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,1,00:15,0.14038648360329758,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,2,00:30,0.13859119768100717,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,3,00:45,0.1342447231664145,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,4,01:00,0.13507002809408575,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,5,01:15,0.12996036363222407,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,6,01:30,0.1291434247972078,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,7,01:45,0.13035734529926352,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,8,02:00,0.12827111057934334,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,9,02:15,0.1282571378115096,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,10,02:30,0.12480766244525349,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,11,02:45,0.12441296107239247,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,12,03:00,0.12556024193609233,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,13,03:15,0.12331850963952352,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,14,03:30,0.1224667542566685,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,15,03:45,0.12388468801320968,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,16,04:00,0.1236396411656543,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,17,04:15,0.12331243738062282,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,18,04:30,0.12082221060067705,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,19,04:45,0.12052118418195967,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,20,05:00,0.11940849329341043,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,21,05:15,0.11895298052372047,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,22,05:30,0.12284914093471928,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,23,05:45,0.12886052451330765,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,24,06:00,0.13798759795167714,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,25,06:15,0.15843397202172527,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,26,06:30,0.18206459718101878,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,27,06:45,0.21541032835617988,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,28,07:00,0.2447791069824913,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,29,07:15,0.29080649944738063,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,30,07:30,0.35847114073227343,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,31,07:45,0.47027644869779156,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,32,08:00,0.5418456509779953,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,33,08:15,0.6354027967986347,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,34,08:30,0.6980104890024567,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,35,08:45,0.7393627092201582,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,36,09:00,0.7957902001844301,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,37,09:15,0.8362423502947731,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,38,09:30,0.879491365055866,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,39,09:45,0.9102408494739185,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,40,10:00,0.9468107930697992,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,41,10:15,0.9826545380461147,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,42,10:30,0.9966775268893733,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,43,10:45,0.9923510737153798,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,44,11:00,0.9445743173308745,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,45,11:15,0.9292409440652102,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,46,11:30,0.9410337365253236,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,47,11:45,0.9242389988364345,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,48,12:00,0.982561274758084,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,49,12:15,0.9986232922838232,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,50,12:30,1.0,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,51,12:45,0.9935238856025222,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,52,13:00,0.987580678100943,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,53,13:15,0.9576672092536599,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,54,13:30,0.9421291849095756,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,55,13:45,0.92323341442521,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,56,14:00,0.8894230630203839,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,57,14:15,0.8613850373630803,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,58,14:30,0.8227971607545144,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,59,14:45,0.7934964044895612,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,60,15:00,0.756847480875172,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,61,15:15,0.7142136338987232,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,62,15:30,0.6686843036014655,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,63,15:45,0.6238248033290023,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,64,16:00,0.5664591638079678,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,65,16:15,0.5018950531571147,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,66,16:30,0.3979819240406181,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,67,16:45,0.3229866512768907,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,68,17:00,0.2955014425929578,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,69,17:15,0.27813892668612145,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,70,17:30,0.25387328170400475,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,71,17:45,0.23801741502070006,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,72,18:00,0.220377069167227,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,73,18:15,0.20502036985540043,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,74,18:30,0.20210518786874995,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,75,18:45,0.19753405874553373,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,76,19:00,0.19508903843827677,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,77,19:15,0.19432229044089833,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,78,19:30,0.19040553311632946,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,79,19:45,0.1785938025812662,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,80,20:00,0.16951096465551638,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,81,20:15,0.16416307529901375,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,82,20:30,0.16469018033083543,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,83,20:45,0.16414424199976804,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,84,21:00,0.1654328993413155,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,85,21:15,0.16448328022855582,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,86,21:30,0.16220080597210093,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,87,21:45,0.16507587609938826,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,88,22:00,0.16314707624768196,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,89,22:15,0.16079150259356964,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,90,22:30,0.15634168081781752,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,91,22:45,0.15455921359687055,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,92,23:00,0.1528774823151351,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,93,23:15,0.15016060290689492,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,94,23:30,0.1493365519197046,4,15,2407,hierarchical_mean,True,ok
+分布式光伏,95,23:45,0.14564421382933077,4,15,2407,hierarchical_mean,True,ok
+化工业,0,00:00,0.8848457666557978,6,20,3514,hierarchical_mean,True,ok
+化工业,1,00:15,0.8844215562927117,6,20,3514,hierarchical_mean,True,ok
+化工业,2,00:30,0.8843425457313019,6,20,3514,hierarchical_mean,True,ok
+化工业,3,00:45,0.8835362064392587,6,20,3514,hierarchical_mean,True,ok
+化工业,4,01:00,0.8834858379329017,6,20,3514,hierarchical_mean,True,ok
+化工业,5,01:15,0.8788498754307852,6,20,3514,hierarchical_mean,True,ok
+化工业,6,01:30,0.8796483655769528,6,20,3514,hierarchical_mean,True,ok
+化工业,7,01:45,0.8793909665300108,6,20,3514,hierarchical_mean,True,ok
+化工业,8,02:00,0.8780740228890589,6,20,3514,hierarchical_mean,True,ok
+化工业,9,02:15,0.8774595228644615,6,20,3514,hierarchical_mean,True,ok
+化工业,10,02:30,0.8788888330139923,6,20,3514,hierarchical_mean,True,ok
+化工业,11,02:45,0.8778350821270517,6,20,3514,hierarchical_mean,True,ok
+化工业,12,03:00,0.8763132801084788,6,20,3514,hierarchical_mean,True,ok
+化工业,13,03:15,0.8799759680328015,6,20,3514,hierarchical_mean,True,ok
+化工业,14,03:30,0.8779013341653517,6,20,3514,hierarchical_mean,True,ok
+化工业,15,03:45,0.8754936599430263,6,20,3514,hierarchical_mean,True,ok
+化工业,16,04:00,0.8751271092091386,6,20,3514,hierarchical_mean,True,ok
+化工业,17,04:15,0.876035489525936,6,20,3514,hierarchical_mean,True,ok
+化工业,18,04:30,0.8760856634020341,6,20,3514,hierarchical_mean,True,ok
+化工业,19,04:45,0.8755824281442113,6,20,3514,hierarchical_mean,True,ok
+化工业,20,05:00,0.8759029947874859,6,20,3514,hierarchical_mean,True,ok
+化工业,21,05:15,0.8755444712049584,6,20,3514,hierarchical_mean,True,ok
+化工业,22,05:30,0.8732277120373834,6,20,3514,hierarchical_mean,True,ok
+化工业,23,05:45,0.8721817796271106,6,20,3514,hierarchical_mean,True,ok
+化工业,24,06:00,0.8726598977152994,6,20,3514,hierarchical_mean,True,ok
+化工业,25,06:15,0.8747368966992893,6,20,3514,hierarchical_mean,True,ok
+化工业,26,06:30,0.8782521654231613,6,20,3514,hierarchical_mean,True,ok
+化工业,27,06:45,0.9002846000979133,6,20,3514,hierarchical_mean,True,ok
+化工业,28,07:00,0.9206189861599373,6,20,3514,hierarchical_mean,True,ok
+化工业,29,07:15,0.9114218145131101,6,20,3514,hierarchical_mean,True,ok
+化工业,30,07:30,0.9170257111263082,6,20,3514,hierarchical_mean,True,ok
+化工业,31,07:45,0.9415254658558453,6,20,3514,hierarchical_mean,True,ok
+化工业,32,08:00,0.9737018835971409,6,20,3514,hierarchical_mean,True,ok
+化工业,33,08:15,1.0,6,20,3514,hierarchical_mean,True,ok
+化工业,34,08:30,0.9649672818715807,6,20,3514,hierarchical_mean,True,ok
+化工业,35,08:45,0.9622472160696807,6,20,3514,hierarchical_mean,True,ok
+化工业,36,09:00,0.920130431600341,6,20,3514,hierarchical_mean,True,ok
+化工业,37,09:15,0.966861560872512,6,20,3514,hierarchical_mean,True,ok
+化工业,38,09:30,0.9340212001165396,6,20,3514,hierarchical_mean,True,ok
+化工业,39,09:45,0.9283665891339857,6,20,3514,hierarchical_mean,True,ok
+化工业,40,10:00,0.9250189341719184,6,20,3514,hierarchical_mean,True,ok
+化工业,41,10:15,0.9260382247732997,6,20,3514,hierarchical_mean,True,ok
+化工业,42,10:30,0.9240526812707526,6,20,3514,hierarchical_mean,True,ok
+化工业,43,10:45,0.925345048379768,6,20,3514,hierarchical_mean,True,ok
+化工业,44,11:00,0.9275584717154381,6,20,3514,hierarchical_mean,True,ok
+化工业,45,11:15,0.9276469016974609,6,20,3514,hierarchical_mean,True,ok
+化工业,46,11:30,0.9276932424025202,6,20,3514,hierarchical_mean,True,ok
+化工业,47,11:45,0.9269060129843721,6,20,3514,hierarchical_mean,True,ok
+化工业,48,12:00,0.9603482159724566,6,20,3514,hierarchical_mean,True,ok
+化工业,49,12:15,0.9757688820493261,6,20,3514,hierarchical_mean,True,ok
+化工业,50,12:30,0.9593758026983634,6,20,3514,hierarchical_mean,True,ok
+化工业,51,12:45,0.9765380169658294,6,20,3514,hierarchical_mean,True,ok
+化工业,52,13:00,0.9392925506938294,6,20,3514,hierarchical_mean,True,ok
+化工业,53,13:15,0.9722582505228745,6,20,3514,hierarchical_mean,True,ok
+化工业,54,13:30,0.9722235244249442,6,20,3514,hierarchical_mean,True,ok
+化工业,55,13:45,0.9338841074845725,6,20,3514,hierarchical_mean,True,ok
+化工业,56,14:00,0.9171317009554072,6,20,3514,hierarchical_mean,True,ok
+化工业,57,14:15,0.915253464563101,6,20,3514,hierarchical_mean,True,ok
+化工业,58,14:30,0.9121605943491219,6,20,3514,hierarchical_mean,True,ok
+化工业,59,14:45,0.9135560573358408,6,20,3514,hierarchical_mean,True,ok
+化工业,60,15:00,0.9108824932623698,6,20,3514,hierarchical_mean,True,ok
+化工业,61,15:15,0.9107041796564316,6,20,3514,hierarchical_mean,True,ok
+化工业,62,15:30,0.910939283877854,6,20,3514,hierarchical_mean,True,ok
+化工业,63,15:45,0.910331180297441,6,20,3514,hierarchical_mean,True,ok
+化工业,64,16:00,0.9130978509402947,6,20,3514,hierarchical_mean,True,ok
+化工业,65,16:15,0.9278365884744092,6,20,3514,hierarchical_mean,True,ok
+化工业,66,16:30,0.9259642252133924,6,20,3514,hierarchical_mean,True,ok
+化工业,67,16:45,0.9259826787571046,6,20,3514,hierarchical_mean,True,ok
+化工业,68,17:00,0.9152440609142246,6,20,3514,hierarchical_mean,True,ok
+化工业,69,17:15,0.9146332999676952,6,20,3514,hierarchical_mean,True,ok
+化工业,70,17:30,0.9131668320678842,6,20,3514,hierarchical_mean,True,ok
+化工业,71,17:45,0.9283595665379603,6,20,3514,hierarchical_mean,True,ok
+化工业,72,18:00,0.9064035694675711,6,20,3514,hierarchical_mean,True,ok
+化工业,73,18:15,0.9149951149405662,6,20,3514,hierarchical_mean,True,ok
+化工业,74,18:30,0.9062614148215521,6,20,3514,hierarchical_mean,True,ok
+化工业,75,18:45,0.9025564340361377,6,20,3514,hierarchical_mean,True,ok
+化工业,76,19:00,0.8899988496972226,6,20,3514,hierarchical_mean,True,ok
+化工业,77,19:15,0.8799885509692653,6,20,3514,hierarchical_mean,True,ok
+化工业,78,19:30,0.877532895825258,6,20,3514,hierarchical_mean,True,ok
+化工业,79,19:45,0.8744322633455061,6,20,3514,hierarchical_mean,True,ok
+化工业,80,20:00,0.8778408373944375,6,20,3514,hierarchical_mean,True,ok
+化工业,81,20:15,0.8793662083104412,6,20,3514,hierarchical_mean,True,ok
+化工业,82,20:30,0.8806651000288697,6,20,3514,hierarchical_mean,True,ok
+化工业,83,20:45,0.8781085834347452,6,20,3514,hierarchical_mean,True,ok
+化工业,84,21:00,0.8798701036577542,6,20,3514,hierarchical_mean,True,ok
+化工业,85,21:15,0.8805254114168889,6,20,3514,hierarchical_mean,True,ok
+化工业,86,21:30,0.8790478403745678,6,20,3514,hierarchical_mean,True,ok
+化工业,87,21:45,0.8781395801452467,6,20,3514,hierarchical_mean,True,ok
+化工业,88,22:00,0.8793602972335256,6,20,3514,hierarchical_mean,True,ok
+化工业,89,22:15,0.8820839206503265,6,20,3514,hierarchical_mean,True,ok
+化工业,90,22:30,0.8834906192823683,6,20,3514,hierarchical_mean,True,ok
+化工业,91,22:45,0.8844169957256139,6,20,3514,hierarchical_mean,True,ok
+化工业,92,23:00,0.8847801344232383,6,20,3514,hierarchical_mean,True,ok
+化工业,93,23:15,0.8848252679773206,6,20,3514,hierarchical_mean,True,ok
+化工业,94,23:30,0.8866943398669723,6,20,3514,hierarchical_mean,True,ok
+化工业,95,23:45,0.8862872912783631,6,20,3514,hierarchical_mean,True,ok
+印刷业,0,00:00,0.8753325791723926,5,13,1453,hierarchical_mean,True,ok
+印刷业,1,00:15,0.8623107224630888,5,13,1453,hierarchical_mean,True,ok
+印刷业,2,00:30,0.900858156023616,5,13,1453,hierarchical_mean,True,ok
+印刷业,3,00:45,0.913097823011306,5,13,1453,hierarchical_mean,True,ok
+印刷业,4,01:00,0.9119051329098159,5,13,1453,hierarchical_mean,True,ok
+印刷业,5,01:15,0.9036839715295307,5,13,1453,hierarchical_mean,True,ok
+印刷业,6,01:30,0.9012403118282268,5,13,1453,hierarchical_mean,True,ok
+印刷业,7,01:45,0.8963613833716753,5,13,1453,hierarchical_mean,True,ok
+印刷业,8,02:00,0.8941056912483027,5,13,1453,hierarchical_mean,True,ok
+印刷业,9,02:15,0.8931401252729555,5,13,1453,hierarchical_mean,True,ok
+印刷业,10,02:30,0.8889538233643269,5,13,1453,hierarchical_mean,True,ok
+印刷业,11,02:45,0.8822409668454012,5,13,1453,hierarchical_mean,True,ok
+印刷业,12,03:00,0.8779493141509619,5,13,1453,hierarchical_mean,True,ok
+印刷业,13,03:15,0.8726568822022365,5,13,1453,hierarchical_mean,True,ok
+印刷业,14,03:30,0.8733354765583616,5,13,1453,hierarchical_mean,True,ok
+印刷业,15,03:45,0.8680528599596468,5,13,1453,hierarchical_mean,True,ok
+印刷业,16,04:00,0.8605334678372946,5,13,1453,hierarchical_mean,True,ok
+印刷业,17,04:15,0.8580746912141048,5,13,1453,hierarchical_mean,True,ok
+印刷业,18,04:30,0.8529193069986083,5,13,1453,hierarchical_mean,True,ok
+印刷业,19,04:45,0.8494546521774101,5,13,1453,hierarchical_mean,True,ok
+印刷业,20,05:00,0.8398866333659433,5,13,1453,hierarchical_mean,True,ok
+印刷业,21,05:15,0.839405453676944,5,13,1453,hierarchical_mean,True,ok
+印刷业,22,05:30,0.8384517456504131,5,13,1453,hierarchical_mean,True,ok
+印刷业,23,05:45,0.825907296091555,5,13,1453,hierarchical_mean,True,ok
+印刷业,24,06:00,0.8188019417153612,5,13,1453,hierarchical_mean,True,ok
+印刷业,25,06:15,0.8117528231000493,5,13,1453,hierarchical_mean,True,ok
+印刷业,26,06:30,0.8007066179707284,5,13,1453,hierarchical_mean,True,ok
+印刷业,27,06:45,0.7807020905667634,5,13,1453,hierarchical_mean,True,ok
+印刷业,28,07:00,0.7606363840534628,5,13,1453,hierarchical_mean,True,ok
+印刷业,29,07:15,0.7802815374729214,5,13,1453,hierarchical_mean,True,ok
+印刷业,30,07:30,0.8047600315671706,5,13,1453,hierarchical_mean,True,ok
+印刷业,31,07:45,0.8532963925102675,5,13,1453,hierarchical_mean,True,ok
+印刷业,32,08:00,0.8734360373060955,5,13,1453,hierarchical_mean,True,ok
+印刷业,33,08:15,0.8598010835491611,5,13,1453,hierarchical_mean,True,ok
+印刷业,34,08:30,0.860786762123755,5,13,1453,hierarchical_mean,True,ok
+印刷业,35,08:45,0.881255972503392,5,13,1453,hierarchical_mean,True,ok
+印刷业,36,09:00,0.8833870449765653,5,13,1453,hierarchical_mean,True,ok
+印刷业,37,09:15,0.8579355900437519,5,13,1453,hierarchical_mean,True,ok
+印刷业,38,09:30,0.8398574632870568,5,13,1453,hierarchical_mean,True,ok
+印刷业,39,09:45,0.8388073482746922,5,13,1453,hierarchical_mean,True,ok
+印刷业,40,10:00,0.8409449479911479,5,13,1453,hierarchical_mean,True,ok
+印刷业,41,10:15,0.8170616150079276,5,13,1453,hierarchical_mean,True,ok
+印刷业,42,10:30,0.8031628444304707,5,13,1453,hierarchical_mean,True,ok
+印刷业,43,10:45,0.7755390949961951,5,13,1453,hierarchical_mean,True,ok
+印刷业,44,11:00,0.6914742596152051,5,13,1453,hierarchical_mean,True,ok
+印刷业,45,11:15,0.6492800831545373,5,13,1453,hierarchical_mean,True,ok
+印刷业,46,11:30,0.6314694828818745,5,13,1453,hierarchical_mean,True,ok
+印刷业,47,11:45,0.6321885765470421,5,13,1453,hierarchical_mean,True,ok
+印刷业,48,12:00,0.652977488857887,5,13,1453,hierarchical_mean,True,ok
+印刷业,49,12:15,0.7437248114581654,5,13,1453,hierarchical_mean,True,ok
+印刷业,50,12:30,0.7540962822232588,5,13,1453,hierarchical_mean,True,ok
+印刷业,51,12:45,0.7675690868423037,5,13,1453,hierarchical_mean,True,ok
+印刷业,52,13:00,0.7832814935564605,5,13,1453,hierarchical_mean,True,ok
+印刷业,53,13:15,0.7889403550678673,5,13,1453,hierarchical_mean,True,ok
+印刷业,54,13:30,0.7979752934257826,5,13,1453,hierarchical_mean,True,ok
+印刷业,55,13:45,0.815177484549841,5,13,1453,hierarchical_mean,True,ok
+印刷业,56,14:00,0.8223270998592889,5,13,1453,hierarchical_mean,True,ok
+印刷业,57,14:15,0.8306839628580424,5,13,1453,hierarchical_mean,True,ok
+印刷业,58,14:30,0.8415036969416158,5,13,1453,hierarchical_mean,True,ok
+印刷业,59,14:45,0.8564350056394855,5,13,1453,hierarchical_mean,True,ok
+印刷业,60,15:00,0.8713564541418484,5,13,1453,hierarchical_mean,True,ok
+印刷业,61,15:15,0.8896842672749066,5,13,1453,hierarchical_mean,True,ok
+印刷业,62,15:30,0.911531692696122,5,13,1453,hierarchical_mean,True,ok
+印刷业,63,15:45,0.9193952915076649,5,13,1453,hierarchical_mean,True,ok
+印刷业,64,16:00,0.9422579897919385,5,13,1453,hierarchical_mean,True,ok
+印刷业,65,16:15,0.962539716325524,5,13,1453,hierarchical_mean,True,ok
+印刷业,66,16:30,0.9806914083006866,5,13,1453,hierarchical_mean,True,ok
+印刷业,67,16:45,0.9925846094690067,5,13,1453,hierarchical_mean,True,ok
+印刷业,68,17:00,0.9837264627564939,5,13,1453,hierarchical_mean,True,ok
+印刷业,69,17:15,0.9760372205557143,5,13,1453,hierarchical_mean,True,ok
+印刷业,70,17:30,0.9889569924511419,5,13,1453,hierarchical_mean,True,ok
+印刷业,71,17:45,0.9668583471993191,5,13,1453,hierarchical_mean,True,ok
+印刷业,72,18:00,0.9692428453880443,5,13,1453,hierarchical_mean,True,ok
+印刷业,73,18:15,0.9913550508391505,5,13,1453,hierarchical_mean,True,ok
+印刷业,74,18:30,1.0,5,13,1453,hierarchical_mean,True,ok
+印刷业,75,18:45,0.9880786855326043,5,13,1453,hierarchical_mean,True,ok
+印刷业,76,19:00,0.9565383811859887,5,13,1453,hierarchical_mean,True,ok
+印刷业,77,19:15,0.9439077282016072,5,13,1453,hierarchical_mean,True,ok
+印刷业,78,19:30,0.9516257798463679,5,13,1453,hierarchical_mean,True,ok
+印刷业,79,19:45,0.9698748871470827,5,13,1453,hierarchical_mean,True,ok
+印刷业,80,20:00,0.9647854459578248,5,13,1453,hierarchical_mean,True,ok
+印刷业,81,20:15,0.9351556891900217,5,13,1453,hierarchical_mean,True,ok
+印刷业,82,20:30,0.9346503991380113,5,13,1453,hierarchical_mean,True,ok
+印刷业,83,20:45,0.9632433337085957,5,13,1453,hierarchical_mean,True,ok
+印刷业,84,21:00,0.9692321197252473,5,13,1453,hierarchical_mean,True,ok
+印刷业,85,21:15,0.9449181377929654,5,13,1453,hierarchical_mean,True,ok
+印刷业,86,21:30,0.9386161005387345,5,13,1453,hierarchical_mean,True,ok
+印刷业,87,21:45,0.9398581532505196,5,13,1453,hierarchical_mean,True,ok
+印刷业,88,22:00,0.9422562930519605,5,13,1453,hierarchical_mean,True,ok
+印刷业,89,22:15,0.9337585893893603,5,13,1453,hierarchical_mean,True,ok
+印刷业,90,22:30,0.9253294045331785,5,13,1453,hierarchical_mean,True,ok
+印刷业,91,22:45,0.9260455507774321,5,13,1453,hierarchical_mean,True,ok
+印刷业,92,23:00,0.9392709153370621,5,13,1453,hierarchical_mean,True,ok
+印刷业,93,23:15,0.9306739449723407,5,13,1453,hierarchical_mean,True,ok
+印刷业,94,23:30,0.9213350256868426,5,13,1453,hierarchical_mean,True,ok
+印刷业,95,23:45,0.9131087137388094,5,13,1453,hierarchical_mean,True,ok
+商业综合体,0,00:00,0.26052389228142436,5,37,3083,hierarchical_mean,True,ok
+商业综合体,1,00:15,0.24697977189669695,5,37,3083,hierarchical_mean,True,ok
+商业综合体,2,00:30,0.24253964637791461,5,37,3083,hierarchical_mean,True,ok
+商业综合体,3,00:45,0.23704137386083093,5,37,3083,hierarchical_mean,True,ok
+商业综合体,4,01:00,0.2326648293212885,5,37,3083,hierarchical_mean,True,ok
+商业综合体,5,01:15,0.22948241181550497,5,37,3083,hierarchical_mean,True,ok
+商业综合体,6,01:30,0.2252927468141321,5,37,3083,hierarchical_mean,True,ok
+商业综合体,7,01:45,0.22187399732548646,5,37,3083,hierarchical_mean,True,ok
+商业综合体,8,02:00,0.2197078741060418,5,37,3083,hierarchical_mean,True,ok
+商业综合体,9,02:15,0.21700734744457142,5,37,3083,hierarchical_mean,True,ok
+商业综合体,10,02:30,0.21525524703086088,5,37,3083,hierarchical_mean,True,ok
+商业综合体,11,02:45,0.21319755052527767,5,37,3083,hierarchical_mean,True,ok
+商业综合体,12,03:00,0.2117653786188486,5,37,3083,hierarchical_mean,True,ok
+商业综合体,13,03:15,0.21079881072812232,5,37,3083,hierarchical_mean,True,ok
+商业综合体,14,03:30,0.21002097144849335,5,37,3083,hierarchical_mean,True,ok
+商业综合体,15,03:45,0.20907992047126933,5,37,3083,hierarchical_mean,True,ok
+商业综合体,16,04:00,0.20794944246902738,5,37,3083,hierarchical_mean,True,ok
+商业综合体,17,04:15,0.20646283255679654,5,37,3083,hierarchical_mean,True,ok
+商业综合体,18,04:30,0.20579590398367284,5,37,3083,hierarchical_mean,True,ok
+商业综合体,19,04:45,0.20556728937138175,5,37,3083,hierarchical_mean,True,ok
+商业综合体,20,05:00,0.20505383670678587,5,37,3083,hierarchical_mean,True,ok
+商业综合体,21,05:15,0.2077278099481041,5,37,3083,hierarchical_mean,True,ok
+商业综合体,22,05:30,0.21186383897340488,5,37,3083,hierarchical_mean,True,ok
+商业综合体,23,05:45,0.21350670470284513,5,37,3083,hierarchical_mean,True,ok
+商业综合体,24,06:00,0.21792899248032624,5,37,3083,hierarchical_mean,True,ok
+商业综合体,25,06:15,0.22106530624587664,5,37,3083,hierarchical_mean,True,ok
+商业综合体,26,06:30,0.22453288882719818,5,37,3083,hierarchical_mean,True,ok
+商业综合体,27,06:45,0.2281542111394319,5,37,3083,hierarchical_mean,True,ok
+商业综合体,28,07:00,0.23973950247921985,5,37,3083,hierarchical_mean,True,ok
+商业综合体,29,07:15,0.2463853425037416,5,37,3083,hierarchical_mean,True,ok
+商业综合体,30,07:30,0.2551398577341514,5,37,3083,hierarchical_mean,True,ok
+商业综合体,31,07:45,0.26963350751743015,5,37,3083,hierarchical_mean,True,ok
+商业综合体,32,08:00,0.2919085999791303,5,37,3083,hierarchical_mean,True,ok
+商业综合体,33,08:15,0.313473779956378,5,37,3083,hierarchical_mean,True,ok
+商业综合体,34,08:30,0.3488895460866756,5,37,3083,hierarchical_mean,True,ok
+商业综合体,35,08:45,0.40678008733787424,5,37,3083,hierarchical_mean,True,ok
+商业综合体,36,09:00,0.48074620466447954,5,37,3083,hierarchical_mean,True,ok
+商业综合体,37,09:15,0.5577994821107336,5,37,3083,hierarchical_mean,True,ok
+商业综合体,38,09:30,0.6623453931217074,5,37,3083,hierarchical_mean,True,ok
+商业综合体,39,09:45,0.7453928888880479,5,37,3083,hierarchical_mean,True,ok
+商业综合体,40,10:00,0.8105794945529378,5,37,3083,hierarchical_mean,True,ok
+商业综合体,41,10:15,0.9178350164055329,5,37,3083,hierarchical_mean,True,ok
+商业综合体,42,10:30,0.9274262714594719,5,37,3083,hierarchical_mean,True,ok
+商业综合体,43,10:45,0.9341992653499847,5,37,3083,hierarchical_mean,True,ok
+商业综合体,44,11:00,0.9413542951219679,5,37,3083,hierarchical_mean,True,ok
+商业综合体,45,11:15,0.9460970910207535,5,37,3083,hierarchical_mean,True,ok
+商业综合体,46,11:30,0.9516729257181844,5,37,3083,hierarchical_mean,True,ok
+商业综合体,47,11:45,0.9598036103990096,5,37,3083,hierarchical_mean,True,ok
+商业综合体,48,12:00,0.9677740803069405,5,37,3083,hierarchical_mean,True,ok
+商业综合体,49,12:15,0.9733859200101895,5,37,3083,hierarchical_mean,True,ok
+商业综合体,50,12:30,0.9761433989085359,5,37,3083,hierarchical_mean,True,ok
+商业综合体,51,12:45,0.9773126210974188,5,37,3083,hierarchical_mean,True,ok
+商业综合体,52,13:00,0.9738186892712034,5,37,3083,hierarchical_mean,True,ok
+商业综合体,53,13:15,0.9699354315365433,5,37,3083,hierarchical_mean,True,ok
+商业综合体,54,13:30,0.9640462568355959,5,37,3083,hierarchical_mean,True,ok
+商业综合体,55,13:45,0.9570332316213904,5,37,3083,hierarchical_mean,True,ok
+商业综合体,56,14:00,0.9447808337769195,5,37,3083,hierarchical_mean,True,ok
+商业综合体,57,14:15,0.9313590177953507,5,37,3083,hierarchical_mean,True,ok
+商业综合体,58,14:30,0.9218015925790249,5,37,3083,hierarchical_mean,True,ok
+商业综合体,59,14:45,0.916430119399601,5,37,3083,hierarchical_mean,True,ok
+商业综合体,60,15:00,0.9118586501354635,5,37,3083,hierarchical_mean,True,ok
+商业综合体,61,15:15,0.9112769608641482,5,37,3083,hierarchical_mean,True,ok
+商业综合体,62,15:30,0.9104830233404346,5,37,3083,hierarchical_mean,True,ok
+商业综合体,63,15:45,0.9113782851631663,5,37,3083,hierarchical_mean,True,ok
+商业综合体,64,16:00,0.9158647956713067,5,37,3083,hierarchical_mean,True,ok
+商业综合体,65,16:15,0.9228068374944264,5,37,3083,hierarchical_mean,True,ok
+商业综合体,66,16:30,0.934031100677689,5,37,3083,hierarchical_mean,True,ok
+商业综合体,67,16:45,0.9451117915102064,5,37,3083,hierarchical_mean,True,ok
+商业综合体,68,17:00,0.9545804898940795,5,37,3083,hierarchical_mean,True,ok
+商业综合体,69,17:15,0.9624369706434167,5,37,3083,hierarchical_mean,True,ok
+商业综合体,70,17:30,0.9705340794625772,5,37,3083,hierarchical_mean,True,ok
+商业综合体,71,17:45,0.9757327022588335,5,37,3083,hierarchical_mean,True,ok
+商业综合体,72,18:00,0.982219356302725,5,37,3083,hierarchical_mean,True,ok
+商业综合体,73,18:15,0.9858118598604028,5,37,3083,hierarchical_mean,True,ok
+商业综合体,74,18:30,0.9900258968692689,5,37,3083,hierarchical_mean,True,ok
+商业综合体,75,18:45,0.9953077774735144,5,37,3083,hierarchical_mean,True,ok
+商业综合体,76,19:00,0.9979390721211414,5,37,3083,hierarchical_mean,True,ok
+商业综合体,77,19:15,1.0,5,37,3083,hierarchical_mean,True,ok
+商业综合体,78,19:30,0.9984676489006962,5,37,3083,hierarchical_mean,True,ok
+商业综合体,79,19:45,0.9893737533609336,5,37,3083,hierarchical_mean,True,ok
+商业综合体,80,20:00,0.9766093558860531,5,37,3083,hierarchical_mean,True,ok
+商业综合体,81,20:15,0.9535221132999211,5,37,3083,hierarchical_mean,True,ok
+商业综合体,82,20:30,0.9350619824187819,5,37,3083,hierarchical_mean,True,ok
+商业综合体,83,20:45,0.9114584268701954,5,37,3083,hierarchical_mean,True,ok
+商业综合体,84,21:00,0.8708283921955147,5,37,3083,hierarchical_mean,True,ok
+商业综合体,85,21:15,0.8072784167597474,5,37,3083,hierarchical_mean,True,ok
+商业综合体,86,21:30,0.7353297230944981,5,37,3083,hierarchical_mean,True,ok
+商业综合体,87,21:45,0.6668599442003308,5,37,3083,hierarchical_mean,True,ok
+商业综合体,88,22:00,0.5548824572098174,5,37,3083,hierarchical_mean,True,ok
+商业综合体,89,22:15,0.4441258797842714,5,37,3083,hierarchical_mean,True,ok
+商业综合体,90,22:30,0.364390912877451,5,37,3083,hierarchical_mean,True,ok
+商业综合体,91,22:45,0.32460711736731274,5,37,3083,hierarchical_mean,True,ok
+商业综合体,92,23:00,0.3006130139447974,5,37,3083,hierarchical_mean,True,ok
+商业综合体,93,23:15,0.28581312751074267,5,37,3083,hierarchical_mean,True,ok
+商业综合体,94,23:30,0.27602072139534417,5,37,3083,hierarchical_mean,True,ok
+商业综合体,95,23:45,0.26746408980578484,5,37,3083,hierarchical_mean,True,ok
+数据中心,0,00:00,0.9720108325198986,5,20,2561,hierarchical_mean,True,ok
+数据中心,1,00:15,0.9627139339439875,5,20,2561,hierarchical_mean,True,ok
+数据中心,2,00:30,0.9598764238412648,5,20,2561,hierarchical_mean,True,ok
+数据中心,3,00:45,0.9576329108989572,5,20,2561,hierarchical_mean,True,ok
+数据中心,4,01:00,0.9605561773801105,5,20,2561,hierarchical_mean,True,ok
+数据中心,5,01:15,0.9592306841996919,5,20,2561,hierarchical_mean,True,ok
+数据中心,6,01:30,0.957386179969249,5,20,2561,hierarchical_mean,True,ok
+数据中心,7,01:45,0.9564092794541966,5,20,2561,hierarchical_mean,True,ok
+数据中心,8,02:00,0.9569468490500939,5,20,2561,hierarchical_mean,True,ok
+数据中心,9,02:15,0.9588632948196735,5,20,2561,hierarchical_mean,True,ok
+数据中心,10,02:30,0.9523419128384527,5,20,2561,hierarchical_mean,True,ok
+数据中心,11,02:45,0.9526522507358626,5,20,2561,hierarchical_mean,True,ok
+数据中心,12,03:00,0.9551216531255325,5,20,2561,hierarchical_mean,True,ok
+数据中心,13,03:15,0.9526511994713427,5,20,2561,hierarchical_mean,True,ok
+数据中心,14,03:30,0.9514761501750499,5,20,2561,hierarchical_mean,True,ok
+数据中心,15,03:45,0.9548847057398232,5,20,2561,hierarchical_mean,True,ok
+数据中心,16,04:00,0.9505517189360749,5,20,2561,hierarchical_mean,True,ok
+数据中心,17,04:15,0.9532820109753473,5,20,2561,hierarchical_mean,True,ok
+数据中心,18,04:30,0.9543318008083967,5,20,2561,hierarchical_mean,True,ok
+数据中心,19,04:45,0.9557941625903733,5,20,2561,hierarchical_mean,True,ok
+数据中心,20,05:00,0.9554926152135592,5,20,2561,hierarchical_mean,True,ok
+数据中心,21,05:15,0.9575318417692711,5,20,2561,hierarchical_mean,True,ok
+数据中心,22,05:30,0.9598685792989086,5,20,2561,hierarchical_mean,True,ok
+数据中心,23,05:45,0.9595462688038682,5,20,2561,hierarchical_mean,True,ok
+数据中心,24,06:00,0.9577754896298452,5,20,2561,hierarchical_mean,True,ok
+数据中心,25,06:15,0.9618989731488119,5,20,2561,hierarchical_mean,True,ok
+数据中心,26,06:30,0.9675220879114361,5,20,2561,hierarchical_mean,True,ok
+数据中心,27,06:45,0.9680859915659646,5,20,2561,hierarchical_mean,True,ok
+数据中心,28,07:00,0.972394464612855,5,20,2561,hierarchical_mean,True,ok
+数据中心,29,07:15,0.9755679356743546,5,20,2561,hierarchical_mean,True,ok
+数据中心,30,07:30,0.9762823699939507,5,20,2561,hierarchical_mean,True,ok
+数据中心,31,07:45,0.9802420511946393,5,20,2561,hierarchical_mean,True,ok
+数据中心,32,08:00,0.9756358921141808,5,20,2561,hierarchical_mean,True,ok
+数据中心,33,08:15,0.9779349410398582,5,20,2561,hierarchical_mean,True,ok
+数据中心,34,08:30,0.9837957500531496,5,20,2561,hierarchical_mean,True,ok
+数据中心,35,08:45,0.9835448414772034,5,20,2561,hierarchical_mean,True,ok
+数据中心,36,09:00,0.9847102648934755,5,20,2561,hierarchical_mean,True,ok
+数据中心,37,09:15,0.9862116728511411,5,20,2561,hierarchical_mean,True,ok
+数据中心,38,09:30,0.9885924084727362,5,20,2561,hierarchical_mean,True,ok
+数据中心,39,09:45,0.9890629693783158,5,20,2561,hierarchical_mean,True,ok
+数据中心,40,10:00,0.9934573316477634,5,20,2561,hierarchical_mean,True,ok
+数据中心,41,10:15,0.9942652964287013,5,20,2561,hierarchical_mean,True,ok
+数据中心,42,10:30,0.9963407753919032,5,20,2561,hierarchical_mean,True,ok
+数据中心,43,10:45,0.9839112098717994,5,20,2561,hierarchical_mean,True,ok
+数据中心,44,11:00,0.9844309218454047,5,20,2561,hierarchical_mean,True,ok
+数据中心,45,11:15,0.9879604039464202,5,20,2561,hierarchical_mean,True,ok
+数据中心,46,11:30,0.9840328915152662,5,20,2561,hierarchical_mean,True,ok
+数据中心,47,11:45,0.9858745879951241,5,20,2561,hierarchical_mean,True,ok
+数据中心,48,12:00,0.9857869720405188,5,20,2561,hierarchical_mean,True,ok
+数据中心,49,12:15,0.9933775806605865,5,20,2561,hierarchical_mean,True,ok
+数据中心,50,12:30,0.9941341206150812,5,20,2561,hierarchical_mean,True,ok
+数据中心,51,12:45,0.9966355726083226,5,20,2561,hierarchical_mean,True,ok
+数据中心,52,13:00,0.9929344134126166,5,20,2561,hierarchical_mean,True,ok
+数据中心,53,13:15,0.9907567487901876,5,20,2561,hierarchical_mean,True,ok
+数据中心,54,13:30,0.9933477657066161,5,20,2561,hierarchical_mean,True,ok
+数据中心,55,13:45,0.9909223301580953,5,20,2561,hierarchical_mean,True,ok
+数据中心,56,14:00,0.9896038696966966,5,20,2561,hierarchical_mean,True,ok
+数据中心,57,14:15,0.9898701971003944,5,20,2561,hierarchical_mean,True,ok
+数据中心,58,14:30,0.9921563597043862,5,20,2561,hierarchical_mean,True,ok
+数据中心,59,14:45,0.9947178259027012,5,20,2561,hierarchical_mean,True,ok
+数据中心,60,15:00,0.9927781005883322,5,20,2561,hierarchical_mean,True,ok
+数据中心,61,15:15,0.9919570096825927,5,20,2561,hierarchical_mean,True,ok
+数据中心,62,15:30,0.9941411037111002,5,20,2561,hierarchical_mean,True,ok
+数据中心,63,15:45,0.994708239727676,5,20,2561,hierarchical_mean,True,ok
+数据中心,64,16:00,0.9956088345474142,5,20,2561,hierarchical_mean,True,ok
+数据中心,65,16:15,0.9977817673290156,5,20,2561,hierarchical_mean,True,ok
+数据中心,66,16:30,1.0,5,20,2561,hierarchical_mean,True,ok
+数据中心,67,16:45,0.9940898700263582,5,20,2561,hierarchical_mean,True,ok
+数据中心,68,17:00,0.992987538355256,5,20,2561,hierarchical_mean,True,ok
+数据中心,69,17:15,0.9972507606535065,5,20,2561,hierarchical_mean,True,ok
+数据中心,70,17:30,0.9918346361007178,5,20,2561,hierarchical_mean,True,ok
+数据中心,71,17:45,0.9928900874958201,5,20,2561,hierarchical_mean,True,ok
+数据中心,72,18:00,0.9887363120425597,5,20,2561,hierarchical_mean,True,ok
+数据中心,73,18:15,0.9904374508315568,5,20,2561,hierarchical_mean,True,ok
+数据中心,74,18:30,0.9833640413252357,5,20,2561,hierarchical_mean,True,ok
+数据中心,75,18:45,0.9851116934651398,5,20,2561,hierarchical_mean,True,ok
+数据中心,76,19:00,0.980445405432005,5,20,2561,hierarchical_mean,True,ok
+数据中心,77,19:15,0.9821267488772764,5,20,2561,hierarchical_mean,True,ok
+数据中心,78,19:30,0.9805244662886837,5,20,2561,hierarchical_mean,True,ok
+数据中心,79,19:45,0.9803353035602976,5,20,2561,hierarchical_mean,True,ok
+数据中心,80,20:00,0.9845896205012561,5,20,2561,hierarchical_mean,True,ok
+数据中心,81,20:15,0.9780028281309741,5,20,2561,hierarchical_mean,True,ok
+数据中心,82,20:30,0.976626294021505,5,20,2561,hierarchical_mean,True,ok
+数据中心,83,20:45,0.9799606903170877,5,20,2561,hierarchical_mean,True,ok
+数据中心,84,21:00,0.9856974372499536,5,20,2561,hierarchical_mean,True,ok
+数据中心,85,21:15,0.9802057758554812,5,20,2561,hierarchical_mean,True,ok
+数据中心,86,21:30,0.982657020249653,5,20,2561,hierarchical_mean,True,ok
+数据中心,87,21:45,0.98386462712798,5,20,2561,hierarchical_mean,True,ok
+数据中心,88,22:00,0.9833881290582558,5,20,2561,hierarchical_mean,True,ok
+数据中心,89,22:15,0.9843383665208002,5,20,2561,hierarchical_mean,True,ok
+数据中心,90,22:30,0.9840494553224136,5,20,2561,hierarchical_mean,True,ok
+数据中心,91,22:45,0.9813282874675554,5,20,2561,hierarchical_mean,True,ok
+数据中心,92,23:00,0.9804871980432847,5,20,2561,hierarchical_mean,True,ok
+数据中心,93,23:15,0.9765883965028431,5,20,2561,hierarchical_mean,True,ok
+数据中心,94,23:30,0.9768565142593554,5,20,2561,hierarchical_mean,True,ok
+数据中心,95,23:45,0.9761199669559565,5,20,2561,hierarchical_mean,True,ok
+机械,0,00:00,0.9470580171695863,5,7,1554,hierarchical_mean,True,ok
+机械,1,00:15,0.986638145452707,5,7,1554,hierarchical_mean,True,ok
+机械,2,00:30,1.0,5,7,1554,hierarchical_mean,True,ok
+机械,3,00:45,0.9777581914301107,5,7,1554,hierarchical_mean,True,ok
+机械,4,01:00,0.9849425284428369,5,7,1554,hierarchical_mean,True,ok
+机械,5,01:15,0.9633078098114628,5,7,1554,hierarchical_mean,True,ok
+机械,6,01:30,0.9305843417643915,5,7,1554,hierarchical_mean,True,ok
+机械,7,01:45,0.9497889838586201,5,7,1554,hierarchical_mean,True,ok
+机械,8,02:00,0.9830074929418617,5,7,1554,hierarchical_mean,True,ok
+机械,9,02:15,0.9769823660381108,5,7,1554,hierarchical_mean,True,ok
+机械,10,02:30,0.9788983481475292,5,7,1554,hierarchical_mean,True,ok
+机械,11,02:45,0.9712024330977882,5,7,1554,hierarchical_mean,True,ok
+机械,12,03:00,0.9805455294698149,5,7,1554,hierarchical_mean,True,ok
+机械,13,03:15,0.9640978274471361,5,7,1554,hierarchical_mean,True,ok
+机械,14,03:30,0.9616104130393601,5,7,1554,hierarchical_mean,True,ok
+机械,15,03:45,0.9620253744285978,5,7,1554,hierarchical_mean,True,ok
+机械,16,04:00,0.935130905390627,5,7,1554,hierarchical_mean,True,ok
+机械,17,04:15,0.9494209961181795,5,7,1554,hierarchical_mean,True,ok
+机械,18,04:30,0.9371181054315397,5,7,1554,hierarchical_mean,True,ok
+机械,19,04:45,0.9249957511635309,5,7,1554,hierarchical_mean,True,ok
+机械,20,05:00,0.9212960624777005,5,7,1554,hierarchical_mean,True,ok
+机械,21,05:15,0.9005363395705146,5,7,1554,hierarchical_mean,True,ok
+机械,22,05:30,0.8858914642984916,5,7,1554,hierarchical_mean,True,ok
+机械,23,05:45,0.8856778576943494,5,7,1554,hierarchical_mean,True,ok
+机械,24,06:00,0.8519280048128125,5,7,1554,hierarchical_mean,True,ok
+机械,25,06:15,0.8367914366252767,5,7,1554,hierarchical_mean,True,ok
+机械,26,06:30,0.8319829489234513,5,7,1554,hierarchical_mean,True,ok
+机械,27,06:45,0.8161451592253539,5,7,1554,hierarchical_mean,True,ok
+机械,28,07:00,0.796406231153369,5,7,1554,hierarchical_mean,True,ok
+机械,29,07:15,0.7893903020292854,5,7,1554,hierarchical_mean,True,ok
+机械,30,07:30,0.776649696387438,5,7,1554,hierarchical_mean,True,ok
+机械,31,07:45,0.7347169564557773,5,7,1554,hierarchical_mean,True,ok
+机械,32,08:00,0.691717540297842,5,7,1554,hierarchical_mean,True,ok
+机械,33,08:15,0.725225776917626,5,7,1554,hierarchical_mean,True,ok
+机械,34,08:30,0.7234071061044675,5,7,1554,hierarchical_mean,True,ok
+机械,35,08:45,0.7022685172744225,5,7,1554,hierarchical_mean,True,ok
+机械,36,09:00,0.7132204337451835,5,7,1554,hierarchical_mean,True,ok
+机械,37,09:15,0.7030672545403395,5,7,1554,hierarchical_mean,True,ok
+机械,38,09:30,0.6903071229054096,5,7,1554,hierarchical_mean,True,ok
+机械,39,09:45,0.6863226578168815,5,7,1554,hierarchical_mean,True,ok
+机械,40,10:00,0.673639764564124,5,7,1554,hierarchical_mean,True,ok
+机械,41,10:15,0.6686881867268691,5,7,1554,hierarchical_mean,True,ok
+机械,42,10:30,0.6790738292862709,5,7,1554,hierarchical_mean,True,ok
+机械,43,10:45,0.6647519500964936,5,7,1554,hierarchical_mean,True,ok
+机械,44,11:00,0.6520640093594432,5,7,1554,hierarchical_mean,True,ok
+机械,45,11:15,0.6383258761668813,5,7,1554,hierarchical_mean,True,ok
+机械,46,11:30,0.6381207644314946,5,7,1554,hierarchical_mean,True,ok
+机械,47,11:45,0.5933910145232978,5,7,1554,hierarchical_mean,True,ok
+机械,48,12:00,0.5241357369548852,5,7,1554,hierarchical_mean,True,ok
+机械,49,12:15,0.5216110512037623,5,7,1554,hierarchical_mean,True,ok
+机械,50,12:30,0.589120269916286,5,7,1554,hierarchical_mean,True,ok
+机械,51,12:45,0.6306779367816232,5,7,1554,hierarchical_mean,True,ok
+机械,52,13:00,0.6633572819125625,5,7,1554,hierarchical_mean,True,ok
+机械,53,13:15,0.6730772289382633,5,7,1554,hierarchical_mean,True,ok
+机械,54,13:30,0.6664828973125922,5,7,1554,hierarchical_mean,True,ok
+机械,55,13:45,0.6742037565474985,5,7,1554,hierarchical_mean,True,ok
+机械,56,14:00,0.6742107480916488,5,7,1554,hierarchical_mean,True,ok
+机械,57,14:15,0.6775253795166181,5,7,1554,hierarchical_mean,True,ok
+机械,58,14:30,0.6799247896963327,5,7,1554,hierarchical_mean,True,ok
+机械,59,14:45,0.6825176783694805,5,7,1554,hierarchical_mean,True,ok
+机械,60,15:00,0.6161586655369093,5,7,1554,hierarchical_mean,True,ok
+机械,61,15:15,0.6905689637294491,5,7,1554,hierarchical_mean,True,ok
+机械,62,15:30,0.7020716168040185,5,7,1554,hierarchical_mean,True,ok
+机械,63,15:45,0.6987745366855622,5,7,1554,hierarchical_mean,True,ok
+机械,64,16:00,0.692178099855152,5,7,1554,hierarchical_mean,True,ok
+机械,65,16:15,0.7051062991857915,5,7,1554,hierarchical_mean,True,ok
+机械,66,16:30,0.6901287765782523,5,7,1554,hierarchical_mean,True,ok
+机械,67,16:45,0.660858052020775,5,7,1554,hierarchical_mean,True,ok
+机械,68,17:00,0.6458876487249682,5,7,1554,hierarchical_mean,True,ok
+机械,69,17:15,0.5874258019407498,5,7,1554,hierarchical_mean,True,ok
+机械,70,17:30,0.5846961856221715,5,7,1554,hierarchical_mean,True,ok
+机械,71,17:45,0.6069568396027941,5,7,1554,hierarchical_mean,True,ok
+机械,72,18:00,0.6174114529629491,5,7,1554,hierarchical_mean,True,ok
+机械,73,18:15,0.6292044031008664,5,7,1554,hierarchical_mean,True,ok
+机械,74,18:30,0.6370000784287146,5,7,1554,hierarchical_mean,True,ok
+机械,75,18:45,0.6444202008818973,5,7,1554,hierarchical_mean,True,ok
+机械,76,19:00,0.6415764312154271,5,7,1554,hierarchical_mean,True,ok
+机械,77,19:15,0.6277356618479962,5,7,1554,hierarchical_mean,True,ok
+机械,78,19:30,0.6271063254306906,5,7,1554,hierarchical_mean,True,ok
+机械,79,19:45,0.6262459988065515,5,7,1554,hierarchical_mean,True,ok
+机械,80,20:00,0.6278504843447604,5,7,1554,hierarchical_mean,True,ok
+机械,81,20:15,0.6416975124263441,5,7,1554,hierarchical_mean,True,ok
+机械,82,20:30,0.6430378492301012,5,7,1554,hierarchical_mean,True,ok
+机械,83,20:45,0.6549624823806639,5,7,1554,hierarchical_mean,True,ok
+机械,84,21:00,0.6853299284656469,5,7,1554,hierarchical_mean,True,ok
+机械,85,21:15,0.7228148326564795,5,7,1554,hierarchical_mean,True,ok
+机械,86,21:30,0.7176083047504883,5,7,1554,hierarchical_mean,True,ok
+机械,87,21:45,0.744608985357449,5,7,1554,hierarchical_mean,True,ok
+机械,88,22:00,0.7820841445974627,5,7,1554,hierarchical_mean,True,ok
+机械,89,22:15,0.8499972252177818,5,7,1554,hierarchical_mean,True,ok
+机械,90,22:30,0.8687163352032351,5,7,1554,hierarchical_mean,True,ok
+机械,91,22:45,0.8733437028705613,5,7,1554,hierarchical_mean,True,ok
+机械,92,23:00,0.8785118992881537,5,7,1554,hierarchical_mean,True,ok
+机械,93,23:15,0.8994941149860811,5,7,1554,hierarchical_mean,True,ok
+机械,94,23:30,0.8955682546908343,5,7,1554,hierarchical_mean,True,ok
+机械,95,23:45,0.8826816014892473,5,7,1554,hierarchical_mean,True,ok
+水泥制造,0,00:00,0.9523280593547615,5,13,3079,hierarchical_mean,True,ok
+水泥制造,1,00:15,0.9816521790757626,5,13,3079,hierarchical_mean,True,ok
+水泥制造,2,00:30,0.989402109648133,5,13,3079,hierarchical_mean,True,ok
+水泥制造,3,00:45,0.9932599599121898,5,13,3079,hierarchical_mean,True,ok
+水泥制造,4,01:00,0.9977276537480843,5,13,3079,hierarchical_mean,True,ok
+水泥制造,5,01:15,0.9969506784827088,5,13,3079,hierarchical_mean,True,ok
+水泥制造,6,01:30,0.9989573648886847,5,13,3079,hierarchical_mean,True,ok
+水泥制造,7,01:45,0.9979843949117703,5,13,3079,hierarchical_mean,True,ok
+水泥制造,8,02:00,0.9991040029372045,5,13,3079,hierarchical_mean,True,ok
+水泥制造,9,02:15,0.9997544336345593,5,13,3079,hierarchical_mean,True,ok
+水泥制造,10,02:30,0.9988494776352351,5,13,3079,hierarchical_mean,True,ok
+水泥制造,11,02:45,0.9997427495542607,5,13,3079,hierarchical_mean,True,ok
+水泥制造,12,03:00,0.9990643319663076,5,13,3079,hierarchical_mean,True,ok
+水泥制造,13,03:15,0.9982920093750924,5,13,3079,hierarchical_mean,True,ok
+水泥制造,14,03:30,1.0,5,13,3079,hierarchical_mean,True,ok
+水泥制造,15,03:45,0.9972931013433878,5,13,3079,hierarchical_mean,True,ok
+水泥制造,16,04:00,0.9969086603174193,5,13,3079,hierarchical_mean,True,ok
+水泥制造,17,04:15,0.9952220281326205,5,13,3079,hierarchical_mean,True,ok
+水泥制造,18,04:30,0.9970395694873118,5,13,3079,hierarchical_mean,True,ok
+水泥制造,19,04:45,0.9982429603572243,5,13,3079,hierarchical_mean,True,ok
+水泥制造,20,05:00,0.9989517882334661,5,13,3079,hierarchical_mean,True,ok
+水泥制造,21,05:15,0.9963427707745292,5,13,3079,hierarchical_mean,True,ok
+水泥制造,22,05:30,0.9945122215999694,5,13,3079,hierarchical_mean,True,ok
+水泥制造,23,05:45,0.9951697820999582,5,13,3079,hierarchical_mean,True,ok
+水泥制造,24,06:00,0.9950529892901253,5,13,3079,hierarchical_mean,True,ok
+水泥制造,25,06:15,0.9932030971942257,5,13,3079,hierarchical_mean,True,ok
+水泥制造,26,06:30,0.9904288199764203,5,13,3079,hierarchical_mean,True,ok
+水泥制造,27,06:45,0.9874204392868466,5,13,3079,hierarchical_mean,True,ok
+水泥制造,28,07:00,0.9879388706593291,5,13,3079,hierarchical_mean,True,ok
+水泥制造,29,07:15,0.9839434798416824,5,13,3079,hierarchical_mean,True,ok
+水泥制造,30,07:30,0.9814269148775187,5,13,3079,hierarchical_mean,True,ok
+水泥制造,31,07:45,0.9756441624776623,5,13,3079,hierarchical_mean,True,ok
+水泥制造,32,08:00,0.9630671994286352,5,13,3079,hierarchical_mean,True,ok
+水泥制造,33,08:15,0.8081040775892998,5,13,3079,hierarchical_mean,True,ok
+水泥制造,34,08:30,0.699332906433367,5,13,3079,hierarchical_mean,True,ok
+水泥制造,35,08:45,0.6740117929560255,5,13,3079,hierarchical_mean,True,ok
+水泥制造,36,09:00,0.6664042529660053,5,13,3079,hierarchical_mean,True,ok
+水泥制造,37,09:15,0.6605381018187557,5,13,3079,hierarchical_mean,True,ok
+水泥制造,38,09:30,0.6567313561637261,5,13,3079,hierarchical_mean,True,ok
+水泥制造,39,09:45,0.6555261291938006,5,13,3079,hierarchical_mean,True,ok
+水泥制造,40,10:00,0.6575138873253221,5,13,3079,hierarchical_mean,True,ok
+水泥制造,41,10:15,0.6542298848482693,5,13,3079,hierarchical_mean,True,ok
+水泥制造,42,10:30,0.6581946288021066,5,13,3079,hierarchical_mean,True,ok
+水泥制造,43,10:45,0.6630816031763312,5,13,3079,hierarchical_mean,True,ok
+水泥制造,44,11:00,0.6765608835149334,5,13,3079,hierarchical_mean,True,ok
+水泥制造,45,11:15,0.6859627714546335,5,13,3079,hierarchical_mean,True,ok
+水泥制造,46,11:30,0.6960071977111528,5,13,3079,hierarchical_mean,True,ok
+水泥制造,47,11:45,0.6992266367219391,5,13,3079,hierarchical_mean,True,ok
+水泥制造,48,12:00,0.6966265502545975,5,13,3079,hierarchical_mean,True,ok
+水泥制造,49,12:15,0.6980138211867709,5,13,3079,hierarchical_mean,True,ok
+水泥制造,50,12:30,0.6980708532194969,5,13,3079,hierarchical_mean,True,ok
+水泥制造,51,12:45,0.7016166927300505,5,13,3079,hierarchical_mean,True,ok
+水泥制造,52,13:00,0.708825179524346,5,13,3079,hierarchical_mean,True,ok
+水泥制造,53,13:15,0.7123469580802916,5,13,3079,hierarchical_mean,True,ok
+水泥制造,54,13:30,0.713407381019952,5,13,3079,hierarchical_mean,True,ok
+水泥制造,55,13:45,0.7142304022157604,5,13,3079,hierarchical_mean,True,ok
+水泥制造,56,14:00,0.7147691572276311,5,13,3079,hierarchical_mean,True,ok
+水泥制造,57,14:15,0.7158503459798684,5,13,3079,hierarchical_mean,True,ok
+水泥制造,58,14:30,0.7148666521486939,5,13,3079,hierarchical_mean,True,ok
+水泥制造,59,14:45,0.7175778139956437,5,13,3079,hierarchical_mean,True,ok
+水泥制造,60,15:00,0.7207767006321247,5,13,3079,hierarchical_mean,True,ok
+水泥制造,61,15:15,0.7251776229345771,5,13,3079,hierarchical_mean,True,ok
+水泥制造,62,15:30,0.726519704937059,5,13,3079,hierarchical_mean,True,ok
+水泥制造,63,15:45,0.7272352067079662,5,13,3079,hierarchical_mean,True,ok
+水泥制造,64,16:00,0.7280678443878907,5,13,3079,hierarchical_mean,True,ok
+水泥制造,65,16:15,0.7321666640029124,5,13,3079,hierarchical_mean,True,ok
+水泥制造,66,16:30,0.7391455566235361,5,13,3079,hierarchical_mean,True,ok
+水泥制造,67,16:45,0.7473482112271297,5,13,3079,hierarchical_mean,True,ok
+水泥制造,68,17:00,0.7485643908799471,5,13,3079,hierarchical_mean,True,ok
+水泥制造,69,17:15,0.7257618398348574,5,13,3079,hierarchical_mean,True,ok
+水泥制造,70,17:30,0.7123478438555872,5,13,3079,hierarchical_mean,True,ok
+水泥制造,71,17:45,0.7146890021612544,5,13,3079,hierarchical_mean,True,ok
+水泥制造,72,18:00,0.7166980509084909,5,13,3079,hierarchical_mean,True,ok
+水泥制造,73,18:15,0.7162631023654169,5,13,3079,hierarchical_mean,True,ok
+水泥制造,74,18:30,0.7178139431762751,5,13,3079,hierarchical_mean,True,ok
+水泥制造,75,18:45,0.7206045981985336,5,13,3079,hierarchical_mean,True,ok
+水泥制造,76,19:00,0.7242478479119868,5,13,3079,hierarchical_mean,True,ok
+水泥制造,77,19:15,0.7275725300749003,5,13,3079,hierarchical_mean,True,ok
+水泥制造,78,19:30,0.7274555754546639,5,13,3079,hierarchical_mean,True,ok
+水泥制造,79,19:45,0.7302069397106045,5,13,3079,hierarchical_mean,True,ok
+水泥制造,80,20:00,0.7314504090546408,5,13,3079,hierarchical_mean,True,ok
+水泥制造,81,20:15,0.7352857105449089,5,13,3079,hierarchical_mean,True,ok
+水泥制造,82,20:30,0.7358622706647885,5,13,3079,hierarchical_mean,True,ok
+水泥制造,83,20:45,0.7415062667144868,5,13,3079,hierarchical_mean,True,ok
+水泥制造,84,21:00,0.7497799091762819,5,13,3079,hierarchical_mean,True,ok
+水泥制造,85,21:15,0.7635154346760622,5,13,3079,hierarchical_mean,True,ok
+水泥制造,86,21:30,0.7942960193109861,5,13,3079,hierarchical_mean,True,ok
+水泥制造,87,21:45,0.8130207908611478,5,13,3079,hierarchical_mean,True,ok
+水泥制造,88,22:00,0.829483373322193,5,13,3079,hierarchical_mean,True,ok
+水泥制造,89,22:15,0.8507893383978121,5,13,3079,hierarchical_mean,True,ok
+水泥制造,90,22:30,0.8811010977792715,5,13,3079,hierarchical_mean,True,ok
+水泥制造,91,22:45,0.8913291224989156,5,13,3079,hierarchical_mean,True,ok
+水泥制造,92,23:00,0.8956417887891166,5,13,3079,hierarchical_mean,True,ok
+水泥制造,93,23:15,0.8993182822794515,5,13,3079,hierarchical_mean,True,ok
+水泥制造,94,23:30,0.90806112249058,5,13,3079,hierarchical_mean,True,ok
+水泥制造,95,23:45,0.9212267899840207,5,13,3079,hierarchical_mean,True,ok
+汽车制造业,0,00:00,0.9293303722688552,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,1,00:15,0.927860647419287,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,2,00:30,0.925221801374897,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,3,00:45,0.9213857714609737,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,4,01:00,0.9291025705593978,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,5,01:15,0.9231698287910726,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,6,01:30,0.9204803662423429,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,7,01:45,0.918030353585792,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,8,02:00,0.9176246146547634,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,9,02:15,0.9158834451199739,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,10,02:30,0.9191940200300773,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,11,02:45,0.9144053706660363,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,12,03:00,0.9143932424429714,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,13,03:15,0.9037496726383429,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,14,03:30,0.9067851597291948,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,15,03:45,0.9099373070496982,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,16,04:00,0.9131678268859771,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,17,04:15,0.9091945458184698,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,18,04:30,0.907307273668232,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,19,04:45,0.9100947660294623,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,20,05:00,0.9072807222863716,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,21,05:15,0.9055550472895499,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,22,05:30,0.8985289154443326,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,23,05:45,0.8932894292354032,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,24,06:00,0.8877080750404776,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,25,06:15,0.8892972688357825,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,26,06:30,0.8872650485827067,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,27,06:45,0.8874937680288306,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,28,07:00,0.8914204619487215,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,29,07:15,0.8918435638440111,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,30,07:30,0.8863335205122315,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,31,07:45,0.8752472230689372,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,32,08:00,0.8882009169147115,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,33,08:15,0.9232804768051609,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,34,08:30,0.9563397110953231,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,35,08:45,0.9758250242448863,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,36,09:00,0.9714003564699211,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,37,09:15,0.9696119391297642,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,38,09:30,0.9675065171188026,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,39,09:45,0.9688720082770138,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,40,10:00,0.9626293852752932,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,41,10:15,0.9461788383224733,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,42,10:30,0.9519405469549503,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,43,10:45,0.9451701973534588,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,44,11:00,0.9364837229901942,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,45,11:15,0.9158185953467449,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,46,11:30,0.9058657953687268,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,47,11:45,0.8898312090137948,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,48,12:00,0.8923197114333701,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,49,12:15,0.8958925026946132,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,50,12:30,0.8995533182232406,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,51,12:45,0.9101136517091442,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,52,13:00,0.9247359170610824,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,53,13:15,0.9415809838319555,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,54,13:30,0.9472238902126883,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,55,13:45,0.9518528846993021,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,56,14:00,0.957893056110538,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,57,14:15,0.9615391645602186,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,58,14:30,0.9657501023461947,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,59,14:45,0.972294016887541,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,60,15:00,0.9762107802803641,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,61,15:15,0.9671914168027251,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,62,15:30,0.9881821313596357,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,63,15:45,0.9921079233835701,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,64,16:00,0.9978193718740007,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,65,16:15,1.0,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,66,16:30,0.9956173839664486,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,67,16:45,0.9838503470388547,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,68,17:00,0.9868591526228184,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,69,17:15,0.9910288485999427,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,70,17:30,0.9903266012531201,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,71,17:45,0.9856710476550788,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,72,18:00,0.9866572131184282,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,73,18:15,0.992170848030185,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,74,18:30,0.9865015449391756,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,75,18:45,0.9867492357277233,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,76,19:00,0.9850050326175134,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,77,19:15,0.9776819689717817,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,78,19:30,0.9760544751354115,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,79,19:45,0.9622761234776547,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,80,20:00,0.9404820902769658,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,81,20:15,0.9279506267322536,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,82,20:30,0.932978467325932,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,83,20:45,0.9515221925815703,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,84,21:00,0.9573224851648454,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,85,21:15,0.9539515592222518,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,86,21:30,0.9575819490696906,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,87,21:45,0.9587127523716635,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,88,22:00,0.9560163138935577,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,89,22:15,0.9493941447240407,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,90,22:30,0.9534277500889221,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,91,22:45,0.9499182831650578,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,92,23:00,0.9459071818972983,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,93,23:15,0.9375668264714149,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,94,23:30,0.9292282757434477,5,15,2576,hierarchical_mean,True,ok
+汽车制造业,95,23:45,0.9221533765126667,5,15,2576,hierarchical_mean,True,ok
+电制氢,0,00:00,0.6258974556359871,3,7,1575,hierarchical_mean,True,ok
+电制氢,1,00:15,0.6159953650901745,3,7,1575,hierarchical_mean,True,ok
+电制氢,2,00:30,0.6077233244807037,3,7,1575,hierarchical_mean,True,ok
+电制氢,3,00:45,0.5972016559682173,3,7,1575,hierarchical_mean,True,ok
+电制氢,4,01:00,0.5903836510093282,3,7,1575,hierarchical_mean,True,ok
+电制氢,5,01:15,0.5750293768072552,3,7,1575,hierarchical_mean,True,ok
+电制氢,6,01:30,0.5650602682395053,3,7,1575,hierarchical_mean,True,ok
+电制氢,7,01:45,0.5553601545955927,3,7,1575,hierarchical_mean,True,ok
+电制氢,8,02:00,0.5554061681729883,3,7,1575,hierarchical_mean,True,ok
+电制氢,9,02:15,0.5498469891388522,3,7,1575,hierarchical_mean,True,ok
+电制氢,10,02:30,0.553580752912644,3,7,1575,hierarchical_mean,True,ok
+电制氢,11,02:45,0.5501710204609092,3,7,1575,hierarchical_mean,True,ok
+电制氢,12,03:00,0.5564679846891755,3,7,1575,hierarchical_mean,True,ok
+电制氢,13,03:15,0.5526868888521871,3,7,1575,hierarchical_mean,True,ok
+电制氢,14,03:30,0.5581182665798124,3,7,1575,hierarchical_mean,True,ok
+电制氢,15,03:45,0.5579924981579036,3,7,1575,hierarchical_mean,True,ok
+电制氢,16,04:00,0.5549245149897226,3,7,1575,hierarchical_mean,True,ok
+电制氢,17,04:15,0.5553446946532963,3,7,1575,hierarchical_mean,True,ok
+电制氢,18,04:30,0.559068327261831,3,7,1575,hierarchical_mean,True,ok
+电制氢,19,04:45,0.5596896438144572,3,7,1575,hierarchical_mean,True,ok
+电制氢,20,05:00,0.5653714902256691,3,7,1575,hierarchical_mean,True,ok
+电制氢,21,05:15,0.5592046735464382,3,7,1575,hierarchical_mean,True,ok
+电制氢,22,05:30,0.5436613549454686,3,7,1575,hierarchical_mean,True,ok
+电制氢,23,05:45,0.5269519703697572,3,7,1575,hierarchical_mean,True,ok
+电制氢,24,06:00,0.5240866828584837,3,7,1575,hierarchical_mean,True,ok
+电制氢,25,06:15,0.5222940449857635,3,7,1575,hierarchical_mean,True,ok
+电制氢,26,06:30,0.5202522608602642,3,7,1575,hierarchical_mean,True,ok
+电制氢,27,06:45,0.5194554872133634,3,7,1575,hierarchical_mean,True,ok
+电制氢,28,07:00,0.5293469799614549,3,7,1575,hierarchical_mean,True,ok
+电制氢,29,07:15,0.5385840756963725,3,7,1575,hierarchical_mean,True,ok
+电制氢,30,07:30,0.5499229580524782,3,7,1575,hierarchical_mean,True,ok
+电制氢,31,07:45,0.5648922601139209,3,7,1575,hierarchical_mean,True,ok
+电制氢,32,08:00,0.592430555593757,3,7,1575,hierarchical_mean,True,ok
+电制氢,33,08:15,0.652378713908383,3,7,1575,hierarchical_mean,True,ok
+电制氢,34,08:30,0.8023955759157494,3,7,1575,hierarchical_mean,True,ok
+电制氢,35,08:45,0.902533291722864,3,7,1575,hierarchical_mean,True,ok
+电制氢,36,09:00,0.906915063285637,3,7,1575,hierarchical_mean,True,ok
+电制氢,37,09:15,0.9046807438564323,3,7,1575,hierarchical_mean,True,ok
+电制氢,38,09:30,0.8999303971117056,3,7,1575,hierarchical_mean,True,ok
+电制氢,39,09:45,0.9205663057921917,3,7,1575,hierarchical_mean,True,ok
+电制氢,40,10:00,0.9221268650515608,3,7,1575,hierarchical_mean,True,ok
+电制氢,41,10:15,0.9255286127049048,3,7,1575,hierarchical_mean,True,ok
+电制氢,42,10:30,0.9354425803621852,3,7,1575,hierarchical_mean,True,ok
+电制氢,43,10:45,0.9356347591064932,3,7,1575,hierarchical_mean,True,ok
+电制氢,44,11:00,0.961605163196755,3,7,1575,hierarchical_mean,True,ok
+电制氢,45,11:15,0.9869575859901731,3,7,1575,hierarchical_mean,True,ok
+电制氢,46,11:30,0.9865484034527408,3,7,1575,hierarchical_mean,True,ok
+电制氢,47,11:45,1.0,3,7,1575,hierarchical_mean,True,ok
+电制氢,48,12:00,0.9515184526832221,3,7,1575,hierarchical_mean,True,ok
+电制氢,49,12:15,0.9481750030549158,3,7,1575,hierarchical_mean,True,ok
+电制氢,50,12:30,0.9219124516838009,3,7,1575,hierarchical_mean,True,ok
+电制氢,51,12:45,0.9016324003474488,3,7,1575,hierarchical_mean,True,ok
+电制氢,52,13:00,0.8861057462178359,3,7,1575,hierarchical_mean,True,ok
+电制氢,53,13:15,0.8590591165114198,3,7,1575,hierarchical_mean,True,ok
+电制氢,54,13:30,0.8710776423666594,3,7,1575,hierarchical_mean,True,ok
+电制氢,55,13:45,0.8714928504344627,3,7,1575,hierarchical_mean,True,ok
+电制氢,56,14:00,0.8635705707444243,3,7,1575,hierarchical_mean,True,ok
+电制氢,57,14:15,0.8650425872613907,3,7,1575,hierarchical_mean,True,ok
+电制氢,58,14:30,0.8711705676365551,3,7,1575,hierarchical_mean,True,ok
+电制氢,59,14:45,0.8794404077290967,3,7,1575,hierarchical_mean,True,ok
+电制氢,60,15:00,0.8622722181876069,3,7,1575,hierarchical_mean,True,ok
+电制氢,61,15:15,0.8702520747577551,3,7,1575,hierarchical_mean,True,ok
+电制氢,62,15:30,0.8747211086406752,3,7,1575,hierarchical_mean,True,ok
+电制氢,63,15:45,0.8765443212014601,3,7,1575,hierarchical_mean,True,ok
+电制氢,64,16:00,0.8729606844269179,3,7,1575,hierarchical_mean,True,ok
+电制氢,65,16:15,0.8761803274953526,3,7,1575,hierarchical_mean,True,ok
+电制氢,66,16:30,0.8763390447676263,3,7,1575,hierarchical_mean,True,ok
+电制氢,67,16:45,0.8764762489734419,3,7,1575,hierarchical_mean,True,ok
+电制氢,68,17:00,0.8230080807716513,3,7,1575,hierarchical_mean,True,ok
+电制氢,69,17:15,0.8015964729008357,3,7,1575,hierarchical_mean,True,ok
+电制氢,70,17:30,0.8170312943704244,3,7,1575,hierarchical_mean,True,ok
+电制氢,71,17:45,0.8108915619860274,3,7,1575,hierarchical_mean,True,ok
+电制氢,72,18:00,0.8064212002186049,3,7,1575,hierarchical_mean,True,ok
+电制氢,73,18:15,0.7955113343478561,3,7,1575,hierarchical_mean,True,ok
+电制氢,74,18:30,0.7842001726379412,3,7,1575,hierarchical_mean,True,ok
+电制氢,75,18:45,0.7744842680984008,3,7,1575,hierarchical_mean,True,ok
+电制氢,76,19:00,0.7566050496490768,3,7,1575,hierarchical_mean,True,ok
+电制氢,77,19:15,0.745778833082436,3,7,1575,hierarchical_mean,True,ok
+电制氢,78,19:30,0.7405894268647475,3,7,1575,hierarchical_mean,True,ok
+电制氢,79,19:45,0.7289317069146919,3,7,1575,hierarchical_mean,True,ok
+电制氢,80,20:00,0.7016090733173823,3,7,1575,hierarchical_mean,True,ok
+电制氢,81,20:15,0.7019433217771908,3,7,1575,hierarchical_mean,True,ok
+电制氢,82,20:30,0.6964387363666769,3,7,1575,hierarchical_mean,True,ok
+电制氢,83,20:45,0.6957047535532537,3,7,1575,hierarchical_mean,True,ok
+电制氢,84,21:00,0.6928354111859621,3,7,1575,hierarchical_mean,True,ok
+电制氢,85,21:15,0.6786540649823168,3,7,1575,hierarchical_mean,True,ok
+电制氢,86,21:30,0.6721569253020198,3,7,1575,hierarchical_mean,True,ok
+电制氢,87,21:45,0.6596818355880429,3,7,1575,hierarchical_mean,True,ok
+电制氢,88,22:00,0.6498641243375524,3,7,1575,hierarchical_mean,True,ok
+电制氢,89,22:15,0.6452288861594139,3,7,1575,hierarchical_mean,True,ok
+电制氢,90,22:30,0.6345082791148922,3,7,1575,hierarchical_mean,True,ok
+电制氢,91,22:45,0.6310435873947554,3,7,1575,hierarchical_mean,True,ok
+电制氢,92,23:00,0.6387746207549876,3,7,1575,hierarchical_mean,True,ok
+电制氢,93,23:15,0.6384346871504503,3,7,1575,hierarchical_mean,True,ok
+电制氢,94,23:30,0.6334847312191978,3,7,1575,hierarchical_mean,True,ok
+电制氢,95,23:45,0.6271131891084261,3,7,1575,hierarchical_mean,True,ok
+电动汽车（充换电）,0,00:00,0.8026153531894741,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,1,00:15,0.7418898742444932,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,2,00:30,0.7096827330962037,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,3,00:45,0.6823280770263171,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,4,01:00,0.6558627695670928,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,5,01:15,0.6308233557755026,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,6,01:30,0.6040637914201393,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,7,01:45,0.5821719988104541,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,8,02:00,0.5680728518685628,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,9,02:15,0.5500437881280066,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,10,02:30,0.5410600032020514,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,11,02:45,0.528827906973241,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,12,03:00,0.5192986135009714,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,13,03:15,0.5121344509000718,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,14,03:30,0.5065370648268216,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,15,03:45,0.5047115193744345,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,16,04:00,0.4946810538922449,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,17,04:15,0.4846576578275422,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,18,04:30,0.47750330738787733,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,19,04:45,0.46992340549348083,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,20,05:00,0.4594110295296891,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,21,05:15,0.4516392804442382,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,22,05:30,0.45485074473804316,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,23,05:45,0.45610380695393615,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,24,06:00,0.4565730008114689,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,25,06:15,0.44762532774166414,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,26,06:30,0.44240175850592545,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,27,06:45,0.44387016064466417,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,28,07:00,0.43876615690792237,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,29,07:15,0.4491213195888447,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,30,07:30,0.4474051642030393,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,31,07:45,0.45397344890212016,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,32,08:00,0.46392281780457967,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,33,08:15,0.4780191994631062,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,34,08:30,0.5239801857973907,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,35,08:45,0.5579301902932998,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,36,09:00,0.6075593753965349,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,37,09:15,0.7463589661016469,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,38,09:30,0.8115404858098203,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,39,09:45,0.824165882148656,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,40,10:00,0.8547181405707552,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,41,10:15,0.8364194130139384,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,42,10:30,0.7768629993591946,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,43,10:45,0.7573138207257911,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,44,11:00,0.748625962487753,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,45,11:15,0.7722655625250482,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,46,11:30,0.7926010056978352,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,47,11:45,0.813692653505388,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,48,12:00,0.840904103972547,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,49,12:15,0.8906514750453863,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,50,12:30,0.954499581950199,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,51,12:45,0.9885564068014947,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,52,13:00,0.9942410965778736,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,53,13:15,0.9881077026605309,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,54,13:30,0.9705589404551317,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,55,13:45,0.9552742419993565,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,56,14:00,0.9142502260626121,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,57,14:15,0.9014876399938258,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,58,14:30,0.8888090313929792,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,59,14:45,0.8874121154973174,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,60,15:00,0.8919246198433453,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,61,15:15,0.874649120275495,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,62,15:30,0.8175875439558596,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,63,15:45,0.8228828271170121,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,64,16:00,0.8222944452731493,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,65,16:15,0.8103461274609911,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,66,16:30,0.805315616824269,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,67,16:45,0.7880770673201587,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,68,17:00,0.782586947642905,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,69,17:15,0.7672616693606932,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,70,17:30,0.7626253843838503,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,71,17:45,0.7550403270584392,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,72,18:00,0.772823992679438,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,73,18:15,0.8136271626005914,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,74,18:30,0.8778030626478771,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,75,18:45,0.9029128113646065,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,76,19:00,0.8986454235181608,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,77,19:15,0.8935169529958923,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,78,19:30,0.9197449909050832,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,79,19:45,0.9290562402664861,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,80,20:00,0.9313395442206956,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,81,20:15,0.9197941023120747,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,82,20:30,0.9142388589745409,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,83,20:45,0.9056084693059449,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,84,21:00,0.8913564911176225,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,85,21:15,0.8814914472576235,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,86,21:30,0.8852175204613695,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,87,21:45,0.9130351798963672,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,88,22:00,0.9340670535615487,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,89,22:15,0.9468190185364479,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,90,22:30,0.9646301526568783,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,91,22:45,0.9839298176087975,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,92,23:00,1.0,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,93,23:15,0.9660868448510014,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,94,23:30,0.9172231048611501,5,10,3016,hierarchical_mean,True,ok
+电动汽车（充换电）,95,23:45,0.8586702880798928,5,10,3016,hierarchical_mean,True,ok
+电子设备制造业,0,00:00,0.8321967746724368,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,1,00:15,0.8253226083209472,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,2,00:30,0.8310425408677903,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,3,00:45,0.8283863797569364,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,4,01:00,0.8367299273453349,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,5,01:15,0.838340637434116,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,6,01:30,0.839862678393514,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,7,01:45,0.8449246487079045,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,8,02:00,0.8438522972690791,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,9,02:15,0.8495230538802198,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,10,02:30,0.8507995183771607,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,11,02:45,0.8481652213490521,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,12,03:00,0.8510263833610036,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,13,03:15,0.8508943605677223,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,14,03:30,0.8490653674975274,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,15,03:45,0.8517166466351188,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,16,04:00,0.8484919889716075,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,17,04:15,0.8470248303524663,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,18,04:30,0.84775314299415,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,19,04:45,0.8443830737653205,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,20,05:00,0.8417491429445139,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,21,05:15,0.8346657504181405,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,22,05:30,0.8326922580706584,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,23,05:45,0.8342412390218259,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,24,06:00,0.8286292095288235,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,25,06:15,0.8265283172182563,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,26,06:30,0.8248480820661672,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,27,06:45,0.8272010638776252,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,28,07:00,0.8257425226901735,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,29,07:15,0.8351752952296041,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,30,07:30,0.8544722661705536,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,31,07:45,0.8793728838597473,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,32,08:00,0.9375819938083555,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,33,08:15,0.9836800418761056,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,34,08:30,0.9852492457699911,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,35,08:45,0.9915839061810151,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,36,09:00,0.9936121768201409,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,37,09:15,0.9941707530818774,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,38,09:30,0.9963653147461292,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,39,09:45,0.9952943458965771,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,40,10:00,0.9968993714286741,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,41,10:15,1.0,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,42,10:30,0.9961358580074755,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,43,10:45,0.9943405887384438,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,44,11:00,0.9890777518622338,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,45,11:15,0.9694385822120924,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,46,11:30,0.962477108125014,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,47,11:45,0.9609776621383682,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,48,12:00,0.9564193926071213,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,49,12:15,0.9355315364543265,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,50,12:30,0.9286276073539254,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,51,12:45,0.9504746692004113,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,52,13:00,0.9515702935142654,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,53,13:15,0.9483194361901044,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,54,13:30,0.9523173629351295,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,55,13:45,0.9657307562065548,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,56,14:00,0.9736442427944307,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,57,14:15,0.9727686319898937,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,58,14:30,0.9740682558162913,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,59,14:45,0.9691478017801723,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,60,15:00,0.9736442466415919,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,61,15:15,0.9687596113743885,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,62,15:30,0.966586025607233,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,63,15:45,0.9674472426849375,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,64,16:00,0.9667260130630904,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,65,16:15,0.9565086108197557,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,66,16:30,0.9474699539672934,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,67,16:45,0.9298439459709152,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,68,17:00,0.916512833759051,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,69,17:15,0.9002323109176832,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,70,17:30,0.8924686136195782,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,71,17:45,0.880389042271057,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,72,18:00,0.8576378577913027,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,73,18:15,0.8474557272141706,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,74,18:30,0.8417310645604942,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,75,18:45,0.8405292857557256,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,76,19:00,0.841132629992557,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,77,19:15,0.8391031586483525,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,78,19:30,0.839218313040588,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,79,19:45,0.8338232891201331,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,80,20:00,0.8311082680753484,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,81,20:15,0.8288138339080166,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,82,20:30,0.8315096392874655,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,83,20:45,0.8393463773163734,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,84,21:00,0.8422790224465337,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,85,21:15,0.8422299619289512,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,86,21:30,0.8418831788999555,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,87,21:45,0.8424133267736417,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,88,22:00,0.841205218428256,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,89,22:15,0.8400473140174571,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,90,22:30,0.8405260960690046,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,91,22:45,0.8413368170180657,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,92,23:00,0.8444863396319223,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,93,23:15,0.8410622941652527,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,94,23:30,0.8327878969899897,5,7,2162,hierarchical_mean,True,ok
+电子设备制造业,95,23:45,0.8272955009282054,5,7,2162,hierarchical_mean,True,ok
+电解铝,0,00:00,0.1782593452285928,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,1,00:15,0.16705622424695374,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,2,00:30,0.16664061576897962,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,3,00:45,0.15847335800508813,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,4,01:00,0.1562355377616951,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,5,01:15,0.15392263043657137,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,6,01:30,0.1443379450517687,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,7,01:45,0.14483719556588104,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,8,02:00,0.13864572578003106,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,9,02:15,0.13558349481834978,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,10,02:30,0.1340361835239054,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,11,02:45,0.13032514686861868,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,12,03:00,0.12639381711052794,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,13,03:15,0.12537291467048034,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,14,03:30,0.12075227434091017,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,15,03:45,0.12076617245214825,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,16,04:00,0.11874740108104595,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,17,04:15,0.11480344406122625,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,18,04:30,0.11634731215382929,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,19,04:45,0.11338471462983639,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,20,05:00,0.11981380363806499,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,21,05:15,0.12350602943819891,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,22,05:30,0.11915691122552917,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,23,05:45,0.1214996634469093,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,24,06:00,0.1177151458601162,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,25,06:15,0.1223647651003041,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,26,06:30,0.12928924265120426,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,27,06:45,0.12736541381397315,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,28,07:00,0.14144599898197016,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,29,07:15,0.1569999271888172,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,30,07:30,0.17553219031949885,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,31,07:45,0.20679336199909473,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,32,08:00,0.22629260386603708,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,33,08:15,0.23643882238572791,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,34,08:30,0.268740251417657,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,35,08:45,0.5080427330952855,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,36,09:00,0.749116600464477,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,37,09:15,0.8941134328010665,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,38,09:30,0.9452074777635655,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,39,09:45,0.9652738576589651,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,40,10:00,0.982236554476342,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,41,10:15,1.0,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,42,10:30,0.9928731336449544,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,43,10:45,0.9610926339112275,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,44,11:00,0.8731842730236656,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,45,11:15,0.7120750822895112,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,46,11:30,0.5828330555809954,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,47,11:45,0.5340237503821307,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,48,12:00,0.5395624255053582,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,49,12:15,0.5360284569806937,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,50,12:30,0.5437737598909758,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,51,12:45,0.5511670044290732,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,52,13:00,0.627676005746554,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,53,13:15,0.8356834995223579,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,54,13:30,0.9421588807168874,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,55,13:45,0.9681138603712264,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,56,14:00,0.9766124168452058,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,57,14:15,0.9721871644842068,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,58,14:30,0.9455273063945205,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,59,14:45,0.9285599990411934,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,60,15:00,0.8984455677051237,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,61,15:15,0.7768326123153081,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,62,15:30,0.5273234191427525,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,63,15:45,0.645680488737878,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,64,16:00,0.7123255064408266,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,65,16:15,0.6840453824740123,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,66,16:30,0.6479180353953545,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,67,16:45,0.6907640643682759,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,68,17:00,0.7616232275488283,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,69,17:15,0.7858592511111439,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,70,17:30,0.7957846004402283,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,71,17:45,0.7822993896956499,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,72,18:00,0.7589358562054099,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,73,18:15,0.7251952105864704,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,74,18:30,0.6946753724519199,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,75,18:45,0.6521430856009286,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,76,19:00,0.589892053029583,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,77,19:15,0.5474350055758179,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,78,19:30,0.5105667267554588,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,79,19:45,0.47773057895210996,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,80,20:00,0.4594908753591833,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,81,20:15,0.4122164937595044,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,82,20:30,0.3994832309671916,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,83,20:45,0.37856507888295116,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,84,21:00,0.3784946634724027,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,85,21:15,0.3619548207403808,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,86,21:30,0.3541938803035401,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,87,21:45,0.3387583559499885,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,88,22:00,0.32097136975987706,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,89,22:15,0.2985536097697621,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,90,22:30,0.2744238759794709,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,91,22:45,0.24997514886501523,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,92,23:00,0.21954978752929913,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,93,23:15,0.19884843667278457,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,94,23:30,0.17563754013908922,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+电解铝,95,23:45,0.1534484391699274,1,1,208,hierarchical_mean,False,limited: users 1 < 3
+纺织业,0,00:00,0.7803295130006737,5,15,3598,hierarchical_mean,True,ok
+纺织业,1,00:15,0.7982979578952882,5,15,3598,hierarchical_mean,True,ok
+纺织业,2,00:30,0.8004121252828184,5,15,3598,hierarchical_mean,True,ok
+纺织业,3,00:45,0.8002994405462573,5,15,3598,hierarchical_mean,True,ok
+纺织业,4,01:00,0.798181758838682,5,15,3598,hierarchical_mean,True,ok
+纺织业,5,01:15,0.7965054199570462,5,15,3598,hierarchical_mean,True,ok
+纺织业,6,01:30,0.795239976265936,5,15,3598,hierarchical_mean,True,ok
+纺织业,7,01:45,0.7920150817019568,5,15,3598,hierarchical_mean,True,ok
+纺织业,8,02:00,0.7931056597236055,5,15,3598,hierarchical_mean,True,ok
+纺织业,9,02:15,0.7894734695828677,5,15,3598,hierarchical_mean,True,ok
+纺织业,10,02:30,0.7906507462397827,5,15,3598,hierarchical_mean,True,ok
+纺织业,11,02:45,0.791178646102635,5,15,3598,hierarchical_mean,True,ok
+纺织业,12,03:00,0.7876585884542637,5,15,3598,hierarchical_mean,True,ok
+纺织业,13,03:15,0.7880543269188397,5,15,3598,hierarchical_mean,True,ok
+纺织业,14,03:30,0.7899328043042053,5,15,3598,hierarchical_mean,True,ok
+纺织业,15,03:45,0.7944765417063472,5,15,3598,hierarchical_mean,True,ok
+纺织业,16,04:00,0.7964498686385494,5,15,3598,hierarchical_mean,True,ok
+纺织业,17,04:15,0.7912911300716309,5,15,3598,hierarchical_mean,True,ok
+纺织业,18,04:30,0.792805811044197,5,15,3598,hierarchical_mean,True,ok
+纺织业,19,04:45,0.8053701795785415,5,15,3598,hierarchical_mean,True,ok
+纺织业,20,05:00,0.817417981994917,5,15,3598,hierarchical_mean,True,ok
+纺织业,21,05:15,0.8191701236842873,5,15,3598,hierarchical_mean,True,ok
+纺织业,22,05:30,0.8199014207484911,5,15,3598,hierarchical_mean,True,ok
+纺织业,23,05:45,0.8141911741470604,5,15,3598,hierarchical_mean,True,ok
+纺织业,24,06:00,0.8093186456878559,5,15,3598,hierarchical_mean,True,ok
+纺织业,25,06:15,0.7971656047446444,5,15,3598,hierarchical_mean,True,ok
+纺织业,26,06:30,0.7964553563066926,5,15,3598,hierarchical_mean,True,ok
+纺织业,27,06:45,0.799723798582398,5,15,3598,hierarchical_mean,True,ok
+纺织业,28,07:00,0.7903450333706372,5,15,3598,hierarchical_mean,True,ok
+纺织业,29,07:15,0.793971458004208,5,15,3598,hierarchical_mean,True,ok
+纺织业,30,07:30,0.8374236403324695,5,15,3598,hierarchical_mean,True,ok
+纺织业,31,07:45,0.8752833386167169,5,15,3598,hierarchical_mean,True,ok
+纺织业,32,08:00,0.8886067962406281,5,15,3598,hierarchical_mean,True,ok
+纺织业,33,08:15,0.9214318683264018,5,15,3598,hierarchical_mean,True,ok
+纺织业,34,08:30,0.9092733546674779,5,15,3598,hierarchical_mean,True,ok
+纺织业,35,08:45,0.936213360104156,5,15,3598,hierarchical_mean,True,ok
+纺织业,36,09:00,0.9576555574639556,5,15,3598,hierarchical_mean,True,ok
+纺织业,37,09:15,0.9846967248678385,5,15,3598,hierarchical_mean,True,ok
+纺织业,38,09:30,0.999764274644866,5,15,3598,hierarchical_mean,True,ok
+纺织业,39,09:45,1.0,5,15,3598,hierarchical_mean,True,ok
+纺织业,40,10:00,0.9728439632764301,5,15,3598,hierarchical_mean,True,ok
+纺织业,41,10:15,0.9554768378060952,5,15,3598,hierarchical_mean,True,ok
+纺织业,42,10:30,0.9488669264367987,5,15,3598,hierarchical_mean,True,ok
+纺织业,43,10:45,0.9188725835119488,5,15,3598,hierarchical_mean,True,ok
+纺织业,44,11:00,0.8934671430718378,5,15,3598,hierarchical_mean,True,ok
+纺织业,45,11:15,0.886096578738629,5,15,3598,hierarchical_mean,True,ok
+纺织业,46,11:30,0.864840084124847,5,15,3598,hierarchical_mean,True,ok
+纺织业,47,11:45,0.8759408464680947,5,15,3598,hierarchical_mean,True,ok
+纺织业,48,12:00,0.8704558227010261,5,15,3598,hierarchical_mean,True,ok
+纺织业,49,12:15,0.8697451584740198,5,15,3598,hierarchical_mean,True,ok
+纺织业,50,12:30,0.8606606020825982,5,15,3598,hierarchical_mean,True,ok
+纺织业,51,12:45,0.8580782949156642,5,15,3598,hierarchical_mean,True,ok
+纺织业,52,13:00,0.8608575508829294,5,15,3598,hierarchical_mean,True,ok
+纺织业,53,13:15,0.8629641791455974,5,15,3598,hierarchical_mean,True,ok
+纺织业,54,13:30,0.8712902778209044,5,15,3598,hierarchical_mean,True,ok
+纺织业,55,13:45,0.8723821391450686,5,15,3598,hierarchical_mean,True,ok
+纺织业,56,14:00,0.8677830168348752,5,15,3598,hierarchical_mean,True,ok
+纺织业,57,14:15,0.8663416995431115,5,15,3598,hierarchical_mean,True,ok
+纺织业,58,14:30,0.8672333491046236,5,15,3598,hierarchical_mean,True,ok
+纺织业,59,14:45,0.8671821480468596,5,15,3598,hierarchical_mean,True,ok
+纺织业,60,15:00,0.864776298050591,5,15,3598,hierarchical_mean,True,ok
+纺织业,61,15:15,0.8662886503494265,5,15,3598,hierarchical_mean,True,ok
+纺织业,62,15:30,0.8787860769346508,5,15,3598,hierarchical_mean,True,ok
+纺织业,63,15:45,0.913536929464856,5,15,3598,hierarchical_mean,True,ok
+纺织业,64,16:00,0.9322163225514882,5,15,3598,hierarchical_mean,True,ok
+纺织业,65,16:15,0.9364920521651705,5,15,3598,hierarchical_mean,True,ok
+纺织业,66,16:30,0.9360922660248542,5,15,3598,hierarchical_mean,True,ok
+纺织业,67,16:45,0.9171451565170698,5,15,3598,hierarchical_mean,True,ok
+纺织业,68,17:00,0.8940938594451402,5,15,3598,hierarchical_mean,True,ok
+纺织业,69,17:15,0.8808449703933572,5,15,3598,hierarchical_mean,True,ok
+纺织业,70,17:30,0.8596707386532668,5,15,3598,hierarchical_mean,True,ok
+纺织业,71,17:45,0.8484353401328754,5,15,3598,hierarchical_mean,True,ok
+纺织业,72,18:00,0.8207258793319204,5,15,3598,hierarchical_mean,True,ok
+纺织业,73,18:15,0.8127222154470138,5,15,3598,hierarchical_mean,True,ok
+纺织业,74,18:30,0.8160457672760479,5,15,3598,hierarchical_mean,True,ok
+纺织业,75,18:45,0.8215900044932923,5,15,3598,hierarchical_mean,True,ok
+纺织业,76,19:00,0.8494016526085607,5,15,3598,hierarchical_mean,True,ok
+纺织业,77,19:15,0.8242413938946603,5,15,3598,hierarchical_mean,True,ok
+纺织业,78,19:30,0.8332729254545438,5,15,3598,hierarchical_mean,True,ok
+纺织业,79,19:45,0.8366159114683221,5,15,3598,hierarchical_mean,True,ok
+纺织业,80,20:00,0.8278789496206928,5,15,3598,hierarchical_mean,True,ok
+纺织业,81,20:15,0.8283778483664945,5,15,3598,hierarchical_mean,True,ok
+纺织业,82,20:30,0.8228163123499793,5,15,3598,hierarchical_mean,True,ok
+纺织业,83,20:45,0.8200245479406646,5,15,3598,hierarchical_mean,True,ok
+纺织业,84,21:00,0.8159290885237186,5,15,3598,hierarchical_mean,True,ok
+纺织业,85,21:15,0.8126662784297144,5,15,3598,hierarchical_mean,True,ok
+纺织业,86,21:30,0.810400482493252,5,15,3598,hierarchical_mean,True,ok
+纺织业,87,21:45,0.8072012180500638,5,15,3598,hierarchical_mean,True,ok
+纺织业,88,22:00,0.8087028979460662,5,15,3598,hierarchical_mean,True,ok
+纺织业,89,22:15,0.8124795356398371,5,15,3598,hierarchical_mean,True,ok
+纺织业,90,22:30,0.8124323008540288,5,15,3598,hierarchical_mean,True,ok
+纺织业,91,22:45,0.8035148675784575,5,15,3598,hierarchical_mean,True,ok
+纺织业,92,23:00,0.7881378837351901,5,15,3598,hierarchical_mean,True,ok
+纺织业,93,23:15,0.7833031082015008,5,15,3598,hierarchical_mean,True,ok
+纺织业,94,23:30,0.7785129163954789,5,15,3598,hierarchical_mean,True,ok
+纺织业,95,23:45,0.7801434881543386,5,15,3598,hierarchical_mean,True,ok
+通用设备制造业,0,00:00,0.8977820426190769,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,1,00:15,0.8969323120055921,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,2,00:30,0.8998445866789593,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,3,00:45,0.8979377929356873,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,4,01:00,0.8687819023081712,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,5,01:15,0.8422433499100594,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,6,01:30,0.8406059806595509,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,7,01:45,0.8410953205943703,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,8,02:00,0.8515056148308636,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,9,02:15,0.8780230774621478,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,10,02:30,0.8926906620739565,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,11,02:45,0.9000158101792965,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,12,03:00,0.9003798486160828,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,13,03:15,0.8996528001969024,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,14,03:30,0.8963927931932345,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,15,03:45,0.8937454795377459,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,16,04:00,0.8904271104794429,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,17,04:15,0.8883587486755921,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,18,04:30,0.8846634382210598,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,19,04:45,0.8787880719613389,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,20,05:00,0.8754412564848368,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,21,05:15,0.8660978849461953,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,22,05:30,0.8635410848129887,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,23,05:45,0.8693572456450004,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,24,06:00,0.8636203318433245,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,25,06:15,0.8540886992973892,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,26,06:30,0.8437283755978116,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,27,06:45,0.8337331314565656,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,28,07:00,0.8209995207082319,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,29,07:15,0.8076624358876886,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,30,07:30,0.8063077652089371,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,31,07:45,0.8036732364935333,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,32,08:00,0.8210981637817911,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,33,08:15,0.8359527508948266,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,34,08:30,0.8860880999466169,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,35,08:45,0.9417007073345823,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,36,09:00,0.9539906465171405,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,37,09:15,0.9607613156278179,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,38,09:30,0.9662428627078556,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,39,09:45,0.9686132833298867,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,40,10:00,0.9654597739224968,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,41,10:15,0.9682057636697236,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,42,10:30,0.9657517286169819,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,43,10:45,0.9450188609465192,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,44,11:00,0.9272533614741537,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,45,11:15,0.922233206558036,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,46,11:30,0.914077399202574,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,47,11:45,0.8472967172268819,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,48,12:00,0.8176472984730819,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,49,12:15,0.782884564776484,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,50,12:30,0.7683270810661058,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,51,12:45,0.759160273845493,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,52,13:00,0.7993468593573294,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,53,13:15,0.8335740135425858,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,54,13:30,0.837150538047196,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,55,13:45,0.8337882042946649,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,56,14:00,0.8331991479315967,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,57,14:15,0.8343819514147007,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,58,14:30,0.8400465308586099,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,59,14:45,0.8448718952328195,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,60,15:00,0.8565866741840521,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,61,15:15,0.874972278447802,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,62,15:30,0.9820553572796058,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,63,15:45,0.9963017216665413,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,64,16:00,0.9982913238450737,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,65,16:15,1.0,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,66,16:30,0.9999270339477162,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,67,16:45,0.9964862801605087,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,68,17:00,0.993201408889589,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,69,17:15,0.9792509494964702,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,70,17:30,0.9582871502356386,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,71,17:45,0.933347185714078,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,72,18:00,0.9071372627726652,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,73,18:15,0.8829273692735892,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,74,18:30,0.8499048745728579,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,75,18:45,0.832101870323272,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,76,19:00,0.8177824408349755,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,77,19:15,0.818949178133927,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,78,19:30,0.8224696171893913,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,79,19:45,0.8192182337855275,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,80,20:00,0.8282135872245951,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,81,20:15,0.8470618670024769,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,82,20:30,0.8643479112422996,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,83,20:45,0.8792807937671272,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,84,21:00,0.892683935605481,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,85,21:15,0.8951217237060132,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,86,21:30,0.8976956495417224,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,87,21:45,0.9005444052766588,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,88,22:00,0.9056500061832778,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,89,22:15,0.9111508848221106,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,90,22:30,0.9145285365824192,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,91,22:45,0.9167437610647382,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,92,23:00,0.9157027658614166,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,93,23:15,0.9140353085748703,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,94,23:30,0.9038975136410499,4,9,2902,hierarchical_mean,True,ok
+通用设备制造业,95,23:45,0.897851576891801,4,9,2902,hierarchical_mean,True,ok
+钢铁,0,00:00,0.9825236700031199,3,17,1664,hierarchical_mean,True,ok
+钢铁,1,00:15,0.9875547487146146,3,17,1664,hierarchical_mean,True,ok
+钢铁,2,00:30,0.993198789595521,3,17,1664,hierarchical_mean,True,ok
+钢铁,3,00:45,0.9925102182625497,3,17,1664,hierarchical_mean,True,ok
+钢铁,4,01:00,0.9968707541263121,3,17,1664,hierarchical_mean,True,ok
+钢铁,5,01:15,0.9926561546795651,3,17,1664,hierarchical_mean,True,ok
+钢铁,6,01:30,0.9950606293087868,3,17,1664,hierarchical_mean,True,ok
+钢铁,7,01:45,0.9968656440248841,3,17,1664,hierarchical_mean,True,ok
+钢铁,8,02:00,0.9920088521495809,3,17,1664,hierarchical_mean,True,ok
+钢铁,9,02:15,0.9938436257819209,3,17,1664,hierarchical_mean,True,ok
+钢铁,10,02:30,0.992572294905695,3,17,1664,hierarchical_mean,True,ok
+钢铁,11,02:45,0.9926543018405547,3,17,1664,hierarchical_mean,True,ok
+钢铁,12,03:00,0.9943998594351685,3,17,1664,hierarchical_mean,True,ok
+钢铁,13,03:15,0.9945779464443195,3,17,1664,hierarchical_mean,True,ok
+钢铁,14,03:30,0.9933964690470043,3,17,1664,hierarchical_mean,True,ok
+钢铁,15,03:45,1.0,3,17,1664,hierarchical_mean,True,ok
+钢铁,16,04:00,0.9883228190453754,3,17,1664,hierarchical_mean,True,ok
+钢铁,17,04:15,0.9949864074555648,3,17,1664,hierarchical_mean,True,ok
+钢铁,18,04:30,0.9911982062301621,3,17,1664,hierarchical_mean,True,ok
+钢铁,19,04:45,0.9880039859929578,3,17,1664,hierarchical_mean,True,ok
+钢铁,20,05:00,0.9907950733709646,3,17,1664,hierarchical_mean,True,ok
+钢铁,21,05:15,0.9857519022677447,3,17,1664,hierarchical_mean,True,ok
+钢铁,22,05:30,0.9856477482092431,3,17,1664,hierarchical_mean,True,ok
+钢铁,23,05:45,0.9882569589749958,3,17,1664,hierarchical_mean,True,ok
+钢铁,24,06:00,0.9868834983315481,3,17,1664,hierarchical_mean,True,ok
+钢铁,25,06:15,0.9904883850476228,3,17,1664,hierarchical_mean,True,ok
+钢铁,26,06:30,0.9835172514615647,3,17,1664,hierarchical_mean,True,ok
+钢铁,27,06:45,0.975952247194726,3,17,1664,hierarchical_mean,True,ok
+钢铁,28,07:00,0.9775508023437353,3,17,1664,hierarchical_mean,True,ok
+钢铁,29,07:15,0.9717459183394102,3,17,1664,hierarchical_mean,True,ok
+钢铁,30,07:30,0.9750889025243572,3,17,1664,hierarchical_mean,True,ok
+钢铁,31,07:45,0.9647570086986466,3,17,1664,hierarchical_mean,True,ok
+钢铁,32,08:00,0.9558364695347693,3,17,1664,hierarchical_mean,True,ok
+钢铁,33,08:15,0.9470849359611838,3,17,1664,hierarchical_mean,True,ok
+钢铁,34,08:30,0.9446150498179501,3,17,1664,hierarchical_mean,True,ok
+钢铁,35,08:45,0.9433268047613435,3,17,1664,hierarchical_mean,True,ok
+钢铁,36,09:00,0.934034681617835,3,17,1664,hierarchical_mean,True,ok
+钢铁,37,09:15,0.937151824580431,3,17,1664,hierarchical_mean,True,ok
+钢铁,38,09:30,0.9304008597387521,3,17,1664,hierarchical_mean,True,ok
+钢铁,39,09:45,0.9267565966458596,3,17,1664,hierarchical_mean,True,ok
+钢铁,40,10:00,0.9247530022840926,3,17,1664,hierarchical_mean,True,ok
+钢铁,41,10:15,0.9211174914271019,3,17,1664,hierarchical_mean,True,ok
+钢铁,42,10:30,0.9179957971182069,3,17,1664,hierarchical_mean,True,ok
+钢铁,43,10:45,0.9097456911986066,3,17,1664,hierarchical_mean,True,ok
+钢铁,44,11:00,0.9106696846661608,3,17,1664,hierarchical_mean,True,ok
+钢铁,45,11:15,0.9137200561130964,3,17,1664,hierarchical_mean,True,ok
+钢铁,46,11:30,0.9189019434404021,3,17,1664,hierarchical_mean,True,ok
+钢铁,47,11:45,0.9192312830837577,3,17,1664,hierarchical_mean,True,ok
+钢铁,48,12:00,0.9211368918651768,3,17,1664,hierarchical_mean,True,ok
+钢铁,49,12:15,0.9186565126008547,3,17,1664,hierarchical_mean,True,ok
+钢铁,50,12:30,0.924836541639788,3,17,1664,hierarchical_mean,True,ok
+钢铁,51,12:45,0.9313662237462162,3,17,1664,hierarchical_mean,True,ok
+钢铁,52,13:00,0.9293703354409835,3,17,1664,hierarchical_mean,True,ok
+钢铁,53,13:15,0.9395656937497612,3,17,1664,hierarchical_mean,True,ok
+钢铁,54,13:30,0.9380513862932449,3,17,1664,hierarchical_mean,True,ok
+钢铁,55,13:45,0.9429103396911893,3,17,1664,hierarchical_mean,True,ok
+钢铁,56,14:00,0.9391546174558842,3,17,1664,hierarchical_mean,True,ok
+钢铁,57,14:15,0.9430490522292776,3,17,1664,hierarchical_mean,True,ok
+钢铁,58,14:30,0.945695756088432,3,17,1664,hierarchical_mean,True,ok
+钢铁,59,14:45,0.9418720270217575,3,17,1664,hierarchical_mean,True,ok
+钢铁,60,15:00,0.9405759226089032,3,17,1664,hierarchical_mean,True,ok
+钢铁,61,15:15,0.9469012812045571,3,17,1664,hierarchical_mean,True,ok
+钢铁,62,15:30,0.9520950742916848,3,17,1664,hierarchical_mean,True,ok
+钢铁,63,15:45,0.952020187349558,3,17,1664,hierarchical_mean,True,ok
+钢铁,64,16:00,0.9503628113142076,3,17,1664,hierarchical_mean,True,ok
+钢铁,65,16:15,0.9495038397538362,3,17,1664,hierarchical_mean,True,ok
+钢铁,66,16:30,0.9546664674051835,3,17,1664,hierarchical_mean,True,ok
+钢铁,67,16:45,0.9505555331147633,3,17,1664,hierarchical_mean,True,ok
+钢铁,68,17:00,0.9555137150178865,3,17,1664,hierarchical_mean,True,ok
+钢铁,69,17:15,0.9527054037562351,3,17,1664,hierarchical_mean,True,ok
+钢铁,70,17:30,0.9499373223529942,3,17,1664,hierarchical_mean,True,ok
+钢铁,71,17:45,0.9583749847111626,3,17,1664,hierarchical_mean,True,ok
+钢铁,72,18:00,0.9501991995049729,3,17,1664,hierarchical_mean,True,ok
+钢铁,73,18:15,0.951991656954755,3,17,1664,hierarchical_mean,True,ok
+钢铁,74,18:30,0.9550270615290156,3,17,1664,hierarchical_mean,True,ok
+钢铁,75,18:45,0.9506646682848341,3,17,1664,hierarchical_mean,True,ok
+钢铁,76,19:00,0.9546087478372248,3,17,1664,hierarchical_mean,True,ok
+钢铁,77,19:15,0.952171634962566,3,17,1664,hierarchical_mean,True,ok
+钢铁,78,19:30,0.9518158366033717,3,17,1664,hierarchical_mean,True,ok
+钢铁,79,19:45,0.9523375308250492,3,17,1664,hierarchical_mean,True,ok
+钢铁,80,20:00,0.9510820201239732,3,17,1664,hierarchical_mean,True,ok
+钢铁,81,20:15,0.9506171953322876,3,17,1664,hierarchical_mean,True,ok
+钢铁,82,20:30,0.9586182773500246,3,17,1664,hierarchical_mean,True,ok
+钢铁,83,20:45,0.9518824794451565,3,17,1664,hierarchical_mean,True,ok
+钢铁,84,21:00,0.9599171989375127,3,17,1664,hierarchical_mean,True,ok
+钢铁,85,21:15,0.9608670927728207,3,17,1664,hierarchical_mean,True,ok
+钢铁,86,21:30,0.9618142419898629,3,17,1664,hierarchical_mean,True,ok
+钢铁,87,21:45,0.9686941916378865,3,17,1664,hierarchical_mean,True,ok
+钢铁,88,22:00,0.9735357152833239,3,17,1664,hierarchical_mean,True,ok
+钢铁,89,22:15,0.9763047363406095,3,17,1664,hierarchical_mean,True,ok
+钢铁,90,22:30,0.9841168076375963,3,17,1664,hierarchical_mean,True,ok
+钢铁,91,22:45,0.9796215571082747,3,17,1664,hierarchical_mean,True,ok
+钢铁,92,23:00,0.9838693939599249,3,17,1664,hierarchical_mean,True,ok
+钢铁,93,23:15,0.981095080342522,3,17,1664,hierarchical_mean,True,ok
+钢铁,94,23:30,0.9832585095015531,3,17,1664,hierarchical_mean,True,ok
+钢铁,95,23:45,0.9816464122416148,3,17,1664,hierarchical_mean,True,ok
