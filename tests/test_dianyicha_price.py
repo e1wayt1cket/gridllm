@@ -9,9 +9,13 @@ number looking plausible, so they are pinned here rather than left to review:
   an interval-START file through this reader would rotate every price by one
   period and still produce a curve of the right length in the right units.
   The reader must refuse it, not rotate it.
-* **Every curve is a mean.** The workbook's own headers say so. No curve may
-  be described, labelled or consumed as a measured day, and the reader has to
-  carry that forward rather than leave it to whoever writes the report.
+* **Spatial and temporal averaging are different questions.** All four curves
+  are spatially averaged, so none of them represents a bus, zone or settlement
+  point; they divide on the *temporal* statistic, where `261009` is a single
+  day and the other three are window means. `temporal_statistic` is the only
+  field that answers "is this one day". The deprecated `is_measured` answers a
+  different question -- whether the source is real measured data, which is True
+  for all four -- so reading it for single-day identity inverts the answer.
 
 Most tests build a throwaway workbook so the failure paths can be exercised
 without touching the shipped file; the real read is marked slow.
@@ -181,24 +185,211 @@ def test_stats_report_mean_and_extremes(good_book):
 
 
 # ---------------------------------------------------------------------------
-# Every curve is a mean
+# Two statistics, not one: what was averaged over space and over time
 # ---------------------------------------------------------------------------
 
-def test_no_curve_claims_to_be_measured(good_book):
-    curves = dp.read_curves(str(good_book), ("261009", "7days"))
-    assert curves
+#: The whole taxonomy in one place. Every curve declares all four facts, and
+#: they are four fields because one axis cannot carry them -- a curve is
+#: routinely both spatially averaged and a single day.
+EXPECTED_META = {
+    "261009": ("single_day", 1, False),
+    "7days": ("window_mean", 7, True),
+    "30days": ("window_mean", 30, True),
+    "halfyear": ("window_mean", 180, True),
+}
+
+
+def test_every_curve_declares_its_source_space_time_and_window(good_book):
+    curves = dp.read_curves(str(good_book))
+    assert set(curves) == set(EXPECTED_META)
+    for name, (temporal, days, confirmed) in EXPECTED_META.items():
+        c = curves[name]
+        assert c.source_kind == "real_market_data", name
+        assert c.spatial_statistic == "spatial_mean", name
+        assert c.temporal_statistic == temporal, name
+        assert c.window_days == days, name
+        assert c.externally_confirmed is confirmed, name
+        # The same four facts travel into provenance, so a JSON reader does not
+        # have to re-derive them from the module's constants.
+        for key, want in (("source_kind", "real_market_data"),
+                          ("spatial_statistic", "spatial_mean"),
+                          ("temporal_statistic", temporal),
+                          ("window_days", days)):
+            assert c.provenance[key] == want, (name, key)
+
+
+def test_the_declared_vocabularies_are_closed(good_book):
+    """A typo must not invent a category no consumer knows how to read."""
+    for name, c in dp.read_curves(str(good_book)).items():
+        assert c.spatial_statistic in dp.SPATIAL_STATISTICS, name
+        assert c.temporal_statistic in dp.TEMPORAL_STATISTICS, name
+        assert c.source_kind in dp.SOURCE_KINDS, name
+
+
+def test_temporal_statistic_alone_decides_whether_a_curve_is_a_day(good_book):
+    """`role` is a label; the predicate reads one field and nothing else."""
+    curves = dp.read_curves(str(good_book))
+    assert curves["261009"].is_single_day is True
+    for name in ("7days", "30days", "halfyear"):
+        assert curves[name].is_single_day is False, name
+    assert curves["261009"].role == "single_day_spatial_mean"
     for name, c in curves.items():
-        assert c.is_measured is False, name
-        assert "mean" in c.role, name
-        assert c.provenance["is_measured"] is False
+        assert c.is_single_day == (c.temporal_statistic == "single_day"), name
 
 
-def test_describe_makes_no_measured_day_claim(good_book):
-    payload = dp.describe(dp.read_curves(str(good_book), ("261009",)))
+def test_the_single_day_reading_is_a_ruling_not_a_confirmation(good_book):
+    """`261009`'s header says 均值, which reads as a *temporal* mean. Reading it
+    as a spatial mean is this project's decision, and it is recorded as one --
+    the trailing curves need no ruling because their headers state the window.
+    """
+    c = dp.read_curves(str(good_book))["261009"]
+    assert c.is_single_day is True
+    assert c.externally_confirmed is False
+    assert "ruling" in (c.declared_by or "")
+    assert "mean" in (c.provenance["temporal_readings"] or "")
+    for name in ("7days", "30days", "halfyear"):
+        assert dp.read_curves(str(good_book))[name].externally_confirmed is True
+
+
+def test_the_spatial_extent_is_left_unverified(good_book):
+    """The workbook does not record how the spatial mean was taken, so the
+    field stays None rather than being guessed."""
+    for name, c in dp.read_curves(str(good_book)).items():
+        assert c.provenance["spatial_reference"] is None, name
+
+
+# ---------------------------------------------------------------------------
+# The deprecated compatibility fields
+# ---------------------------------------------------------------------------
+
+def test_the_deprecated_fields_are_derived_not_stored():
+    """They were fields once. A stored copy could drift from the authoritative
+    one; a property cannot, and the constructor must refuse to take one."""
+    import dataclasses
+    field_names = {f.name for f in dataclasses.fields(dp.Curve)}
+    for legacy in ("is_measured", "aggregation", "mean_window_days"):
+        assert legacy not in field_names, legacy
+        assert isinstance(getattr(dp.Curve, legacy), property), legacy
+
+
+def test_is_measured_now_means_the_source_is_real_not_that_it_is_a_day(good_book):
+    """The inversion that makes this dangerous: it is True for the window means
+    too, so a caller reading it for single-day identity gets the opposite."""
+    for name, c in dp.read_curves(str(good_book)).items():
+        assert c.is_measured is True, name
+        assert c.provenance["is_measured"] is True, name
+        assert c.provenance["is_measured_semantics"] == (
+            dp.DEPRECATED_FIELDS["is_measured"]), name
+
+
+def test_the_deprecated_values_follow_the_authoritative_ones(good_book):
+    legacy_aggregation = {"single_day": "single_day",
+                          "window_mean": "trailing_mean",
+                          "unspecified": "unresolved"}
+    for name, c in dp.read_curves(str(good_book)).items():
+        assert c.is_measured == (c.source_kind == "real_market_data"), name
+        assert c.aggregation == legacy_aggregation[c.temporal_statistic], name
+        want = c.window_days if c.temporal_statistic == "window_mean" else None
+        assert c.mean_window_days == want, name
+
+
+def test_every_deprecated_field_publishes_what_it_now_means(good_book):
+    """A bare False/True carried without its meaning is how an old reading gets
+    silently reintroduced, so the semantics are published beside the value."""
+    payload = dp.describe(dp.read_curves(str(good_book)))
+    assert set(payload["deprecated"]) == set(dp.DEPRECATED_FIELDS)
+    for text in payload["deprecated"].values():
+        assert text.strip()
+    for name, info in payload["curves"].items():
+        assert info["is_measured"] is True, name
+        assert info["temporal_statistic"] in dp.TEMPORAL_STATISTICS, name
+    # The two set-level legacy flags carry their meaning beside the value too.
+    assert payload["contains_confirmed_daily_series_semantics"] == (
+        dp.DEPRECATED_FIELDS["contains_confirmed_daily_series"])
+    assert payload["contains_confirmed_daily_series"] is False
+
+
+# ---------------------------------------------------------------------------
+# describe()
+# ---------------------------------------------------------------------------
+
+def test_describe_separates_a_single_day_curve_from_a_multi_day_series(good_book):
+    """Two different questions, two flags. `contains_measured_daily_series` is
+    about a series over MULTIPLE dates and stays False; that does not contradict
+    a real single day being present."""
+    payload = dp.describe(dp.read_curves(str(good_book)))
+    assert payload["contains_single_day_curve"] is True
+    assert payload["contains_multi_day_series"] is False
     assert payload["contains_measured_daily_series"] is False
-    assert "mean" in payload["note"] or "means" in payload["note"]
-    for info in payload["curves"].values():
-        assert info["is_measured"] is False
+    assert payload["contains_measured_daily_series_semantics"] == (
+        dp.DEPRECATED_FIELDS["contains_measured_daily_series"])
+    assert "MULTIPLE" in payload["contains_measured_daily_series_semantics"]
+
+
+def test_describe_publishes_both_statistics_and_says_which_is_which(good_book):
+    payload = dp.describe(dp.read_curves(str(good_book)))
+    assert payload["source_kind"] == "real_market_data"
+    assert payload["spatial_statistics_present"] == ["spatial_mean"]
+    assert payload["temporal_statistics_present"] == ["single_day",
+                                                      "window_mean"]
+    # The note must keep the two axes apart by name, so a report cannot quote it
+    # and end up calling a spatial mean a temporal one.
+    assert "SPATIAL" in payload["note"]
+    assert "TEMPORAL" in payload["note"]
+
+
+def test_describe_publishes_the_four_facts_for_every_curve(good_book):
+    payload = dp.describe(dp.read_curves(str(good_book)))
+    for name, info in payload["curves"].items():
+        for key in ("role", "source_kind", "spatial_statistic",
+                    "temporal_statistic", "window_days", "is_single_day",
+                    "externally_confirmed", "declared_by"):
+            assert key in info, (name, key)
+
+
+def test_the_retired_single_axis_set_is_gone(good_book):
+    """`aggregations_present` reported one axis for two questions. Leaving it
+    in place would invite a reader to take the taxonomy off it again."""
+    payload = dp.describe(dp.read_curves(str(good_book)))
+    assert "aggregations_present" not in payload
+    assert "temporal_statistics_present" in payload
+
+
+# ---------------------------------------------------------------------------
+# One definition, shared by the phases and the summary
+# ---------------------------------------------------------------------------
+
+#: Modules that publish price metadata into a phase artifact. The full runs need
+#: the solver and take minutes, so the contract is checked at source level: a
+#: rename should fail here rather than silently drop a fact from a report.
+CONSUMER_MODULES = ("accept_typical_day_industry",
+                    "phase7_strategy_comparison", "phase9_sensitivity",
+                    "wholesale_price")
+
+FACT_NAMES = ("source_kind", "spatial_statistic", "temporal_statistic",
+              "window_days")
+
+
+def test_every_consumer_carries_the_four_facts_under_the_shared_names():
+    import pathlib
+    root = pathlib.Path(dp.__file__).resolve().parent
+    for module in CONSUMER_MODULES:
+        text = (root / f"{module}.py").read_text(encoding="utf-8")
+        for key in FACT_NAMES:
+            assert key in text, (module, key)
+
+
+def test_the_consumers_take_the_taxonomy_from_the_reader():
+    """A locally re-declared ROLES or vocabulary would be the second source of
+    truth this change exists to remove."""
+    import pathlib
+    root = pathlib.Path(dp.__file__).resolve().parent
+    for module in ("accept_typical_day_industry",
+                   "phase7_strategy_comparison", "phase9_sensitivity"):
+        text = (root / f"{module}.py").read_text(encoding="utf-8")
+        assert "from dianyicha_price import" in text, module
+        assert "ROLES = {" not in text, module
+        assert "TEMPORAL_STATISTICS = " not in text, module
 
 
 def test_provenance_carries_the_raw_header_label(good_book):
@@ -279,12 +470,18 @@ def test_provider_window_matches_the_underlying_curve():
                                full[32:48])
 
 
-def test_provider_describe_flags_every_curve_as_a_mean():
+def test_provider_describe_carries_both_statistics_through():
+    """The provider must not flatten the two axes back into one on the way out."""
     import wholesale_price as wp
     payload = wp.get_provider("dianyicha").describe()
     assert payload["kind"] == "recorded_curve"
-    assert payload["contains_measured_daily_series"] is False
-    assert all(not v["is_measured"] for v in payload["curves"].values())
+    assert payload["contains_multi_day_series"] is False
+    assert payload["contains_single_day_curve"] is True
+    curves = payload["curves"]
+    assert all(v["spatial_statistic"] == "spatial_mean"
+               for v in curves.values())
+    assert curves["261009"]["temporal_statistic"] == "single_day"
+    assert curves["7days"]["temporal_statistic"] == "window_mean"
 
 
 def test_existing_sources_still_resolve():
@@ -307,48 +504,60 @@ def test_existing_sources_still_resolve():
 # ---------------------------------------------------------------------------
 
 def test_every_curve_is_recorded_as_real_market_derived():
-    """All four come from real historical market data; they differ by
-    aggregation, not by provenance."""
+    """All four come from real measured market data; they differ in their
+    temporal statistic, not in their provenance."""
     for name, c in dp.read_curves().items():
-        assert c.source_kind == "real_market", name
-        assert c.provenance["source_kind"] == "real_market", name
+        assert c.source_kind == "real_market_data", name
+        assert c.provenance["source_kind"] == "real_market_data", name
 
 
 def test_the_trailing_curves_name_their_window():
     curves = dp.read_curves()
-    assert curves["7days"].aggregation == "trailing_mean"
+    assert curves["7days"].temporal_statistic == "window_mean"
+    assert curves["7days"].window_days == 7
+    assert curves["30days"].window_days == 30
+    assert curves["halfyear"].window_days == 180
+    # The deprecated aliases still read, and read the same window -- but only
+    # because these curves are window means; they are not independent facts.
     assert curves["7days"].mean_window_days == 7
-    assert curves["30days"].mean_window_days == 30
-    assert curves["halfyear"].mean_window_days == 180
+    assert curves["7days"].aggregation == "trailing_mean"
 
 
-def test_the_same_day_curve_is_recorded_as_unresolved_not_as_a_day():
-    """The ambiguity is carried, not resolved by assumption.
-
-    Its sheet name embeds a date and its header says 均值. This module does not
-    decide which it is; it records both readings and marks the aggregation
-    unresolved, so no consumer can treat it as a confirmed daily series.
+def test_the_same_day_curve_is_recorded_as_a_ruled_single_day():
+    """The header says 均值 and the sheet name embeds a date, so the file alone
+    does not say whether the curve is one day. The project reads that 均值 as a
+    *spatial* mean and the date as the day covered; the reading is therefore
+    recorded as a ruling with its author, and left externally unconfirmed.
     """
     c = dp.read_curves()["261009"]
-    assert c.aggregation == "unresolved"
-    assert c.aggregation != "single_day"
-    assert c.mean_window_days is None
+    assert c.temporal_statistic == "single_day"
+    assert c.is_single_day is True
+    assert c.window_days == 1
     assert c.reference_period == "26/10/09"
-    readings = c.provenance["aggregation_readings"]
-    assert "26/10/09" in readings and "mean" in readings
+    assert c.externally_confirmed is False
+    assert "ruling" in c.declared_by
+    # The deprecated alias follows the authority, not the retired label.
+    assert c.aggregation == "single_day"
+    assert c.mean_window_days is None      # it is not a window mean
 
 
-def test_no_curve_is_promoted_to_measured():
-    """`is_measured` means *confirmed* single-day, so nothing here sets it."""
-    for name, c in dp.read_curves().items():
-        assert c.is_measured is False, name
-        assert c.provenance["is_measured"] is False, name
-    payload = dp.describe(dp.read_curves())
-    assert payload["contains_confirmed_daily_series"] is False
-    assert payload["contains_measured_daily_series"] is False
-    assert payload["source_kind"] == "real_market"
-    assert set(payload["aggregations_present"]) == {"trailing_mean",
-                                                    "unresolved"}
+def test_the_shipped_workbook_matches_the_declared_taxonomy():
+    """The real file, checked against the same table the fixtures use."""
+    curves = dp.read_curves()
+    assert set(curves) == set(EXPECTED_META)
+    for name, (temporal, days, confirmed) in EXPECTED_META.items():
+        c = curves[name]
+        assert c.source_kind == "real_market_data", name
+        assert c.spatial_statistic == "spatial_mean", name
+        assert c.temporal_statistic == temporal, name
+        assert c.window_days == days, name
+        assert c.externally_confirmed is confirmed, name
+    payload = dp.describe(curves)
+    assert payload["contains_multi_day_series"] is False
+    assert payload["contains_single_day_curve"] is True
+    assert set(payload["temporal_statistics_present"]) == {"single_day",
+                                                           "window_mean"}
+    assert set(payload["spatial_statistics_present"]) == {"spatial_mean"}
 
 
 def test_the_trailing_windows_end_dates_are_left_unverified():
@@ -367,6 +576,10 @@ def test_the_header_is_carried_verbatim_alongside_the_classification():
     payload = dp.describe(curves)
     assert "均值" in payload["curves"]["261009"]["header_label"]
     assert payload["curves"]["7days"]["aggregation"] == "trailing_mean"
+    # The author's wording and this project's reading sit side by side: the
+    # header still says 均值 while the taxonomy says single_day.
+    assert payload["curves"]["261009"]["temporal_statistic"] == "single_day"
+    assert "均值" in payload["curves"]["261009"]["header_label"]
 
 
 def test_the_workbook_producer_properties_are_recorded():
@@ -390,7 +603,7 @@ def test_real_workbook_reads_all_four_curves():
         arr = c.array()
         assert arr.shape == (N,)
         assert np.all(np.isfinite(arr))
-        assert c.is_measured is False
+        assert c.is_measured is True      # deprecated: source is real data
         assert c.role == dp.ROLES[name]
 
     # Values measured independently from the source file.

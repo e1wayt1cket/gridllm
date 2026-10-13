@@ -10,20 +10,46 @@
 | `30days` | 日前均价 |
 | `halfyear` | 日前均价 |
 
-**All four derive from real historical market data; they differ in aggregation.**
-The three trailing sheets are means over a known window -- 7, 30 and 180 days --
-which is what `role` records. **`261009`'s aggregation is unresolved**: its sheet
-name carries the date 26/10/09 and its column header says `日前均值`, "day-ahead
-mean", and nothing in the file says whether its 96 values are that day's actual
-period prices or a statistical single-day mean. `CURVE_META` records both
-readings rather than choosing between them.
+**All four derive from real historical market data, and all four are spatially
+averaged.** Two questions are kept apart, because this file answers them
+differently and a single flag cannot carry both:
 
-What follows holds under either reading: no curve here is *confirmed* to be a
-single day's measured series, so none may be described as a measured daily
-price, and `is_measured` is False throughout. The consequence is stated once
-here and carried in every `Curve`: a study built on this file has four *price
-scenarios*, not four days, and cannot make a statement about day-to-day
-variation or about generalisation across days.
+* **`spatial_statistic`** -- what was averaged over *space*. `spatial_mean` for
+  every curve here: each 96-point series is an average across locations, so no
+  individual bus, zone or settlement point is represented by it. The spatial
+  extent, the weighting and the number of points behind it are **not recorded in
+  the workbook** and are left unverified rather than assumed.
+* **`temporal_statistic`** -- what was averaged over *time*. `261009` is a
+  **single day**; `7days`, `30days` and `halfyear` are means over a window of
+  7, 30 and 180 days.
+
+**`temporal_statistic` is the sole authority for single-day identity.** Nothing
+downstream decides that question from `role`, from `is_measured`, or from the
+presence of 均值 in a header.
+
+**`261009`'s single-day reading is a project decision, not an external
+confirmation.** Its column header says `日前均值`, "day-ahead mean", which at
+face value reads as a temporal mean. It is read here as a *spatial* mean, and
+the date in the sheet name (26/10/09) as the day the curve covers. The workbook
+cannot settle this -- it was assembled by hand and carries no platform export
+metadata -- so `CURVE_META` records the ruling, who made it and when, and
+`externally_confirmed` stays False until the provider's own column definition is
+obtained.
+
+What survives either reading is the quantity a training split depends on: this
+file holds **one** real day and three window means, so it is not a *series* of
+daily prices. `contains_multi_day_series` is False throughout, and a study built
+on this file cannot say anything about day-to-day variation or about
+generalisation across days.
+
+**Deprecated compatibility fields.** `is_measured`, `aggregation`,
+`mean_window_days` and `describe()["contains_measured_daily_series"]` are
+retained for one compatibility window and are **derived properties**, not
+independent facts. Their meanings are listed in `DEPRECATED_FIELDS` and
+published by `describe()` under `deprecated`. `is_measured` in particular no
+longer means "confirmed single day" -- it is True for all four curves, because
+all four are real measured data. Anything that still reads it for single-day
+identity reads the opposite of what it intends.
 
 **Time labels are interval-END, and the mapping is positional.** A label is the
 *close* of the interval it belongs to: `00:15` closes the interval that runs
@@ -56,7 +82,7 @@ import datetime as _dt
 import hashlib
 import json
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -70,85 +96,154 @@ SLOT_MINUTES = 15
 #: mapping the provider uses, so it is part of the interface, not a convention.
 SHEETS: Tuple[str, ...] = ("261009", "7days", "30days", "halfyear")
 
-#: What each sheet's averaging window is. The role names the window; for the
-#: three trailing curves that window is known, and for `261009` it is not.
+#: Declared vocabularies for the two statistics. Kept closed so a typo cannot
+#: invent a third category that no consumer knows how to read.
+SPATIAL_STATISTICS: Tuple[str, ...] = ("spatial_mean", "unspecified")
+TEMPORAL_STATISTICS: Tuple[str, ...] = ("single_day", "window_mean",
+                                        "unspecified")
+
+#: Source kinds. `real_market_data` means the numbers are derived from real
+#: measured market data, as opposed to a simulation. It says nothing about
+#: aggregation.
+SOURCE_KINDS: Tuple[str, ...] = ("real_market_data", "unknown")
+
+#: Human-readable label per sheet. **Descriptive only** -- `role` carries no
+#: authority over what a curve is; `temporal_statistic` does. It is kept
+#: because it reads well in a table, and `261009`'s label was corrected from
+#: `same_day_or_same_day_mean` once the ambiguity it named was resolved.
 ROLES: Dict[str, str] = {
-    "261009": "same_day_or_same_day_mean",
+    "261009": "single_day_spatial_mean",
     "7days": "trailing_7_day_mean",
     "30days": "trailing_30_day_mean",
     "halfyear": "trailing_180_day_mean",
 }
 
-#: Per-curve provenance, as far as it can be established from the file.
+#: Fields kept only for a compatibility window. Each entry states, in the
+#: published payload, what the field now means -- because every one of them has
+#: changed meaning or been superseded, and a downstream caller still reading the
+#: old sense would get a confident wrong answer rather than an error.
 #:
-#: `source_kind` says where the numbers came from; `aggregation` says what was
-#: done to them. The two are different questions and the workbook answers them
-#: differently for different sheets.
+#: `describe()` publishes this mapping under `deprecated`, and a test asserts the
+#: deprecated fields are present and carry these semantics, so the old meanings
+#: cannot be quietly reintroduced.
+DEPRECATED_FIELDS: Dict[str, str] = {
+    "is_measured": (
+        "True when the curve's underlying source is real market measured data. "
+        "It does NOT mean the curve is a single day, and it does NOT mean it is "
+        "free of spatial averaging -- it is True for all four curves here. Use "
+        "`temporal_statistic` for single-day identity."),
+    "aggregation": (
+        "Legacy single-axis label, superseded by `temporal_statistic`. It could "
+        "not express that a curve is both spatially averaged and a single day, "
+        "which is why `261009` no longer reads `unresolved`."),
+    "mean_window_days": (
+        "Legacy name for `window_days` that also encodes the temporal "
+        "statistic: it is None unless the curve is a window mean. Read "
+        "`window_days` with `temporal_statistic` instead."),
+    "contains_measured_daily_series": (
+        "Whether the set holds a per-day sample series spanning MULTIPLE real "
+        "dates. False here, and unaffected by `261009` -- one day is not a "
+        "series. It does NOT say whether a real single-day 96-period curve is "
+        "present; use `contains_single_day_curve` for that."),
+    "contains_confirmed_daily_series": (
+        "Whether any curve's SINGLE-DAY reading is confirmed from outside the "
+        "project. False here: 261009 is read as a single day by project ruling "
+        "and the workbook cannot confirm it. It does NOT mean no single-day "
+        "curve is present; use `contains_single_day_curve` for that, and "
+        "`externally_confirmed` per curve for the confirmation itself."),
+}
+
+#: Legacy `aggregation` values, derived from `temporal_statistic` so the field
+#: cannot drift from the authority beside it.
+_LEGACY_AGGREGATION: Dict[str, str] = {
+    "single_day": "single_day",
+    "window_mean": "trailing_mean",
+    "unspecified": "unresolved",
+}
+
+#: Per-curve provenance, as far as it can be established.
 #:
-#: **All four curves derive from real historical market data.** What separates
-#: them is the aggregation: the three trailing sheets are means over 7, 30 and
-#: 180 days of that data.
+#: Four questions, answered separately: **where the numbers came from**
+#: (`source_kind`), **what was averaged over space** (`spatial_statistic`),
+#: **what was averaged over time** (`temporal_statistic`), and **over how many
+#: days** (`window_days`). They are four fields rather than one because one
+#: cannot carry them: a curve is routinely both spatially averaged *and* a
+#: single day, and the retired `aggregation` axis had no way to say so -- which
+#: is exactly why `261009` was mislabelled `unresolved`.
 #:
-#: **`261009`'s aggregation is unresolved, and this module does not resolve
-#: it.** Two readings are consistent with the file and nothing in it
-#: distinguishes them:
+#: **All four curves are `spatial_mean` over `real_market_data`.** The spatial
+#: extent, the weighting scheme and the number of underlying points are **not
+#: recorded in the workbook**; they are left `None` rather than guessed.
 #:
-#:   1. the 96 actual period prices for 26/10/09, one per settlement period;
-#:   2. a *statistical single-day mean* -- one averaged value per period --
-#:      which is what its column header says (`日前均值`, "day-ahead mean").
-#:
-#: The sheet name embeds the date; the header says mean. Neither is decisive,
-#: and no cell comment, no extra sheet and no workbook property settles it. The
-#: workbook was assembled by hand (its `docProps` record a personal author and a
-#: creation date well before the sheet's own date), so it carries no platform
-#: export metadata. Settling it needs the provider's own definition of the
-#: column. Until then this reads `aggregation: "unresolved"` and every consumer
-#: must treat it as *not confirmed* to be a single day's series -- the
-#: conservative reading, because assuming (1) would license a cross-period
-#: statement the data may not support.
+#: **`261009` is recorded as `single_day` by project ruling, not by external
+#: confirmation.** Its header reads `日前均值` ("day-ahead mean"), which at face
+#: value is a *temporal* mean; the ruling reads that 均值 as a *spatial* one and
+#: the sheet's date 26/10/09 as the day covered. Nothing in the workbook settles
+#: it: the file was hand-assembled (`docProps` record a personal author and a
+#: creation date well before the sheet's own date) and carries no platform
+#: export metadata, so there is no column definition to consult here.
+#: `externally_confirmed` is therefore False and stays so until the provider's
+#: own definition of the column is obtained. `declared_by` names the ruling.
 #:
 #: `window_start` / `window_end` are `None` for every curve: the workbook does
-#: not state the trailing windows' end dates, and inventing them would be
-#: worse than leaving them blank. See `reports/final_research_summary.md`.
+#: not state the trailing windows' end dates, and inventing them would be worse
+#: than leaving them blank. See `reports/final_research_summary.md`.
 CURVE_META: Dict[str, Dict[str, object]] = {
     "261009": {
-        "source_kind": "real_market",
-        "aggregation": "unresolved",
-        "aggregation_readings": (
-            "the 96 actual period prices for 26/10/09, or a statistical "
-            "single-day mean over some set (the column header says 均值)"),
-        "mean_window_days": None,
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "spatial_reference": None,
+        "temporal_statistic": "single_day",
+        "window_days": 1,
         "reference_period": "26/10/09",
+        "externally_confirmed": False,
+        "declared_by": "project ruling 2026-10-12",
+        "temporal_readings": (
+            "read as a single day's curve; the header's 均值 is taken as a "
+            "spatial mean rather than a temporal one. The workbook does not "
+            "settle this and it awaits the provider's column definition."),
         "window_start": None,
         "window_end": None,
         "header_label": "日前均值（CNY/MWh）",
     },
     "7days": {
-        "source_kind": "real_market",
-        "aggregation": "trailing_mean",
-        "aggregation_readings": "a trailing mean over 7 days of real data",
-        "mean_window_days": 7,
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "spatial_reference": None,
+        "temporal_statistic": "window_mean",
+        "window_days": 7,
         "reference_period": None,
+        "externally_confirmed": True,
+        "declared_by": "the workbook's own column header (日前均价)",
+        "temporal_readings": "a trailing mean over 7 days of real data",
         "window_start": None,
         "window_end": None,
         "header_label": "日前均价",
     },
     "30days": {
-        "source_kind": "real_market",
-        "aggregation": "trailing_mean",
-        "aggregation_readings": "a trailing mean over 30 days of real data",
-        "mean_window_days": 30,
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "spatial_reference": None,
+        "temporal_statistic": "window_mean",
+        "window_days": 30,
         "reference_period": None,
+        "externally_confirmed": True,
+        "declared_by": "the workbook's own column header (日前均价)",
+        "temporal_readings": "a trailing mean over 30 days of real data",
         "window_start": None,
         "window_end": None,
         "header_label": "日前均价",
     },
     "halfyear": {
-        "source_kind": "real_market",
-        "aggregation": "trailing_mean",
-        "aggregation_readings": "a trailing mean over half a year of real data",
-        "mean_window_days": 180,
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "spatial_reference": None,
+        "temporal_statistic": "window_mean",
+        "window_days": 180,
         "reference_period": None,
+        "externally_confirmed": True,
+        "declared_by": "the workbook's own column header (日前均价)",
+        "temporal_readings": "a trailing mean over half a year of real data",
         "window_start": None,
         "window_end": None,
         "header_label": "日前均价",
@@ -179,31 +274,76 @@ def resolve_workbook(path: Optional[str] = None) -> Path:
 
 @dataclass(frozen=True)
 class Curve:
-    """One 96-point price curve, with what it is and where it came from."""
+    """One 96-point price curve, with what it is and where it came from.
+
+    Four independent facts, and the reason they are four: a curve is routinely
+    both spatially averaged and a single day, so no single axis can carry them.
+    `temporal_statistic` alone answers "is this one day"; `role` and the
+    deprecated properties below are labels and must not be read as evidence.
+    """
 
     sheet: str
+    #: Human-readable label. **Descriptive only** -- derived from nothing and
+    #: authoritative over nothing.
     role: str
     prices: Tuple[float, ...]
-    #: True only when the curve is **confirmed** to be a single day's measured
-    #: series. False both for a mean and for a curve whose aggregation is
-    #: unresolved -- two different reasons one flag cannot separate, which is
-    #: why `aggregation` sits beside it. Nothing in this workbook is confirmed,
-    #: so this is False throughout. It is a field rather than a property so a
-    #: future confirmed series has to set it explicitly.
-    is_measured: bool
-    #: "real_market" for every curve here: all four derive from real historical
-    #: market data. The distinction between them is the aggregation, not the
-    #: provenance.
+    #: "real_market_data" for every curve here: all four are derived from real
+    #: measured market data, as opposed to simulation.
     source_kind: str = "unknown"
-    #: "trailing_mean" | "unresolved" | "single_day".
-    aggregation: str = "unknown"
-    #: The trailing window in days, or None when there is no known window.
-    mean_window_days: Optional[int] = None
+    #: What was averaged over **space**; `spatial_mean` for all four, so no
+    #: individual bus or zone is represented by any curve. The spatial extent,
+    #: the weighting and the number of points are unverified and not guessed.
+    spatial_statistic: str = "unspecified"
+    #: What was averaged over **time**. **The sole authority** for single-day
+    #: identity: `"single_day"` or `"window_mean"`.
+    temporal_statistic: str = "unspecified"
+    #: Days behind the curve -- 1 for a single day, the window length for a mean.
+    window_days: Optional[int] = None
+    #: The date the sheet names, where it names one.
+    reference_period: Optional[str] = None
+    #: True only where a source states the temporal reading. False where the
+    #: project ruled on it, as for `261009`.
+    externally_confirmed: bool = False
+    #: Who or what settled the temporal reading; the ruling, or the header.
+    declared_by: Optional[str] = None
     #: The trailing window's end date, or None when it could not be verified.
     window_end: Optional[str] = None
-    #: The reference period the sheet names, where it names one.
-    reference_period: Optional[str] = None
     provenance: Dict[str, object] = field(default_factory=dict)
+
+    # -- the one predicate consumers should use ------------------------------
+
+    @property
+    def is_single_day(self) -> bool:
+        """Whether this curve is one day. Reads `temporal_statistic` alone."""
+        return self.temporal_statistic == "single_day"
+
+    # -- deprecated derived fields, retained for one compatibility window ----
+    #
+    # These were fields. They are properties now so they cannot drift from the
+    # facts beside them. Each changed meaning or was superseded; see
+    # `DEPRECATED_FIELDS` for the published statement of what each one is.
+
+    @property
+    def is_measured(self) -> bool:
+        """DEPRECATED: True when the source is real measured market data.
+
+        It is **True for all four curves**, including the window means, and says
+        nothing about being a single day or about spatial averaging. Reading it
+        as "confirmed single day" now yields the opposite of the intent.
+        """
+        return self.source_kind == "real_market_data"
+
+    @property
+    def aggregation(self) -> str:
+        """DEPRECATED: legacy single-axis label; use `temporal_statistic`."""
+        return _LEGACY_AGGREGATION.get(self.temporal_statistic, "unresolved")
+
+    @property
+    def mean_window_days(self) -> Optional[int]:
+        """DEPRECATED: `window_days`, but None unless it is a window mean."""
+        if self.temporal_statistic != "window_mean":
+            return None
+        return self.window_days
 
     def array(self) -> np.ndarray:
         return np.asarray(self.prices, dtype=float)
@@ -339,47 +479,65 @@ def read_curves(path: Optional[str] = None,
                            for i, r in enumerate(body))
 
             meta = CURVE_META.get(name, {})
-            curves[name] = Curve(
+            curve = Curve(
                 sheet=name,
                 role=ROLES.get(name, "unspecified"),
                 prices=prices,
-                # Confirmed single-day series only. `261009` derives from real
-                # market data but its aggregation is unresolved, so it is not
-                # promoted here: an unproven single-day reading would license a
-                # cross-period statement the file does not support.
-                is_measured=False,
                 source_kind=str(meta.get("source_kind", "unknown")),
-                aggregation=str(meta.get("aggregation", "unknown")),
-                mean_window_days=meta.get("mean_window_days"),
+                spatial_statistic=str(
+                    meta.get("spatial_statistic", "unspecified")),
+                temporal_statistic=str(
+                    meta.get("temporal_statistic", "unspecified")),
+                window_days=meta.get("window_days"),
                 window_end=meta.get("window_end"),
                 reference_period=meta.get("reference_period"),
-                provenance={
-                    "workbook": wb_path.name,
-                    "workbook_path": str(wb_path),
-                    "workbook_sha256": digest,
-                    "sheet": name,
-                    "header_label": str(header[1]) if len(header) > 1 else "",
-                    "units": UNITS,
-                    "interval_convention": "label_is_interval_end",
-                    "slot_mapping": "label_index == period_index",
-                    "is_measured": False,
-                    "role": ROLES.get(name, "unspecified"),
-                    # The provenance facts themselves, carried through so a
-                    # consumer does not have to re-read this module's constants.
-                    "source_kind": meta.get("source_kind"),
-                    "aggregation": meta.get("aggregation"),
-                    "aggregation_readings": meta.get("aggregation_readings"),
-                    "mean_window_days": meta.get("mean_window_days"),
-                    "reference_period": meta.get("reference_period"),
-                    "window_start": meta.get("window_start"),
-                    "window_end": meta.get("window_end"),
-                    # The workbook's own document properties, which are the only
-                    # producer-side metadata the file carries.
-                    "workbook_author": producer.get("author"),
-                    "workbook_created": producer.get("created"),
-                    "workbook_modified": producer.get("modified"),
-                },
+                externally_confirmed=bool(meta.get("externally_confirmed",
+                                                   False)),
+                declared_by=meta.get("declared_by"),
             )
+            # Built from the constructed curve rather than from `meta`, so the
+            # deprecated copies are derived from the same place the fields are
+            # and cannot disagree with them.
+            curves[name] = replace(curve, provenance={
+                "workbook": wb_path.name,
+                "workbook_path": str(wb_path),
+                "workbook_sha256": digest,
+                "sheet": name,
+                "header_label": str(header[1]) if len(header) > 1 else "",
+                "units": UNITS,
+                "interval_convention": "label_is_interval_end",
+                "slot_mapping": "label_index == period_index",
+                "role": curve.role,
+                # The four facts, carried through so a consumer does not have
+                # to re-read this module's constants.
+                "source_kind": curve.source_kind,
+                "spatial_statistic": curve.spatial_statistic,
+                "spatial_reference": meta.get("spatial_reference"),
+                "temporal_statistic": curve.temporal_statistic,
+                "window_days": curve.window_days,
+                "temporal_readings": meta.get("temporal_readings"),
+                "reference_period": curve.reference_period,
+                "externally_confirmed": curve.externally_confirmed,
+                "declared_by": curve.declared_by,
+                "window_start": meta.get("window_start"),
+                "window_end": curve.window_end,
+                # Deprecated copies, derived. Their stated meaning is published
+                # by DEPRECATED_FIELDS; `is_measured_semantics` travels with the
+                # value so a reader of the JSON alone cannot take it for a
+                # single-day claim.
+                "is_measured": curve.is_measured,
+                "is_measured_semantics": DEPRECATED_FIELDS["is_measured"],
+                "aggregation": curve.aggregation,
+                "aggregation_semantics": DEPRECATED_FIELDS["aggregation"],
+                "mean_window_days": curve.mean_window_days,
+                "mean_window_days_semantics":
+                    DEPRECATED_FIELDS["mean_window_days"],
+                # The workbook's own document properties, which are the only
+                # producer-side metadata the file carries.
+                "workbook_author": producer.get("author"),
+                "workbook_created": producer.get("created"),
+                "workbook_modified": producer.get("modified"),
+            })
         return curves
     finally:
         wb.close()
@@ -413,48 +571,81 @@ def _producer_properties(path: Path) -> Dict[str, object]:
 def describe(curves: Dict[str, Curve]) -> Dict[str, object]:
     """A report-ready description of a curve set.
 
-    Says what each curve IS, not just what it is called. Two facts matter for
-    every downstream claim:
+    Says what each curve IS, not just what it is called. Three facts matter for
+    every downstream claim, and they are three because they come apart:
 
-    * **All four derive from real historical market data.** The difference
-      between them is the aggregation, not whether they are real.
-    * **No curve is confirmed to be a single day's measured series.**
-      `contains_confirmed_daily_series` is therefore False. For the three
-      trailing sheets that is because they are means; for `261009` it is
-      because its aggregation is unresolved, and this module does not resolve
-      it by assumption.
+    * **All four derive from real measured market data** (`source_kind`).
+    * **All four are spatially averaged** (`spatial_statistic`), so none of them
+      represents an individual bus, zone or settlement point. The extent and
+      the weighting are unverified.
+    * **One is a single day and three are window means** (`temporal_statistic`).
+
+    The third is what a training split turns on, and it is answered by
+    `temporal_statistic` alone. `contains_multi_day_series` is the flag that
+    states the consequence: one day plus three window means is not a *series* of
+    daily prices, so nothing here supports a statement about day-to-day
+    variation or generalisation across days.
+
+    `contains_single_day_curve` is True and does **not** contradict that -- a
+    single-day curve and a multi-day series are different objects, and the
+    retired single flag could not hold both.
     """
-    aggregations = sorted({c.aggregation for c in curves.values()})
+    temporals = sorted({c.temporal_statistic for c in curves.values()})
+    spatials = sorted({c.spatial_statistic for c in curves.values()})
     return {
         "source": "dianyicha",
         "units": UNITS,
         "n_slots": N_SLOTS,
         "interval_convention": "label_is_interval_end",
-        "source_kind": "real_market",
-        "aggregations_present": aggregations,
-        "contains_confirmed_daily_series": False,
-        # Kept under its original name so existing consumers and reports keep
-        # working; the meaning is now stated precisely by the two fields above.
+        "source_kind": "real_market_data",
+        "spatial_statistics_present": spatials,
+        "temporal_statistics_present": temporals,
+        "contains_single_day_curve": any(c.is_single_day
+                                         for c in curves.values()),
+        "contains_multi_day_series": False,
+        # Deprecated. Derived, so it tracks `externally_confirmed` per curve
+        # rather than being pinned to a literal.
+        "contains_confirmed_daily_series": any(
+            c.is_single_day and c.externally_confirmed
+            for c in curves.values()),
+        "contains_confirmed_daily_series_semantics":
+            DEPRECATED_FIELDS["contains_confirmed_daily_series"],
+        # Kept under its original name for one compatibility window. Its legacy
+        # meaning is about a series over multiple real dates, NOT about whether
+        # a real single-day curve is present; see DEPRECATED_FIELDS.
         "contains_measured_daily_series": False,
+        "contains_measured_daily_series_semantics":
+            DEPRECATED_FIELDS["contains_measured_daily_series"],
+        "deprecated": dict(DEPRECATED_FIELDS),
         "note": (
-            "All four curves derive from real historical market data. They "
-            "differ in aggregation: 7days, 30days and halfyear are trailing "
-            "means over 7, 30 and 180 days, and 261009's aggregation is "
-            "UNRESOLVED -- its header says 均值 while its sheet name carries a "
-            "date, and the file does not settle which it is. No curve is "
-            "confirmed to be a single day's measured series, so results built "
-            "on them are price-scenario comparisons, not evidence about "
-            "day-to-day behaviour, volatility or generalisation across days."),
+            "All four curves derive from real measured market data and all four "
+            "are SPATIAL means -- no bus or zone is represented by any of them, "
+            "and the spatial extent and weighting are not recorded in the "
+            "workbook. They differ in their TEMPORAL statistic: 261009 is a "
+            "single day and 7days, 30days and halfyear are means over 7, 30 and "
+            "180 days. 261009's single-day reading is a PROJECT RULING reading "
+            "its header's 均值 as a spatial mean, not an external confirmation. "
+            "One day plus three window means is not a series of daily prices, "
+            "so results built on these curves are price-scenario comparisons, "
+            "not evidence about day-to-day behaviour, volatility or "
+            "generalisation across days."),
         "curves": {
             name: {
                 "role": c.role,
-                "is_measured": c.is_measured,
                 "source_kind": c.source_kind,
-                "aggregation": c.aggregation,
-                "mean_window_days": c.mean_window_days,
+                "spatial_statistic": c.spatial_statistic,
+                "temporal_statistic": c.temporal_statistic,
+                "window_days": c.window_days,
+                "is_single_day": c.is_single_day,
+                "externally_confirmed": c.externally_confirmed,
+                "declared_by": c.declared_by,
                 "reference_period": c.reference_period,
                 "window_end": c.window_end,
                 "header_label": c.provenance.get("header_label"),
+                # Deprecated, derived; not authoritative for anything above.
+                "is_measured": c.is_measured,
+                "aggregation": c.aggregation,
+                "mean_window_days": c.mean_window_days,
                 **c.stats(),
             }
             for name, c in curves.items()
@@ -494,10 +685,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"source: dianyicha   units: {UNITS}   slots: {N_SLOTS}")
     print(payload["note"])
     print()
-    print(f"{'sheet':<10}{'role':<24}{'min':>9}{'max':>9}{'mean':>9}"
-          f"{'peak':>6}{'trough':>7}  header")
+    print(f"{'sheet':<10}{'temporal':<12} {'days':>5} {'spatial':<13} "
+          f"{'role':<24}{'min':>9}{'max':>9}{'mean':>9}{'peak':>6}{'trough':>7}"
+          f"  header")
     for name, info in payload["curves"].items():
-        print(f"{name:<10}{info['role']:<24}{info['min_cny_mwh']:>9.2f}"
+        print(f"{name:<10}{info['temporal_statistic']:<12} "
+              f"{info['window_days']:>5} {info['spatial_statistic']:<13} "
+              f"{info['role']:<24}{info['min_cny_mwh']:>9.2f}"
               f"{info['max_cny_mwh']:>9.2f}{info['mean_cny_mwh']:>9.2f}"
               f"{info['peak_slot']:>6}{info['trough_slot']:>7}"
               f"  {info['header_label']}")

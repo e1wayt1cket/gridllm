@@ -1,5 +1,24 @@
 # The external day-ahead wholesale price
 
+> **Correction (2026-10-12) to the Jiangsu-curve section at the end of this
+> document.** That section says "all four are means", reading 均值 as a
+> *temporal* mean. The workbook answers two questions, and the section collapses
+> them. **Space:** all four curves are `spatial_mean` — an average across
+> locations, so no bus or zone is represented by any of them, and the extent and
+> weighting are not recorded in the file. **Time:** `261009` is a **single
+> day**; `7days` / `30days` / `halfyear` are means over 7 / 30 / 180 days.
+> `261009`'s single-day reading is a **project ruling** reading its header's
+> 均值 as a *spatial* mean, not an external confirmation.
+>
+> The section's binding conclusion is unchanged and for the same reason it
+> gives: one day plus three window means is not a *series* of daily prices, so
+> there is still no measured daily series and no basis for a real-price
+> train/validation/test split. Its `Curve.is_measured` statement is now
+> deprecated — that field means "the source is real measured data" and is true
+> for all four — so single-day identity must be read from
+> `Curve.temporal_statistic`. Everything else in this document is unaffected.
+> See `reports/final_research_summary.md` §2.1.
+
 ## Why
 
 `wholesale[t]` is the price at the point of common coupling -- what the DSO pays

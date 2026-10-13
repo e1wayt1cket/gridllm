@@ -619,13 +619,22 @@ class DianyichaPriceProvider(WholesalePriceProvider):
     a simulated day, and everything about it is fixed -- no seed, no noise, no
     draw to override.
 
-    **Every curve it serves is a mean**, and the module that reads them says so
-    in its own headers. There is no measured daily series in the file, so a
-    `day_id` here names a *price scenario*, not a calendar day. To keep that
-    from being quietly lost, an out-of-range `day_id` raises instead of
-    wrapping or falling back to the first curve, and `describe()` publishes each
-    curve's role and `is_measured: false` so no report can present one as an
-    observed day.
+    **Every curve it serves is spatially averaged**, and the module that reads
+    them records four separate facts per curve: the source kind, the spatial
+    statistic, the temporal statistic and the window length. One of the four
+    curves -- `261009` -- is a **single day** (`temporal_statistic:
+    single_day`), read as such by project ruling; the other three are window
+    means. What the file does **not** hold is a *series* of daily prices, so a
+    `day_id` here still names a *price scenario* rather than a calendar day, and
+    an out-of-range `day_id` raises instead of wrapping or falling back to the
+    first curve.
+
+    The retired `is_measured` flag is **not** a single-day statement here: it is
+    deprecated, means "the underlying source is real measured market data", and
+    is `true` for all four curves. `temporal_statistic` is the sole authority
+    for whether a curve is one day; `describe()` publishes it alongside its
+    deprecated copies so a report cannot take the retired field for the current
+    reading.
     """
 
     name = "dianyicha"
@@ -700,6 +709,12 @@ class DianyichaPriceProvider(WholesalePriceProvider):
                 "day": day_id,
                 "sheet": curve.sheet,
                 "role": curve.role,
+                "source_kind": curve.source_kind,
+                "spatial_statistic": curve.spatial_statistic,
+                "temporal_statistic": curve.temporal_statistic,
+                "window_days": curve.window_days,
+                "is_single_day": curve.is_single_day,
+                # Deprecated compatibility copy; not a single-day statement.
                 "is_measured": curve.is_measured,
                 "reachable_price_min_cny_mwh": stats["min_cny_mwh"],
                 "reachable_price_max_cny_mwh": stats["max_cny_mwh"],
