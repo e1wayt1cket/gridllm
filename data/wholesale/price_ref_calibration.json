@@ -1,0 +1,34 @@
+{
+  "formula": "value = mean over families( mean over that family's TRAINING curves(mean_t price[t] ) )  -- each family equally weighted, so a family with more curves cannot set the scale",
+  "value_cny_per_mwh": 288.19757259048833,
+  "n_families": 1,
+  "n_training_curves": 11,
+  "per_family": {
+    "fam_a": {
+      "n_curves": 11,
+      "curve_daily_means_cny_per_mwh": [
+        306.3244610015061,
+        258.0094832029665,
+        284.5078868586943,
+        229.23852482294365,
+        313.3252439469895,
+        390.4964942424778,
+        244.63828654272547,
+        280.56615801110985,
+        320.21493677791085,
+        287.12079369700876,
+        255.73102939103902
+      ],
+      "representative_price_cny_per_mwh": 288.19757259048833
+    }
+  },
+  "family_representative_prices_cny_per_mwh": [
+    288.19757259048833
+  ],
+  "excluded_from_calibration": [
+    "validation split",
+    "test split",
+    "261009 (the single real day; held aside, never mixed in)"
+  ],
+  "data_digest_sha256": "89e1ea4afc2c3288de65dc4bd6ce699a39182b2622aba62a6fb425750f1a3eef"
+}
