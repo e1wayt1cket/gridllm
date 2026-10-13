@@ -32,8 +32,36 @@ import participant_payoff
 from models import Agent, MarketConfig
 from market import adaptive_bidding
 from price_forecaster import NodalPriceForecaster
-from rl_spec import (OBS_V3, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
+from rl_spec import (OBS_V4, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
                     ObservationSpec, ActionSpec, action_spec_for)
+
+#: Frozen reference price, CNY/MWh, used to put every price feature on an O(1)
+#: scale and to initialize them before any LMP has been observed.
+#:
+#: **It is a constant on purpose.** The observation must be a function of the
+#: past only, so no episode-derived quantity may stand in for it -- that is what
+#: V3 did, using the mean of the whole day's realized price as the denominator
+#: of `last_lmp_norm` and `pred_lmp_norm` and as the block-0 value of
+#: `last_lmp`, which made four of the twelve features carry whole-day
+#: information at the first decision.
+#:
+#: **Provenance.** Calibrated on 2026-10-13 from the **training split only** of
+#: the synthetic family `fam_a` via `synthetic_scenarios.calibrate_price_ref`:
+#: each training curve's daily mean, then a representative price per family,
+#: then an equal-weighted mean across families. 11 training curves, one family.
+#: Artifact `data/wholesale/price_ref_calibration.json` (sha256
+#: 400200a36d0a5668f6388070add98dbe28305cb7a88b8e5819974971d89073), data digest
+#: `89e1ea4afc2c3288de65dc4bd6ce699a39182b2622aba62a6fb425750f1a3eef`.
+#:
+#: The validation split, the test split and the single real day `261009` were
+#: **excluded from the calibration**. The value is frozen: it must not be
+#: re-fitted, because a scale re-derived per split leaks across splits even when
+#: no day is shared. Re-calibrating is a deliberate act that overwrites this
+#: constant and records a new artifact, not something a run does implicitly.
+#:
+#: It replaces the inherited `420.0`, which was the pre-V4 fallback denominator
+#: and was never verified against any distribution.
+PRICE_REF_CNY_MWH = 288.19757259048833
 
 # Bounds of the non-storage action space, read off the spec rather than
 # restated. A second copy here would be a box the policies could be trained in
@@ -231,7 +259,7 @@ class BiddingEnv:
         # `bid_mult_low/high` still override the non-storage action's bounds,
         # which is what they always did; they have no meaning for a storage
         # agent, whose prices are absolute.
-        self.obs_spec = obs_spec if obs_spec is not None else OBS_V3
+        self.obs_spec = obs_spec if obs_spec is not None else OBS_V4
         if action_spec is not None:
             self.action_spec = action_spec
         else:
@@ -374,7 +402,7 @@ class BiddingEnv:
         `day_id` is which day of the wholesale library this episode is priced
         on. It is carried as environment *metadata*: it selects the price, and
         it is logged and fingerprint-checked, but it never enters an
-        observation -- the layout of OBS_V3 is the same on every day, so a
+        observation -- the layout of OBS_V4 is the same on every day, so a
         policy cannot learn to recognise a day rather than to bid. Both
         `reset` and `step` pass it down, because each regenerates the price and
         a window priced off the wrong day is silent. None leaves whatever the
@@ -420,7 +448,7 @@ class BiddingEnv:
 
     def _compute_obs_features(self, agent: Agent, block_idx: int,
                               hist_lmp: np.ndarray | None,
-                              avg_lmp: float,
+                              avg_lmp_hist: float,
                               system_load_re_ratio: float = 1.0,
                               avg_other_bid: float = 1.0,
                               bid_std: float = 0.0) -> Dict[str, float]:
@@ -430,9 +458,15 @@ class BiddingEnv:
         feature name; `_get_agent_obs` selects the subset the active
         ObservationSpec declares. Load/RE are the block means (the action
         commits a whole block), each divided by its own day peak (load peak
-        for load, RE peak for RE), so they stay in [0, 1] without saturating;
-        absolute LMP levels are expressed as ratios of the day-average price
-        so all features are O(1) for the MLP.
+        for load, RE peak for RE), so they stay in [0, 1] without saturating.
+
+        **Every price feature is a function of the past alone.** The load and RE
+        peaks come from the agent's own *forecasts*, which a day-ahead
+        participant holds; the LMP history is the sequence already cleared; and
+        the reference price is the frozen constant `PRICE_REF_CNY_MWH`. No
+        realized price from a period this decision has not reached enters any
+        feature, which is what V4 exists to guarantee and what
+        `test_the_observation_ignores_prices_after_the_decision` pins.
         """
         t_start = block_idx * BLOCK_SIZE
         t_block_end = min(t_start + BLOCK_SIZE, self.T)
@@ -455,11 +489,14 @@ class BiddingEnv:
         re_feat = float(np.clip(
             np.mean(pv + wind) / max(re_peak, 1e-6), 0.0, 1.0))
 
-        # Last observed LMP, or the day average if none is available yet
+        # Last observed LMP, or the frozen reference if none exists yet. The
+        # fallback is a constant rather than the day's mean: at block 0 the
+        # day's mean is the future, and using it seeded `last_lmp` -- and
+        # through it `ema_dev` -- with information from later periods.
         if hist_lmp is not None and len(hist_lmp) > 0:
             last_lmp = float(hist_lmp[-1])
         else:
-            last_lmp = avg_lmp
+            last_lmp = PRICE_REF_CNY_MWH
 
         # SOC
         if agent.storage is not None:
@@ -487,11 +524,15 @@ class BiddingEnv:
         ema_dev = float(np.clip(ema_dev, -1.0, 1.0))
         trend = float(np.clip(trend, -1.0, 1.0))
 
-        # Absolute price levels as O(1) ratios of the day average; the
-        # negative tail (excess-RE prices) is preserved by a lower clip.
-        price_ref = avg_lmp if avg_lmp > 0 else 420.0
+        # Absolute price levels as O(1) ratios of a FROZEN constant; the
+        # negative tail (excess-RE prices) is preserved by a lower clip. The
+        # denominator used to be the day's realized mean, which put that mean
+        # into `last_lmp_norm` and `pred_lmp_norm` as well as into
+        # `avg_lmp_hist_norm` -- three more features than the one that looked
+        # like the culprit.
+        price_ref = PRICE_REF_CNY_MWH
         last_lmp_norm = float(np.clip(last_lmp / price_ref, -1.0, 3.0))
-        avg_lmp_norm = float(np.clip(avg_lmp / 420.0, 0.0, 3.0))
+        avg_lmp_hist_norm = float(np.clip(avg_lmp_hist / price_ref, 0.0, 3.0))
         slr_norm = float(min(system_load_re_ratio, 5.0))
 
         # Direct next-block price forecast (EMA persistence) from the same
@@ -505,7 +546,7 @@ class BiddingEnv:
             "soc": soc,
             "last_lmp_norm": last_lmp_norm,
             "block_pos": block_pos,
-            "avg_lmp_norm": avg_lmp_norm,
+            "avg_lmp_hist_norm": avg_lmp_hist_norm,
             "slr_norm": slr_norm,
             "avg_other_bid": avg_other_bid,
             "bid_std": bid_std,
@@ -516,7 +557,7 @@ class BiddingEnv:
 
     def _get_agent_obs(self, agent: Agent, block_idx: int,
                        hist_lmp: np.ndarray | None,
-                       avg_lmp: float,
+                       avg_lmp_hist: float,
                        system_load_re_ratio: float = 1.0,
                        avg_other_bid: float = 1.0,
                        bid_std: float = 0.0) -> np.ndarray:
@@ -527,7 +568,7 @@ class BiddingEnv:
         state.
         """
         feats = self._compute_obs_features(
-            agent, block_idx, hist_lmp, avg_lmp, system_load_re_ratio,
+            agent, block_idx, hist_lmp, avg_lmp_hist, system_load_re_ratio,
             avg_other_bid, bid_std)
         return np.array(
             [feats[f.name]
@@ -657,12 +698,16 @@ class BiddingEnv:
         self.current_actions = self._default_actions()
 
         obs = {}
-        avg_lmp = np.mean(self.wholesale)
+        # No LMP has been observed yet, so the causal average is the frozen
+        # reference. It is deliberately NOT `mean(self.wholesale)`: at the first
+        # decision that is the whole day's realized price, which is not knowable
+        # then and made four features non-causal under V3.
+        avg_lmp_hist = PRICE_REF_CNY_MWH
         slr = self._compute_system_load_re_ratio(0)
         for a in self.rl_agents:
             avg_oth, bid_std = self._compute_opponent_features(a.name)
             obs[a.name] = self._get_agent_obs(
-                a, 0, None, avg_lmp, slr, avg_oth, bid_std)
+                a, 0, None, avg_lmp_hist, slr, avg_oth, bid_std)
         return obs
 
     def _agent_block_profit(self, schedule: dict, lmp_node: np.ndarray,
@@ -920,16 +965,21 @@ class BiddingEnv:
 
         # ---- Build next observation ----
         obs = {}
-        avg_lmp = np.mean(self.wholesale) if self.wholesale is not None \
-            else 420.0
         hist_arr = np.array(list(self.hist_lmp)) \
             if self.hist_lmp else None
+        # The mean of the LMPs observed SO FAR. Not the day's realized mean:
+        # that is not knowable at this decision, and using it made
+        # `avg_lmp_hist_norm`, `last_lmp_norm`, `pred_lmp_norm` and `ema_dev`
+        # all depend on prices from periods the agent had not reached.
+        avg_lmp_hist = (float(np.mean(hist_arr))
+                        if hist_arr is not None and hist_arr.size
+                        else PRICE_REF_CNY_MWH)
         slr = self._compute_system_load_re_ratio(t_start)
         if not done:
             for a in self.rl_agents:
                 avg_oth, bid_std = self._compute_opponent_features(a.name)
                 obs[a.name] = self._get_agent_obs(
-                    a, self.block_idx, hist_arr, avg_lmp, slr,
+                    a, self.block_idx, hist_arr, avg_lmp_hist, slr,
                     avg_oth, bid_std)
         else:
             for a in self.rl_agents:

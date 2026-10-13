@@ -29,7 +29,7 @@ from typing import Callable, Dict, Optional
 import numpy as np
 
 from models import MarketConfig
-from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V3, ActionSpec
+from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V4, ActionSpec
 
 # The action a policy returns, in the declared action order.
 Action = np.ndarray
@@ -38,7 +38,7 @@ Policy = Callable[[np.ndarray], Action]
 BASELINE_NAMES = ("truthful", "rule", "myopic")
 
 
-def _feature_index(spec=OBS_V3) -> Dict[str, int]:
+def _feature_index(spec=OBS_V4) -> Dict[str, int]:
     """Name -> position for every feature the observation carries."""
     return {name: i for i, name in enumerate(spec.feature_order)}
 
@@ -76,7 +76,8 @@ def rule_policy(soc_low: float = 0.25, soc_high: float = 0.75,
     """A deterministic state-of-charge and price rule, stated in full.
 
     The observation's ``soc`` is the fraction of capacity, ``last_lmp_norm`` and
-    ``avg_lmp_norm`` are prices as ratios of the day average. In order:
+    ``avg_lmp_hist_norm`` are prices as ratios of a frozen reference price. In
+    order:
 
       1. soc <= soc_low    charge hard:  charge_price low, discharge_price high
       2. soc >= soc_high   discharge:    charge_price high, discharge_price low
@@ -100,7 +101,7 @@ def rule_policy(soc_low: float = 0.25, soc_high: float = 0.75,
             return np.array([_CHARGE_LOW, _DISCHARGE_HIGH], dtype=np.float32)
         if soc >= soc_high:
             return np.array([_CHARGE_HIGH, _DISCHARGE_LOW], dtype=np.float32)
-        average = _read(obs, "avg_lmp_norm")
+        average = _read(obs, "avg_lmp_hist_norm")
         price = _read(obs, "last_lmp_norm")
         if average > 0 and price <= cheap * average:
             return np.array([_CHARGE_LOW + 0.2 * (_CHARGE_HIGH - _CHARGE_LOW),
@@ -125,7 +126,7 @@ def myopic_policy(band: float = 0.05) -> Policy:
     one stated above the rule policy.
     """
     def policy(obs: np.ndarray) -> Action:
-        average = _read(obs, "avg_lmp_norm")
+        average = _read(obs, "avg_lmp_hist_norm")
         price = _read(obs, "last_lmp_norm")
         if average <= 0:
             return _TRUTHFUL.copy()

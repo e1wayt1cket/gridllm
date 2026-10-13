@@ -145,7 +145,20 @@ def get_obs_spec(name: str) -> ObservationSpec:
     return OBS_SPECS[name]
 
 
-# Current compact observation (V3): 3 unique + 9 shared = 12 dims.
+# Retired compact observation (V3): 3 unique + 9 shared = 12 dims.
+#
+# **Its `avg_lmp_norm` was not causal.** The environment filled it from
+# `np.mean(self.wholesale)`, the mean of the *whole day's* realized external
+# price, and used the same whole-day mean as the denominator of
+# `last_lmp_norm` and `pred_lmp_norm` and as the block-0 value of `last_lmp`
+# (and so of `ema_dev`). An agent bidding at block 0 therefore saw a statistic
+# of periods it had not reached -- four of the twelve features carried
+# whole-day information. V4 replaces it; see `OBS_V4`.
+#
+# Kept registered so a policy trained under it can still be *identified* by its
+# recorded metadata, and so `load_policy` fails loudly on the name mismatch
+# instead of silently reinterpreting an old actor under the new layout. Nothing
+# selects it by default.
 OBS_V3 = ObservationSpec(
     name="v3_12d",
     version=3,
@@ -167,6 +180,40 @@ OBS_V3 = ObservationSpec(
     ),
 )
 register_obs_spec(OBS_V3)
+
+
+#: Current compact observation (V4): 3 unique + 9 shared = 12 dims.
+#:
+#: Differs from V3 in one feature's *meaning* and in every price normalizer:
+#: `avg_lmp_hist_norm` is the mean of the LMPs **observed so far this episode**
+#: (an empty history falls back to `rl_env.PRICE_REF_CNY_MWH`, a frozen
+#: constant), and every price ratio divides by that same constant rather than
+#: by the day's realized mean. So an observation taken before a decision is a
+#: function of the past alone. The feature is renamed rather than kept, because
+#: the name is the only thing that tells a reader which of the two quantities is
+#: in the vector, and a silent reuse of `avg_lmp_norm` is exactly the failure
+#: this version exists to prevent.
+OBS_V4 = ObservationSpec(
+    name="v4_12d",
+    version=4,
+    unique_features=(
+        FeatureSpec("load_feat"),
+        FeatureSpec("re_feat"),
+        FeatureSpec("soc"),
+    ),
+    shared_features=(
+        FeatureSpec("last_lmp_norm"),
+        FeatureSpec("block_pos"),
+        FeatureSpec("avg_lmp_hist_norm"),
+        FeatureSpec("slr_norm"),
+        FeatureSpec("avg_other_bid"),
+        FeatureSpec("bid_std"),
+        FeatureSpec("ema_dev"),
+        FeatureSpec("price_trend"),
+        FeatureSpec("pred_lmp_norm"),
+    ),
+)
+register_obs_spec(OBS_V4)
 
 # The non-storage action space: a multiplier on the agent's own declared price
 # and an adder to its own offer. Retained for load and prosumer participants,
