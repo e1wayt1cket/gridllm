@@ -78,6 +78,15 @@ def _load_price_curves(workbook: Optional[str] = None):
         ok = arr.shape == (N_SLOTS,) and _finite(arr)
         check["curves"][name] = {
             "role": c.role,
+            "source_kind": c.source_kind,
+            "spatial_statistic": c.spatial_statistic,
+            "temporal_statistic": c.temporal_statistic,
+            "window_days": c.window_days,
+            "is_single_day": c.is_single_day,
+            "externally_confirmed": c.externally_confirmed,
+            # Deprecated compatibility copy. It says the source is real measured
+            # data -- true for all four -- NOT that the curve is one day; see
+            # dianyicha_price.DEPRECATED_FIELDS.
             "is_measured": c.is_measured,
             "header_label": c.provenance.get("header_label"),
             "workbook_sha256": c.provenance.get("workbook_sha256"),
@@ -447,12 +456,20 @@ def run_acceptance(workbook: Optional[str] = None,
                                                   for b in breakdown.values())),
     }
     report["arbitrage"] = _arbitrage_diagnosis(result, agents, config)
+    declared = price_check["curves"][SHEETS[curve_index]]
     report["provenance"] = {
-        "workbook_sha256": price_check["curves"][SHEETS[curve_index]]["workbook_sha256"],
+        "workbook_sha256": declared["workbook_sha256"],
         "shapes_file_sha256": _sha256(Path(shapes_path)),
         "curve_sheet": SHEETS[curve_index],
-        "curve_role": price_check["curves"][SHEETS[curve_index]]["role"],
-        "curve_is_measured": price_check["curves"][SHEETS[curve_index]]["is_measured"],
+        "curve_role": declared["role"],
+        "curve_source_kind": declared["source_kind"],
+        "curve_spatial_statistic": declared["spatial_statistic"],
+        "curve_temporal_statistic": declared["temporal_statistic"],
+        "curve_window_days": declared["window_days"],
+        "curve_is_single_day": declared["is_single_day"],
+        "curve_externally_confirmed": declared["externally_confirmed"],
+        # Deprecated compatibility copy; not a single-day statement.
+        "curve_is_measured": declared["is_measured"],
         "dt_hours": money.DT_HOURS,
         "units": "CNY/MWh",
         "profit_definition": (
@@ -536,8 +553,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"scenario            : {report['scenario']['name']}")
     print(f"curve               : {report['declared_curve']['resolved_sheet']}"
           f" (index {report['declared_curve']['wholesale_curve_index']}, "
-          f"{report['provenance']['curve_role']}, "
-          f"is_measured={report['provenance']['curve_is_measured']})")
+          f"temporal={report['provenance']['curve_temporal_statistic']}"
+          f"/days={report['provenance']['curve_window_days']}, "
+          f"spatial={report['provenance']['curve_spatial_statistic']}, "
+          f"single_day={report['provenance']['curve_is_single_day']})")
     print(f"coincident peak     : {report['load_check']['coincident_peak_mw']:.6f} MW"
           f"  (target {report['load_check']['network_nominal_demand_mw']:.6f})")
     print(f"settled (clean={sp['clean']}) : "

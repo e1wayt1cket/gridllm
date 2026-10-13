@@ -258,7 +258,14 @@ def run_comparison(T: int = 96) -> dict:
 
         entry = {
             "sheet": sheet,
-            "role": ROLES.get(sheet, "unspecified_mean"),
+            "role": ROLES.get(sheet, "unspecified"),
+            "source_kind": curve.source_kind,
+            "spatial_statistic": curve.spatial_statistic,
+            "temporal_statistic": curve.temporal_statistic,
+            "window_days": curve.window_days,
+            "is_single_day": curve.is_single_day,
+            "externally_confirmed": curve.externally_confirmed,
+            # Deprecated compatibility copy; not a single-day statement.
             "is_measured": curve.is_measured,
             "stats": curve.stats(),
             "workbook_sha256": curve.provenance.get("workbook_sha256"),

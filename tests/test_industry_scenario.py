@@ -312,8 +312,13 @@ def test_the_declared_curve_prices_the_day(built):
     index = int(get_scenario_cfg(SCENARIO)["wholesale_curve_index"])
     curve = read_curves()[SHEETS[index]]
     np.testing.assert_allclose(wholesale, curve.array())
-    # ...and it is a mean, not a measured day.
-    assert curve.is_measured is False
+    # ...and the curve is a single day that is spatially averaged, read as one
+    # day by project ruling rather than confirmed from outside. The scenario is
+    # priced by a SPATIAL mean, so no bus is represented by it.
+    assert curve.is_single_day is True
+    assert curve.temporal_statistic == "single_day"
+    assert curve.spatial_statistic == "spatial_mean"
+    assert curve.externally_confirmed is False
 
 
 def test_the_declared_source_is_the_real_price_reader():

@@ -19,8 +19,12 @@ also satisfy:
   that silently returned nothing would produce it too -- so a control with a
   wide price band is asserted to return a large positive number beside it.
 
-The four curves are means, not days. Nothing here is a cross-day statistic and
-no test constructs one.
+All four curves are **spatial** means, so none of them represents a bus or a
+zone. On the temporal axis `261009` is a single day and the other three are
+window means, read from `temporal_statistic` -- the retired `is_measured` flag
+answers a different question ("is the source real measured data") and is true
+for all four. One day plus three window means is not a series, so nothing here
+is a cross-day statistic and no test constructs one.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -394,7 +398,10 @@ def test_phase_1_to_6_interfaces_are_intact():
     assert callable(il.load_shapes_csv)
     assert dp.SHEETS == SHEETS
     for name, c in dp.read_curves().items():
-        assert c.is_measured is False, name
+        # Taxonomy sanity, not a single-day claim: every curve is real measured
+        # data and declares a closed-vocabulary temporal statistic.
+        assert c.source_kind == "real_market_data", name
+        assert c.temporal_statistic in dp.TEMPORAL_STATISTICS, name
 
     reload_defaults()
     import wholesale_price as wp

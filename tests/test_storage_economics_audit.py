@@ -378,12 +378,61 @@ def test_a_policy_with_no_recorded_provenance_is_not_refused(day):
 
 
 def test_a_matching_spec_is_accepted(day):
-    from rl_spec import OBS_V3
+    """A policy cached under the environment's own observation spec is applied;
+    one cached under a different spec is refused.
+
+    The refusal half is the load-bearing one. `OBS_V3` fed
+    `avg_lmp_norm` from the whole day's realized price, so a V3 actor was
+    trained on a vector this environment no longer produces; applying it
+    silently would be a contract error dressed as a performance result.
+    """
+    from rl_spec import OBS_V4
     from strategies.rl_bidding import _reject_foreign_cached_policies
-    rb._TRAINED_POLICIES["ESS9"] = _actors(["ESS9"])["ESS9"]
-    rb._record_provenance(["ESS9"], source="x",
-                          meta={"obs_spec": {"name": OBS_V3.name}})
-    _reject_foreign_cached_policies(rb._TRAINED_POLICIES, day["agents"])
+    try:
+        rb._TRAINED_POLICIES["ESS9"] = _actors(["ESS9"])["ESS9"]
+        rb._record_provenance(["ESS9"], source="x",
+                              meta={"obs_spec": {"name": OBS_V4.name}})
+        _reject_foreign_cached_policies(rb._TRAINED_POLICIES, day["agents"])
+    finally:
+        rb._TRAINED_POLICIES.pop("ESS9", None)
+
+
+def test_a_v3_policy_is_refused_by_the_v4_environment(day):
+    """The retired contract is recorded, not reinterpreted.
+
+    This is what makes the surviving `policies/formal_v0_1_seed*` checkpoints
+    safe to keep on disk: they are identifiable as V3, and nothing can quietly
+    run them under a layout they were not trained on.
+    """
+    import pytest
+    from rl_spec import OBS_V3, OBS_V4
+    from strategies.rl_bidding import _reject_foreign_cached_policies
+    assert OBS_V3.name != OBS_V4.name
+    try:
+        rb._TRAINED_POLICIES["ESS9"] = _actors(["ESS9"])["ESS9"]
+        rb._record_provenance(["ESS9"], source="x",
+                              meta={"obs_spec": {"name": OBS_V3.name}})
+        with pytest.raises(ValueError, match="observation spec"):
+            _reject_foreign_cached_policies(rb._TRAINED_POLICIES,
+                                           day["agents"])
+    finally:
+        rb._TRAINED_POLICIES.pop("ESS9", None)
+
+
+def test_the_v3_checkpoint_dirs_are_recorded_as_v3(tmp_path):
+    """A policy file saved under the retired spec cannot be loaded as V4.
+
+    Asserted on a file rather than only on the in-memory cache: the on-disk
+    checkpoints in `policies/` are what this protects.
+    """
+    import torch
+    from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V3, OBS_V4
+    path = tmp_path / "v3.pt"
+    _save(path, ["ESS9"], OBS_V3, ACTION_STORAGE_QUOTE_V2)
+    bounds = torch.tensor([[-1.0, -1.0], [1.0, 1.0]])
+    with pytest.raises(ValueError, match="observation spec"):
+        rb.load_policies(str(path), 12, bounds,
+                         obs_spec=OBS_V4, action_spec=ACTION_STORAGE_QUOTE_V2)
 
 
 def test_an_action_spec_mismatch_on_load_raises(tmp_path):
@@ -514,7 +563,9 @@ def test_phase_2_interface_is_intact():
     assert dp.SHEETS == ("261009", "7days", "30days", "halfyear")
     curves = dp.read_curves()
     for name, c in curves.items():
-        assert c.is_measured is False, name
+        # Taxonomy sanity, not a single-day claim.
+        assert c.source_kind == "real_market_data", name
+        assert c.temporal_statistic in dp.TEMPORAL_STATISTICS, name
 
 
 def test_phase_4_scenario_is_intact():

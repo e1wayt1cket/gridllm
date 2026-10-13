@@ -68,9 +68,15 @@ def test_all_four_price_curves_read_with_correct_metadata(report):
         assert c["n_slots"] == 96
         assert c["valid"] is True
         assert c["units"] == "CNY/MWh"
-        assert c["is_measured"] is False, name
         assert c["interval_convention"] == "label_is_interval_end"
         assert c["workbook_sha256"]
+        # The two statistics, kept apart: every curve is a spatial mean, and
+        # the temporal statistic is what separates them.
+        assert c["source_kind"] == "real_market_data", name
+        assert c["spatial_statistic"] == "spatial_mean", name
+        assert c["temporal_statistic"] in ("single_day", "window_mean"), name
+        assert c["window_days"] in (1, 7, 30, 180), name
+        assert c["is_single_day"] == (c["temporal_statistic"] == "single_day")
     # The header's own wording survives, including the 均值 on the chosen sheet.
     assert "均值" in curves["261009"]["header_label"]
 
@@ -101,11 +107,22 @@ def test_the_price_matches_the_workbook(report):
     assert pc["mean"] == pytest.approx(386.83, abs=0.01)
 
 
-def test_the_curve_never_reaches_the_fleet_as_a_measured_day(report):
-    """`261009` derives from real market data but its aggregation is unsettled,
-    so it is not treated as a confirmed daily series."""
-    assert report["provenance"]["curve_is_measured"] is False
-    assert report["provenance"]["curve_role"] == "same_day_or_same_day_mean"
+def test_the_curve_reaches_the_fleet_as_a_ruled_single_day(report):
+    """`261009` is a real single day that is **spatially averaged**, and its
+    single-day reading is a project ruling -- the header's 均值 is read as a
+    spatial mean, and the workbook cannot confirm it. The run records the
+    ruling and leaves `externally_confirmed` False.
+    """
+    prov = report["provenance"]
+    assert prov["curve_is_single_day"] is True
+    assert prov["curve_temporal_statistic"] == "single_day"
+    assert prov["curve_spatial_statistic"] == "spatial_mean"
+    assert prov["curve_window_days"] == 1
+    assert prov["curve_externally_confirmed"] is False
+    assert prov["curve_role"] == "single_day_spatial_mean"
+    # The deprecated copy is still carried, and is explicitly not a single-day
+    # statement -- it is True because the source is real measured data.
+    assert prov["curve_is_measured"] is True
 
 
 # ---------------------------------------------------------------------------

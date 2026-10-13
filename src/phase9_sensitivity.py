@@ -379,7 +379,14 @@ def price_scenarios(T: int = 96) -> dict:
         price = run["wholesale"]
         nodal = _nodal_margins(run["lmp"], unit, cycle_cost)
         out[sheet] = {
-            "role": ROLES.get(sheet),
+            "role": ROLES.get(sheet, "unspecified"),
+            "source_kind": curves[sheet].source_kind,
+            "spatial_statistic": curves[sheet].spatial_statistic,
+            "temporal_statistic": curves[sheet].temporal_statistic,
+            "window_days": curves[sheet].window_days,
+            "is_single_day": curves[sheet].is_single_day,
+            "externally_confirmed": curves[sheet].externally_confirmed,
+            # Deprecated compatibility copy; not a single-day statement.
             "is_measured": curves[sheet].is_measured,
             "workbook_sha256": curves[sheet].provenance.get("workbook_sha256"),
             "header_label": curves[sheet].provenance.get("header_label"),
