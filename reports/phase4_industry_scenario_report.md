@@ -1,5 +1,16 @@
 # Phase 4 — IEEE 33-bus Industry-Shape Scenario
 
+> **Correction (2026-10-12) — two averaging axes were conflated here.** Where
+> this report says the price material is a mean and not a single day's series,
+> it is collapsing two separate facts. All four curves are **spatial** means
+> (`spatial_statistic: spatial_mean`), so none represents a bus or a zone; on
+> the **temporal** axis `261009` is a **single day** and the other three are
+> means over 7 / 30 / 180 days. `261009`'s single-day reading is a **project
+> ruling**, not an external confirmation. The scenario is therefore priced by a
+> single day's *spatially averaged* curve, which is a stronger statement than
+> "a mean", and a weaker one than "a settled bus price". Measurements below are
+> kept as recorded. Current reading: `reports/final_research_summary.md` §2.1.
+
 Delivers the `typical_day_industry` scenario: the IEEE 33-bus at its own
 declared scale, with each bus's **intraday load shape** taken from the metered
 Jiangsu industry curves instead of from the synthesised profile.

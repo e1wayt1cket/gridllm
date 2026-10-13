@@ -1,5 +1,20 @@
 # Phase 2 — 电易电查 Price Adapter
 
+> **Correction (2026-10-12) — two averaging axes were conflated here.** This
+> report reads 均值 as a *temporal* mean and so concludes every curve is a mean.
+> The workbook answers two different questions. **Space:** all four curves are
+> `spatial_mean` — each 96-point series is an average across locations, so none
+> of them represents a bus, zone or settlement point; the extent and weighting
+> are not recorded in the file. **Time:** `261009` is a **single day**, and
+> `7days` / `30days` / `halfyear` are means over 7 / 30 / 180 days.
+> `261009`'s single-day reading is a **project ruling** that reads its header's
+> 均值 as a *spatial* mean, not an external confirmation. The limitation this
+> report states survives for a sharper reason: one day plus three window means
+> is still not a *series* of daily prices, so there is still no basis for a
+> train/validation/test split over real prices. The measurements below are kept
+> exactly as recorded. Current reading: `reports/final_research_summary.md`
+> §2.1; `temporal_statistic` is the sole authority for single-day identity.
+
 Delivers `src/dianyicha_price.py` (the reader) and
 `wholesale_price.DianyichaPriceProvider` (the registered source), plus the
 `dianyicha` configuration and the data-source note.

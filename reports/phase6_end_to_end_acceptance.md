@@ -1,5 +1,18 @@
 # Phase 6 — Single-Scenario End-to-End Acceptance
 
+> **Correction (2026-10-12) — two averaging axes were conflated here.** This
+> report carries `is_measured: false` as evidence that the price curve is "not
+> a measured day". That field no longer means that, and no longer can: it now
+> says the source is real measured data, which is true of all four curves. The
+> curve this run clears on, `261009`, **is** a single day
+> (`temporal_statistic: single_day`) — it is *spatially* averaged, and its
+> single-day reading is a **project ruling** rather than an external
+> confirmation. The acceptance evidence is unchanged; its metadata labels are
+> now `curve_temporal_statistic`, `curve_spatial_statistic`, `curve_window_days`
+> and `curve_externally_confirmed`, with `curve_is_measured` retained only as a
+> deprecated compatibility copy. Numbers below are kept as recorded. Current
+> reading: `reports/final_research_summary.md` §2.1.
+
 One representative price scenario run through the whole chain: metered industry
 load shapes, the IEEE 33-bus network, the independent storage fleet, a 96-period
 SOCP clearing, and the shared settlement.

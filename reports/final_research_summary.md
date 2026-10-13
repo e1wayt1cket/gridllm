@@ -45,31 +45,45 @@ positionally onto periods with no shift.
 
 **Provenance, as far as it can be established.**
 
-| sheet | source | aggregation | window | role |
-|---|---|---|---|---|
-| `261009` | real market data | **unresolved** | — | `same_day_or_same_day_mean` |
-| `7days` | real market data | trailing mean | 7 days | `trailing_7_day_mean` |
-| `30days` | real market data | trailing mean | 30 days | `trailing_30_day_mean` |
-| `halfyear` | real market data | trailing mean | ~180 days | `trailing_180_day_mean` |
+Four questions, answered separately — and they have to be, because one axis
+cannot carry them: a curve is routinely both spatially averaged *and* a single
+day, which is exactly the case here and exactly what a single "aggregation"
+axis could not express.
+
+| sheet | source | spatial | temporal | window | role |
+|---|---|---|---|---|---|
+| `261009` | real measured market data | `spatial_mean` | **`single_day`** | 1 day | `single_day_spatial_mean` |
+| `7days` | real measured market data | `spatial_mean` | `window_mean` | 7 days | `trailing_7_day_mean` |
+| `30days` | real measured market data | `spatial_mean` | `window_mean` | 30 days | `trailing_30_day_mean` |
+| `halfyear` | real measured market data | `spatial_mean` | `window_mean` | ~180 days | `trailing_180_day_mean` |
 
 Statistics: `261009` 225.90 / 445.00 / 386.83 (min / max / mean); `7days`
 257.50 / 477.87 / 395.55; `30days` 333.08 / 450.86 / 407.82; `halfyear`
 284.93 / 393.86 / 346.33.
 
-**All four derive from real historical market data.** They differ in
-aggregation, not in provenance.
+**All four are `spatial_mean` over real measured market data.** Each 96-point
+series is an average across locations, so **none of them represents a bus, a
+zone or a settlement point**, and no result here may be read as a locational
+price. What separates the four curves is the **temporal** statistic alone.
 
-**`261009`'s aggregation is unresolved and is not resolved by assumption.**
-Its sheet name carries the date 26/10/09; its column header says
-`日前均值（CNY/MWh）`, "day-ahead mean". Two readings are consistent with the
-file and nothing in it distinguishes them: the 96 actual period prices for that
-date, or a statistical single-day mean over some set. The workbook's own
-`docProps` record a personal author and a creation date (2023-05-12) well before
-the sheet's named date, which is what establishes it as a **hand-assembled
-extraction** rather than a platform export, and is in turn why no window dates
-are present. Settling it needs the provider's own definition of the column.
+**The spatial extent, the weighting and the number of points behind each
+average are not recorded in the workbook** and are left unverified rather than
+assumed — `spatial_reference` is `None` on every curve.
 
-Four further readings of the file were taken, and **none of them settles it**:
+**`261009`'s single-day reading is a project ruling, not an external
+confirmation.** Its sheet name carries the date 26/10/09; its column header says
+`日前均值（CNY/MWh）`, "day-ahead mean". Read as a *temporal* mean the header
+would make the sheet a day-mean; the project reads that 均值 as a *spatial* mean
+and the named date as the day the curve covers, so `261009` is recorded as
+`temporal_statistic: single_day`. The workbook cannot settle it: its `docProps`
+record a personal author and a creation date (2023-05-12) well before the
+sheet's named date, which establishes it as a **hand-assembled extraction**
+rather than a platform export, and is in turn why no window dates are present.
+`externally_confirmed` is therefore `False` on `261009` and `declared_by` names
+the ruling. Settling it would need the provider's own definition of the column.
+
+Four further readings of the file were taken. They are consistent with the
+ruling but **none of them confirms it**, which is why it is recorded as a ruling:
 
 - **Its period column names the date.** `261009`'s column A reads
   `时段（26/10/09）`, "periods (26/10/09)"; the other three read only `时段`.
@@ -91,12 +105,20 @@ Four further readings of the file were taken, and **none of them settles it**:
 export metadata exist to break the tie** — verified against the workbook's own
 parts, not inferred from the visible sheets.
 
-**The conservative reading is taken**: `is_measured` is `False` for every curve,
-meaning *not confirmed to be a single day's measured series*. For the three
-trailing sheets that is because they are means; for `261009` it is because its
-aggregation is unsettled. `describe()` publishes
-`contains_confirmed_daily_series: false` and each curve's `aggregation`, so no
-report can present a mean — or an unresolved curve — as an observation.
+**What this does and does not license.** `temporal_statistic` is the **sole
+authority** for single-day identity, and `describe()` publishes it per curve
+alongside `spatial_statistic`, `window_days`, `externally_confirmed` and
+`declared_by`. The retired `is_measured` flag is **deprecated** and now means
+"the underlying source is real measured market data" — true for all four curves,
+so it must not be read as a single-day claim; its semantics travel beside it in
+the payload for one compatibility window.
+
+`contains_single_day_curve` is `True` and `contains_multi_day_series` is
+`False`. Those are different questions and the retired single flag could not
+hold both: **one day plus three window means is still not a series of daily
+prices**, so the binding limitation stands unchanged — no cross-day statistic, no
+volatility, no generalisation claim, and no train/validation/test split over
+real prices.
 
 **Unverified.** The trailing windows' **end dates**. The workbook does not state
 them; they are recorded as `None` rather than invented. Until a platform record
@@ -339,14 +361,39 @@ or failed an SOC check.
 
 ## 7. MATD3
 
-**No MATD3 policy was trained, loaded or evaluated.** The code is retained and
-unexercised; none of the 45 directories under `policies/` carries a checkpoint
-for `ESS9`/`ESS14`/`ESS17`/`ESS27`. **No performance claim of any kind is
-available**, and none is made.
+**No MATD3 performance claim of any kind is available, and none is made.**
 
-The reason is a data limit, not a modelling choice: the price material is four
-curves whose aggregation is a mean or unresolved, so there is no measured daily
-series to build a train / validation / test split over, and repeating one day's
+An earlier version of this section said that no ESS checkpoint existed at all.
+**That was wrong**, and the correction changes what the next step is.
+
+**Contract-compatible checkpoints do exist.** Seven of the 45 directories under
+`policies/` carry checkpoints for the ESS fleet: `formal_v0_1_seed{1..5}`
+(`ESS*_ckpt_{50..450}.pt` plus `best/ESS*.pt`) and `protocol_smoke_v0_1` /
+`protocol_smoke_v0_1_lambda010` (final, `best/` and `last/`). Every one loads
+with `obs_spec: v3_12d`, `action_spec: storage_quote_v2`, `charge_price
+[0, 150]`, `discharge_price [0, 300]` and truthful `(0, 0)` — the **current**
+contract, not a retired one. Reading `is_measured` or grepping directory
+*names* for "ess" both miss them; the files are named after the agents.
+
+**Contract compatibility is not training completion, and is not evidence of
+performance.** `formal_v0_1_seed{1..5}` was launched 2026-09-22 13:11 at 800
+episodes per seed (λ = 0.10, `--day-rotation on`, `typical_day`) and **stopped
+at episode 450/800**. Its `logs/formal_v0_1_provenance.tsv` carries only a header
+row, none of its five run directories was materialised, `formal_v0_1_chain.log`
+holds `START` with no `END`, and no seed wrote a final or `last/` policy. The
+two `protocol_smoke_v0_1*` runs did complete, but at 40-episode smoke scale, and
+the first used the retired λ = 0.25.
+
+**So no completed formal MATD3 run exists** — which is the state this section
+should have reported. What the surviving checkpoints are actually worth is an
+open measurement requiring a paired settlement against the truthful baseline;
+that diagnosis has not been run. They are **not** deleted, overwritten or
+resumed, and nothing here asserts they are usable or unusable.
+
+The reason no formal training is appropriate yet is unchanged, and is a data
+limit rather than a modelling choice: one real day plus three window means
+(§2.1) is not a measured daily series, so there is no basis for a
+train / validation / test split over real prices, and repeating one day's
 episodes would dress single-day fitting as generalisation.
 
 ---
@@ -490,6 +537,7 @@ documents disagreed with each other about what the price sheet is.
 |---|---|
 | `requirements.txt` | `openpyxl` declared; it was required by both workbook readers and listed nowhere |
 | `src/dianyicha_price.py` | the module docstring no longer asserts "all four are means" — it now carries the same unresolved-aggregation reading as `CURVE_META`, which it had contradicted |
+| `src/dianyicha_price.py` | §2.1's two-axis revision: `source_kind` / `spatial_statistic` / `temporal_statistic` / `window_days` are declared per curve; `temporal_statistic` is the sole authority for single-day identity; `is_measured`, `aggregation`, `mean_window_days` and the two `contains_*_series` flags are demoted to derived / deprecated properties published with their new meanings under `DEPRECATED_FIELDS`. `261009` reads `single_day`/`spatial_mean` by ruling with `externally_confirmed: false`. No price, objective, cost or measured value changed — phases 6, 7 and 9 re-run byte-identically. |
 | `src/phase9_sensitivity.py` | `load_shape` now keeps `required_margin` and `nodal_per_bus`, so §6.3's table is a reading of the artefact rather than a transcribed figure |
 | `tests/test_phase9_sensitivity.py` | new test re-derives the configured buses' margins from their own prices |
 | `reports/phase8_data_limitations.md` | floor synced to the derived one — this report had been missed by the earlier sync |
@@ -546,7 +594,8 @@ carried to four decimals rather than rounded to 200.
 | item | needs |
 |---|---|
 | the trailing curves' window start/end dates | the price platform |
-| what `261009` is at the platform, and whether it is a day or a day-mean | the provider's column definition |
+| whether `261009` really is one day — the project reads its header's 均值 as a *spatial* mean and records it as `single_day` by ruling, with `externally_confirmed: false` | the provider's column definition |
+| how each curve's spatial mean was taken — extent, weighting, number of points | the provider's methodology note |
 | whether the spot market has completed its formal-operation switch, and the effective rule version | 江苏电力交易中心 / 江苏能源监管办 |
 | storage-specific day-ahead declaration and settlement rules | an official storage document |
 | the currently effective price limits | the operative notice's original text |

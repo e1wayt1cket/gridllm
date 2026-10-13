@@ -1,5 +1,16 @@
 # Finalization Audit
 
+> **Correction (2026-10-12) — the price rows conflate two averaging axes.**
+> Where this audit records the four curves as means and `261009` as an
+> unresolved aggregation, it is answering two questions as one. All four are
+> **spatial** means (`spatial_statistic: spatial_mean`); on the **temporal**
+> axis `261009` is a **single day** and the other three are means over 7 / 30 /
+> 180 days. `261009`'s single-day reading is a **project ruling**, not an
+> external confirmation, and the audit's own finding stands: the workbook
+> carries no platform export metadata, so the file alone cannot settle it.
+> The accounting and coverage findings below are untouched. Current reading:
+> `reports/final_research_summary.md` §2.1.
+
 Phase-0 reconnaissance for the IEEE 33-bus storage-bidding finalization. This
 records what the code and data actually are, and where they disagree with the
 planning documents. Nothing here is a proposed change; the change list is

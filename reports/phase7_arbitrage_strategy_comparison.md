@@ -1,5 +1,19 @@
 # Phase 7 — Arbitrage Reference Bound and Three-Strategy Comparison
 
+> **Correction (2026-10-12) — two averaging axes were conflated here.** Where
+> this report says the four curves are all means, it is answering only the
+> *temporal* question and answering it wrongly for `261009`. All four are
+> **spatial** means (`spatial_statistic: spatial_mean`), so no bus or zone is
+> represented by any of them; on the **temporal** axis `261009` is a **single
+> day** and `7days` / `30days` / `halfyear` are means over 7 / 30 / 180 days
+> (`temporal_statistic`). `261009`'s single-day reading is a **project ruling**,
+> not an external confirmation. The zero this phase measures is unaffected: it
+> follows from the curve's own min/max against the 200.6957 CNY/MWh break-even
+> floor, which does not depend on how the averaging is described. Every profit,
+> margin and intent figure below is kept exactly as recorded — the `traded`
+> column is a *single unit's* charge (ESS9), not fleet throughput. Current
+> reading: `reports/final_research_summary.md` §2.1 and §6.
+
 Four price curves, three bidding strategies, one frozen configuration. No MATD3
 policy was trained or loaded, and no capacity, siting or threshold was moved.
 

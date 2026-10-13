@@ -1,5 +1,27 @@
 # Phase 8 — Data Limitations, Findings and the Boundary of What May Be Claimed
 
+> **Correction (2026-10-12) — the price rows below conflate two axes.** The
+> tables and the **[CONFIRMED]** statement read 均值 as a *temporal* mean, which
+> is why they conclude that no measured daily series exists and that every
+> curve is a mean. Two questions are being answered as one. **Space:** all four
+> curves are `spatial_mean` — an average across locations, so no bus, zone or
+> settlement point is represented by any of them, and the spatial extent and
+> weighting are not recorded in the workbook. **Time:** `261009` is a **single
+> day**; `7days` / `30days` / `halfyear` are means over 7 / 30 / 180 days.
+> `261009`'s single-day reading is a **project ruling** that reads its header's
+> 均值 as a *spatial* mean, not an external confirmation, and the workbook
+> cannot settle it.
+>
+> **Every limitation below survives**, and the binding one survives for a
+> sharper reason: one day plus three window means is still not a *series* of
+> daily prices, so there is still no basis for a train/validation/test split
+> over real prices and no cross-day statistic can be reported. The
+> `is_measured` column is deprecated — it now means "the source is real
+> measured data" and is true for all four curves — so it must not be read as a
+> single-day claim; `temporal_statistic` is the sole authority for that.
+> Measurements are kept exactly as recorded. Current reading:
+> `reports/final_research_summary.md` §2.1.
+
 This document is the declaration boundary for the project's final report and
 delivery. Every statement below is tagged with how it is known, so a reader can
 tell a fact from a finding from a guess:

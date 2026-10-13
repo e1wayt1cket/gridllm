@@ -1,5 +1,21 @@
 # Phase 9 — Load, Capacity, Siting and Price-Scenario Sensitivity
 
+> **Correction (2026-10-12) — two averaging axes were conflated here.** This
+> report treats the four price scenarios as one kind of object ("the mean
+> curves"). They share one property and differ in another. All four are
+> **spatial** means (`spatial_statistic: spatial_mean`), so no bus or zone is
+> represented by any of them; they differ on the **temporal** axis, where
+> `261009` is a **single day** and `7days` / `30days` / `halfyear` are means
+> over 7 / 30 / 180 days (`temporal_statistic`, also emitted per scenario in
+> `outputs/phase9_sensitivity.json`). `261009`'s single-day reading is a
+> **project ruling**, not an external confirmation. None of the conclusions
+> move: the capacity result (the bound is bit-identical from 0.2 MW / 1.6 MWh
+> to 10 MW / 100 MWh), the siting result and the 0-of-33-buses-clearing screen
+> all follow from the curves' own min/max against the 200.6957 CNY/MWh
+> break-even floor, which does not depend on how the averaging is described.
+> Figures below are kept exactly as recorded. Current reading:
+> `reports/final_research_summary.md` §2.1 and §6.
+
 Four sensitivities, one frozen configuration, no MATD3.
 
 This phase runs in **two steps** by design: a feasibility screen decides how
