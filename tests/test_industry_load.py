@@ -465,6 +465,75 @@ def test_ratio_evidence_counts_both_verdicts():
 
 
 # ---------------------------------------------------------------------------
+# The qualified subset: the gate the absolute load has to pass
+# ---------------------------------------------------------------------------
+
+def _one_day(meter="M1", account="A", **kwargs):
+    """One meter, one date -- a single block unless a second row is added."""
+    return mk(account=account, meter=meter, **kwargs)
+
+
+def test_a_meter_whose_peak_contradicts_capacity_is_not_qualified():
+    """max|slot| * ratio * 4 / running = 1.0 * 1e6 * 4 / 1000, far past 1.5x."""
+    recs = flagged([_one_day(meter="M1", ratio=1_000_000.0, running=1000.0)])
+    verdicts = il.qualified_meters(recs)
+    assert verdicts[_one_day(meter="M1").meter_key]["qualified"] is False
+    assert il.qualified_records(recs) == []
+    assert il.qualified_block_keys(recs) == set()
+
+
+def test_a_meter_whose_ratio_cannot_be_read_is_not_qualified():
+    """Missing evidence is not a pass: the workbook not saying a meter's
+    magnitude is not the network agreeing with it."""
+    recs = flagged([_one_day(meter="M1", ratio=None)])
+    verdicts = il.qualified_meters(recs)
+    key = _one_day(meter="M1").meter_key
+    assert verdicts[key] == {"checkable": False, "qualified": False,
+                             "peak_ratio": None, "industry": "化工业"}
+    assert il.qualified_records(recs) == []
+
+
+def test_a_meter_whose_capacity_cannot_be_read_is_not_qualified():
+    recs = flagged([_one_day(meter="M1", running=None)])
+    assert il.qualified_meters(recs)[_one_day(meter="M1").meter_key]["qualified"] is False
+    assert il.qualified_records(recs) == []
+
+
+def test_a_clean_block_cannot_bypass_its_disqualified_meter():
+    """The gate is one decision per meter. A block carrying no flag of its own
+    must still be out when its meter is out -- otherwise the block-level route
+    would quietly overrule the meter-level one."""
+    recs = flagged([_one_day(meter="M1", ratio=1_000_000.0, running=1000.0)])
+    assert not (set(recs[0].flags) & set(il.SHAPE_DROP_FLAGS))
+    assert il.qualified_records(recs) == []
+
+
+def test_a_qualified_meter_still_needs_a_block_that_survives_the_pool():
+    """Both gates, not either: a good meter does not rescue a dropped block."""
+    good = flagged([_one_day(meter="M1", date=day(0))])
+    dead = flagged([_one_day(meter="M1", date=day(1),
+                             values=tuple([0.0] * N))])
+    assert il.qualified_block_keys(good + dead) == {(good[0].meter_key, day(0))}
+    # The meter itself is unaffected by one of its days being dropped.
+    assert il.qualified_meters(good + dead)[good[0].meter_key]["qualified"] is True
+
+
+def test_blocks_are_counted_as_pairs_not_as_records():
+    """The unit the ruling is stated in. A repeated meter-day is two records
+    and one block, and reporting the first as the second is the error the
+    screening report exists to prevent."""
+    once = _one_day(meter="M1", date=day(0), excel_row=2)
+    again = _one_day(meter="M1", date=day(0), excel_row=3,
+                     values=profile(60))
+    recs = flagged([once, again])
+    assert il.qualified_meters(recs)[once.meter_key]["qualified"] is True
+    assert recs[1].flags == (il.FLAG_DUPLICATE_CONFLICT,)
+    # Two records, one block: the conflict is kept, the block is counted once.
+    assert len(il.qualified_records(recs)) == 2
+    assert len(il.qualified_block_keys(recs)) == 1
+
+
+# ---------------------------------------------------------------------------
 # End to end against the real workbook
 # ---------------------------------------------------------------------------
 
@@ -499,3 +568,36 @@ def test_real_workbook_end_to_end(tmp_path):
     assert shapes.shapes["5G基站"].reliable is False
     # The workbook's 16 industries are all present.
     assert il.PV_INDUSTRY in shapes.shapes
+
+
+@pytest.mark.slow
+def test_real_workbook_qualified_subset_is_the_frozen_one():
+    """The frozen screening figures, re-derived from the source workbook.
+
+    These are the numbers the absolute-load ruling rests on, so they are
+    asserted from the file rather than quoted from a report. A change to a
+    tolerance, to a flag list, or to the workbook moves this test instead of
+    silently moving the dataset. The two units are asserted separately and
+    never as one number.
+    """
+    path = il.resolve_workbook()
+    if not path.exists():                       # pragma: no cover
+        pytest.skip("industry workbook not present")
+    assert il.file_sha256(path) == (
+        "63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb")
+
+    records = il.flag_records(list(il.iter_meter_days(str(path))))
+
+    verdicts = il.qualified_meters(records)
+    checked = [v for v in verdicts.values() if v["checkable"]]
+    assert len(verdicts) == 283
+    assert len(checked) == 200                   # the check can reach these
+    assert sum(1 for v in checked if v["qualified"]) == 87
+    assert sum(1 for v in checked if not v["qualified"]) == 113
+    assert len(verdicts) - len(checked) == 83    # and these it cannot
+
+    keys = il.qualified_block_keys(records)
+    assert len(keys) == 39_365                   # blocks, not records
+    assert len({k[0] for k in keys}) == 84
+    assert len({k[1] for k in keys}) == 730
+    assert len({md.account for md in il.qualified_records(records)}) == 36

@@ -15,11 +15,18 @@ per-meter scale, so a ratio that is wrong by a factor of a million moves the
 shape not at all. The ratio is only consulted where a magnitude is genuinely
 being judged, in `verify_ratios`, and there it is reported rather than trusted.
 
-*Absolute MW* is deliberately not built. `综合倍率` reconciles with the declared
-运行容量 for some meters and not others (5G基站 implies 2.3–2.6x its rating at a
-ratio of 1; several 化工/印刷 meters carry a ratio that implies hundreds of times
-theirs), so a global conversion to MW would be a fabricated quantity wearing a
-measured one's clothes. `absolute_mw` refuses by default and says why.
+*Absolute MW* is built from the **qualified subset** and nothing else. `综合倍率`
+reconciles with the declared 运行容量 for some meters and not others (5G基站
+implies 2.3–2.6x its rating at a ratio of 1; several 化工/印刷 meters carry a
+ratio that implies hundreds of times theirs), so converting the whole workbook
+to MW would be a fabricated quantity wearing a measured one's clothes.
+`absolute_mw` refuses by default and says why. What it refuses for is decided
+here: `qualified_meters` is the ratio/capacity gate, one verdict per meter, and
+`qualified_records` / `qualified_block_keys` are what clear both that gate and
+the shape pool. A meter whose ratio or capacity cannot be read is **not**
+qualified — the workbook not saying is not the network agreeing — and no block
+is ever admitted on its own while its meter is out, so the gate cannot decay
+into advice.
 
 Aggregation is hierarchical and equal-weighted at every level, because the
 workbook's row counts are not a sample design: 商业综合体2 contributes 15,867
@@ -674,6 +681,86 @@ def verify_ratios(records: Iterable[MeterDay]) -> Dict[str, object]:
     }
 
 
+def qualified_meters(records: Iterable[MeterDay]) -> Dict[str, Dict[str, object]]:
+    """The ratio/capacity gate, one verdict per meter.
+
+    A meter is qualified only when the check actually ran on it *and* its
+    implied peak fits 运行容量 within `CAPACITY_PEAK_TOLERANCE`. A meter whose
+    综合倍率 or 运行容量 is missing or unusable is reported `checkable False`
+    and is **not** qualified: the workbook not saying a meter's magnitude is
+    not the same as the network agreeing with it, and an unmeasured magnitude is
+    exactly what this gate keeps out of the absolute load. Such a meter is not
+    thereby accused of being wrong — its records survive untouched, and it can
+    be re-judged the day the missing information arrives.
+
+    Keyed by `MeterDay.meter_key`, so the verdict belongs to the meter and not
+    to any one of its days.
+    """
+    evidence = verify_ratios(records)
+    out: Dict[str, Dict[str, object]] = {}
+    for entry in evidence["per_meter"].values():
+        peak_ratio = float(entry["peak_ratio"])
+        out[entry["meter"]] = {
+            "checkable": True,
+            "qualified": peak_ratio <= CAPACITY_PEAK_TOLERANCE,
+            "peak_ratio": peak_ratio,
+            "industry": entry["industry"],
+        }
+    # A meter the check could not reach at all is a verdict too, and a negative
+    # one. Recording it explicitly is what keeps "unchecked" from being read as
+    # "clean" by a caller that only looks for failures.
+    for md in records:
+        out.setdefault(md.meter_key, {
+            "checkable": False,
+            "qualified": False,
+            "peak_ratio": None,
+            "industry": md.industry,
+        })
+    return out
+
+
+def qualified_records(records: Iterable[MeterDay]) -> List[MeterDay]:
+    """The formal absolute-load candidates, in the order they were read.
+
+    Both gates have to pass: the shape pool keeps the record (it carries none of
+    `SHAPE_DROP_FLAGS`), and the meter that metered it passes the ratio/capacity
+    check. The meter gate is decided once per meter and applied to every one of
+    its days, so a record is never admitted on its own while its meter is out —
+    which is the only way two gates compose without the weaker one quietly
+    becoming advisory.
+
+    What comes back is **records**, one per surviving workbook row. The unit the
+    ruling is stated in is the *block* — one meter on one date — and the two are
+    not the same number: a block is the set of records sharing a
+    `(meter_key, date)`, and the workbook repeats some of those rows on purpose
+    (a `duplicate_conflict` is two disagreeing profiles for one meter-day, and
+    collapsing them would invent a reading). Count blocks as
+    `len({(md.meter_key, md.date) for md in qualified_records(...)})`, never as
+    `len(qualified_records(...))`.
+
+    Advisory flags (`ratio_suspect`, `capacity_inconsistent`, a negative
+    reading, a disagreeing repeat) do not remove a record here. They are
+    reported, and tightening to exclude them is a separate decision with its own
+    cost.
+    """
+    records = list(records)
+    qualified = {meter for meter, verdict in qualified_meters(records).items()
+                 if verdict["qualified"]}
+    return [md for md in records
+            if md.meter_key in qualified
+            and not (set(md.flags) & set(SHAPE_DROP_FLAGS))]
+
+
+def qualified_block_keys(records: Iterable[MeterDay]) -> set:
+    """The qualified *blocks* as `(meter_key, date)` keys.
+
+    The unit the ruling is stated in, kept distinct from the records on purpose:
+    two functions rather than one, so a caller cannot reach for the record list
+    and report its length as a block count.
+    """
+    return {(md.meter_key, md.date) for md in qualified_records(records)}
+
+
 def absolute_mw(shapes: IndustryShapeSet,
                 bus_map: Dict[int, str],
                 bus_ratings_mw: Dict[int, float],
@@ -938,6 +1025,7 @@ def quality_report(shapes: IndustryShapeSet,
     add("| | |")
     add("|---|---|")
     add(f"| workbook | `{workbook}` |")
+    add(f"| workbook sha256 | `{shapes.meta.get('workbook_sha256', 'not recorded')}` |")
     add(f"| sheet | `{sheet}` |")
     add(f"| slots per row | {N_SLOTS} x {SLOT_MINUTES} min (00:00..23:45) |")
     add(f"| data rows read | {n_records:,} |")
@@ -1056,6 +1144,42 @@ def quality_report(shapes: IndustryShapeSet,
                 f"{e['peak_ratio']:,.1f}x |")
         add("")
 
+    # The two gates, and the two units their intersection is counted in. The
+    # meter count and the block count are different numbers, and quoting one
+    # while meaning the other is the mistake this section exists to prevent.
+    verdicts = qualified_meters(records)
+    block_keys = qualified_block_keys(records)
+    qualified = qualified_records(records)
+    pool_keys = {(md.meter_key, md.date) for md in records
+                 if not (set(md.flags) & set(SHAPE_DROP_FLAGS))}
+    add("## Qualified subset")
+    add("")
+    add("The formal absolute-load input is the intersection of two gates: the "
+        "shape pool above, and the per-meter ratio/capacity check. The check "
+        "runs on the **meter**; the pool runs on the **block**, one meter on "
+        "one date. Both counts are stated because they are different numbers.")
+    add("")
+    add("| | |")
+    add("|---|---|")
+    add(f"| meters, all | {len(verdicts):,} |")
+    add(f"| meters the check cannot reach | "
+        f"{sum(1 for v in verdicts.values() if not v['checkable']):,} |")
+    add(f"| **meters qualified** | **{sum(1 for v in verdicts.values() if v['qualified']):,}** |")
+    add(f"| blocks surviving the shape pool | {len(pool_keys):,} |")
+    add(f"| **blocks in the qualified subset** | **{len(block_keys):,}** |")
+    add(f"| meters contributing those blocks | "
+        f"{len({k[0] for k in block_keys}):,} |")
+    add(f"| users covered | {len({md.account for md in qualified}):,} |")
+    add(f"| dates covered | {len({k[1] for k in block_keys}):,} |")
+    add("")
+    add("A meter the check cannot reach is not qualified: missing information "
+        "is not a pass, though such a meter is not thereby accused of being "
+        "wrong, and its records are untouched. A block is never admitted on "
+        "its own while its meter is out, so the meter gate cannot decay into "
+        "advice. The ruling and the unit of each figure are recorded in "
+        "`docs/2026-10-14-data-and-experiment-decisions.md`.")
+    add("")
+
     add("## Aggregation")
     add("")
     add("Method: hierarchical equal-weighted mean (`hierarchical_mean`).")
@@ -1131,6 +1255,20 @@ def quality_report(shapes: IndustryShapeSet,
 # ---------------------------------------------------------------------------
 
 
+def file_sha256(path) -> str:
+    """The digest of a file's bytes, read in chunks so size does not matter.
+
+    Recorded against every artefact that claims to descend from the workbook:
+    without it the tie between a result and its input is a memory, and a
+    reader cannot check it.
+    """
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def run(workbook: Optional[str] = None,
         sheet: Optional[str] = None,
         out_dir: str = "data/processed",
@@ -1154,6 +1292,7 @@ def run(workbook: Optional[str] = None,
     shapes = build_shapes(records)
     shapes.meta.update({
         "workbook": str(wb_path),
+        "workbook_sha256": file_sha256(wb_path),
         "sheet": sheet_name,
         "n_records": len(records),
         "flag_totals": dict(Counter(

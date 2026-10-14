@@ -70,30 +70,78 @@ documents are still in the tree and still read as authoritative.
 
 ## D5. The qualified-block criterion
 
-A block qualifies only if every row below passes. A failure excludes the block
-and records the reason.
+### The three units
 
-| Check | Requirement | On failure |
-|---|---|---|
-| Integrity | The reading and the identity fields the check needs are parseable | Exclude, record why |
-| Ratio | Passes the existing `verify_ratios` rules, no unresolved ratio contradiction | Exclude; the ratio is never edited to make it agree |
-| Capacity | Passes the existing `flag_records` rules; absolute power is consistent with the recorded meter capacity | Exclude; the capacity threshold is not relaxed |
-| Raw values | Readings and metadata preserved as read | Never overwritten or silently corrected |
-| Construction | Only fully qualified blocks are used, at their own magnitude | No normalization, no pinning to the IEEE33 peak |
+A **record** is one workbook row. A **block** is one meter on one date, and it
+can hold more than one record — one of them being dropped does not drop the
+block, and one being kept does not admit the others. A **meter** is the unit the
+ratio/capacity check speaks about. Three different things; none is ever
+substituted for another, and a count without its unit is not a result.
 
-Three riders, each closing a way this criterion could be gamed:
+### The frozen rule (reading B)
 
-1. **The existing validators and their tolerances are the authority.** Where
-   `flag_records` or `verify_ratios` does not state a rule for something the
-   criterion needs, the rule is written down and tested before it is used. A
-   new loose threshold invented to admit blocks is not a rule.
-2. **The qualified count is an outcome, not a target.** 87 is the figure the
-   earlier screening produced and is pending re-verification against the
-   current validators. If re-running yields a different number, the difference
-   and its cause are reported. Blocks are never dropped to reach 87, and
-   unqualified blocks are never kept to reach it.
-3. **A block is not a meter, a user, or a trading day.** "87 blocks" must not be
-   restated as 87 meters, 87 users or 87 independent days.
+A block is a formal absolute-load block when **both** hold:
+
+1. the block survives the shape pool — it carries none of `SHAPE_DROP_FLAGS`;
+2. the meter that metered it passes the ratio/capacity check — its implied peak
+   fits 运行容量 within `CAPACITY_PEAK_TOLERANCE`.
+
+What that fixes:
+
+- **The check runs on the meter; the pool runs on the block.** A meter that
+  fails, or that cannot be checked, takes *all* of its blocks out. No block is
+  ever picked out of a failing meter to bypass the meter-level gate.
+- **A meter the check cannot reach is not qualified.** 83 of 283 meters lack a
+  usable 综合倍率 or 运行容量. Missing information is not a pass — but such a
+  meter is not thereby accused of being wrong either. It is out of the formal
+  absolute-load input, its records stay untouched, and it can be re-judged the
+  day the information arrives.
+- **Advisory flags do not remove a block.** `ratio_suspect`,
+  `capacity_inconsistent`, a negative reading and a disagreeing repeat are
+  reported, never disqualifying. Excluding them is reading C: permitted as a
+  separate strictness sensitivity check, never as a substitute for B.
+- **The shipped validators and their tolerances are the authority.** Where
+  neither `flag_records` nor `verify_ratios` states a rule for something the
+  criterion needs, the rule is written down and tested before it is used. A new
+  loose threshold invented to admit blocks is not a rule.
+
+### What the rule yields, and in what unit
+
+| | |
+|---|---|
+| records (workbook rows) | 117,271 |
+| blocks (meter × date), all | 103,739 |
+| meters, all | 283 |
+| meters the check can reach | 200 |
+| meters whose implied peak fits 运行容量 | **87** |
+| meters whose implied peak contradicts it | 113 |
+| meters the check cannot reach | 83 |
+| meters with at least one qualifying block | 84 |
+| **formal absolute-load blocks (B)** | **39,365** |
+| users covered | 36 |
+| dates covered | 730 |
+
+**87 is a meter count. 39,365 is a block count.** The earlier "87 qualified
+blocks" read the first as the second and is withdrawn. The meter count is 84
+rather than 87 because three of the 87 consistent meters produce no block that
+survives the pool. Reading A (87,511 blocks) and reading C (35,383) are recorded
+as bounds and are not the formal input.
+
+### Reproducing it
+
+The screening is reproducible from the source workbook alone, and the output
+carries the tie rather than relying on memory of it.
+`src/screen_industry_blocks.py` writes
+`industry_block_screening_manifest.json` alongside its block table, holding the
+source workbook's SHA-256 and byte count, a `screening_rule_version` digest
+computed over the rule inputs (tolerances, both flag lists, slot width), the
+generation timestamp, the block table's own digest and a `dataset_version`
+derived from it. Any change to a tolerance moves the rule digest, so a manifest
+cannot describe a different rule than the one that produced its result.
+
+Workbook SHA-256 `63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb`,
+67,277,368 bytes. `docs/16类行业用户 - 副本.xlsx` hashes to the same value: the
+two files are the same bytes.
 
 ## D6. Splitting
 

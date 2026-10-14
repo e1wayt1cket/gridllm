@@ -1,31 +1,34 @@
 # screen_industry_blocks.py
 """Report every metered block's screening outcome, and what each unit counts.
 
-This is evidence, not a verdict. It re-runs the validators `industry_load`
-already ships, states the rules and tolerances those validators actually apply
-(read from the module, not restated here), and emits one row per
-(meter, date) block with the flags it carries and the reason it would be kept
-or dropped.
+This is evidence, not a verdict. The verdict lives in `industry_load`, and this
+script calls it rather than restating it: `qualified_meters` decides the
+ratio/capacity gate once per meter, `qualified_blocks` composes it with the
+shape pool. Nothing here normalizes, imputes or edits a reading, and nothing
+here converts to MW.
 
-The reason the units are printed next to every count: the load pool's filters
-act on three different things -- a *record* is one workbook row, a *block* is
-one meter on one date, and the ratio/capacity check is a *meter* verdict. A
-figure quoted without its unit is not reproducible, and "N qualified blocks"
-has been read as N meters before.
+**The frozen rule is reading B.** A formal absolute-load block is one that
 
-Three readings of "qualified" are emitted side by side, because the project has
-not frozen one:
+* survives the shape pool — it carries none of `SHAPE_DROP_FLAGS` — and
+* belongs to a meter whose implied peak fits 运行容量 within
+  `CAPACITY_PEAK_TOLERANCE`.
 
-* `qualified_A` -- the block survives the shape pool: it carries none of
-  `SHAPE_DROP_FLAGS`. This is the rule in force today and it says nothing about
-  the ratio or the capacity.
-* `qualified_B` -- `A`, and the block's meter passes the ratio/capacity check.
-  The check is per meter and is applied to every block that meter metered.
-* `qualified_C` -- `B`, and the block itself carries no `ratio_suspect` or
-  `capacity_inconsistent` advisory flag.
+Both gates must pass. The meter gate is decided once per meter and applied to
+all of its days, so no block is admitted on its own while its meter is out; a
+meter whose 综合倍率 or 运行容量 cannot be read is not qualified either, because
+missing information is not a pass. A block's own advisory flags
+(`ratio_suspect`, `capacity_inconsistent`) do not remove it.
 
-Whichever reading is chosen, none of them normalizes, imputes or edits a
-reading, and none of them converts to MW.
+Readings `A` and `C` are printed alongside `B` because they bound it:
+`A` is the pool alone, which is what the pipeline did before the gate existed,
+and `C` adds a per-block advisory condition the rule above deliberately omits.
+Reporting them keeps the cost of either loosening or tightening visible, and
+neither may be substituted for `B` without a decision that says so.
+
+Every count is printed with its unit. A *record* is one workbook row, a *block*
+is one meter on one date, and the ratio/capacity verdict belongs to a *meter* —
+three different things, and a figure quoted without its unit has been read as
+the wrong one before.
 
 Usage:
     PYTHONPATH=src python src/screen_industry_blocks.py --out data/processed
@@ -36,11 +39,17 @@ from __future__ import annotations
 import argparse
 import collections
 import csv
+import hashlib
+import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import industry_load as il
+
+#: The reading the formal absolute-load set is built from.
+FROZEN_READING = "B"
 
 
 def rules_in_force() -> List[Tuple[str, str]]:
@@ -60,23 +69,30 @@ def rules_in_force() -> List[Tuple[str, str]]:
     ]
 
 
-def screen(records: Sequence[il.MeterDay]):
-    """One row per (meter, date) block, plus the meter-level ratio verdict."""
-    evidence = il.verify_ratios(records)
+def rule_version() -> str:
+    """A digest over everything the screening decision depends on.
 
-    # A meter's ratio/capacity verdict is one bit, decided once and applied to
-    # every block that meter metered -- never recomputed per block.
-    meter_ok: Dict[str, bool] = {}
-    for entry in evidence["per_meter"].values():
-        meter_ok[entry["meter"]] = (
-            float(entry["peak_ratio"]) <= il.CAPACITY_PEAK_TOLERANCE)
+    Any change to a tolerance, a flag list or the slot width moves this digest,
+    so a manifest and a result are tied together without anyone remembering to
+    bump a version by hand.
+    """
+    payload = json.dumps({
+        "reading": FROZEN_READING,
+        "pool_drop_flags": sorted(il.SHAPE_DROP_FLAGS),
+        "advisory_flags": sorted(il.ADVISORY_FLAGS),
+        "capacity_peak_tolerance": il.CAPACITY_PEAK_TOLERANCE,
+        "ratio_outlier_factor": il.RATIO_OUTLIER_FACTOR,
+        "slot_minutes": il.SLOT_MINUTES,
+    }, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
+
+def collect_blocks(records: Sequence[il.MeterDay]) -> Dict[Tuple[str, str], dict]:
+    """One row per (meter, date) block, with the flags the block carries."""
     pool_drop = set(il.SHAPE_DROP_FLAGS)
-    advisory = set(il.ADVISORY_FLAGS)
     blocks: Dict[Tuple[str, str], dict] = {}
     for md in records:
-        key = (md.meter_key, md.date)
-        row = blocks.setdefault(key, {
+        row = blocks.setdefault((md.meter_key, md.date), {
             "meter": md.meter_key, "account": md.account,
             "industry": md.industry, "date": md.date, "flags": set(),
             "in_pool": False,
@@ -84,24 +100,25 @@ def screen(records: Sequence[il.MeterDay]):
         row["flags"].update(md.flags)
         if not (set(md.flags) & pool_drop):
             row["in_pool"] = True
-    return evidence, meter_ok, blocks
+    return blocks
 
 
-def classify(row: dict, meter_ok: Dict[str, bool], checkable: set) -> dict:
-    """The three readings, and the first reason that decides the strictest one."""
+def classify(row: dict, verdicts: Dict[str, Dict[str, object]]) -> dict:
+    """The three readings for one block, and the first gate that stops it."""
     flags = row["flags"]
+    verdict = verdicts.get(row["meter"],
+                           {"checkable": False, "qualified": False})
     a = row["in_pool"]
-    m = row["meter"]
-    b = a and m in checkable and meter_ok.get(m, False)
+    b = a and bool(verdict["qualified"])
     c = b and not (flags & {"ratio_suspect", "capacity_inconsistent"})
 
     if not a:
         reason = "dropped from the shape pool: " + ";".join(
             sorted(flags & set(il.SHAPE_DROP_FLAGS)))
-    elif m not in checkable:
+    elif not verdict["checkable"]:
         reason = ("meter not checkable: 综合倍率 or 运行容量 absent or "
                   "unparseable")
-    elif not meter_ok.get(m, False):
+    elif not verdict["qualified"]:
         reason = ("meter implied peak exceeds "
                   f"{il.CAPACITY_PEAK_TOLERANCE}x its 运行容量")
     elif not c:
@@ -110,8 +127,58 @@ def classify(row: dict, meter_ok: Dict[str, bool], checkable: set) -> dict:
     else:
         reason = ""
     return {"qualified_A": a, "qualified_B": b, "qualified_C": c,
-            "reason": reason, "checkable": m in checkable,
-            "meter_ok": meter_ok.get(m) if m in checkable else None}
+            "reason": reason, "checkable": bool(verdict["checkable"]),
+            "meter_ok": verdict["qualified"] if verdict["checkable"] else None}
+
+
+def _unit_counts(blocks: dict, classified: dict) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for tag in ("qualified_A", "qualified_B", "qualified_C"):
+        for unit, pick in (("blocks", lambda k: k),
+                           ("meters", lambda k: blocks[k]["meter"]),
+                           ("users", lambda k: blocks[k]["account"]),
+                           ("dates", lambda k: blocks[k]["date"])):
+            keys = [k for k, c in classified.items() if c[tag]]
+            counts[f"{tag}_{unit}"] = len({pick(k) for k in keys})
+    return counts
+
+
+def write_manifest(path: Path, workbook: Path, records: Sequence[il.MeterDay],
+                   blocks: dict, classified: dict, csv_path: Path) -> dict:
+    """The record that makes the result checkable from the source file alone."""
+    counts = _unit_counts(blocks, classified)
+    counts.update({
+        "records": len(records),
+        "blocks_total": len(blocks),
+        "meters_total": len({b["meter"] for b in blocks.values()}),
+        "users_total": len({b["account"] for b in blocks.values()}),
+        "dates_total": len({b["date"] for b in blocks.values()}),
+    })
+    csv_digest = il.file_sha256(csv_path)
+    manifest = {
+        "reading": FROZEN_READING,
+        "screening_rule_version": rule_version(),
+        "rule_inputs": json.loads(json.dumps({
+            "pool_drop_flags": sorted(il.SHAPE_DROP_FLAGS),
+            "advisory_flags": sorted(il.ADVISORY_FLAGS),
+            "capacity_peak_tolerance": il.CAPACITY_PEAK_TOLERANCE,
+            "ratio_outlier_factor": il.RATIO_OUTLIER_FACTOR,
+            "slot_minutes": il.SLOT_MINUTES,
+        })),
+        "source_workbook": str(workbook),
+        "source_workbook_sha256": il.file_sha256(workbook),
+        "source_workbook_bytes": Path(workbook).stat().st_size,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "dataset_version": f"industry-blocks-{FROZEN_READING}/{csv_digest[:12]}",
+        "block_table_sha256": csv_digest,
+        "block_table": csv_path.name,
+        "counts": counts,
+    }
+    # ASCII-only, so a reader on any locale can open the manifest. The workbook
+    # path carries Chinese, and a tool that opens the file without naming an
+    # encoding would otherwise fail on a Chinese Windows default.
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return manifest
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -121,44 +188,53 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--sheet", default=None)
     parser.add_argument("--out", default="data/processed")
     parser.add_argument("--csv-name", default="industry_block_screening.csv")
+    parser.add_argument("--manifest-name",
+                        default="industry_block_screening_manifest.json")
     args = parser.parse_args(argv)
 
-    print("Rules and tolerances in force")
+    print(f"Frozen reading: {FROZEN_READING}   rule version: {rule_version()}")
     for name, text in rules_in_force():
         print(f"  {name:<28} {text}")
 
+    workbook = il.resolve_workbook(args.workbook)
     raw = list(il.iter_meter_days(args.workbook, args.sheet))
     records = il.flag_records(raw)
-    evidence, meter_ok, blocks = screen(records)
-    checkable = set(meter_ok)
 
+    verdicts = il.qualified_meters(records)
+    blocks = collect_blocks(records)
+    classified = {k: classify(v, verdicts) for k, v in blocks.items()}
+
+    checked = [v for v in verdicts.values() if v["checkable"]]
     print()
-    print("Ratio and capacity evidence (per meter, from verify_ratios)")
-    print(f"  meters checked                {evidence['meters_checked']}")
-    print(f"  meters whose peak fits        {evidence['meters_consistent']}")
-    print(f"  meters whose peak contradicts {evidence['meters_inconsistent']}")
+    print("Ratio and capacity gate (per meter, from qualified_meters)")
+    print(f"  meters total                  {len(verdicts)}")
+    print(f"  meters checked                {len(checked)}")
+    print(f"  meters whose peak fits        {sum(1 for v in checked if v['qualified'])}")
+    print(f"  meters whose peak contradicts {sum(1 for v in checked if not v['qualified'])}")
+    print(f"  meters the check cannot reach {len(verdicts) - len(checked)}")
 
-    classified = {k: classify(v, meter_ok, checkable) for k, v in blocks.items()}
     print()
     print("Units, counted separately")
     print(f"  records (workbook rows)  {len(records)}")
     print(f"  blocks  (meter x date)   {len(blocks)}")
-    print(f"  meters                   {len({v['meter'] for v in blocks.values()})}")
-    print(f"  users                    {len({v['account'] for v in blocks.values()})}")
-    print(f"  dates                    {len({v['date'] for v in blocks.values()})}")
+    print(f"  meters                   {len({b['meter'] for b in blocks.values()})}")
+    print(f"  users                    {len({b['account'] for b in blocks.values()})}")
+    print(f"  dates                    {len({b['date'] for b in blocks.values()})}")
 
     print()
-    print("Readings of 'qualified' -- none of these is frozen yet")
-    for tag, label in (("qualified_A", "A  survives the shape pool"),
-                       ("qualified_B", "B  A + its meter passes ratio/capacity"),
-                       ("qualified_C", "C  B + the block carries no advisory cap/ratio flag")):
+    print("Readings of 'qualified'")
+    labels = {
+        "qualified_A": "A  survives the shape pool",
+        "qualified_B": f"B  A + the meter passes ratio/capacity   <- FROZEN",
+        "qualified_C": "C  B + the block carries no advisory cap/ratio flag",
+    }
+    for tag, label in labels.items():
         keys = [k for k, c in classified.items() if c[tag]]
-        meters = {blocks[k]["meter"] for k in keys}
-        users = {blocks[k]["account"] for k in keys}
-        dates = {blocks[k]["date"] for k in keys}
         print(f"  {label}")
-        print(f"      blocks {len(keys):<7} meters {len(meters):<5} "
-              f"users {len(users):<4} dates {len(dates)}")
+        print(f"      blocks {len(keys):<7} "
+              f"meters {len({blocks[k]['meter'] for k in keys}):<5} "
+              f"users {len({blocks[k]['account'] for k in keys}):<4} "
+              f"dates {len({blocks[k]['date'] for k in keys})}")
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -176,6 +252,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                              c["meter_ok"], c["qualified_A"], c["qualified_B"],
                              c["qualified_C"], c["reason"]])
     print(f"\nwrote {path}")
+
+    manifest = write_manifest(out / args.manifest_name, workbook, records,
+                              blocks, classified, path)
+    print(f"wrote {out / args.manifest_name}")
+    print(f"  source  {manifest['source_workbook_sha256'][:16]}…  "
+          f"{manifest['source_workbook_bytes']} bytes")
+    print(f"  dataset {manifest['dataset_version']}")
     return 0
 
 

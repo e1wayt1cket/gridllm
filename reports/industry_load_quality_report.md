@@ -7,6 +7,7 @@ Produced by `src/industry_load.py`. Records what was measured; no value in the s
 | | |
 |---|---|
 | workbook | `C:\Projects\00_WorkSpace\01_Projects\MakerB\docs\16类行业用户.xlsx` |
+| workbook sha256 | `63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb` |
 | sheet | `Sheet3` |
 | slots per row | 96 x 15 min (00:00..23:45) |
 | data rows read | 117,271 |
@@ -119,6 +120,23 @@ Worst contradictions (implied peak / 运行容量):
 | `Mf32e7531faea` | 电动汽车（充换电） | 2,000 | 2,500 | 1,545,680 | 618.3x |
 | `M136ca9f032de` | 纺织业 | 14,000 | 9,700 | 5,957,280 | 614.2x |
 | `M30a738d6d057` | 水泥制造 | 132,000 | 83,580 | 49,610,880 | 593.6x |
+
+## Qualified subset
+
+The formal absolute-load input is the intersection of two gates: the shape pool above, and the per-meter ratio/capacity check. The check runs on the **meter**; the pool runs on the **block**, one meter on one date. Both counts are stated because they are different numbers.
+
+| | |
+|---|---|
+| meters, all | 283 |
+| meters the check cannot reach | 83 |
+| **meters qualified** | **87** |
+| blocks surviving the shape pool | 87,511 |
+| **blocks in the qualified subset** | **39,365** |
+| meters contributing those blocks | 84 |
+| users covered | 36 |
+| dates covered | 730 |
+
+A meter the check cannot reach is not qualified: missing information is not a pass, though such a meter is not thereby accused of being wrong, and its records are untouched. A block is never admitted on its own while its meter is out, so the meter gate cannot decay into advice. The ruling and the unit of each figure are recorded in `docs/2026-10-14-data-and-experiment-decisions.md`.
 
 ## Aggregation
 
