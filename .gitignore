@@ -57,6 +57,10 @@ raw/
 # 其他
 *.deb
 plots/
+
+# Gurobi 本地授权环境：与具体机器绑定，逐机不同，不是项目输入。
+gurobi.env
+
 # 生成产物
 outputs/
 output/
