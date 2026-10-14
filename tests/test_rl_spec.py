@@ -346,8 +346,8 @@ def test_a_mid_block_observation_ignores_every_future_channel():
 
 def test_the_lmp_history_enters_the_observation_only_after_clearing():
     """Block 0 decides with an empty history; block 1's observation carries
-    exactly what block 0's clearing published -- every appended value is a
-    per-period nodal LMP from that clearing, and the price features agree
+    exactly what block 0's clearing published -- one cross-node mean per
+    committed period, in chronological order -- and the price features agree
     with the history."""
     import rl_env
     env = _make_env()
@@ -362,10 +362,13 @@ def test_the_lmp_history_enters_the_observation_only_after_clearing():
     result = env._last_result
     assert result is not None, "the clearing must succeed for the timing test"
     n_commit = rl_env.BLOCK_SIZE
-    allowed = {float(result["lmp"][d, a.bus])
-               for a in env.rl_agents for d in range(n_commit)}
-    assert len(env.hist_lmp) == n_commit * len(env.rl_agents)
-    assert all(float(v) in allowed for v in env.hist_lmp)
+    # One entry per committed period -- the mean LMP across the RL agents'
+    # buses at that period -- never one entry per (agent, period) pair.
+    assert len(env.hist_lmp) == n_commit
+    buses = [a.bus for a in sorted(env.rl_agents, key=lambda a: a.name)]
+    expected = [float(np.mean(result["lmp"][d, buses]))
+                for d in range(n_commit)]
+    assert list(env.hist_lmp) == pytest.approx(expected)
 
     hist = np.array(list(env.hist_lmp))
     for v in obs1.values():
@@ -566,3 +569,228 @@ def test_the_system_ratio_describes_the_block_being_decided():
     order = env.obs_spec.feature_order
     for v in obs1.values():
         assert v[order.index("slr_norm")] == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# F3/F5 residual closure. F3 pins the shared price-history statistics: one
+# cross-node mean per committed period, updated once per block, invisible to
+# the deciding block itself, counted exactly once, and independent of agent
+# traversal order. F5 pins the non-DA observation path: forecasts only, in
+# both stages, so the realized curves can never seed a decision-time feature.
+# ---------------------------------------------------------------------------
+
+def _history_buses(env):
+    """The bus aggregation order the environment itself uses: by agent name,
+    never by list position."""
+    return [a.bus for a in sorted(env.rl_agents, key=lambda a: a.name)]
+
+
+def test_the_price_history_is_one_cross_node_mean_per_committed_period():
+    """F3 definition pin, unit level and through the real clearing loop."""
+    import rl_env
+    env = _make_env()
+    env.reset(wholesale=np.full(96, 300.0, dtype=float))
+    buses = _history_buses(env)
+    width = max(buses) + 1
+
+    # Unit level: hand-set nodal prices, distinct per period and per bus.
+    lmp = np.zeros((8, width))
+    for d in range(8):
+        for b in buses:
+            lmp[d, b] = 100.0 + 10.0 * d + float(b)
+    env._update_price_history({"lmp": lmp}, rl_env.BLOCK_SIZE)
+    offset = float(np.mean([float(b) for b in buses]))
+    expected = [100.0 + 10.0 * d + offset for d in range(rl_env.BLOCK_SIZE)]
+    assert len(env.hist_lmp) == rl_env.BLOCK_SIZE   # one entry per period
+    assert list(env.hist_lmp) == pytest.approx(expected)
+
+    # Integration: two real clears with different quotes land as the
+    # cross-node means of each clearing's own LMP matrix, block by block.
+    env2 = _make_env()
+    env2.reset(wholesale=np.full(96, 300.0, dtype=float))
+    env2.step(_quote_actions(env2, 20.0, 220.0))
+    r1 = env2._last_result
+    exp1 = [float(np.mean(r1["lmp"][d, buses]))
+            for d in range(rl_env.BLOCK_SIZE)]
+    env2.step(_quote_actions(env2, 120.0, 40.0))
+    r2 = env2._last_result
+    exp2 = [float(np.mean(r2["lmp"][d, buses]))
+            for d in range(rl_env.BLOCK_SIZE)]
+    assert list(env2.hist_lmp) == pytest.approx(exp1 + exp2)
+
+
+def test_a_blocks_realized_lmp_reaches_only_the_next_observation(monkeypatch):
+    """The LMP realized by block k's clearing may shape block k+1's
+    observation and nothing earlier. Twin envs clear identically through
+    block 1; then B's block-2 clear is wrapped to shift every realized LMP.
+    The observations both envs produced for blocks 0-2 stay bit-identical;
+    block 3's differ exactly in the history-fed price levels, nowhere else.
+    """
+    import rl_env
+    import market
+    real_clear = market.clear_market
+    state = {"armed": False, "calls": 0}
+
+    def wrapped(agents, T, stage, action_params, config, **kwargs):
+        res = real_clear(agents, T, stage, action_params, config, **kwargs)
+        state["calls"] += 1
+        if res is not None and state["armed"] and state["calls"] >= 3:
+            res = dict(res)
+            res["lmp"] = res["lmp"] + 250.0
+        return res
+
+    monkeypatch.setattr(market, "clear_market", wrapped)
+
+    def _roll(env, n):
+        hist = [env.reset(wholesale=np.full(96, 300.0, dtype=float))]
+        for _ in range(n):
+            obs, _, done, _ = env.step(_quote_actions(env, 40.0, 200.0))
+            assert not done
+            hist.append(obs)
+        return hist
+
+    np.random.seed(17)
+    env_a = _make_env()
+    np.random.seed(17)
+    env_b = _make_env()
+    state.update(armed=False, calls=0)
+    run_a = _roll(env_a, 3)          # observations for blocks 0..3
+    state.update(armed=True, calls=0)
+    run_b = _roll(env_b, 3)          # shift activates at block 2's clear
+
+    # Decisions for blocks 0-2 predate every shifted clearing.
+    for obs_a, obs_b in zip(run_a[:3], run_b[:3]):
+        for name in obs_a:
+            np.testing.assert_array_equal(obs_a[name], obs_b[name])
+
+    # Block 3's observation: the history-fed price levels move by the shift,
+    # the forecast-fed channels cannot move at all.
+    order = env_a.obs_spec.feature_order
+    i_last = order.index("last_lmp_norm")
+    i_avg = order.index("avg_lmp_hist_norm")
+    for name in run_a[3]:
+        assert not np.isclose(run_a[3][name][i_last], run_b[3][name][i_last])
+        assert not np.isclose(run_a[3][name][i_avg], run_b[3][name][i_avg])
+    for feat in ("load_feat", "re_feat", "soc", "block_pos", "slr_norm",
+                 "avg_other_bid", "bid_std"):
+        i = order.index(feat)
+        for name in run_a[3]:
+            np.testing.assert_array_equal(run_a[3][name][i],
+                                          run_b[3][name][i])
+
+    # The stream itself: identical prefix, shifted suffix.
+    assert list(env_b.hist_lmp)[:8] == pytest.approx(list(env_a.hist_lmp)[:8])
+    assert list(env_b.hist_lmp)[8:] == pytest.approx(
+        [v + 250.0 for v in list(env_a.hist_lmp)[8:]])
+
+
+def test_each_realized_period_enters_the_history_exactly_once():
+    """Fixed per-block prices over a full day: every committed period enters
+    the stream once and only once, and a day fills the deque exactly (96
+    entries) without evicting anything."""
+    import rl_env
+    env = _make_env()
+    env.reset(wholesale=np.full(96, 300.0, dtype=float))
+    buses = _history_buses(env)
+    width = max(buses) + 1
+    expected = []
+    for blk in range(rl_env.N_BLOCKS):
+        level = 100.0 + 10.0 * blk
+        lmp = np.full((rl_env.BLOCK_SIZE, width), level)
+        env._update_price_history({"lmp": lmp}, rl_env.BLOCK_SIZE)
+        expected.extend([level] * rl_env.BLOCK_SIZE)
+    assert len(env.hist_lmp) == rl_env.N_BLOCKS * rl_env.BLOCK_SIZE == 96
+    assert list(env.hist_lmp) == pytest.approx(expected)
+    assert float(np.mean(env.hist_lmp)) == pytest.approx(np.mean(expected))
+
+
+def test_agent_traversal_order_cannot_move_any_observation():
+    """The shared history is a block-level statistic aggregated in name order,
+    so permuting the agent lists cannot change it or any observation."""
+    import rl_env
+    env = _make_env()
+    env.reset(wholesale=np.full(96, 300.0, dtype=float))
+    buses = _history_buses(env)
+    width = max(buses) + 1
+    lmp = np.zeros((rl_env.BLOCK_SIZE, width))
+    for d in range(rl_env.BLOCK_SIZE):
+        for b in buses:
+            lmp[d, b] = 200.0 + d + float(b)
+
+    env._update_price_history({"lmp": lmp}, rl_env.BLOCK_SIZE)
+    stream = list(env.hist_lmp)
+    env.hist_lmp.clear()
+    env.rl_agents = env.rl_agents[::-1]          # permute the decision order
+    env._update_price_history({"lmp": lmp}, rl_env.BLOCK_SIZE)
+    assert list(env.hist_lmp) == stream          # bitwise, not just approx
+
+    # End to end: two blocks with distinct quotes, then permute and rebuild
+    # every observation through the same path step() uses.
+    np.random.seed(29)
+    env2 = _make_env()
+    env2.reset(wholesale=np.full(96, 300.0, dtype=float))
+    env2.step(_quote_actions(env2, 30.0, 210.0))
+    recorded, _, _, _ = env2.step(_quote_actions(env2, 120.0, 280.0))
+    env2.rl_agents = env2.rl_agents[::-1]
+    for name in recorded:
+        np.testing.assert_array_equal(recorded[name],
+                                      _recompute_obs(env2, name))
+
+
+def test_reset_clears_the_price_history_stream():
+    """A traded day must leave the shared stream empty and the block-0 price
+    features canonical, whatever the previous day realized."""
+    import rl_env
+    env = _make_env()
+    env.reset(wholesale=np.full(96, 300.0, dtype=float))
+    env.step(_quote_actions(env, 130.0, 290.0))
+    env.step(_quote_actions(env, 10.0, 60.0))
+    assert len(env.hist_lmp) > 0
+    assert not np.isclose(float(np.mean(env.hist_lmp)),
+                          rl_env.PRICE_REF_CNY_MWH)
+
+    env.reset(wholesale=np.full(96, 640.0, dtype=float))
+    assert len(env.hist_lmp) == 0
+    order = env.obs_spec.feature_order
+    obs = {a.name: env._get_agent_obs(
+        a, 0, None, rl_env.PRICE_REF_CNY_MWH,
+        env._compute_system_load_re_ratio(0),
+        *env._compute_opponent_features(a.name)) for a in env.rl_agents}
+    for v in obs.values():
+        assert v[order.index("last_lmp_norm")] == pytest.approx(1.0)
+        assert v[order.index("avg_lmp_hist_norm")] == pytest.approx(1.0)
+        assert v[order.index("ema_dev")] == pytest.approx(0.0)
+
+
+def test_rt_stage_observation_reads_only_forecasts():
+    """F5: the non-DA path is causal by construction. Peaks, decision-block
+    load/RE and the system ratio all come from the day-ahead published
+    forecasts in both stages, so the twin stages produce identical
+    observations and every realized channel, once rewritten, moves nothing.
+    """
+    import rl_env
+    np.random.seed(23)
+    env_rt = _make_env(stage="RT")
+    np.random.seed(23)
+    env_da = _make_env()
+    obs_rt = env_rt.reset(wholesale=np.full(96, 300.0, dtype=float))
+    obs_da = env_da.reset(wholesale=np.full(96, 300.0, dtype=float))
+    assert set(obs_rt) == set(obs_da)
+    for name in obs_da:
+        np.testing.assert_array_equal(obs_rt[name], obs_da[name])
+    assert env_rt._agent_peaks == env_da._agent_peaks
+
+    # A real RT clearing, then rewrite every realized channel, past and
+    # future: the standing decision for block 1 cannot move.
+    obs1, _, done, _ = env_rt.step(_quote_actions(env_rt, 40.0, 200.0))
+    assert not done
+    avail_before = env_rt._committed_re_avail(8, rl_env.BLOCK_SIZE)
+    for a in env_rt.all_agents:
+        for attr in ("load_real", "pv_real", "wind_real"):
+            arr = getattr(a, attr, None)
+            if arr is not None:
+                arr[:] = 1.0e6
+    for name in obs1:
+        np.testing.assert_array_equal(obs1[name], _recompute_obs(env_rt, name))
+    assert env_rt._committed_re_avail(8, rl_env.BLOCK_SIZE) == avail_before
+    assert env_rt._compute_agent_peaks() == env_da._agent_peaks

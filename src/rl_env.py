@@ -2,11 +2,13 @@
 """Gym-style RL environment for continuous-action agent bidding.
 
 Each episode = one 96-period day. Agents act on 4-period blocks (24 steps).
-Observation is a compact V2 vector (12-dim): block-mean load/RE and SOC
-normalized to [0, 1], LMP expressed as ratios of the day-average price, block
-position, load/RE ratio, opponent-bid statistics, plus price-prediction
-features (LMP deviation from EMA, recent LMP trend, and a direct next-block
-price forecast).
+Observation is the compact V4 vector (12-dim): block-mean load/RE and SOC
+normalized to [0, 1]; LMP features as ratios of the frozen reference price
+`PRICE_REF_CNY_MWH` -- the mean of the LMPs observed so far this episode, the
+most recent observed LMP, and a next-block forecast from a per-agent EMA;
+block position; the system load/RE ratio; opponent-bid statistics; and the
+deviation/trend of the observed price around its EMA. Every price feature is
+a function of the past alone at the decision it informs.
 The action space is the acting agent's `ActionSpec`: an independent battery
 declares its two reservation prices in CNY/MWh, and a load or prosumer
 declares the multiplier/adder pair its own `bid_value`/`offer_cost` live in.
@@ -223,7 +225,10 @@ class BiddingEnv:
     agents : list of Agent
     config : MarketConfig
     stage : str
-        "DA" or "RT".
+        "DA" or "RT". Selects the clearing semantics handed to clear_market;
+        the observation itself is built from day-ahead published forecasts in
+        both stages, so it stays causal in either (the realized curves feed
+        the clearing, never the decision-time observation).
     rl_agent_names : list of str or None
         Agent names to treat as RL learners. None = all agents.
     """
@@ -432,7 +437,13 @@ class BiddingEnv:
     # ------------------------------------------------------------------
 
     def _compute_agent_peaks(self) -> Dict[str, Tuple[float, float]]:
-        """Per-agent (day-peak load, day-peak RE) for the current stage.
+        """Per-agent (day-peak load, day-peak RE).
+
+        Always the day-ahead forecast peaks, in both stages: a participant
+        holds its own forecasts at every decision, while the realized curves
+        are not knowable in advance -- normalizing by a realized day peak
+        would seed the observation with the future (the dormant non-DA leak
+        this construction removes).
 
         Load and RE are normalized against their OWN day peaks: a prosumer's
         PV/wind capacity can exceed its load several-fold, so normalizing RE by
@@ -440,12 +451,10 @@ class BiddingEnv:
         """
         peaks = {}
         for a in self.all_agents:
-            load_src = a.load_forecast if self.stage == "DA" else a.load_real
-            re_src = (a.pv_forecast if self.stage == "DA" else a.pv_real)
+            re_src = a.pv_forecast
             if a.has_wind:
-                re_src = re_src + (a.wind_forecast if self.stage == "DA"
-                                   else a.wind_real)
-            peaks[a.name] = (float(np.max(load_src)),
+                re_src = re_src + a.wind_forecast
+            peaks[a.name] = (float(np.max(a.load_forecast)),
                              float(np.max(re_src)))
         return peaks
 
@@ -475,16 +484,16 @@ class BiddingEnv:
         t_block_end = min(t_start + BLOCK_SIZE, self.T)
         n_block = t_block_end - t_start
 
-        if self.stage == "DA":
-            load = agent.load_forecast[t_start:t_block_end]
-            pv = agent.pv_forecast[t_start:t_block_end]
-            wind = agent.get_wind_forecast()[t_start:t_block_end] \
-                if agent.has_wind else np.zeros(n_block)
-        else:
-            load = agent.load_real[t_start:t_block_end]
-            pv = agent.pv_real[t_start:t_block_end]
-            wind = agent.get_wind_real()[t_start:t_block_end] \
-                if agent.has_wind else np.zeros(n_block)
+        # The decision block's load/RE come from the day-ahead published
+        # forecast in BOTH stages. The realized curves are not knowable when
+        # the quotes are placed; reading them here was the dormant non-DA
+        # leak, now impossible by construction. Realized quantities reach
+        # the observation only through the post-clearing history (prices,
+        # SOC), never through the decision-block features.
+        load = agent.load_forecast[t_start:t_block_end]
+        pv = agent.pv_forecast[t_start:t_block_end]
+        wind = agent.get_wind_forecast()[t_start:t_block_end] \
+            if agent.has_wind else np.zeros(n_block)
 
         load_peak, re_peak = self._agent_peaks.get(agent.name, (1.0, 1.0))
         load_feat = float(np.clip(
@@ -493,9 +502,12 @@ class BiddingEnv:
             np.mean(pv + wind) / max(re_peak, 1e-6), 0.0, 1.0))
 
         # Last observed LMP, or the frozen reference if none exists yet. The
-        # fallback is a constant rather than the day's mean: at block 0 the
-        # day's mean is the future, and using it seeded `last_lmp` -- and
-        # through it `ema_dev` -- with information from later periods.
+        # history holds one cross-node mean per committed period, so this is
+        # the most recent committed period's mean LMP across the RL agents'
+        # buses -- identical for every agent. The fallback is a constant
+        # rather than the day's mean: at block 0 the day's mean is the
+        # future, and using it seeded `last_lmp` -- and through it
+        # `ema_dev` -- with information from later periods.
         if hist_lmp is not None and len(hist_lmp) > 0:
             last_lmp = float(hist_lmp[-1])
         else:
@@ -584,51 +596,42 @@ class BiddingEnv:
             dtype=np.float32)
 
     def _compute_system_load_re_ratio(self, t_start: int) -> float:
+        """Load/RE ratio of one block's slice over ALL agents, forecast-based.
+
+        Forecasts only, in both stages: the ratio describes the block being
+        decided, whose realized values do not exist yet at the decision.
+        """
         t_end = min(t_start + BLOCK_SIZE, self.T)
         total_load = 0.0
         total_re = 0.0
         for a in self.all_agents:
-            if self.stage == "DA":
-                total_load += np.sum(a.load_forecast[t_start:t_end])
-                if a.is_prosumer:
-                    total_re += np.sum(np.maximum(
-                        a.pv_forecast[t_start:t_end], 0))
-                if a.has_wind:
-                    total_re += np.sum(np.maximum(
-                        a.wind_forecast[t_start:t_end], 0))
-            else:
-                total_load += np.sum(a.load_real[t_start:t_end])
-                if a.is_prosumer:
-                    total_re += np.sum(np.maximum(
-                        a.pv_real[t_start:t_end], 0))
-                if a.has_wind:
-                    total_re += np.sum(np.maximum(
-                        a.wind_real[t_start:t_end], 0))
+            total_load += np.sum(a.load_forecast[t_start:t_end])
+            if a.is_prosumer:
+                total_re += np.sum(np.maximum(
+                    a.pv_forecast[t_start:t_end], 0))
+            if a.has_wind:
+                total_re += np.sum(np.maximum(
+                    a.wind_forecast[t_start:t_end], 0))
         return float(total_load / max(total_re, 1e-6))
 
     def _committed_re_avail(self, t_start: int, n_commit: int) -> float:
-        """RE energy available over the committed slice of the current window.
+        """RE energy forecast over the committed slice of the current window.
 
         Mirrors the availability accounting in dispatch (sum pv/wind forecast
         over prosumer and wind-capable agents), but only for the periods this
         block commits, so the accumulated day-aggregate rate is exact.
+        Forecast-based in both stages: at the decision the realized slice is
+        still in the future, so the rate is built from what the participant
+        actually holds -- the day-ahead forecasts.
         """
         avail = 0.0
         for a in self.all_agents:
-            if self.stage == "DA":
-                if a.is_prosumer:
-                    avail += float(np.sum(np.maximum(
-                        a.pv_forecast[t_start:t_start + n_commit], 0)))
-                if a.has_wind:
-                    avail += float(np.sum(np.maximum(
-                        a.wind_forecast[t_start:t_start + n_commit], 0)))
-            else:
-                if a.is_prosumer:
-                    avail += float(np.sum(np.maximum(
-                        a.pv_real[t_start:t_start + n_commit], 0)))
-                if a.has_wind:
-                    avail += float(np.sum(np.maximum(
-                        a.wind_real[t_start:t_start + n_commit], 0)))
+            if a.is_prosumer:
+                avail += float(np.sum(np.maximum(
+                    a.pv_forecast[t_start:t_start + n_commit], 0)))
+            if a.has_wind:
+                avail += float(np.sum(np.maximum(
+                    a.wind_forecast[t_start:t_start + n_commit], 0)))
         return avail * 0.25  # dt_h
 
     def _compute_opponent_features(self, agent_name: str) -> tuple:
@@ -687,6 +690,28 @@ class BiddingEnv:
     # Episode lifecycle
     # ------------------------------------------------------------------
 
+    def _update_price_history(self, result: dict, n_commit: int) -> None:
+        """Record one cleared block's realized LMPs in the shared history.
+
+        Called once per block at the cleared->committed transition: after the
+        market result exists and before the next block's observations are
+        built. One entry per committed period -- the mean LMP across the RL
+        agents' buses at that period -- so the stream is chronological, every
+        realized (node, period) price enters exactly once, and no agent
+        traversal order can influence it (the bus order is fixed by agent
+        name, not by list position). `avg_lmp_hist_norm` is the mean of this
+        stream and `last_lmp_norm` its most recent entry; equal weight per
+        entry makes both identical for every agent, which is what makes the
+        feature "shared".
+        """
+        if result is None or not self.rl_agents:
+            return
+        buses = [a.bus for a in sorted(self.rl_agents,
+                                       key=lambda a: a.name)]
+        block_lmp = np.asarray(result["lmp"], dtype=float)[:n_commit, buses]
+        for d in range(n_commit):
+            self.hist_lmp.append(float(np.mean(block_lmp[d])))
+
     def reset(self, wholesale: Optional[np.ndarray] = None) \
             -> Dict[str, np.ndarray]:
         if wholesale is None:
@@ -708,6 +733,10 @@ class BiddingEnv:
         self._prev_block_index = None
         self.block_idx = 0
         self.prev_soc = {}
+        # Shared price history: one cross-node mean per committed period (see
+        # _update_price_history). A full day is 24 blocks x 4 periods = 96
+        # entries, so nothing is ever evicted within an episode and the
+        # "average so far" genuinely covers the whole day so far.
         self.hist_lmp = deque(maxlen=96)
         self._re_used = 0.0
         self._re_avail = 0.0
@@ -947,11 +976,11 @@ class BiddingEnv:
                         (q_rl + q_bs) / 2.0 * (lmp_node[:n_commit] - lmp_bs)))
                     rewards[nm] -= self.market_impact_penalty * power_i
 
-                # Update forecaster and LMP history from committed period
+                # Update the per-agent forecaster from the committed periods.
+                # The shared price history is a block-level concern and is
+                # updated once, separately -- see _update_price_history.
                 block_lmp = float(np.mean(lmp_node[:n_commit]))
                 self.forecasters[nm].update(block_lmp)
-                for d in range(n_commit):
-                    self.hist_lmp.append(float(np.mean(lmp_node[d])))
 
                 # Update prev_soc from last committed period
                 if a.storage and nm in result["schedules"]:
@@ -971,6 +1000,11 @@ class BiddingEnv:
             rewards.setdefault(a.name, 0.0)
             raw_profits.setdefault(a.name, 0.0)
             local_baselines.setdefault(a.name, 0.0)
+
+        # ---- Shared price history (single block-level update) ----
+        # After the clearing exists and before any next-block observation is
+        # built: one cross-node mean per committed period.
+        self._update_price_history(result, n_commit)
 
         # ---- Accumulate committed-period RE for the day-aggregate rate ----
         if result is not None:
