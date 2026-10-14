@@ -310,6 +310,9 @@ class BiddingEnv:
         # for opponent-feature computation to avoid self-reference bias
         # when agents are evaluated sequentially within a block.
         self._prev_block_actions: Optional[Dict] = None
+        # Which decision block the snapshot was taken at; the features read
+        # that block's slice, not the day's first period.
+        self._prev_block_index: Optional[int] = None
         # Cumulative RE consumption over committed periods of the day, used
         # to report a day-aggregate re_rate in step() info (not the last
         # rolling-window value).
@@ -536,8 +539,12 @@ class BiddingEnv:
         slr_norm = float(min(system_load_re_ratio, 5.0))
 
         # Direct next-block price forecast (EMA persistence) from the same
-        # forecaster, normalized on the same scale as the realized LMP.
-        pred_lmp = fc.forecast(1)[0]
+        # forecaster, normalized on the same scale as the realized LMP. With
+        # no history the forecaster's fallback is a bare constant that need
+        # not match the frozen reference; the canonical no-history prediction
+        # is the reference itself, so every price-level feature is exactly
+        # 1.0 at block 0.
+        pred_lmp = fc.forecast(1)[0] if fc._ema is not None else price_ref
         pred_lmp_norm = float(np.clip(pred_lmp / price_ref, -1.0, 3.0))
 
         return {
@@ -642,11 +649,18 @@ class BiddingEnv:
         multiplier, and the rename belongs with the observation revision.
         """
         src = self._prev_block_actions
-        if src is None:
+        blk = self._prev_block_index
+        if src is None or blk is None:
             # Fallback: use current actions if no previous block exists (block 0)
             src = getattr(self, 'current_actions', None)
+            blk = 0
         if not src:
             return 1.0, 0.0
+        # Read the previous decision block's committed quotes. Actions live in
+        # full-day arrays, so the block slice must be selected explicitly:
+        # reading `.flat[0]` instead froze these features at block 0's quotes
+        # for the whole day.
+        t0 = blk * BLOCK_SIZE
         other_bids = []
         all_bids = []
         for a in self.all_agents:
@@ -656,7 +670,11 @@ class BiddingEnv:
             spec = self.spec_for(a)
             name = spec.action_names[0]
             lo, hi = spec.bounds[name]
-            value = float(np.asarray(src[nm][name]).flat[0])
+            arr = np.asarray(src[nm][name], dtype=float).ravel()
+            if arr.size >= t0 + BLOCK_SIZE:
+                value = float(np.mean(arr[t0:t0 + BLOCK_SIZE]))
+            else:
+                value = float(arr.flat[0])
             scaled = (value - lo) / (hi - lo) if hi > lo else 0.0
             all_bids.append(scaled)
             if nm != agent_name:
@@ -681,9 +699,13 @@ class BiddingEnv:
 
         # Per-block wholesale actually fed to clear_market; set on each step.
         self._last_wholesale = None
-        # Clears from the previous episode must not leak into this one.
+        # Clears from the previous episode must not leak into this one --
+        # and neither may the opponent-bid snapshot: block 0 of a new day
+        # falls back to the default declarations, not yesterday's last block.
         self._last_result = None
         self._last_base_result = None
+        self._prev_block_actions = None
+        self._prev_block_index = None
         self.block_idx = 0
         self.prev_soc = {}
         self.hist_lmp = deque(maxlen=96)
@@ -776,6 +798,7 @@ class BiddingEnv:
                  for name, values in act.items()}
             for nm, act in self.current_actions.items()
         }
+        self._prev_block_index = block
 
         # ---- Rolling-window OPF ----
         window_end = min(t_start + self.roll_horizon, self.T)
@@ -974,7 +997,11 @@ class BiddingEnv:
         avg_lmp_hist = (float(np.mean(hist_arr))
                         if hist_arr is not None and hist_arr.size
                         else PRICE_REF_CNY_MWH)
-        slr = self._compute_system_load_re_ratio(t_start)
+        # The observation being built is for the NEW block (block_idx was
+        # already incremented), so the system ratio must come from its slice --
+        # not from the just-cleared block's, which is what the local `t_start`
+        # still names here.
+        slr = self._compute_system_load_re_ratio(self.block_idx * BLOCK_SIZE)
         if not done:
             for a in self.rl_agents:
                 avg_oth, bid_std = self._compute_opponent_features(a.name)
