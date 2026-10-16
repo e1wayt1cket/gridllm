@@ -646,9 +646,22 @@ def load_policies(path: str, obs_dim: int,
     '"_meta"' entry written by save_policies is never interpreted as an
     agent name. When a recorded obs-spec name mismatches the caller's
     expected spec, ValueError is raised.
+
+    A file with no metadata at all is refused when a spec is supplied, for the
+    same reason `rl_td3.load_policy` refuses one: the input width is not
+    evidence of which observation the weights were trained against, and several
+    different 12-dim observations exist. Its status is
+    `legacy_obs_unverified`.
     """
     state = torch.load(path, map_location="cpu", weights_only=False)
     meta = state.pop("_meta", None)
+    if meta is None and obs_spec is not None:
+        raise ValueError(
+            f"Policy file {path} carries no `_meta`, so the observation it was "
+            f"trained against is unknown. Its status is "
+            f"`legacy_obs_unverified` and it is refused rather than loaded into "
+            f"{obs_spec.name!r} on the strength of its input width. See "
+            f"policies/checkpoint_obs_compat_manifest.json.")
     if meta is not None and obs_spec is not None:
         saved = meta.get("obs_spec") or {}
         if saved.get("name") != obs_spec.name:

@@ -533,7 +533,15 @@ def load_policy(path: str, obs_dim: int,
 
     If the saved file carries a policy metadata header (see save_policy) and
     the caller supplies the expected obs_spec or action_spec, a name mismatch
-    raises ValueError. Legacy files without metadata load unchanged.
+    raises ValueError.
+
+    A file with **no** metadata is refused when the caller supplies a spec, and
+    it is refused as `legacy_obs_unverified` rather than as a mismatch: nothing
+    in the file says which observation it was trained against, so compatibility
+    cannot be established. The input width is not evidence. Twelve dimensions
+    have meant four different things so far -- V3, V4, the unreleased V5 and V6
+    share the length and differ in what the vector carries -- so a 12-dim file
+    with no header is exactly the case that must not load silently.
 
     Both checks matter for different reasons. The observation check catches a
     weights-shape mismatch, which `load_state_dict` would also catch. The
@@ -541,9 +549,22 @@ def load_policy(path: str, obs_dim: int,
     weights, meaning a different pair of quantities. A checkpoint trained on
     the retired multiplier pair loads perfectly into a storage actor and
     silently reads `bid_mult` as a CNY/MWh charge price.
+
+    Passing no `obs_spec` is the caller stating it wants the raw weights and is
+    taking responsibility for what they mean; that path is unchanged, and it is
+    the reason the check has to live behind a supplied spec rather than on the
+    file's shape.
     """
     state = torch.load(path, map_location="cpu", weights_only=False)
     meta = state.pop(_POLICY_META_KEY, None)
+    if meta is None and obs_spec is not None:
+        raise ValueError(
+            f"Policy {path} carries no observation metadata "
+            f"(`{_POLICY_META_KEY}`), so the observation it was trained against "
+            f"is unknown. Its status is `legacy_obs_unverified` and it is "
+            f"refused rather than loaded into {obs_spec.name!r} on the strength "
+            f"of its input width, which several different observations have "
+            f"shared. See policies/checkpoint_obs_compat_manifest.json.")
     if meta is not None and obs_spec is not None:
         saved = meta.get("obs_spec") or {}
         if saved.get("name") != obs_spec.name:

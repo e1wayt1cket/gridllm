@@ -108,6 +108,24 @@ class ArmSpec:
     policies: Optional[Dict[str, object]] = None
 
 
+def is_degraded(result) -> bool:
+    """Whether a cleared day may not be reported as a payoff.
+
+    Two ways a clear stops being a result. It fell back -- the whole path
+    degraded to the single-period solver. Or its price field is mixed: some
+    periods are not nodal prices at all, and the payoff is defined on the nodal
+    price. The second was invisible until the fallback report named it, and a
+    day settled on a partly-wholesale price field was reported as clean.
+
+    One definition, used by the block-level reward loop and the day-level
+    settlement, so the two cannot disagree about which days count.
+    """
+    return bool(result is None
+                or result.get("fell_back")
+                or result.get("has_wholesale_fallback"))
+
+
+
 def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
             rl_names: Sequence[str], day_seed: int, T: int = 96,
             n_blocks: int = N_BLOCKS, settle_full_day: bool = True,
@@ -161,7 +179,7 @@ def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
         obs, _rewards, done, info = env.step(acts)
         # A block whose clearing degraded or fell back holds zeros; counting it
         # would silently deflate this arm's profit relative to a clean one.
-        if env._last_result is None or env._last_result.get("fell_back"):
+        if is_degraded(env._last_result):
             clean = False
         for nm in rl_names:
             profits[nm] += float(info.get("raw_profit", {}).get(nm, 0.0))
@@ -229,6 +247,12 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
         result = None
     if result is None or result.get("fell_back"):
         return {nm: 0.0 for nm in rl_names}, False, None
+    if result.get("has_wholesale_fallback"):
+        # The payoff is defined on the nodal price, and this day's is not one
+        # for every period. The cleared day comes back with its marker rather
+        # than being thrown away, so a caller that wants to look at it can --
+        # what it may not do is quote this day's numbers as a settlement.
+        return {nm: 0.0 for nm in rl_names}, False, result
 
     profits = {}
     for nm in rl_names:

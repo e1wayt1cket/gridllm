@@ -11,12 +11,16 @@ tests hold the separation:
   * the legacy scenarios are unchanged to the bit.
 """
 
+import collections
 import copy
+import csv
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 import money
+import select_industry_user_subset as subset
 from config_loader import get_scenario_cfg, load_defaults
 from grid import build_base_network, native_nominal_demand_mw
 from models import MarketConfig
@@ -253,13 +257,17 @@ def test_the_inventory_shows_no_implicit_inheritance():
     assert {r["scenario"] for r in rows} == set(list_scenarios())
     for r in rows:
         assert r["scenario_scale_source"] != "MISSING", r["scenario"]
-        assert r["load_scale_mode"] in ("native_peak", "explicit_peak")
-        assert r["load_shape"] in ("native", "industry", "diversified")
-        if r["load_shape"] == "industry":
-            # The industry shape carries per-bus curves, so it is only
-            # describable with an explicit assignment of every load bus.
-            assert (get_scenario_cfg(r["scenario"]).get("industry_map") or {}
-                    ).get("buses"), r["scenario"]
+        assert r["load_scale_mode"] in ("native_peak", "explicit_peak",
+                                        "ledger")
+        assert r["load_shape"] in ("native", "diversified")
+        if r["load_scale_mode"] == "ledger":
+            # A ledger-backed scenario declares no shape of its own: its
+            # per-bus MW comes from the artifact, and it must say which case
+            # that artifact belongs to.
+            assert (get_scenario_cfg(r["scenario"]).get("load_model") or {}
+                    ).get("mode") == "absolute_industry_mw", r["scenario"]
+            assert (get_scenario_cfg(r["scenario"]).get("single_day_case") or {}
+                    ).get("case_type"), r["scenario"]
         assert "error" not in r, (r["scenario"], r.get("error"))
         assert r["realized_pv_mw"] == pytest.approx(
             sum(r["pv_bus_mw_declared"].values()), abs=1e-6), r["scenario"]
@@ -267,24 +275,72 @@ def test_the_inventory_shows_no_implicit_inheritance():
             sum(r["wind_bus_mw_declared"].values()), abs=1e-6), r["scenario"]
 
 
-def test_only_the_research_scenarios_are_at_native_scale():
-    """Two scenarios run at the benchmark's demand, and they are these.
+def _ledger_coincident_peak(scenario: str) -> float:
+    """The coincident peak the scenario's own ledger rows carry, in MW.
 
-    `typical_day_industry` is the same benchmark demand with a different
-    intraday shape, so it belongs at this scale by construction: the industry
-    data contributes form, never level. A third native-scale scenario appearing
-    here would mean a scenario had quietly picked up the benchmark's load
-    without saying so.
+    Read straight from the artifact, so this is what the network is supposed to
+    have received. Blank is a refusal rather than a zero: the composition rule
+    leaves a `replace` bus with no industry term empty, never zero-filled.
+    """
+    path = Path(get_scenario_cfg(scenario)["single_day_case"]["ledger"])
+    per_period = collections.defaultdict(float)
+    with path.open(encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh):
+            assert row["final_mw"] != "", (scenario, row["bus"],
+                                           row["time_index"])
+            per_period[int(row["time_index"])] += float(row["final_mw"])
+    return max(per_period.values())
+
+
+def test_only_the_benchmark_day_is_at_native_scale():
+    """`native_peak` names one scenario. `ledger` no longer names one.
+
+    `typical_day_industry` used to share the benchmark's peak: the industry data
+    contributed form and never level. It no longer does -- its per-bus MW is the
+    metered ledger's -- so it declares `load_scale_mode: ledger` and carries
+    whatever the ledger says. A second **`native_peak`** scenario appearing here
+    would mean a scenario had quietly picked up the benchmark's load without
+    saying so, and that is what this still refuses.
+
+    The ledger set grew a second member and the assertion grew with it. This
+    test used to hold `ledger == ["typical_day_industry"]`, on the reasoning
+    that "a `ledger`-mode scenario appearing with a native-scale peak would mean
+    the ledger had been rescaled on the way in". `typical_day_industry_subset`
+    does sit at the benchmark's scale, and it got there honestly: by choosing
+    which users are in the ledger, not by scaling the ledger. The peak alone
+    cannot tell those apart -- the list was a proxy for the rescale, never the
+    test for it. What is a test for it is that the network realizes its own
+    artifact row for row, which is what replacing the list buys: the check now
+    runs on every ledger scenario instead of guarding one name.
     """
     import baseline_ladder as bl
 
     rows = {r["scenario"]: r for r in bl.scenario_inventory()}
     native = sorted(s for s, r in rows.items()
                     if r["load_scale_mode"] == "native_peak")
-    assert native == ["typical_day", "typical_day_industry"]
+    assert native == ["typical_day"]
     for scenario in native:
         assert rows[scenario]["realized_peak_mw"] == pytest.approx(3.715,
                                                                    abs=1e-6)
+
+    ledger = sorted(s for s, r in rows.items()
+                    if r["load_scale_mode"] == "ledger")
+    assert "typical_day_industry" in ledger
+    for scenario in ledger:
+        # A ledger the network rescaled, retimed or re-aggregated on the way in
+        # would disagree with its own rows here.
+        assert rows[scenario]["realized_peak_mw"] == pytest.approx(
+            _ledger_coincident_peak(scenario), abs=1e-6), scenario
+
+    # The full set's peak is the metered one and is nowhere near the
+    # benchmark's -- which is the whole finding that scenario carries.
+    assert rows["typical_day_industry"]["realized_peak_mw"] > 100.0
+    # The subset's is at the benchmark's scale, and reaches it by selection:
+    # the assertion above is what says no scaling was involved.
+    assert rows[subset.DEFAULT_SCENARIO]["realized_peak_mw"] == \
+        pytest.approx(subset.TARGET_PEAK_MW,
+                      abs=subset.TARGET_PEAK_TOLERANCE * subset.TARGET_PEAK_MW)
+    assert rows[subset.DEFAULT_SCENARIO]["realized_peak_mw"] < 100.0
     for scenario, r in rows.items():
         if scenario in _LEGACY:
             assert r["realized_peak_mw"] > 9.0, scenario

@@ -61,7 +61,7 @@ COLUMNS = (
     "lmp_max_cny_mwh", "dlmp_range_cny_mwh",
     "ess_arbitrage_margin_cny", "ess_adjusted_spread_cny_mwh",
     "ess_profit_cny", "charge_mwh", "discharge_mwh",
-    "tradeable_box_share", "siting_eligible",
+    "tradeable_box_share", "siting_eligible", "action_space_available",
     "shed_mwh", "lmp_fallbacks", "clean",
 )
 

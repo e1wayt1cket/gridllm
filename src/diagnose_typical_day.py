@@ -679,9 +679,14 @@ def price_report(day):
         margin = round_trip_margin_cny_mwh(node, a.storage.eta_ch,
                                            a.storage.eta_dis, cycle_cost)
         row["round_trip_margin_cny_mwh"] = margin
+        # Eligibility is the physical margin -- `margin` already has the
+        # degradation floor deducted -- and so does not move when the quote box
+        # does. The box share is reported beside it, as the separate question of
+        # whether a policy has room to choose.
         row["tradeable_box_share"] = tradeable_box_share(
             margin, action_box())
-        row["siting_eligible"] = (
+        row["siting_eligible"] = bool(margin > 0.0)
+        row["action_space_available"] = bool(
             row["tradeable_box_share"] >= TRADEABLE_BOX_SHARE)
         rows.append(row)
 
@@ -1353,7 +1358,8 @@ def siting_sweep(run_kwargs, buses=None):
             "lmp_peak": float(np.max(node)),
             "round_trip_margin_cny_mwh": margin,
             "tradeable_box_share": share,
-            "eligible": bool(share >= TRADEABLE_BOX_SHARE),
+            "eligible": bool(margin > 0.0),
+            "action_space_available": bool(share >= TRADEABLE_BOX_SHARE),
             "charge_mwh": float(np.sum(sched["p_ch"]) * money.DT_HOURS),
             "discharge_mwh": float(np.sum(sched["p_dis"]) * money.DT_HOURS),
             "cycles": float(ledger["equivalent_cycles"]),
@@ -1365,9 +1371,9 @@ def siting_sweep(run_kwargs, buses=None):
 
     eligible = [r for r in rows if r["eligible"]]
     print("-" * 78)
-    print("eligible (share >= %.2f, i.e. margin >= %.1f CNY/MWh): %s"
-          % (TRADEABLE_BOX_SHARE, _margin_for_share(TRADEABLE_BOX_SHARE, box),
-             [r["bus"] for r in eligible] or "none"))
+    print("eligible (physical margin > 0: the spread clears the degradation "
+          "floor, whatever the quote box): %s"
+          % ([r["bus"] for r in eligible] or "none"))
     print("of those, %d cycled: %s"
           % (sum(1 for r in eligible if r["cycles"] > 0),
              [r["bus"] for r in eligible if r["cycles"] > 0] or "none"))
@@ -1494,6 +1500,10 @@ def _parse_floats(text):
 
 
 def main(argv=None):
+    # A non-formal entry point: this measures the control path against a
+    # market with a known shape, not against a measured one.
+    from wholesale_price import enable_non_formal_market
+    enable_non_formal_market()
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--scenario", default="typical_day")

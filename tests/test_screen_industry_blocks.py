@@ -14,6 +14,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import industry_load as il
@@ -85,6 +87,18 @@ def test_the_reported_tolerances_come_from_the_module():
     assert str(il.RATIO_OUTLIER_FACTOR) in text
     assert str(il.MIN_USERS_FOR_RELIABLE) in text
     assert il.FLAG_CAPACITY_INCONSISTENT in text
+
+
+def test_the_superseded_pre_s1_digest_cannot_be_reached_again():
+    """The pre-S1 rule read a slot value as energy per slot, so it multiplied
+    every implied peak by four and rejected meters for a defect they did not
+    have. Its digest is recorded here as the thing the current rule must not
+    equal: if this fails, the unit correction has been undone somewhere."""
+    assert sb.rule_version() != "f647fa60d88c3b29"
+    inputs = sb.rule_inputs()
+    assert inputs["reading_unit"] == "kW"
+    assert inputs["slot_reading_is_average_power"] is True
+    assert inputs["mw_per_kw"] == pytest.approx(1e-3)
 
 
 def test_the_rule_version_moves_when_the_rule_moves(monkeypatch):

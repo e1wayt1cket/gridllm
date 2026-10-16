@@ -31,7 +31,9 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-SCENARIOS = ["baseline", "high_re", "peak_load", "congestion"]
+from scenarios import legacy_comparison_scenarios
+
+SCENARIOS = legacy_comparison_scenarios()
 SCEN_LABEL = {
     "baseline": "baseline",
     "high_re": "high RE",

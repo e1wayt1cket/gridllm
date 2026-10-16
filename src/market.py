@@ -12,8 +12,9 @@ from dispatch import (
     solve_lindist_opf_batch,
 )
 from dispatch_core import (empty_schedules, fallback_solver_record,
-                           last_solve_metadata, pins_terminal_soc,
-                           solver_metadata, split_power)
+                           grid_carbon_tco2, last_solve_metadata,
+                           pins_terminal_soc, solver_metadata, split_power,
+                           LMP_FALLBACK_UNSOLVED, lmp_fallback_report)
 from strategies import adaptive_bidding  # noqa: F401 — re-export
 
 
@@ -49,13 +50,13 @@ def two_settlement(agents, da, rt):
     return payments, breakdown
 
 def clear_market(agents, T, stage, action_params, config, storage_units=None,
-                 wholesale=None, horizon_type="auto"):
+                 wholesale=None, *, horizon_type):
     """Clear one market.
 
     `horizon_type` says whether this call settles a whole day or clears a
     rolling window; it decides whether storage's final state of charge is
-    pinned (see dispatch_core.pins_terminal_soc). The default infers it from
-    the horizon length, which is what callers did before the parameter existed.
+    pinned (see dispatch_core.pins_terminal_soc). It is required: the horizon
+    is a fact about the call, and the period count cannot stand in for it.
     """
     if stage == "DA" and config.rt.da_rolling_enabled:
         return clear_da_rolling(agents, T, action_params, config, storage_units,
@@ -88,6 +89,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
 
     # ---- Per-period fallback (DC-OPF or LinDistFlow single-period) ----
     periods_failed = 0
+    failed_periods: list[int] = []
     n_buses = len(base_net.bus)
     lmp = np.zeros((T, n_buses))
     schedules = empty_schedules(agents, T)
@@ -95,7 +97,6 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
     total_clearing_objective = 0.0
     total_re_available = 0.0; total_re_used = 0.0
     total_curtailment = 0.0
-    carbon_emissions = 0.0
     total_served_mwh = 0.0
     for a in agents:
         if stage == "DA":
@@ -119,6 +120,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
         )
         if not success:
             periods_failed += 1
+            failed_periods.append(t)
             if t > 0:
                 lmp[t] = lmp[t-1]
                 for a in agents:
@@ -138,8 +140,6 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
         lmp[t] = lmp_t
         schedules['GRID']['g_grid'][t] = p_grid
         total_clearing_objective += clearing_objective_t
-        if p_grid > 0:
-            carbon_emissions += config.market_design.emission_factor_grid * p_grid * 0.25
 
         for a in agents:
             sched = schedules[a.name]
@@ -163,7 +163,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
                 sched['soc_terminal_actual'] = float(new_soc)
                 sched['soc_terminal_target'] = (
                     float(a.storage.soc0)
-                    if pins_terminal_soc(config, T, horizon_type) else None)
+                    if pins_terminal_soc(config, horizon_type) else None)
                 prev_soc[a.name] = new_soc
             else:
                 sched['p_ch'][t] = 0.0
@@ -181,6 +181,12 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
             total_served_mwh += res['served'] * 0.25
 
     re_rate = (total_re_used / total_re_available * 100) if total_re_available > 0 else 100.0
+    # Through the shared helper, so this path charges carbon on the import part
+    # of the same net exchange the engines charge it on, over the same period
+    # length. A period that failed to solve left its exchange at zero, which is
+    # what the loop used to add for it.
+    carbon_emissions = grid_carbon_tco2(schedules['GRID']['g_grid'],
+                                        config.market_design.emission_factor_grid)
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
     return {
         "price": lmp.mean(axis=1),
@@ -193,6 +199,11 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
         "shadow_prices": {},
+        # Every bus of a period that did not solve is carried forward from the
+        # period before it, so this path reports cells the same way the batch
+        # engines do and the two are comparable across engines.
+        **lmp_fallback_report(periods_failed * n_buses, failed_periods,
+                              LMP_FALLBACK_UNSOLVED),
         "fell_back": True,  # set only on the single-period fallback path
         # What produced these numbers, and what failed first. `final` names the
         # per-period engine, never the batch that declined: reporting the
@@ -251,6 +262,12 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
     total_curtailment = 0.0
     carbon_emissions = 0.0
     total_served_mwh = 0.0
+    # A window prices its own periods, so a period is nodal only if the window
+    # that committed it read a dual for it. Nothing here is inferred from the
+    # day being a whole one. Causes are collected rather than taken from the
+    # last window: different windows can fail for different reasons.
+    fallback_periods: list[int] = []
+    fallback_causes: set[str] = set()
 
     for a in agents:
         total_re_available += np.sum(a.pv_forecast) * 0.25
@@ -317,6 +334,11 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
 
         n_commit = min(step, window_T)
         if result is not None:
+            for d in result.get("lmp_fallback_periods", ()):
+                if d < n_commit:
+                    fallback_periods.append(idx + d)
+                    fallback_causes.add(result.get("lmp_fallback_reason")
+                                        or LMP_FALLBACK_NO_DUAL)
             for d in range(n_commit):
                 t_abs = idx + d
                 dt = 0.25
@@ -366,6 +388,10 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
             total_clearing_objective += result["clearing_objective"] * (n_commit / window_T)
             carbon_emissions += result.get("carbon_emissions", 0) * (n_commit / window_T)
         else:
+            # The window produced no result, so the period it would have
+            # committed is carried forward rather than priced. It is not nodal.
+            fallback_periods.append(idx)
+            fallback_causes.add(LMP_FALLBACK_UNSOLVED)
             if idx > 0:
                 lmp_da[idx] = lmp_da[idx - 1]
                 for a in agents:
@@ -388,6 +414,9 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
         "shadow_prices": {},
+        **lmp_fallback_report(len(fallback_periods) * n_buses,
+                              fallback_periods,
+                              "; ".join(sorted(fallback_causes))),
     }
 
 
@@ -457,9 +486,12 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
 
     prev_soc = {}
     total_clearing_objective_rt = 0.0
-    carbon_emissions = 0.0
     total_curtailment = 0.0
     total_served_mwh = 0.0
+    # Which periods are not priced by this day's own market. A window commits
+    # only its first `n_commit` periods, so only those can be carried here.
+    fallback_periods: list[int] = []
+    fallback_causes: set[str] = set()
     total_re_available = 0.0
     total_re_used = 0.0
 
@@ -497,6 +529,11 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
 
         n_commit = min(rt_step, window_T)
         if result is not None:
+            for d in result.get("lmp_fallback_periods", ()):
+                if d < n_commit:
+                    fallback_periods.append(idx + d)
+                    fallback_causes.add(result.get("lmp_fallback_reason")
+                                        or LMP_FALLBACK_NO_DUAL)
             for d in range(n_commit):
                 t_abs = idx + d
                 dt = 0.25
@@ -543,18 +580,20 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
                         next_soc = ws['soc'][d + 1]
                     prev_soc[nm] = next_soc
 
-                pgi = schedules_rt['GRID']['g_grid'][t_abs]
-                if pgi > 0:
-                    carbon_emissions += config.market_design.emission_factor_grid * pgi * dt
-
             total_clearing_objective_rt += result["clearing_objective"] * (n_commit / window_T)
         else:
+            fallback_periods.append(idx)
+            fallback_causes.add(LMP_FALLBACK_UNSOLVED)
             if idx > 0:
                 lmp_rt[idx] = lmp_rt[idx - 1]
 
         idx += rt_step
 
     re_rate = (total_re_used / total_re_available * 100) if total_re_available > 0 else 100.0
+    # Every period is committed exactly once above, so the day's exchange is
+    # complete here; the shared helper keeps this the same rule as the engines'.
+    carbon_emissions = grid_carbon_tco2(schedules_rt['GRID']['g_grid'],
+                                        config.market_design.emission_factor_grid)
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
     return {
         "price": lmp_rt.mean(axis=1),
@@ -567,4 +606,7 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
         "shadow_prices": {},
+        **lmp_fallback_report(len(fallback_periods) * n_buses,
+                              fallback_periods,
+                              "; ".join(sorted(fallback_causes))),
     }

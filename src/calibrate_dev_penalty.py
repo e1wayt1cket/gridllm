@@ -254,6 +254,10 @@ def select(doc: dict, dev_tolerance: float = 0.20,
 
 
 def main(argv=None) -> int:
+    # A non-formal entry point: this measures the control path against a
+    # market with a known shape, not against a measured one.
+    from wholesale_price import enable_non_formal_market
+    enable_non_formal_market()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--json", default=None)

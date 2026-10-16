@@ -10,7 +10,11 @@ documents are still in the tree and still read as authoritative.
 | Earlier ruling | Where it lives | Status |
 |---|---|---|
 | Load peak pinned to the IEEE33 nominal 3.715 MW (`load_scale_mode: native_peak`) | `config/scenarios.yaml` (`typical_day`, `typical_day_industry`), `docs/2026-09-18-scenario-revision.md`, `grid.py` `_coincident_peak` | **Replaced** by the absolute industry load below |
-| Absolute MW refused outright, module builds normalized shapes only | `industry_load.py` module docstring, `absolute_mw()` | **Amended**: shapes stay as they are; the absolute path is now required and must carry the screening record below |
+| Absolute MW refused outright, module builds normalized shapes only | `industry_load.py` module docstring, `absolute_mw()` | **Amended**: shapes stay as they are; `absolute_mw` is retired and the absolute path runs through `reading_to_mw` under D8 |
+| `OBS_V4`'s `avg_other_bid` / `bid_std` averaged each participant's box position across the fleet | `rl_spec.py` `OBS_V4`, `rl_env._compute_opponent_features` | **Superseded** by `OBS_V6`: the features are the fleet mean and spread of a signed, direction-normalized deviation from truthful. `OBS_V4` stays registered for identification |
+| `OBS_V5`'s unsigned `|a - truthful| / (high - low)` | `rl_spec.py` `OBS_V5` | **Superseded** by `OBS_V6` before any policy was trained or exported under it; the sign and the per-direction denominator were restored. `OBS_V5` stays registered so its name cannot be read as V6 |
+| A slot reading is energy per slot, so the capacity check multiplies an implied peak by 60/15 | `industry_load.py` `_capacity_contradicted`, `verify_ratios`; the pre-S1 screening figures 87 / 113 / 39,365 / 84 / 72 / 312 | **Superseded** by D8: the four-fold factor is removed, the figures are recomputed, and `data/processed/superseded/pre_s1/` keeps the old ones with a marker |
+| Meter-level bus mapping `R3_meter_spread` | D7, `map_industry_meters.py` `FROZEN_RULE`/`frozen_case` | **Superseded** by the S2 user-level mapping; a user's meters are aggregated to one unit and land on one bus |
 | Train / validation / test sized at 24 / 6 / 6 days | `b/算例设计与算力预算指导.md` | **Not adopted**: candidate scenarios are generated and inspected before any size is frozen |
 | Paper text stating a 3.715 MW / 2.3 MVAr base case | `b/01_SCI_IJEPES_中文稿.md` | Stale; the paper text follows this record, not the reverse |
 
@@ -22,11 +26,14 @@ documents are still in the tree and still read as authoritative.
 - That load is **not normalized**, and it is **not rescaled onto the IEEE33
   nominal peak**. Whatever magnitude the qualified blocks carry is the magnitude
   the study runs at.
-- Qualified blocks are aggregated onto the 32 load buses of the feeder by an
-  explicit, reproducible rule. The assignment is a **simulation mapping**: this
-  feeder carries no user-to-node connection table, and no result may describe
-  the mapping as real wiring.
+- Qualified blocks are aggregated onto the feeder's load buses by an explicit,
+  reproducible rule, frozen in **D7**: 29 data-supported buses of the 32. The
+  assignment is a **simulation mapping**: this feeder carries no user-to-node
+  connection table, and no result may describe the mapping as real wiring.
 - Every block enters at most once. Double counting is a defect, not a tolerance.
+- **The magnitude itself is gated** by **D8**: no MW figure is derived while the
+  reading's unit is undeclared, so the aggregation above is specified but does
+  not run yet.
 
 ## D2. Network
 
@@ -59,11 +66,15 @@ documents are still in the tree and still read as authoritative.
   [0, 150] and `discharge_price` in [0, 300] CNY/MWh, truthful at (0, 0). A load
   or prosumer takes the shading pair truthful at (1, 0). The spec is chosen by
   participant type, never by whether the participant happens to carry a battery.
-- Observation: `OBS_V4`, 12 dimensions. It is causal by contract — every price
+- Observation: `OBS_V6`, 12 dimensions. It is causal by contract — every price
   feature is a function of prices already published to the participant, and the
   decision-block load, RE and system ratio come from the day-ahead forecasts in
   **both** stages. A V3 checkpoint is not a valid V4 initialisation and is
-  refused rather than remapped.
+  refused rather than remapped. V6 keeps V4's layout and causality and redefines
+  the two opponent features as `avg_other_dev` / `all_dev_std`, the fleet mean
+  and spread of a **signed, direction-normalized** deviation from truthful
+  (`(a - truthful) / (high - truthful)` above, `(a - truthful) / (truthful - low)`
+  below, 0 at truthful); no V4 or V5 actor is a valid V6 initialisation.
 - Economic conclusion: settled per-participant payoff from `participant_payoff`,
   through `counterfactual_eval`. The training reward is a learning diagnostic
   and is never reported as profit; the clearing objective is neither.
@@ -113,19 +124,26 @@ What that fixes:
 | blocks (meter × date), all | 103,739 |
 | meters, all | 283 |
 | meters the check can reach | 200 |
-| meters whose implied peak fits 运行容量 | **87** |
-| meters whose implied peak contradicts it | 113 |
+| meters whose implied peak fits 运行容量 | **109** |
+| meters whose implied peak contradicts it | 91 |
 | meters the check cannot reach | 83 |
-| meters with at least one qualifying block | 84 |
-| **formal absolute-load blocks (B)** | **39,365** |
-| users covered | 36 |
+| meters with at least one qualifying block | 103 |
+| **formal absolute-load blocks (B)** | **45,736** |
+| users covered | 43 |
 | dates covered | 730 |
 
-**87 is a meter count. 39,365 is a block count.** The earlier "87 qualified
-blocks" read the first as the second and is withdrawn. The meter count is 84
-rather than 87 because three of the 87 consistent meters produce no block that
-survives the pool. Reading A (87,511 blocks) and reading C (35,383) are recorded
+**109 is a meter count. 45,736 is a block count.** The earlier "87 qualified
+blocks" read the first as the second and is withdrawn. The meter count is 103
+rather than 109 because six of the 109 consistent meters produce no block that
+survives the pool. Reading A (87,511 blocks) and reading C (41,521) are recorded
 as bounds and are not the formal input.
+
+These figures are post-S1 (D8): the capacity check no longer multiplies an
+implied peak by `60/SLOT_MINUTES`. The pre-S1 figures — **87 / 113** meters,
+**39,365** blocks, **84** contributing meters, **36** users — are superseded and
+archived under `data/processed/superseded/pre_s1/`. The rule digest moved from
+`f647fa60d88c3b29` to `ecb2b3aed37c520e`, and a test asserts it can never return
+to the old value.
 
 ### Reproducing it
 
@@ -153,13 +171,83 @@ two files are the same bytes.
 - The size and stratification of a split are frozen only after candidate
   scenarios are generated and their regime coverage and variance inspected.
 
+## D7. The meter-to-bus mapping
+
+The 84 qualified meters become load on the 32 IEEE33 load buses under one rule,
+frozen here.
+
+- **The rule is `R3_meter_spread`.** Within an industry, meters are ordered by
+  id and distributed one per declared bus for that industry. The generation is
+  deterministic and each meter takes exactly one bus, whatever order the meters
+  are read in. `config/scenarios.yaml` remains the authority on which bus takes
+  which industry; the mapping is inverted from it, never restated.
+- **Buses 22, 29 and 32 carry no mapped load.** Each is the sole bus of an
+  industry whose meters cover too few days to populate it — 印刷业 is missing on
+  705 days of 730, 数据中心 on 698, 水泥制造 on 648. Their meters are reported as
+  excluded with that reason and are not moved to another industry's bus. **The
+  IEEE33 topology is unchanged**: the buses exist, they simply carry no mapped
+  load, so the formal case has 29 data-supported load buses.
+- **The day axis excludes 2022-05-26.** Every one of the workbook's 43
+  `placeholder` records falls on that date, so it is not a measurement.
+- **Every mapping is a simulation mapping.** `simulation_mapping: true`; this
+  feeder carries no user-to-node connection table and no result may describe the
+  assignment as real wiring.
+- **Every exclusion is listed**, never absorbed: an unmapped meter, an
+  unsupported bus, a fabricated date and a withheld meter-day each appear in the
+  exclusion list with its reason.
+
+Frozen outcome: 72 of 84 meters mapped across 29 nodes, over a 729-day axis, of
+which **312 days have every one of the 29 nodes covered**. Those figures are
+pre-S1 and are superseded: they were computed from the meter set the four-fold
+capacity reading produced. The S2 user-level mapping replaces both the rule and
+the numbers, and D7 in particular is superseded — a user's meters must not be
+split across buses.
+
+## D8. The reading unit: declared as a ruling, and the four-fold error removed
+
+- **A slot reading is the average active power over its 15 minutes, in kW.**
+  This is a **declared project ruling, not a data dictionary fact** — no field
+  specification for this workbook is in hand, and the ruling says so in
+  `READING_UNIT_SOURCE` rather than dressing itself up as a citation.
+- **Two consequences, both load-bearing.** A 96-slot day is 96 average powers,
+  so a day's energy is their sum times `HOURS_PER_SLOT` (0.25 h) and a slot value
+  is **never multiplied by four**. And the capacity check's `60/SLOT_MINUTES`
+  factor is **removed**: both sides of that comparison are kW, so the implied
+  peak is `max|slot| * 综合倍率` and nothing else.
+- **`CAPACITY_PEAK_TOLERANCE` stays at 1.5.** It was ~4x looser in practice
+  while the denominator of the comparison was inflated; it is now a genuine
+  tolerance. The value is deliberately unchanged, so the unit correction is not
+  confused with a threshold decision.
+- **The consequence for the data.** Removing the four-fold overstatement raised
+  the meter count whose implied peak fits 运行容量 from 87 to **109** and lowered
+  the contradictions from 113 to 91. Every downstream figure moved with it. The
+  pre-S1 numbers are superseded and archived, and the screening rule digest
+  cannot return to its old value.
+- **`reading_to_mw` is the only sanctioned conversion.** It calls
+  `require_reading_unit()` first, refuses a unit it does not implement, and
+  returns `None` — never zeros — for a record that is not a complete
+  active-power day. It converts a unit and never rescales a curve.
+- **`absolute_mw` is retired.** It multiplied a *normalised shape* by a rated
+  capacity, which is a magnitude with no measurement behind it. It has no
+  successor.
+- **Residual limits, stated rather than hidden.** `运行容量`'s unit is as
+  unstated as the reading's, so the capacity check is meaningful only under the
+  same assumption; it is a consistency filter, never evidence for the unit. A
+  data dictionary, a written statement from the producer, or an independent
+  scale measurement would each let the ruling be replaced by a citation. See
+  `reports/industry_load_unit_gate.md`.
+
 ## Not yet in force
 
 Formal MATD3 training does not start from this record. Observation admission
-is one gate among several: the load screening, the mapped magnitude, the
-network feasibility review, the settlement semantics, the frozen split and an
-end-to-end smoke all have to pass first. Until then, results quoted from an
-earlier revision are not evidence about the current configuration.
+is one gate among several: the load screening, the mapped magnitude, the reading
+unit (D8, **open on a declared ruling**), the network feasibility review, the
+settlement semantics, the frozen split and an end-to-end smoke all have to pass
+first. Two further blockers are known and recorded in the S0 baseline: the real
+price curves and the real load days cover no common date, and the absolute
+industry load may exceed the feeder's physical capacity. Until every gate
+passes, results quoted from an earlier revision are not evidence about the
+current configuration.
 
 ## Verifying a claim made here
 

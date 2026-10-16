@@ -39,7 +39,8 @@ def _baseline_clear(T, dt_scaled, seed=7, opf_mode="socp",
     config.market_design.use_constraint_multi_obj = False
     for key, value in storage_overrides.items():
         setattr(config.storage, key, value)
-    result = clear_market(agents, T, "DA", {}, config, wholesale=wholesale)
+    result = clear_market(agents, T, "DA", {}, config,
+                          wholesale=wholesale, horizon_type="full_day")
     return agents, config, result
 
 
@@ -262,3 +263,31 @@ def test_reported_prices_stay_in_the_legacy_range():
     assert result["lmp_fallbacks"] == 0, (
         f"{result['lmp_fallbacks']} periods fell back to the wholesale curve "
         "instead of the power-balance dual")
+
+
+def test_carbon_charges_the_import_part_of_the_exchange_only():
+    """Positive, reverse and zero exchange, on the one rule the engines share."""
+    from dispatch_core import grid_carbon_tco2
+    factor = 0.5
+    exchange = np.array([2.0, -3.0, 0.0, 1.0])
+    assert grid_carbon_tco2(exchange, factor) == pytest.approx(
+        (2.0 + 1.0) * money.DT_HOURS * factor)
+    # Reverse flow does not earn carbon back, and a zero period is not one.
+    assert grid_carbon_tco2(exchange, factor) > grid_carbon_tco2(
+        exchange - 3.0, factor)
+
+
+def test_the_per_period_path_reports_carbon_through_the_shared_rule():
+    """`dc` has no batch engine, so this clears through the per-period loop.
+
+    That loop used to charge carbon inline, on the period length written out as
+    a literal. The number it reports has to be the shared rule applied to the
+    exchange the result publishes, or the two drift apart again.
+    """
+    from dispatch_core import grid_carbon_tco2
+    T = 16
+    _, config, result = _baseline_clear(T, dt_scaled=True, opf_mode="dc")
+    exchange = np.asarray(result["schedules"]["GRID"]["g_grid"], dtype=float)
+    factor = config.market_design.emission_factor_grid
+    assert result["carbon_emissions"] == pytest.approx(
+        grid_carbon_tco2(exchange, factor))

@@ -361,35 +361,24 @@ wholesale_market:
   # this configuration. `guangdong` is the phase-two slot and raises until it
   # is given a series.
   source: legacy
-  # Which library day to price when a caller does not name one. Moved with
-  # `set_default`, the way `profiles.load.load_scale` is, so the ten places
-  # that create a wholesale price curve need no new argument.
+  # Which price curve to use when a caller does not name one. Moved with
+  # `set_default`, the way `profiles.load.load_scale` is, so the places that
+  # create a wholesale price curve need no new argument.
   #
-  # This is the library's REFERENCE DAY: the day whose price range is the
-  # library's median, so that a single-day diagnostic reports a typical day of
-  # this market rather than an extreme one. The criterion is the market's own
-  # price range and nothing economic -- no profit, no margin, no fleet
-  # outcome enters it.
+  # No value is set here. What an index means depends entirely on the source --
+  # for `dianyicha` it selects a CURVE, not a calendar day, and a source with
+  # no such index ignores it. A single number declared project-wide would be a
+  # claim about a dataset this project does not have, and would outlive the
+  # source it was written for. Each scenario declares its own with
+  # `wholesale_curve_index`.
   #
-  # It is declared rather than derived. Day 0 happens to be the flattest of the
-  # forty (range 236 CNY/MWh against a median of 434), so leaving the default
-  # at 0 would have made every single-day result in the project -- the baseline
-  # ladder, the siting screen, the typical-day diagnosis -- report the mildest
-  # day in the library and read as though the market had no arbitrage in it.
-  # A test asserts this number is still the median-range day, so rebuilding the
-  # library fails loudly and forces the choice to be remade rather than
-  # silently drifting to a different day.
-  day_id: 11
-  library_file: data/wholesale/synthetic_da_v1.csv
   # The Jiangsu curves, read straight from the 电易电查 workbook by
   # `dianyicha_price.read_curves`. All four sheets are MEANS over the window
-  # named by their role, so `day_id` here selects a PRICE SCENARIO by index
-  # rather than a calendar day, and no result may be described as measured
-  # daily data. Quoted because `261009` would otherwise parse as an integer.
+  # named by their role, so an index here selects a PRICE SCENARIO rather than
+  # a calendar day, and no result may be described as measured daily data.
+  # Quoted because `261009` would otherwise parse as an integer.
   dianyicha_file: docs/日前价格261009.xlsx
   dianyicha_curves: ["261009", "7days", "30days", "halfyear"]
-  master_seed: 20260920
-  number_of_days: 40
   price_floor: 120.0
   price_cap: 1000.0
   # Noise rides on the stack but must not dominate it: at 15 CNY/MWh against a

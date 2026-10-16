@@ -21,7 +21,12 @@ from outputs import save_run_results, export_curve_csvs
 
 
 # Default export scenarios
-EXPORT_SCENARIOS = ["baseline", "high_re", "peak_load", "congestion"]
+# Read from the one declaration in `config/scenarios.yaml` rather than kept
+# here: a list repeated in four modules is four lists that can disagree and
+# nothing notices. This one is the NON-FORMAL comparison set.
+from scenarios import legacy_comparison_scenarios
+
+EXPORT_SCENARIOS = legacy_comparison_scenarios()
 
 
 def _run_single_scenario(scenario_name, strategy_name, config, run_nash=False,
@@ -32,13 +37,13 @@ def _run_single_scenario(scenario_name, strategy_name, config, run_nash=False,
     agents, _ = get_scenario(scenario_name, T=T, config=config)
 
     da_actions = adaptive_bidding(agents, config, strategy=strategy_name)
-    da_results = clear_market(agents, T, "DA", da_actions, config)
+    da_results = clear_market(agents, T, "DA", da_actions, config, horizon_type="full_day")
 
     if multi_scale:
         rt_results = clear_rt_rolling_mpc(agents, T, da_actions, config)
     else:
         rt_actions = adaptive_bidding(agents, config, strategy=strategy_name)
-        rt_results = clear_market(agents, T, "RT", rt_actions, config)
+        rt_results = clear_market(agents, T, "RT", rt_actions, config, horizon_type="full_day")
 
     is_nash = None
     improvements = None
@@ -205,13 +210,13 @@ def main():
             print(f"Policies saved to {rl_save_path}")
 
     da_actions = adaptive_bidding(agents, config, strategy=strategy_name)
-    da_results = clear_market(agents, T, "DA", da_actions, config)
+    da_results = clear_market(agents, T, "DA", da_actions, config, horizon_type="full_day")
 
     if multi_scale:
         rt_results = clear_rt_rolling_mpc(agents, T, da_actions, config)
     else:
         rt_actions = adaptive_bidding(agents, config, strategy=strategy_name)
-        rt_results = clear_market(agents, T, "RT", rt_actions, config)
+        rt_results = clear_market(agents, T, "RT", rt_actions, config, horizon_type="full_day")
 
     payment, _ = two_settlement(agents, da_results, rt_results)
 

@@ -30,7 +30,9 @@ _CONVENTION_TITLES = {
     "unknown": "无消费者账目",
 }
 
-_SCENARIO_ORDER = ["baseline", "high_re", "peak_load", "congestion"]
+from scenarios import legacy_comparison_scenarios
+
+_SCENARIO_ORDER = legacy_comparison_scenarios()
 
 
 def _fmt_table(df: pd.DataFrame, columns: dict, decimals: int = 1) -> str:

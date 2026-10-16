@@ -10,6 +10,7 @@ import numpy as np
 
 import money
 
+from agent_seed import seed_for_agent
 from models import MarketConfig, Agent
 from rl_spec import ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2
 
@@ -24,10 +25,10 @@ STORAGE_MODE_THRESHOLD = 1e-6  # below this, ch/dis is treated as zero
 # ===========================================================================
 # Horizon semantics
 # ===========================================================================
-HORIZON_TYPES = ("auto", "full_day", "window")
+HORIZON_TYPES = ("full_day", "window")
 
 
-def pins_terminal_soc(config, T: int, horizon_type: str = "auto") -> bool:
+def pins_terminal_soc(config, horizon_type: str) -> bool:
     """Whether this clear pins every storage unit's final state of charge.
 
     Pinning makes a comparison like for like: a day that finishes with a fuller
@@ -36,10 +37,11 @@ def pins_terminal_soc(config, T: int, horizon_type: str = "auto") -> bool:
     and not to a rolling window, where the pin would forbid the trajectory the
     window was opened to choose.
 
-    "auto" keeps the inference this used to make from the horizon length. That
-    inference is a guess about the caller's intent, and it is wrong both for a
-    window that happens to be a whole day long and for a whole day at any other
-    period length, so a caller that knows which one it is passing should say.
+    The horizon is stated, never inferred. It used to be guessed from the
+    period count, which is wrong in both directions: a rolling window that
+    happens to be a whole day long was pinned, and a whole day cleared at any
+    other period length was not. The guess is gone, so a caller cannot buy the
+    wrong semantics by passing a familiar length.
     """
     if horizon_type not in HORIZON_TYPES:
         raise ValueError(
@@ -47,11 +49,7 @@ def pins_terminal_soc(config, T: int, horizon_type: str = "auto") -> bool:
             f"{HORIZON_TYPES}")
     if not config.storage.terminal_soc_equal:
         return False
-    if horizon_type == "full_day":
-        return True
-    if horizon_type == "window":
-        return False
-    return T == money.PERIODS_PER_DAY
+    return horizon_type == "full_day"
 
 
 # ===========================================================================
@@ -537,6 +535,42 @@ def last_solve_metadata() -> dict:
     return dict(_LAST_SOLVE)
 
 
+#: Why a period's price is not a nodal one. Named per cause, because "some
+#: prices fell back" is not a finding a reader can act on: a period priced off
+#: the wholesale curve and a period whose solve never returned need different
+#: responses, and the price column alone cannot tell them apart.
+LMP_FALLBACK_NO_DUAL = (
+    "no power-balance dual was available for the period; it is priced off the "
+    "wholesale curve")
+LMP_FALLBACK_UNSOLVED = (
+    "the period did not solve; its prices were carried forward from the "
+    "previous period")
+
+
+def lmp_fallback_report(n_fallbacks: int, periods, reason: str) -> dict:
+    """The fields that say whether a price field is nodal or partly not.
+
+    A day whose prices came off the wholesale curve for some periods is not a
+    nodal price field, and every reader of `lmp` has to be able to tell. The
+    count alone could not say so: it reports how many cells fell back rather
+    than which periods, it was absent altogether on the paths that never
+    extracted a dual, and a caller that summed a day's prices had no way to
+    know part of it was not that day's market.
+
+    `n_fallbacks` counts cells, one per (period, bus) that fell back, which is
+    what the field has always meant. `periods` lists the distinct periods that
+    contain at least one such cell, which is the unit a reader reasons in.
+    """
+    periods = sorted({int(t) for t in periods})
+    return {
+        "lmp_fallbacks": int(n_fallbacks),
+        "lmp_fallback_periods": periods,
+        "lmp_fallback_reason": reason if periods else "",
+        "has_wholesale_fallback": bool(periods),
+        "lmp_price_source": "mixed_wholesale_fallback" if periods else "nodal",
+    }
+
+
 def solver_metadata(engine: str, primary: dict, used_fallback: bool = False,
                     fallback: dict = None, duals_available=None,
                     duals_note: str = None) -> dict:
@@ -615,7 +649,7 @@ def _run_mpc_pass(all_storage_agents, T, H, wholesale, term_price,
     # Pre-compute per-agent noise arrays (single RNG call per agent)
     noise = {}
     for a in all_storage_agents:
-        rng = np.random.RandomState(hash(a.name) % 2**31)
+        rng = np.random.RandomState(seed_for_agent(a.name))
         noise[a.name] = 1.0 + rng.normal(0, noise_pct, T)
 
     charge_discount = getattr(config.storage, 'charge_discount', 0.75)

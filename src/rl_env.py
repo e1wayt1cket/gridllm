@@ -2,12 +2,12 @@
 """Gym-style RL environment for continuous-action agent bidding.
 
 Each episode = one 96-period day. Agents act on 4-period blocks (24 steps).
-Observation is the compact V4 vector (12-dim): block-mean load/RE and SOC
+Observation is the compact V6 vector (12-dim): block-mean load/RE and SOC
 normalized to [0, 1]; LMP features as ratios of the frozen reference price
 `PRICE_REF_CNY_MWH` -- the mean of the LMPs observed so far this episode, the
 most recent observed LMP, and a next-block forecast from a per-agent EMA;
-block position; the system load/RE ratio; opponent-bid statistics; and the
-deviation/trend of the observed price around its EMA. Every price feature is
+block position; the system load/RE ratio; the fleet's **signed** deviation from
+truthful quoting; and the deviation/trend of the observed price around its EMA. Every price feature is
 a function of the past alone at the decision it informs.
 The action space is the acting agent's `ActionSpec`: an independent battery
 declares its two reservation prices in CNY/MWh, and a load or prosumer
@@ -34,7 +34,7 @@ import participant_payoff
 from models import Agent, MarketConfig
 from market import adaptive_bidding
 from price_forecaster import NodalPriceForecaster
-from rl_spec import (OBS_V4, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
+from rl_spec import (OBS_V6, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
                     ObservationSpec, ActionSpec, action_spec_for)
 
 #: Frozen reference price, CNY/MWh, used to put every price feature on an O(1)
@@ -205,6 +205,58 @@ class DayCapture:
                           * BLOCK_SIZE and self.fell_backs == 0}
 
 
+def signed_deviation(value: float, truthful: float, low: float,
+                     high: float) -> float:
+    """How far, and which way, an action is from truthful -- in its own units.
+
+    Zero at truthful, negative below it, positive above it, and exactly -1 or
+    +1 at the boundary that direction can reach:
+
+        d = (value - truthful) / (high - truthful)   when value > truthful
+        d = (value - truthful) / (truthful - low)    when value < truthful
+        d = 0                                        when value == truthful
+
+    The denominator is that direction's own reach from truthful, not the full
+    box width. The storage charge box has no room below its truthful point at
+    all and 150 CNY/MWh above it, so a `(high - low)` denominator would put
+    every downward move out of range while a downward move is exactly what
+    "shade the bid" means. Normalizing each direction by its own reach is what
+    makes the two directions comparable and an asymmetric box expressible.
+
+    A value outside `[low, high]` is **refused**, not clamped. An action outside
+    its own space is not a deviation to be measured -- it is a declaration the
+    mechanism cannot express, and folding it onto the nearest edge would report
+    a participant at the boundary when it had in fact overrun it. It is also
+    unreachable on the path that matters: `BiddingEnv.step` projects every
+    action into its spec box before it writes `current_actions`, and the
+    clearing reads that same array, so the features are computed from the value
+    the market actually executed. The refusal is what keeps that a fact rather
+    than an assumption -- a caller that injects out-of-box quotes directly gets
+    an error instead of a number.
+
+    The comparison carries a small tolerance because `value` is a block mean of
+    values that were themselves pinned to the edges, and a mean of exactly-`high`
+    entries may land a few ulps above it. The tolerance is for that arithmetic;
+    it is far too small to admit a real overrun.
+    """
+    if high <= low:
+        return 0.0
+    tolerance = 1e-9 * max(1.0, abs(high - low))
+    if not low - tolerance <= value <= high + tolerance:
+        raise ValueError(
+            f"action {value!r} is outside its own box [{low}, {high}]; a "
+            f"declaration the mechanism cannot express has no deviation, and "
+            f"the caller has skipped the projection `BiddingEnv.step` applies")
+    value = min(max(value, low), high)
+    if value > truthful:
+        reach = high - truthful
+        return 0.0 if reach <= 0.0 else (value - truthful) / reach
+    if value < truthful:
+        reach = truthful - low
+        return 0.0 if reach <= 0.0 else (value - truthful) / reach
+    return 0.0
+
+
 class BiddingEnv:
     """Multi-agent bidding environment with continuous actions.
 
@@ -264,7 +316,7 @@ class BiddingEnv:
         # `bid_mult_low/high` still override the non-storage action's bounds,
         # which is what they always did; they have no meaning for a storage
         # agent, whose prices are absolute.
-        self.obs_spec = obs_spec if obs_spec is not None else OBS_V4
+        self.obs_spec = obs_spec if obs_spec is not None else OBS_V6
         if action_spec is not None:
             self.action_spec = action_spec
         else:
@@ -410,7 +462,7 @@ class BiddingEnv:
         `day_id` is which day of the wholesale library this episode is priced
         on. It is carried as environment *metadata*: it selects the price, and
         it is logged and fingerprint-checked, but it never enters an
-        observation -- the layout of OBS_V4 is the same on every day, so a
+        observation -- the layout of OBS_V6 is the same on every day, so a
         policy cannot learn to recognise a day rather than to bid. Both
         `reset` and `step` pass it down, because each regenerates the price and
         a window priced off the wrong day is silent. None leaves whatever the
@@ -462,8 +514,8 @@ class BiddingEnv:
                               hist_lmp: np.ndarray | None,
                               avg_lmp_hist: float,
                               system_load_re_ratio: float = 1.0,
-                              avg_other_bid: float = 1.0,
-                              bid_std: float = 0.0) -> Dict[str, float]:
+                              avg_other_dev: float = 0.0,
+                              all_dev_std: float = 0.0) -> Dict[str, float]:
         """Compute all named observation features for one agent.
 
         Returns the superset of features known to the environment, keyed by
@@ -567,8 +619,8 @@ class BiddingEnv:
             "block_pos": block_pos,
             "avg_lmp_hist_norm": avg_lmp_hist_norm,
             "slr_norm": slr_norm,
-            "avg_other_bid": avg_other_bid,
-            "bid_std": bid_std,
+            "avg_other_dev": avg_other_dev,
+            "all_dev_std": all_dev_std,
             "ema_dev": ema_dev,
             "price_trend": trend,
             "pred_lmp_norm": pred_lmp_norm,
@@ -578,8 +630,8 @@ class BiddingEnv:
                        hist_lmp: np.ndarray | None,
                        avg_lmp_hist: float,
                        system_load_re_ratio: float = 1.0,
-                       avg_other_bid: float = 1.0,
-                       bid_std: float = 0.0) -> np.ndarray:
+                       avg_other_dev: float = 0.0,
+                       all_dev_std: float = 0.0) -> np.ndarray:
         """Build the observation vector for one agent from the active spec.
 
         Order matters: the per-agent features must be the first entries so
@@ -588,7 +640,7 @@ class BiddingEnv:
         """
         feats = self._compute_obs_features(
             agent, block_idx, hist_lmp, avg_lmp_hist, system_load_re_ratio,
-            avg_other_bid, bid_std)
+            avg_other_dev, all_dev_std)
         return np.array(
             [feats[f.name]
              for f in (*self.obs_spec.unique_features,
@@ -635,21 +687,34 @@ class BiddingEnv:
         return avail * 0.25  # dt_h
 
     def _compute_opponent_features(self, agent_name: str) -> tuple:
-        """Summary of what the other participants declared, last block.
+        """Which way the fleet is leaning from truthful, and by how much of its
+        own room, last block.
 
-        Each agent contributes the first component of its own action space,
-        scaled into its own bounds so the two ontologies are comparable: for a
-        storage unit that is its charge price over the charge-price range, and
-        for a load or prosumer it is the multiplier over the multiplier range.
-        Comparing raw values across the two would be meaningless, and comparing
-        only storage units would hide most of the market.
+        Each participant contributes the **signed** deviation over the first
+        component of its own action space -- for a storage unit its charge
+        price, for a load or prosumer its multiplier. Truthful is zero for
+        every participant, shading down is negative, shading up is positive,
+        and a participant that has used up its whole room in one direction
+        reads exactly -1 or +1 there. See `signed_deviation` for the formula.
+
+        The box *position* this replaced (`(a - low) / (high - low)`) is not
+        that quantity: the storage charge box starts at its truthful point and
+        the prosumer multiplier box puts truthful 46% along, so averaging the
+        two averaged distance-from-the-low-bound for one convention with
+        distance-from-truthful for the other.
+
+        It is **not** `rl_td3.normalized_deviation` either: that one is
+        unsigned and divides by the full box width, because a regularizer wants
+        to know how far from truthful a policy is, not which way. These
+        features want the direction, which is why the sign is kept.
 
         Iterates over self.all_agents (not just rl_agents) so the RL agent
         observes every other participant, including those on defaults.
 
-        The observation features these feed are still named `avg_other_bid`
-        and `bid_std`; the names are legacy from when every action was a
-        multiplier, and the rename belongs with the observation revision.
+        A participant is left out of both averages rather than given a value it
+        does not have when its quote is not finite (no deviation is defined) or
+        its box has no width (nothing in it can deviate). Neither can be
+        mistaken for "truthful", which is what a substituted zero would say.
         """
         src = self._prev_block_actions
         blk = self._prev_block_index
@@ -658,14 +723,14 @@ class BiddingEnv:
             src = getattr(self, 'current_actions', None)
             blk = 0
         if not src:
-            return 1.0, 0.0
+            return 0.0, 0.0
         # Read the previous decision block's committed quotes. Actions live in
         # full-day arrays, so the block slice must be selected explicitly:
         # reading `.flat[0]` instead froze these features at block 0's quotes
         # for the whole day.
         t0 = blk * BLOCK_SIZE
-        other_bids = []
-        all_bids = []
+        other_devs = []
+        all_devs = []
         for a in self.all_agents:
             nm = a.name
             if nm not in src or not src[nm]:
@@ -673,18 +738,22 @@ class BiddingEnv:
             spec = self.spec_for(a)
             name = spec.action_names[0]
             lo, hi = spec.bounds[name]
+            if not hi > lo:
+                continue
             arr = np.asarray(src[nm][name], dtype=float).ravel()
             if arr.size >= t0 + BLOCK_SIZE:
                 value = float(np.mean(arr[t0:t0 + BLOCK_SIZE]))
             else:
                 value = float(arr.flat[0])
-            scaled = (value - lo) / (hi - lo) if hi > lo else 0.0
-            all_bids.append(scaled)
+            if not np.isfinite(value):
+                continue
+            deviation = signed_deviation(value, spec.truthful[name], lo, hi)
+            all_devs.append(deviation)
             if nm != agent_name:
-                other_bids.append(scaled)
-        avg_other = float(np.mean(other_bids)) if other_bids else 1.0
-        bid_std = float(np.std(all_bids)) if len(all_bids) >= 2 else 0.0
-        return avg_other, bid_std
+                other_devs.append(deviation)
+        avg_other = float(np.mean(other_devs)) if other_devs else 0.0
+        dev_std = float(np.std(all_devs)) if len(all_devs) >= 2 else 0.0
+        return avg_other, dev_std
 
     # ------------------------------------------------------------------
     # Episode lifecycle
@@ -756,9 +825,9 @@ class BiddingEnv:
         avg_lmp_hist = PRICE_REF_CNY_MWH
         slr = self._compute_system_load_re_ratio(0)
         for a in self.rl_agents:
-            avg_oth, bid_std = self._compute_opponent_features(a.name)
+            avg_dev, dev_std = self._compute_opponent_features(a.name)
             obs[a.name] = self._get_agent_obs(
-                a, 0, None, avg_lmp_hist, slr, avg_oth, bid_std)
+                a, 0, None, avg_lmp_hist, slr, avg_dev, dev_std)
         return obs
 
     def _agent_block_profit(self, schedule: dict, lmp_node: np.ndarray,
@@ -1038,10 +1107,10 @@ class BiddingEnv:
         slr = self._compute_system_load_re_ratio(self.block_idx * BLOCK_SIZE)
         if not done:
             for a in self.rl_agents:
-                avg_oth, bid_std = self._compute_opponent_features(a.name)
+                avg_dev, dev_std = self._compute_opponent_features(a.name)
                 obs[a.name] = self._get_agent_obs(
                     a, self.block_idx, hist_arr, avg_lmp_hist, slr,
-                    avg_oth, bid_std)
+                    avg_dev, dev_std)
         else:
             for a in self.rl_agents:
                 obs[a.name] = np.zeros(self.obs_dim, dtype=np.float32)

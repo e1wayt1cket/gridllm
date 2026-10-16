@@ -882,8 +882,18 @@ def main():
     # ---- Output ----
     if args.output and results:
         import csv
+        # The declared columns first, in their declared order, then whatever
+        # the per-episode aggregation produced beyond them. The distribution
+        # columns are named by `summarize_payoff`, so declaring them here means
+        # declaring them twice and letting the two drift -- which is how this
+        # write came to raise on its own output rather than emit it.
+        fieldnames = list(header)
+        for row in results:
+            for key in row:
+                if key not in fieldnames:
+                    fieldnames.append(key)
         with open(args.output, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=header)
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(results)
         print(f"\nResults saved to {args.output}")

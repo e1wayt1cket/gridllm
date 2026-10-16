@@ -40,6 +40,7 @@ from dispatch_core import (
     add_grid_exchange, add_storage_net_power, check_storage_quote_signs,
     quote_arrays,
     grid_import_export, grid_carbon_tco2, pins_terminal_soc, DT_HOURS,
+    LMP_FALLBACK_NO_DUAL, lmp_fallback_report,
 )
 
 try:
@@ -100,11 +101,12 @@ def _add_independent_storage(obj, su, ch, dis, soc, T, dt_scale, disc_T,
 def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
     """Nodal prices (CNY/MWh) from the power-balance duals.
 
-    Returns ``(lmp, n_fallback)``. A dual is unavailable when presolve eliminated
-    the constraint, and Gurobi also reports no duals at all for a model carrying
-    integers — raising rather than returning one. Both cases fall back to the
-    wholesale curve. The count comes back so the caller can surface a partial
-    fallback rather than silently pricing a whole day off the wrong curve.
+    Returns ``(lmp, n_fallback, fallback_periods)``. A dual is unavailable when
+    presolve eliminated the constraint, and Gurobi also reports no duals at all
+    for a model carrying integers — raising rather than returning one. Both
+    cases fall back to the wholesale curve. The count and the periods come back
+    so the caller can surface a partial fallback rather than silently pricing a
+    whole day off the wrong curve.
 
     The dual is converted with ``money.price_from_balance_dual`` because the
     balance constrains power, not energy; see that function for why the period
@@ -113,7 +115,9 @@ def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
     """
     lmp = np.zeros((T, len(buses)))
     n_fallback = 0
+    fallback_periods = []
     for t in range(T):
+        fell_back_here = False
         for i, b in enumerate(buses):
             try:
                 lmp[t, i] = money.price_from_balance_dual(
@@ -121,7 +125,10 @@ def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
             except (AttributeError, gp.GurobiError):
                 lmp[t, i] = wholesale[t]
                 n_fallback += 1
-    return lmp, n_fallback
+                fell_back_here = True
+        if fell_back_here:
+            fallback_periods.append(t)
+    return lmp, n_fallback, fallback_periods
 
 
 def _needs_binaries(config, agent) -> bool:
@@ -166,7 +173,7 @@ def _freeze_exclusive_directions(ch, dis, is_ch, is_dis):
 
 
 def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale,
-                         storage_units=None, horizon_type="auto"):
+                         storage_units=None, *, horizon_type):
     """Multi-period SOCP-OPF with storage SOC transition and carbon cost.
 
     Uses rotated second-order cone relaxation of the DistFlow equations.
@@ -472,7 +479,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     # whole-day clear can carry this: on a rolling window the pin would forbid
     # the trajectory the window was opened to choose, and the day is what is
     # being settled.
-    if pins_terminal_soc(config, T, horizon_type):
+    if pins_terminal_soc(config, horizon_type):
         for a in storage_agents:
             m.addConstr(soc[a.name][T] == soc[a.name][0],
                         f"terminal_soc_{a.name}")
@@ -639,7 +646,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     all_storage = storage_agents + storage_units
     if all_storage and config.storage.use_nodal_price:
         # Extract first-pass nodal LMPs
-        nodal_lmp, _ = _extract_lmp(p_bal_constr, buses, T, wholesale, dt_scale)
+        nodal_lmp, _, _ = _extract_lmp(p_bal_constr, buses, T, wholesale,
+                                       dt_scale)
 
         max_iters = 4
         for nodal_iter in range(max_iters):
@@ -688,7 +696,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             if m.status != GRB.OPTIMAL:
                 break
 
-            new_lmp, _ = _extract_lmp(p_bal_constr, buses, T, wholesale, dt_scale)
+            new_lmp, _, _ = _extract_lmp(p_bal_constr, buses, T, wholesale,
+                                         dt_scale)
 
             max_change = np.max(np.abs(new_lmp - nodal_lmp))
             nodal_lmp = new_lmp
@@ -696,8 +705,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 break
 
     # --- Extract LMP from duals ---
-    lmp, lmp_fallbacks = _extract_lmp(p_bal_constr, buses, T, wholesale,
-                                      dt_scale)
+    lmp, lmp_fallbacks, lmp_fallback_periods = _extract_lmp(
+        p_bal_constr, buses, T, wholesale, dt_scale)
 
     # Extract shadow prices from constraint-based multi-objective
     shadow_prices = {}
@@ -792,7 +801,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     # variable, leaving only T-1 of the T transitions checkable. `soc_boundary`
     # carries all T+1 states without overwriting any, which is what makes every
     # transition checkable.
-    terminal_pinned = pins_terminal_soc(config, T, horizon_type)
+    terminal_pinned = pins_terminal_soc(config, horizon_type)
     for a in list(storage_agents) + list(storage_units):
         nm = a.name
         if nm not in soc or nm not in schedules:
@@ -837,9 +846,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
         "shadow_prices": shadow_prices,
-        # Periods whose nodal price came from the wholesale fallback because no
-        # balance dual was available. Non-zero means those prices are not nodal.
-        "lmp_fallbacks": lmp_fallbacks,
+        # Which periods are priced off the wholesale curve because no balance
+        # dual was available, and what that makes the price field. Non-zero
+        # means those prices are not nodal and `lmp` must not be read as one.
+        **lmp_fallback_report(lmp_fallbacks, lmp_fallback_periods,
+                              LMP_FALLBACK_NO_DUAL),
         # Network state. Purely additive; no existing key changes meaning.
         # Absent under `lindistflow`, which has no current variable and whose
         # line limit is a diamond bound on P and Q rather than a thermal limit,

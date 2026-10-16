@@ -45,6 +45,8 @@ from dispatch_core import (
     record_last_solve,
     solver_metadata,
     split_power,
+    LMP_FALLBACK_NO_DUAL,
+    lmp_fallback_report,
 )
 
 
@@ -245,7 +247,7 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 # Multi-period joint optimization (batch LinDistFlow)
 # ===========================================================================
 def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholesale,
-                            storage_units=None, horizon_type="auto"):
+                            storage_units=None, *, horizon_type):
     """
     Multi-period joint LinDistFlow with storage SOC transition and terminal value.
     Uses a persistent model cache to avoid rebuilding Gurobi model on repeated calls.
@@ -282,7 +284,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                            mpc_schedules=mpc_schedules_ldf)
 
     # First call: build and cache the model
-    cached = _CachedOPFModel(net, agents, T, config, su_list, horizon_type)
+    cached = _CachedOPFModel(net, agents, T, config, su_list,
+                             horizon_type=horizon_type)
     _OPF_CACHE[key] = cached
     return cached.solve(agents, T, stage, config, action_params,
                        wholesale, su_list,
@@ -304,17 +307,20 @@ _OPF_CACHE: dict = {}  # key -> _CachedOPFModel
 def _extract_lmp_batch(m, buses, T, wholesale, dt=DT_HOURS):
     """Nodal prices (CNY/MWh) from the batch model's power-balance duals.
 
-    Returns ``(lmp, n_fallback)``. Mirrors ``dispatch_socp._extract_lmp``: a
-    constraint can be missing after presolve, and Gurobi reports no duals at all
-    for a model carrying integers, so both cases fall back to the wholesale
-    curve and are counted rather than silently pricing the day off it.
+    Returns ``(lmp, n_fallback, fallback_periods)``. Mirrors
+    ``dispatch_socp._extract_lmp``: a constraint can be missing after presolve,
+    and Gurobi reports no duals at all for a model carrying integers, so both
+    cases fall back to the wholesale curve and are counted rather than silently
+    pricing the day off it.
 
     ``dt`` is the factor the objective's energy-valued terms were scaled by; the
     dual is per MW over a period, so it has to come back out to yield a price.
     """
     lmp = np.zeros((T, len(buses)))
     n_fallback = 0
+    fallback_periods = []
     for t in range(T):
+        fell_back_here = False
         for i, b in enumerate(buses):
             constr = m.getConstrByName(f"p_bal_{t}_{b}")
             if constr is not None:
@@ -325,7 +331,10 @@ def _extract_lmp_batch(m, buses, T, wholesale, dt=DT_HOURS):
                     pass
             lmp[t, i] = wholesale[t]
             n_fallback += 1
-    return lmp, n_fallback
+            fell_back_here = True
+        if fell_back_here:
+            fallback_periods.append(t)
+    return lmp, n_fallback, fallback_periods
 
 
 def _opf_cache_key(n_buses, T, agent_names, su_names,
@@ -353,7 +362,7 @@ class _CachedOPFModel:
     """
 
     def __init__(self, net, agents, T, config, storage_units,
-                 horizon_type="auto"):
+                 *, horizon_type):
         self.net = net
         self.T = T
         self.horizon_type = horizon_type
@@ -616,7 +625,7 @@ class _CachedOPFModel:
         # horizon; see dispatch_core.pins_terminal_soc for what decides that.
         # Without this the flag is silently ignored here while SOCP honours it,
         # and the two engines would answer the same request differently.
-        if pins_terminal_soc(config, T, self.horizon_type):
+        if pins_terminal_soc(config, self.horizon_type):
             for a in storage_agents:
                 m.addConstr(soc[a.name][T] == soc[a.name][0],
                             f"terminal_soc_{a.name}")
@@ -885,7 +894,8 @@ class _CachedOPFModel:
         lmp = np.zeros((T, n_buses))
         if all_storage and config.storage.use_nodal_price:
             bus_to_idx = {b: i for i, b in enumerate(buses)}
-            nodal_lmp, _ = _extract_lmp_batch(m, buses, T, wholesale, dt_scale)
+            nodal_lmp, _, _ = _extract_lmp_batch(m, buses, T, wholesale,
+                                                dt_scale)
 
             for nodal_iter in range(4):
                 obj2 = gp.LinExpr()
@@ -943,8 +953,8 @@ class _CachedOPFModel:
                 if m.status != GRB.OPTIMAL:
                     break
 
-                new_lmp, _ = _extract_lmp_batch(m, buses, T, wholesale,
-                                                dt_scale)
+                new_lmp, _, _ = _extract_lmp_batch(m, buses, T, wholesale,
+                                                   dt_scale)
                 max_change = np.max(np.abs(new_lmp - nodal_lmp))
                 nodal_lmp = new_lmp
                 if max_change < 1.0:
@@ -1020,8 +1030,8 @@ class _CachedOPFModel:
                     parent_line[nb] = (b, l)
                     queue.append(nb)
 
-        lmp, lmp_fallbacks = _extract_lmp_batch(m, buses, T, wholesale,
-                                               dt_scale)
+        lmp, lmp_fallbacks, lmp_fallback_periods = _extract_lmp_batch(
+            m, buses, T, wholesale, dt_scale)
         for t in range(T):
             slack_idx = list(buses).index(slack_bus)
             base_lmp = lmp[t, slack_idx]
@@ -1101,7 +1111,7 @@ class _CachedOPFModel:
         # target, matching the SOCP engine's schema so a reader does not have to
         # know which engine produced the day. `soc_final` is retained above for
         # readers that already use it.
-        terminal_pinned = pins_terminal_soc(config, T, self.horizon_type)
+        terminal_pinned = pins_terminal_soc(config, self.horizon_type)
         for a in list(agents_list):
             if a.storage is None or a.name not in schedules:
                 continue
@@ -1139,9 +1149,10 @@ class _CachedOPFModel:
             "carbon_intensity": carbon_intensity,
             "total_curtailment": total_curtailment,
             "shadow_prices": shadow_prices,
-            # Periods priced off the wholesale curve because no balance dual was
-            # available; non-zero means those prices are not nodal.
-            "lmp_fallbacks": lmp_fallbacks,
+            # Which periods are priced off the wholesale curve because no
+            # balance dual was available, and what that makes the price field.
+            **lmp_fallback_report(lmp_fallbacks, lmp_fallback_periods,
+                                  LMP_FALLBACK_NO_DUAL),
             # Same schema as the SOCP engine, so a reader need not know which
             # engine cleared the day.
             "solver": solver_metadata(

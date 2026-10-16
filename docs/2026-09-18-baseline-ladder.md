@@ -101,13 +101,31 @@ utilization over the day.
 
 | rung | band | Vmin | binding | shed MWh | curtailment MWh | util |
 |---|---|---|---|---|---|---|
-| B0 | both | 0.913090 | False | — (absent) | — | 0.5256 |
-| B1 | primary | 0.949731 | False | 2.05e-07 | 0.0000 | 0.2191 |
-| B1 | strict | 0.950000 | **True** | 1.283e-03 | 0.0000 | 0.2185 |
-| B2 | primary | 0.958347 | False | 4.53e-09 | 13.4052 | 0.1755 |
-| B2 | strict | 0.958347 | False | 8.33e-08 | 13.4052 | 0.1755 |
-| B3 | primary | 0.952631 | False | 3.45e-07 | 13.3968 | 0.2056 |
-| B3 | strict | 0.952627 | False | 4.35e-07 | 13.3968 | 0.2056 |
+| B0 | both | 0.913090 | False | 0.00e+00 | — (absent) | 0.5256 |
+| B1 | primary | 0.945946 | False | 3.18e-07 | 0.0000 | 0.2325 |
+| B1 | strict | 0.950000 | **True** | 3.17e-02 | 0.0000 | 0.2243 |
+| B2 | primary | 0.954728 | False | 4.53e-08 | 13.3808 | 0.1772 |
+| B2 | strict | 0.954728 | False | 9.76e-08 | 13.3810 | 0.1772 |
+| B3 | primary | 0.930000 | **True** | 1.13e-07 | 13.2813 | 0.2731 |
+| B3 | strict | 0.950000 | **True** | 4.22e-08 | 13.2779 | 0.2788 |
+
+These numbers were re-measured after the rung configuration was routed through
+`scenarios.scenario_model_config`. Every row moved, and one moved
+qualitatively: **B3 now binds its voltage band at both bands** where it
+previously bound at neither, and its worst line utilization rose from 0.2056 to
+0.2731 (primary). The cause is that `_config` had been assembled from the
+dataclass defaults rather than from `config/defaults.yaml` and the scenario's
+own overrides, so a rung cleared at a load power factor of 0.90 against the
+scenario's 0.8503 and with inverters rated at 1.0 against the scenario's 1.10.
+Both are choices about this study's facilities; a rung that did not carry them
+was not a rung of the scenario it claimed to be. See
+`reports/s7_defect_repairs.md`.
+
+Earlier runs of the same ladder are still on disk under `outputs/ladder.json`,
+`outputs/ladder_2.json`, `outputs/audit_ladder_current.json`,
+`outputs/audit_ladder_doc.json` and `logs/audit_ladder_current.log`. They record
+what those runs produced against the pre-fix configuration and were left
+untouched; the table above is the current one.
 
 Shed below ~1e-5 MWh is the solver's residue on the served/unserved split
 rather than a decision to shed; the tests state that line once as

@@ -24,7 +24,7 @@ def run_one(config, label):
     actions = adaptive_bidding(agents, config, strategy="rl")
     t0 = time.perf_counter()
     try:
-        results = clear_market(agents, T, "DA", actions, config)
+        results = clear_market(agents, T, "DA", actions, config, horizon_type="full_day")
         elapsed = time.perf_counter() - t0
         if results is None:
             return {"label": label, "feasible": False, "time": elapsed}
@@ -158,7 +158,7 @@ def pareto_scan():
             actions = adaptive_bidding(agents, cfg, strategy="random")
             t0 = time.perf_counter()
             try:
-                res = clear_market(agents, T, "DA", actions, cfg)
+                res = clear_market(agents, T, "DA", actions, cfg, horizon_type="full_day")
                 elapsed = time.perf_counter() - t0
                 if res is not None:
                     sp = res.get("shadow_prices", {})

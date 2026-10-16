@@ -1,0 +1,62 @@
+{
+  "counts": {
+    "buses_receiving_a_user": 17,
+    "buses_with_no_user": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      17,
+      18,
+      19,
+      20,
+      21
+    ],
+    "declared_load_buses": 32,
+    "mapped_users": 41,
+    "meters": 103,
+    "qualified_blocks": 45736,
+    "qualified_users": 43,
+    "unmapped_users": 2
+  },
+  "dataset_version": "industry-bus-map-v2/a5fae0850b2b",
+  "frozen": true,
+  "mapping_rule_version": "77199f7b8244e188",
+  "mapping_sha256": "a5fae0850b2bd6a4d0f9db7412e71b1aac2c6771a867f11cb1f4c426386eb38b",
+  "rule": "U1_user_round_robin",
+  "scenario": "typical_day_industry",
+  "simulation_mapping": true,
+  "source_workbook": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\docs\\16\u7c7b\u884c\u4e1a\u7528\u6237.xlsx",
+  "source_workbook_bytes": 67277368,
+  "source_workbook_sha256": "63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb",
+  "supersedes": [
+    "industry_meter_bus_map_frozen.csv",
+    "D7 R3_meter_spread"
+  ],
+  "unit": "user",
+  "users_per_bus": {
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 1,
+    "5": 1,
+    "16": 2,
+    "22": 3,
+    "23": 4,
+    "24": 4,
+    "25": 4,
+    "26": 3,
+    "27": 5,
+    "28": 2,
+    "29": 2,
+    "30": 2,
+    "31": 3,
+    "32": 2
+  }
+}

@@ -73,7 +73,6 @@ def _make_load_profile(
     load_type: str,
     load_cfg: dict,
     shape: str = "diversified",
-    bus_shape: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """The diurnal multiplier for one bus.
 
@@ -89,33 +88,14 @@ def _make_load_profile(
     sum of the native bus demands. No type overrides apply: a phase shift or an
     amplitude blend would give each type its own multiplier again.
 
-    `industry` takes the bus's shape from the standard industry artifact
-    (`industry_load.load_shapes_csv`), normalized to peak 1.0 as well. The
-    contract is identical to `native` -- one peak-normalized multiplier per
-    bus, applied to that bus's own rated demand and then rescaled to the
-    fleet's target -- and only the *source of the shape* differs. That is the
-    whole change, and it bounds what may be claimed: the day is still the
-    IEEE33's own demand, redistributed within the day. It is not measured
-    Jiangsu load.
+    A per-bus industry *shape* used to be a third option here, reading the
+    standard industry artifact. It was retired when `typical_day_industry`
+    moved onto the node-load ledger: the ledger carries the composed absolute
+    load, so a second, relative route to industry load would have been a second
+    thing to keep in step with it, and the one that could not express a
+    magnitude. Measured industry load reaches the network through
+    `scenarios.single_day_case` or not at all.
     """
-    if shape == "industry":
-        if bus_shape is None:
-            raise ValueError(
-                "load_shape 'industry' needs a shape for this bus and none "
-                "was supplied; declare `industry_map` on the scenario so that "
-                "every load bus is assigned exactly once")
-        prof = np.asarray(bus_shape, dtype=float)
-        if prof.shape != hours.shape:
-            raise ValueError(
-                f"industry shape carries {prof.size} slots, expected "
-                f"{hours.size}")
-        if not np.all(np.isfinite(prof)):
-            raise ValueError("the industry shape carries non-finite values")
-        peak = float(np.max(prof))
-        if peak <= 0:
-            raise ValueError("the industry shape peaks at zero")
-        return prof / peak
-
     if shape == "native":
         prof = load_profile(
             hours,
@@ -134,7 +114,7 @@ def _make_load_profile(
 
     if shape != "diversified":
         raise ValueError(
-            f"unknown load shape {shape!r}; expected 'native', 'industry' or "
+            f"unknown load shape {shape!r}; expected 'native' or "
             f"'diversified'")
 
     ov = load_cfg.get("type_overrides", {}).get(load_type, {})
@@ -177,7 +157,7 @@ def create_agents_from_network(
     T: int,
     with_wind: bool = False,
     scale: Optional[dict] = None,
-    load_shapes: Optional[Dict[int, np.ndarray]] = None,
+    node_load_mw: Optional[Dict[int, np.ndarray]] = None,
 ) -> List[Agent]:
     """Create Agent list from network, reading defaults from config/defaults.yaml.
 
@@ -195,11 +175,18 @@ def create_agents_from_network(
       wind_bus_mw   because a capacity derived from the local load cannot be
                     defended as a property of the study rather than of the load.
 
-    `load_shapes` supplies the per-bus diurnal shape when the scenario declares
-    `load_shape: industry`; it is ignored by every other shape. The caller is
-    responsible for assigning a shape to every load bus -- see
-    `scenarios._industry_load_shapes`, which raises on a bus left unassigned
-    rather than substituting a default.
+    `node_load_mw` supplies an **absolute per-bus load** from a node-load
+    ledger, and it replaces the shape-and-rescale path rather than feeding it:
+
+      * `load_forecast` and `load_real` come from the ledger, both exactly, so
+        the fleet carries the ledger's load and not a realization of it;
+      * `base_load` is left as the bus's own `p_mw`, because it sizes the
+        storage and inverter on the bus. It is a **device rating** here, not the
+        load, and a ledger whose level differs must not resize the equipment;
+      * the coincident-peak rescale is **skipped**. That step exists to put a
+        shape onto a declared scale, and an absolute load is already at its own
+        scale -- rescaling it would be the one thing the ledger's provenance
+        forbids.
     """
     spec = dict(_DEFAULT_SCALE_SPEC)
     spec.update(scale or {})
@@ -244,7 +231,13 @@ def create_agents_from_network(
     # the derivation needs every bus and happens after the loop below; the
     # profiles are built unscaled in the meantime.
     mode = spec["mode"]
-    if mode == "native_peak":
+    if node_load_mw is not None:
+        # A ledger supplies absolute MW per bus, so there is no target to
+        # resolve and no scale to apply. The mode is still required of the
+        # scenario -- it says what the load is -- but it cannot decide anything
+        # here, and resolving one would imply the load could be rescaled.
+        target_peak_mw = None
+    elif mode == "native_peak":
         target_peak_mw = native_nominal_demand_mw(net)
     elif mode == "explicit_peak":
         target_peak_mw = spec.get("peak_load_mw")
@@ -296,12 +289,34 @@ def create_agents_from_network(
         # Deliberately NOT scaled by `load_scale`: that sets the fleet's level,
         # and letting it reach the per-bus term would make the load level
         # inflate every device on the bus as well.
-        base_load = (p_mw if shape in ("native", "industry")
+        # With a ledger the two roles separate: `base_load` sizes the bus's
+        # devices and the ledger supplies the load. Without one they are the
+        # same number, as they have always been.
+        base_load = (p_mw if shape == "native"
                      else p_mw * lt_cfg.get("load_multiplier", 1.0))
-        diurnal = _make_load_profile(hours, load_type, load_cfg, shape=shape,
-                                     bus_shape=(load_shapes or {}).get(bus))
+        # A ledger supplies the load itself, so no diurnal shape is built and
+        # none is required: an `industry` scenario backed by a ledger must not
+        # still demand a per-bus shape for a profile it will not use.
+        diurnal = (None if node_load_mw is not None else
+                   _make_load_profile(hours, load_type, load_cfg, shape=shape,
+                                      ))
 
-        if shape in ("native", "industry"):
+        if node_load_mw is not None:
+            if bus not in node_load_mw:
+                raise KeyError(
+                    f"the node-load ledger carries no load for bus {bus}; "
+                    f"every bus must be present rather than defaulted")
+            ledger_load = np.asarray(node_load_mw[bus], dtype=float)
+            if ledger_load.shape != (T,):
+                raise ValueError(
+                    f"bus {bus} has {ledger_load.shape} periods in the ledger "
+                    f"but the scenario runs {T}")
+            # Both sides of the day are the ledger's value: the realized day is
+            # what was metered, and the forecast is not given a noise the
+            # ledger never carried.
+            load_forecast = ledger_load.copy()
+            load_real = ledger_load.copy()
+        elif shape == "native":
             # One system-wide error factor per period, shared by every bus.
             #
             # Per-bus noise would give each bus its own realization, so no
@@ -446,6 +461,12 @@ def create_agents_from_network(
     # maximum is larger and is reached at no single instant, so a target set on
     # it would not bound the flow the feeder has to carry. Derived rather than
     # hand-tuned so it survives a change to the profile shapes or the seeds.
+    if node_load_mw is not None:
+        # An absolute load is already at its own scale. Rescaling it to a
+        # declared peak is exactly the operation the ledger's provenance
+        # forbids, so the step is skipped outright rather than made a no-op by
+        # a scale of 1.0 that a later edit could change.
+        return agents
     if explicit_scale is None:
         # Which profile the target is pinned to depends on what the target
         # means. `native_peak` says `max_t P_total(t) = nominal demand`, and

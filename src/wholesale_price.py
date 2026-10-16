@@ -70,6 +70,59 @@ CONFIG_KEY = "wholesale_market"
 #: arrives; `dianyicha` reads the Jiangsu curves from the 电易电查 workbook.
 SOURCES = ("legacy", "synthetic_v1", "library", "guangdong", "dianyicha")
 
+#: Whether a **non-formal** source may be built at all.
+#:
+#: `synthetic_v1` and `library` generate a price series rather than reading a
+#: measured one. They are kept because tests and audits need a market with a
+#: known shape to exercise the code against, and they are gated because a
+#: formal case that silently reached one would report a generated price as a
+#: market outcome. Nothing in the formal path sets this: a caller that wants a
+#: synthetic market says so explicitly, and a formal run that asks for one by
+#: accident fails loudly instead of pricing a day it never had.
+ALLOW_NON_FORMAL_SOURCES = False
+
+#: The non-formal market's own library size and generator seed.
+#:
+#: Deliberately not project configuration. A dataset length in `defaults.yaml`
+#: is a length the real data is then measured against, and it outlives whatever
+#: it was written for; here it belongs to the one generator that needs it and
+#: goes away with it.
+NON_FORMAL_LIBRARY_DAYS = 40
+NON_FORMAL_LIBRARY_SEED = 20260920
+
+#: Sources that read a measured market. A scenario priced by anything else does
+#: not meet the formal case's data requirement, whatever else it is good for.
+FORMAL_SOURCES = ("dianyicha",)
+
+
+def enable_non_formal_market() -> None:
+    """Open the gate, from a **non-formal** entry point.
+
+    The diagnostic, audit and calibration scripts measure the control path
+    against a market whose shape is known, and that market is generated. They
+    are not formal cases: nothing they produce is a result about a measured
+    market, and a formal run does not call this.
+
+    One function rather than a scattered assignment, so the set of places that
+    open the gate can be listed with a single search.
+    """
+    global ALLOW_NON_FORMAL_SOURCES
+    ALLOW_NON_FORMAL_SOURCES = True
+
+
+def formal_data_readiness(source: str) -> Tuple[bool, str]:
+    """Whether a scenario priced by `source` may enter formal evaluation.
+
+    Stated as a rule over the source rather than as a flag on each scenario, so
+    a scenario added later cannot be formal-ready by omission. A flag has to be
+    remembered; a rule does not.
+    """
+    if source in FORMAL_SOURCES:
+        return True, f"{source} reads a measured market"
+    return False, (
+        f"priced by {source!r}, which does not read a measured market; a "
+        "formal case requires a real price curve")
+
 #: Periods in a library day. The library is built at 15-minute resolution and a
 #: shorter `T` is a slice of it, never a coarser rebuild.
 LIBRARY_PERIODS = 96
@@ -339,8 +392,9 @@ class SyntheticWholesalePriceProvider(WholesalePriceProvider):
     def __init__(self, cfg: Optional[dict] = None):
         cfg = dict(cfg if cfg is not None else get_default(CONFIG_KEY, {}) or {})
         self.cfg = cfg
-        self.master_seed = int(cfg.get("master_seed", 20260920))
-        self.number_of_days = int(cfg.get("number_of_days", 40))
+        self.master_seed = int(cfg.get("master_seed", NON_FORMAL_LIBRARY_SEED))
+        self.number_of_days = int(cfg.get("number_of_days",
+                                          NON_FORMAL_LIBRARY_DAYS))
         self.floor = float(cfg.get("price_floor", 120.0))
         self.cap = float(cfg.get("price_cap", 1000.0))
         self.noise_sigma = float(cfg.get("noise_sigma", 15.0))
@@ -818,6 +872,17 @@ def get_provider(source: Optional[str] = None,
     if source not in SOURCES:
         raise ValueError(f"unknown {CONFIG_KEY}.source {source!r}; "
                          f"expected one of {SOURCES}")
+    if source in ("synthetic_v1", "library"):
+        # Checked before the cache, not after: a provider built while the gate
+        # was open would otherwise be handed back to every later caller with the
+        # gate shut, which is the one way this restriction could be bypassed.
+        if not ALLOW_NON_FORMAL_SOURCES:
+            raise ValueError(
+                f"{CONFIG_KEY}.source is {source!r}, which generates a price "
+                "series rather than reading a measured one. It is available "
+                "for non-formal tests and audits; a formal run may not price a "
+                "day with it. Set wholesale_price.ALLOW_NON_FORMAL_SOURCES to "
+                "build one deliberately.")
     if cfg is None and source in _PROVIDER_CACHE:
         return _PROVIDER_CACHE[source]
     if source in ("synthetic_v1", "library"):

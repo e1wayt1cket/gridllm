@@ -159,3 +159,73 @@ def test_the_threshold_and_its_margin_are_the_same_statement():
                     -1.0, sum(hi - lo for lo, hi in box))
     assert margin == pytest.approx(150.0, abs=1e-6)
     assert TRADEABLE_BOX_SHARE == 0.25
+
+
+# ---------------------------------------------------------------------------
+# Eligibility is physics; the quote box is a separate question
+# ---------------------------------------------------------------------------
+
+def _reference_unit():
+    from arbitrage_lp import spec_from_storage
+    from models import StorageSpec
+    return spec_from_storage(StorageSpec(
+        e_max=1.6, p_ch_max=0.4, p_dis_max=0.4, eta_ch=ETA, eta_dis=ETA,
+        soc0=0.5, soc_min=0.10, soc_max=0.90))
+
+
+def _price_day():
+    """A day with a spread a real unit can reach, so the margin is finite.
+
+    A smooth sinusoid does not qualify: the achieved spread is priced off the
+    schedule the unit can run, and at this unit size a gentle curve leaves the
+    LP with no profitable cycle at all, which would make every box share zero
+    and the comparison meaningless.
+    """
+    day = np.full(96, 120.0)
+    day[20:36] = 700.0
+    return day
+
+
+def test_a_bus_is_eligible_on_its_margin_not_on_the_size_of_its_quote_box(
+        monkeypatch):
+    """Resizing the quote box changes how much of it is tradeable; it does not
+    change whether the spread clears the degradation floor. Eligibility that
+    moved with the box would be a statement about the action encoding, not
+    about the bus -- and the box is a choice, so the siting would be too."""
+    import diagnose_typical_day as dd
+    import market_opportunity as mo
+
+    unit, node = _reference_unit(), _price_day()
+    wide = ((0.0, 150.0), (0.0, 300.0))        # the project's own box
+    narrow = ((0.0, 20.0), (0.0, 40.0))        # a fifth of it
+
+    monkeypatch.setattr(dd, "action_box", lambda *a, **k: wide)
+    with_wide = mo.bus_day_metrics(node, unit, CYCLE, 0, 9)
+    monkeypatch.setattr(dd, "action_box", lambda *a, **k: narrow)
+    with_narrow = mo.bus_day_metrics(node, unit, CYCLE, 0, 9)
+
+    # The physical margin is the same number: no box entered it.
+    assert with_wide["physical_margin_cny_mwh"] == pytest.approx(
+        with_narrow["physical_margin_cny_mwh"])
+    assert with_wide["siting_eligible"] == with_narrow["siting_eligible"]
+
+    # The box share is not, which is why it is reported beside eligibility
+    # rather than deciding it.
+    assert with_wide["tradeable_box_share"] != pytest.approx(
+        with_narrow["tradeable_box_share"])
+
+
+def test_the_action_space_question_is_kept_as_its_own_answer(monkeypatch):
+    """A bus can be physically eligible and still leave a policy almost nothing
+    to choose. Both facts are reported; neither is allowed to stand for the
+    other."""
+    import diagnose_typical_day as dd
+    import market_opportunity as mo
+
+    unit, node = _reference_unit(), _price_day()
+    monkeypatch.setattr(dd, "action_box",
+                        lambda *a, **k: ((0.0, 1e6), (0.0, 1e6)))
+    row = mo.bus_day_metrics(node, unit, CYCLE, 0, 9)
+    assert row["siting_eligible"] == (row["physical_margin_cny_mwh"] > 0)
+    assert row["action_space_available"] == (
+        row["tradeable_box_share"] >= TRADEABLE_BOX_SHARE)

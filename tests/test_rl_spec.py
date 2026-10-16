@@ -8,7 +8,8 @@ from models import MarketConfig
 from scenarios import get_scenario
 from rl_env import BiddingEnv
 from rl_spec import (
-    OBS_V3, OBS_V4, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
+    OBS_V3, OBS_V4, OBS_V5, OBS_V6, ACTION_BID_OFFER_V1,
+    ACTION_STORAGE_QUOTE_V2,
     ObservationSpec, ActionSpec, FeatureSpec,
     register_obs_spec, get_obs_spec,
 )
@@ -25,47 +26,68 @@ def _make_env(**kwargs):
     return BiddingEnv(agents, config, rl_agent_names=rl_names, **kwargs)
 
 
-def test_obs_v4_dims():
-    assert OBS_V4.total_dim == 12
-    assert OBS_V4.unique_dim == 3
-    assert OBS_V4.shared_dim == 9
+def test_obs_v6_dims():
+    assert OBS_V6.total_dim == 12
+    assert OBS_V6.unique_dim == 3
+    assert OBS_V6.shared_dim == 9
 
 
-def test_obs_v4_feature_order_matches_env_layout():
+def test_obs_v6_feature_order_matches_env_layout():
     env = _make_env()
-    assert env.obs_spec is OBS_V4
+    assert env.obs_spec is OBS_V6
     assert env.get_state_dim() == 12
     assert env.unique_obs_dim == 3
     assert env.shared_obs_dim == 9
     # The env's feature order must be the active spec's, and the price-average
     # slot must be the CAUSAL one: `avg_lmp_hist_norm`, not the retired
     # whole-day `avg_lmp_norm`.
-    assert env.obs_spec.feature_order == OBS_V4.feature_order
-    assert OBS_V4.feature_order == (
+    assert env.obs_spec.feature_order == OBS_V6.feature_order
+    assert OBS_V6.feature_order == (
         "load_feat", "re_feat", "soc",
         "last_lmp_norm", "block_pos", "avg_lmp_hist_norm", "slr_norm",
-        "avg_other_bid", "bid_std", "ema_dev", "price_trend",
+        "avg_other_dev", "all_dev_std", "ema_dev", "price_trend",
         "pred_lmp_norm")
-    assert "avg_lmp_norm" not in OBS_V4.feature_order
+    assert "avg_lmp_norm" not in OBS_V6.feature_order
+    # V6 replaced V4's two opponent features, and the old names are gone from
+    # the vector rather than left to be read under a new meaning.
+    assert "avg_other_bid" not in OBS_V6.feature_order
+    assert "bid_std" not in OBS_V6.feature_order
 
 
-def test_the_retired_v3_spec_survives_so_old_policies_can_be_identified():
-    """Old checkpoints record `v3_12d`. Keeping it registered is what makes
-    `load_policy` raise on the name mismatch rather than silently reinterpret an
-    actor trained on a different layout."""
+def test_the_retired_specs_survive_so_old_policies_can_be_identified():
+    """Old checkpoints record `v3_12d` / `v4_12d`. Keeping them registered is
+    what makes `load_policy` raise on the name mismatch rather than silently
+    reinterpret an actor trained on a different layout -- and V4 is registered
+    for exactly that reason now, because its two opponent features meant
+    something else."""
     assert OBS_V3.name == "v3_12d"
     assert OBS_V3.total_dim == 12
     assert "avg_lmp_norm" in OBS_V3.feature_order
-    assert OBS_V3 != OBS_V4
+    assert OBS_V3 != OBS_V6
+
+    assert OBS_V4.name == "v4_12d"
+    assert OBS_V4.total_dim == 12
+    assert "avg_other_bid" in OBS_V4.feature_order
+    assert OBS_V4 != OBS_V6
+
+    # V5 carried the unsigned magnitude form of the same two features and was
+    # replaced before anything was trained on it. It shares V6's layout, so the
+    # version name is the only thing separating them.
+    assert OBS_V5.name == "v5_12d"
+    assert OBS_V5.feature_order == OBS_V6.feature_order
+    assert OBS_V5 != OBS_V6
+    # All four share a length and differ in meaning: no old actor is a valid
+    # V6 initialisation.
+    assert OBS_V3.total_dim == OBS_V4.total_dim == OBS_V5.total_dim         == OBS_V6.total_dim
 
 
 def test_observation_spec_dict_round_trip():
-    d = OBS_V4.to_dict()
-    assert d["name"] == "v4_12d"
-    assert d["version"] == 4
+    d = OBS_V6.to_dict()
+    assert d["name"] == "v6_12d"
+    assert d["version"] == 6
     assert d["total_dim"] == 12
     back = ObservationSpec.from_dict(d)
-    assert back == OBS_V4
+    assert back == OBS_V6
 
 
 # ---------------------------------------------------------------------------
@@ -240,13 +262,31 @@ def test_load_policy_without_action_spec_skips_that_check(tmp_path):
     torch.testing.assert_close(loaded(obs), actor(obs))
 
 
-def test_load_legacy_policy_without_meta(tmp_path):
-    """A pre-spec .pt (no metadata header) must still load unchanged."""
+def test_a_pre_spec_policy_is_refused_when_a_spec_is_claimed(tmp_path):
+    """A .pt with no metadata header no longer loads by its shape.
+
+    It used to. The width is not evidence of which observation the weights were
+    trained against -- V3, V4, the unreleased V5 and V6 all take twelve numbers
+    and mean different things by them -- so a twelve-wide untagged file is
+    exactly the case that must not load quietly. Its status is
+    `legacy_obs_unverified`.
+    """
     actor = _stub_actor()
     path = str(tmp_path / "Bus5R.pt")
     torch.save(actor.state_dict(), path)
-    loaded = load_policy(path, 12, torch.tensor([[0.3, 0.0], [1.8, 50.0]]),
-                         obs_spec=OBS_V3)
+    with pytest.raises(ValueError, match="legacy_obs_unverified"):
+        load_policy(path, 12, torch.tensor([[0.3, 0.0], [1.8, 50.0]]),
+                    obs_spec=OBS_V3)
+
+
+def test_a_pre_spec_policy_still_loads_when_no_spec_is_claimed(tmp_path):
+    """Passing no spec is the caller taking responsibility for the weights,
+    which is why the refusal lives behind a supplied spec rather than on the
+    file's shape."""
+    actor = _stub_actor()
+    path = str(tmp_path / "Bus5R.pt")
+    torch.save(actor.state_dict(), path)
+    loaded = load_policy(path, 12, torch.tensor([[0.3, 0.0], [1.8, 50.0]]))
     obs = torch.randn(1, 12)
     torch.testing.assert_close(loaded(obs), actor(obs))
 
@@ -277,9 +317,9 @@ def _recompute_obs(env, name):
     avg = float(np.mean(hist)) if hist is not None and hist.size \
         else rl_env.PRICE_REF_CNY_MWH
     slr = env._compute_system_load_re_ratio(env.block_idx * rl_env.BLOCK_SIZE)
-    avg_oth, bid_std = env._compute_opponent_features(name)
+    avg_dev, dev_std = env._compute_opponent_features(name)
     return env._get_agent_obs(agent, env.block_idx, hist, avg, slr,
-                              avg_oth, bid_std)
+                              avg_dev, dev_std)
 
 
 def test_the_block_zero_price_features_are_canonical():
@@ -462,7 +502,7 @@ def test_opponent_features_carry_the_previous_blocks_quotes():
     import rl_env
     env = _make_env()
     order = env.obs_spec.feature_order
-    i_oth, i_std = order.index("avg_other_bid"), order.index("bid_std")
+    i_oth, i_std = order.index("avg_other_dev"), order.index("all_dev_std")
     BS = rl_env.BLOCK_SIZE
 
     def _expected(src, blk, observer):
@@ -472,12 +512,17 @@ def test_opponent_features_carry_the_previous_blocks_quotes():
             spec = env.spec_for(a)
             name = spec.action_names[0]
             lo, hi = spec.bounds[name]
+            if not hi > lo:
+                continue
             v = float(np.mean(src[a.name][name][t0:t0 + BS]))
-            s = (v - lo) / (hi - lo) if hi > lo else 0.0
-            everyone.append(s)
+            if not np.isfinite(v):
+                continue
+            d = abs(v - spec.truthful[name]) / (hi - lo)
+            everyone.append(d)
             if a.name != observer:
-                others.append(s)
-        return float(np.mean(others)), float(np.std(everyone))
+                others.append(d)
+        return (float(np.mean(others)) if others else 0.0,
+                float(np.std(everyone)) if len(everyone) >= 2 else 0.0)
 
     obs0 = env.reset(wholesale=np.full(96, 300.0, dtype=float))
     defaults = {nm: {k: v.copy() for k, v in act.items()}
@@ -672,7 +717,7 @@ def test_a_blocks_realized_lmp_reaches_only_the_next_observation(monkeypatch):
         assert not np.isclose(run_a[3][name][i_last], run_b[3][name][i_last])
         assert not np.isclose(run_a[3][name][i_avg], run_b[3][name][i_avg])
     for feat in ("load_feat", "re_feat", "soc", "block_pos", "slr_norm",
-                 "avg_other_bid", "bid_std"):
+                 "avg_other_dev", "all_dev_std"):
         i = order.index(feat)
         for name in run_a[3]:
             np.testing.assert_array_equal(run_a[3][name][i],

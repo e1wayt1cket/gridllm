@@ -1,11 +1,24 @@
 # scenarios.py
+import dataclasses
+
 import numpy as np
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Sequence
 import money
 from models import MarketConfig, Agent
 from ess import build_ess_fleet
 from grid import build_base_network, create_agents_from_network, day_ahead_price_china
 from config_loader import get_default, get_scenario_cfg, set_default
+from pathlib import Path
+
+
+#: How a scenario says where its load level comes from.
+#:
+#:   native_peak    the network's own nominal demand
+#:   explicit_peak  a declared `peak_load_mw`
+#:   ledger         a node-load ledger's absolute per-bus MW -- no scale is
+#:                  applied at all, and `load_shape` describes only the native
+#:                  term the ledger composes its `preserve` buses from
+SCALE_MODES = ("native_peak", "explicit_peak", "ledger")
 
 
 def scenario_scale(cfg: dict) -> dict:
@@ -24,6 +37,10 @@ def scenario_scale(cfg: dict) -> dict:
     is a property of the benchmark: they are choices this scenario makes, and a
     scenario that inherits another's choice cannot be described.
     """
+    if cfg.get("load_scale_mode") not in SCALE_MODES:
+        raise ValueError(
+            f"scenario {cfg.get('name', '?')!r} declares load_scale_mode="
+            f"{cfg.get('load_scale_mode')!r}; expected one of {SCALE_MODES}")
     missing = [k for k in ("load_scale_mode", "load_shape", "renewable")
                if k not in cfg]
     if missing:
@@ -64,6 +81,20 @@ def apply_scenario_overrides(config: MarketConfig, override: dict) -> None:
                 raise ValueError(
                     f"scenario override {key!r} names no field of "
                     f"{type(config).__name__}")
+            current = getattr(config, key)
+            # A bare key addresses one field. Naming a *section* with a mapping
+            # would replace the dataclass that holds the rest of that section,
+            # and the run would then fail somewhere unrelated to this line --
+            # or, worse, carry a dict where every reader expects fields. The
+            # guard is here rather than in a writer because a scenario file can
+            # carry the same mistake.
+            if (dataclasses.is_dataclass(current)
+                    and not dataclasses.is_dataclass(value)):
+                raise ValueError(
+                    f"scenario override {key!r} would replace the "
+                    f"{type(current).__name__} section with "
+                    f"{type(value).__name__}; its fields are addressed as "
+                    f"{key!r}.<field>")
             setattr(config, key, value)
             continue
 
@@ -161,81 +192,91 @@ def relocate_renewables(agents: List[Agent], moves) -> None:
             raise ValueError(f"move {move}: unknown kind {kind!r}")
 
 
-def _industry_load_shapes(industry_map: dict, net, T: int
-                          ) -> Dict[int, np.ndarray]:
-    """Resolve a scenario's `industry_map` into per-bus 96-point shapes.
+#: The load model a scenario declares when its per-bus load comes from a
+#: node-load ledger instead of from a shape and a declared scale. **The only
+#: absolute-load model mode**: a second name for the same idea would be a
+#: second thing to keep in step.
+ABSOLUTE_INDUSTRY_LOAD_MODEL = "absolute_industry_mw"
 
-    `industry_map.buses` is an **explicit** assignment of every load bus to one
-    industry. It is a *simulation* mapping and nothing more: this feeder carries
-    no real user-to-node connection table, so the assignment is not a claim
-    about where Jiangsu industry actually connects. It is written out in
-    `config/scenarios.yaml` so a reader can reproduce the day and disagree with
-    the assignment, instead of having to reverse-engineer a rule from code.
+#: The case the last `_build_scenario` built its load from, or None. A caller
+#: that wants the dates, sources and unit basis to travel with the run reads
+#: this rather than re-deriving them.
+_LAST_SINGLE_DAY_CASE = None
 
-    Every load bus must be assigned exactly once. A bus left out raises rather
-    than taking a default: a silent default would make the day's shape depend on
-    something the scenario never declared.
+
+def single_day_case(scenario: str, T: int = None):
+    """The scenario's node-load case, loaded and gated through the entry point.
+
+    This is the runtime boundary. Four things happen here and nowhere else:
+
+    1. the ledger and the price curve are paired by `single_day_data.load_case`,
+       the only implementation of that pairing;
+    2. the **case type** comes from the scenario's own `single_day_case` block,
+       so a scenario cannot be priced under a date rule nobody stated;
+    3. `require_load_for_build()` runs **before the caller builds a network or
+       injects a load** -- a ledger with no recorded unit basis, or with a gap,
+       is refused at the boundary rather than part-way through a physical model;
+    4. the ledger's own per-bus policies are checked against the ones the
+       scenario declares in `load_model.bus_load_policy`, so that block is
+       load-bearing rather than decorative.
+
+    The case object is kept, so the dates, sources and unit basis can travel
+    with whatever run it feeds.
     """
-    from pathlib import Path
+    global _LAST_SINGLE_DAY_CASE
+    import single_day_data as sdd
 
-    from industry_load import load_shapes_csv
-
-    if not industry_map:
+    cfg = get_scenario_cfg(scenario)
+    declaration = cfg.get("single_day_case")
+    if not declaration:
         raise ValueError(
-            "load_shape 'industry' needs an `industry_map` naming the shapes "
-            "artifact and assigning every load bus")
-
-    shapes_file = industry_map.get("shapes_file")
-    if not shapes_file:
-        raise ValueError("industry_map declares no `shapes_file`")
-    path = Path(shapes_file)
-    if not path.is_absolute():
-        path = Path(__file__).resolve().parent.parent / path
-    if not path.exists():
-        raise FileNotFoundError(
-            f"industry_map names shapes_file {shapes_file!r}, which does not "
-            f"exist at {path}. Build it with:\n"
-            f"  PYTHONPATH=src python src/industry_load.py")
-    shape_set = load_shapes_csv(str(path))
-
-    assignments = {int(b): str(i)
-                   for b, i in (industry_map.get("buses") or {}).items()}
-    excluded = {str(i) for i in (industry_map.get("excluded_industries") or [])}
-
-    load_buses = [int(b) for b in net.load.bus]
-    missing = sorted(set(load_buses) - set(assignments))
-    if missing:
+            f"scenario {scenario!r} declares load_model.mode="
+            f"{ABSOLUTE_INDUSTRY_LOAD_MODEL!r} but no `single_day_case` block, "
+            f"so there is nothing to pair its load with")
+    case_type = declaration.get("case_type")
+    if case_type not in sdd.CASE_TYPES:
+        raise sdd.CaseTypeError(
+            f"scenario {scenario!r} declares single_day_case.case_type="
+            f"{case_type!r}; expected one of {sdd.CASE_TYPES}. The date rule is "
+            f"the scenario's to state, not the loader's to guess")
+    if T is not None and T != money.PERIODS_PER_DAY:
         raise ValueError(
-            f"industry_map leaves load bus(es) {missing} unassigned; every "
-            f"load bus must be assigned exactly once")
-    extra = sorted(set(assignments) - set(load_buses))
-    if extra:
+            f"a node-load ledger is a whole day; got T={T} for {scenario!r}")
+    ledger = Path(declaration.get("ledger") or "")
+    manifest = Path(declaration.get("ledger_manifest") or "")
+    if not ledger.parts or not manifest.parts:
         raise ValueError(
-            f"industry_map assigns bus(es) {extra}, which carry no load in "
-            f"this network")
+            f"scenario {scenario!r} declares a single_day_case without a "
+            f"'ledger' and 'ledger_manifest'")
+    case = sdd.load_case(case_type, ledger, manifest,
+                         declaration.get("price_sheet") or "261009")
+    # The gate, at the boundary.
+    case.require_load_for_build()
 
-    used = sorted(set(assignments.values()))
-    banned = sorted(set(used) & excluded)
-    if banned:
-        raise ValueError(
-            f"industry_map uses industry(ies) {banned}, which it also lists "
-            f"in `excluded_industries`. A generator or an unreliable sample "
-            f"must not shape a load bus.")
-    unknown = sorted(i for i in used if i not in shape_set.shapes)
-    if unknown:
-        raise ValueError(
-            f"industry_map names industry(ies) {unknown} that carry no shape "
-            f"in {path}; the artifact holds {shape_set.industries()}")
-
-    out: Dict[int, np.ndarray] = {}
-    for bus, industry in assignments.items():
-        arr = shape_set.shape_of(industry)
-        if arr.size != int(T):
+    declared_policies = (cfg.get("load_model") or {}).get("bus_load_policy") or {}
+    ledger_policies = case.ledger_manifest.get("policies") or {}
+    if declared_policies:
+        mismatched = sorted(
+            b for b in set(map(str, declared_policies)) | set(ledger_policies)
+            if str(declared_policies.get(int(b) if str(b).isdigit() else b)) !=
+            str(ledger_policies.get(str(b))))
+        if mismatched:
             raise ValueError(
-                f"industry {industry!r} carries {arr.size} slots but the "
-                f"scenario horizon is {T}")
-        out[bus] = arr
-    return out
+                f"scenario {scenario!r} declares a different load policy from "
+                f"the one its ledger was built with, on bus(es) {mismatched}. "
+                f"The ledger is the artifact; rebuild it rather than letting "
+                f"the config and the data disagree")
+    _LAST_SINGLE_DAY_CASE = case
+    return case
+
+
+def last_single_day_case():
+    """The case the last scenario build used, or None.
+
+    The dates, sources, period labels and unit basis of a ledger-backed run
+    travel through this rather than being restated by every caller.
+    """
+    return _LAST_SINGLE_DAY_CASE
 
 
 def _build_scenario(name: str, T: int, config: MarketConfig = None,
@@ -287,14 +328,19 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None,
     if config_load_pf is not None:
         config.network.load_power_factor = config_load_pf
 
+    # A ledger-backed scenario is gated and loaded **before** the network is
+    # built. Ordering is the requirement: an unverified load must be refused
+    # before a network exists to be modified, so a refusal leaves no partially
+    # built model behind for a caller to carry on with.
+    node_load_mw = None
+    if (cfg.get("load_model") or {}).get("mode") == ABSOLUTE_INDUSTRY_LOAD_MODEL:
+        node_load_mw = single_day_case(name, T).bus_load_mw_for_build()
+
     net = build_base_network(config)
     scale = scenario_scale(cfg)
-    # Only the `industry` shape carries per-bus shapes; every other shape gets
-    # None and is built exactly as before.
-    load_shapes = (_industry_load_shapes(cfg.get("industry_map") or {}, net, T)
-                   if scale["shape"] == "industry" else None)
     agents = create_agents_from_network(net, T, with_wind=with_wind,
-                                        scale=scale, load_shapes=load_shapes)
+                                        scale=scale,
+                                        node_load_mw=node_load_mw)
     # Which market prices this scenario, written where every regeneration site
     # reads it. Written on every build, including when the scenario declares
     # nothing, so that building the native scenario and then a legacy one
@@ -429,31 +475,42 @@ def _build_scenario(name: str, T: int, config: MarketConfig = None,
     return agents, wholesale
 
 
-def typical_day_config(T: int = money.PERIODS_PER_DAY) -> MarketConfig:
-    """The configuration the typical-day physical baseline is defined against.
+def scenario_model_config(scenario: str = "typical_day",
+                          T: int = money.PERIODS_PER_DAY,
+                          opf_mode: str = "socp") -> MarketConfig:
+    """The model a scenario clears, built the way that scenario builds it.
 
-    Makes the canonical entry point executable rather than a description. The
-    horizon is checked instead of coerced because the terminal state of charge
-    is pinned only on a whole day: at any other T this would quietly be a
-    different model, and the baselines are all quoted for the whole day.
+    One construction, so a caller that wants the scenario's model -- the
+    baseline ladder, the diagnostics -- gets the same one the scenario itself
+    would clear rather than an approximation assembled from dataclass defaults.
+    Those defaults agree with `config/defaults.yaml` on most fields and not on
+    all of them, and the ones they miss are the scenario's own choices.
+
+    The horizon is checked instead of coerced because the terminal state of
+    charge is pinned only on a whole day: at any other T this would quietly be
+    a different model, and every rung and baseline is quoted for the whole day.
     """
     if T != money.PERIODS_PER_DAY:
         raise ValueError(
-            f"the typical day is {money.PERIODS_PER_DAY} periods; got T={T}")
-    # Built from config/defaults.yaml, then given this scenario's own choices
-    # from config/scenarios.yaml. Nothing is assigned here: a value that lives
-    # in code rather than in the file is a value the next reader cannot find,
-    # and the point of the binding is that the file says what the model is.
-    config = MarketConfig.from_yaml(opf_mode="socp")
-    cfg = get_scenario_cfg("typical_day")
+            f"a scenario is {money.PERIODS_PER_DAY} periods; got T={T}")
+    config = MarketConfig.from_yaml(opf_mode=opf_mode)
+    cfg = get_scenario_cfg(scenario)
     apply_scenario_overrides(config, cfg.get("override_config", {}))
     # The scenario's own power factor, applied here as well as in
     # `_build_scenario`: this entry point returns a model to clear with, so a
-    # field the file declares and this function omits would make the
-    # diagnostic's market differ from the one the scenario actually builds.
+    # field the file declares and this function omits would make the caller's
+    # market differ from the one the scenario actually builds.
     if "load_power_factor" in cfg:
         config.network.load_power_factor = float(cfg["load_power_factor"])
     return config
+
+
+def typical_day_config(T: int = money.PERIODS_PER_DAY) -> MarketConfig:
+    """The configuration the typical-day physical baseline is defined against.
+
+    Makes the canonical entry point executable rather than a description.
+    """
+    return scenario_model_config("typical_day", T)
 
 
 # ---- registry ----
@@ -507,3 +564,84 @@ def list_scenarios() -> List[str]:
     return list(SCENARIO_REGISTRY.keys())
 
 
+
+
+# ---------------------------------------------------------------------------
+# The scenario sets
+# ---------------------------------------------------------------------------
+
+def _declared_sets() -> dict:
+    from config_loader import load_scenarios
+    return (load_scenarios() or {}).get("formal_ensemble") or {}
+
+
+def formal_scenarios() -> List[str]:
+    """The scenarios a formal run may use, checked rather than trusted.
+
+    The set is declared once in `config/scenarios.yaml`; membership in that list
+    is a claim, and this is where the claim is tested. A scenario named there
+    whose price source does not read a measured market raises instead of being
+    returned: a formal run must not inherit a set that drifted away from the
+    rule it was derived from.
+    """
+    import wholesale_price as wp
+
+    declared = [str(n) for n in (_declared_sets().get("scenarios") or [])]
+    if not declared:
+        raise ValueError(
+            "`formal_ensemble.scenarios` is empty. A formal run has no "
+            "scenarios to draw on; that is a state to report, not to paper "
+            "over with a default list.")
+    problems = []
+    for name in declared:
+        scenario = get_scenario_cfg(name)
+        source = str(scenario.get("wholesale_source", "legacy"))
+        ready, why = wp.formal_data_readiness(source)
+        if not ready:
+            problems.append(f"{name}: {why}")
+    if problems:
+        raise ValueError(
+            "`formal_ensemble.scenarios` names scenarios that are not formal "
+            "sources: " + "; ".join(problems))
+    return declared
+
+
+def legacy_comparison_scenarios() -> List[str]:
+    """The non-formal comparison set, read from the same declaration.
+
+    Kept so the export and figure modules stop maintaining their own copies of
+    it. It is deliberately not `formal_scenarios()`: these exist to be compared
+    against results recorded before the measured-market source was built.
+    """
+    return [str(n) for n in (_declared_sets().get("legacy_comparison") or [])]
+
+
+def assert_formal_subset(names: Sequence[str],
+                         allow_non_formal: bool = False) -> List[str]:
+    """A caller's own list, checked to be a subset of the formal set.
+
+    A module that needs only part of the formal set says so, and this is what
+    makes that statement checkable instead of a second list that happens to
+    agree today.
+
+    `allow_non_formal` admits a name outside the set. It is off by default,
+    because the check exists to stop a **result** resting on a scenario whose
+    price came from a generator rather than from a market. It is for an
+    exploratory run that validates machinery -- an environment smoke test, a
+    checkpoint-compatibility check -- where the day is an input and not the
+    subject. A caller that opts in states so in its own arguments, which the
+    run artifacts record, so the label travels with the curve.
+
+    Opting in does not widen the set: `formal_scenarios()` is unchanged, and a
+    run that took this path has still produced nothing a formal result may
+    rest on.
+    """
+    allowed = set(formal_scenarios())
+    extra = sorted(set(names) - allowed)
+    if extra and not allow_non_formal:
+        raise ValueError(
+            f"{extra} are not in the formal scenario set {sorted(allowed)}; a "
+            "formal run may not add scenarios of its own. A run that validates "
+            "machinery rather than producing a result may opt in with "
+            "allow_non_formal=True (--allow-non-formal on the training CLI).")
+    return list(names)

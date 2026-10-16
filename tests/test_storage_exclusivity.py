@@ -67,7 +67,7 @@ def _clear(T, config, charge_price=0.0, discharge_price=0.0, seed=7):
                             "discharge_price": discharge_price}
                    for a in agents if a.storage is not None}
     result = clear_market(agents, T, "DA", actions, config,
-                          wholesale=wholesale)
+                          wholesale=wholesale, horizon_type="full_day")
     return agents, wholesale, result
 
 

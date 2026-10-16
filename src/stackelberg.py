@@ -17,7 +17,7 @@ from rl_spec import action_spec_for
 
 def _leader_payoff(leader_name, leader_bus, actions, agents, T, config):
     """Compute leader's DA payoff from a market clearing result."""
-    result = clear_market(agents, T, "DA", actions, config)
+    result = clear_market(agents, T, "DA", actions, config, horizon_type="full_day")
     if result is None:
         return None, -1e12
     sched = result["schedules"][leader_name]

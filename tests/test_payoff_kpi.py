@@ -206,9 +206,15 @@ def test_both_arms_settle_with_the_same_pinned_endpoints(paired):
     pinned = dataclasses.replace(
         config,
         storage=dataclasses.replace(config.storage, terminal_soc_equal=True))
-    assert pins_terminal_soc(pinned, 96, "full_day") is True
-    # And the rolling window the episode runs on does not pin it.
-    assert pins_terminal_soc(config, 96, "window") is False
+    assert pins_terminal_soc(pinned, "full_day") is True
+    # And the rolling window the episode runs on does not pin it. Both calls
+    # below describe a 96-period horizon, one settled and one rolled, which is
+    # the pair the length used to be unable to tell apart.
+    assert pins_terminal_soc(config, "window") is False
+    assert pins_terminal_soc(pinned, "window") is False
+    assert pins_terminal_soc(pinned, "full_day") is True
+    with pytest.raises(ValueError):
+        pins_terminal_soc(pinned, "auto")
 
 
 def test_only_the_bidding_policy_differs(paired):

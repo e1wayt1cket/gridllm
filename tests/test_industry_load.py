@@ -431,24 +431,54 @@ def test_rerun_is_deterministic():
 
 
 # ---------------------------------------------------------------------------
-# Absolute MW is refused
+# Reading -> MW
 # ---------------------------------------------------------------------------
 
-def test_absolute_mw_refuses_without_verification():
-    shapes = il.build_shapes(flagged([
-        mk(account=f"U{u}", meter=f"M{u}", date=day(d),
-           values=profile(20)) for u in range(4) for d in range(40)]))
-    with pytest.raises(ValueError, match="not verified"):
-        il.absolute_mw(shapes, {3: "化工业"}, {3: 1.0})
+def test_a_slot_reading_is_average_power_not_energy():
+    """A slot value is the average power over its 15 minutes, so an implied
+    peak is the largest reading times the multiplier and nothing else. Reading
+    it as energy per slot would multiply by 60/15 and overstate every peak four
+    fold."""
+    assert il.slot_peak_kw([1.0, 5.0, 2.0], 10.0) == pytest.approx(50.0)
 
 
-def test_absolute_mw_works_once_verified():
-    shapes = il.build_shapes(flagged([
-        mk(account=f"U{u}", meter=f"M{u}", date=day(d),
-           values=profile(20)) for u in range(4) for d in range(40)]))
-    out = il.absolute_mw(shapes, {3: "化工业"}, {3: 2.0},
-                         verified_industries=["化工业"])
-    assert out[3].max() == pytest.approx(2.0)
+def test_a_meter_inside_its_rating_is_no_longer_flagged_inconsistent():
+    """A peak of 100 kW against a 100 kW rating sits under the 1.5x tolerance.
+    Under the retired four-fold reading the same meter implied 400 kW and was
+    flagged for a defect it does not have."""
+    md = flagged([mk(account="A", meter="M1", ratio=100.0, running=100.0,
+                     values=profile(48))])[0]
+    assert il.FLAG_CAPACITY_INCONSISTENT not in md.flags
+    evidence = il.verify_ratios([md])
+    assert evidence["meters_consistent"] == 1
+    assert evidence["per_meter"][("A", "M1")]["peak_kw"] == pytest.approx(100.0)
+
+
+def test_reading_to_mw_converts_the_unit_and_nothing_else():
+    md = mk(account="A", meter="M1", ratio=2000.0, values=tuple([1.0] * N))
+    arr = il.reading_to_mw(md)
+    assert arr is not None and arr.shape == (N,)
+    # 1.0 kW x 2000 / 1000 = 2.0 MW, flat. No slot rescale anywhere.
+    np.testing.assert_allclose(arr, 2.0)
+
+
+def test_reading_to_mw_refuses_an_incomplete_day_instead_of_filling_it():
+    """A missing slot is reported, never zero-filled: a padded day would look
+    like a measured one."""
+    short = mk(account="A", meter="M1", ratio=10.0,
+               values=tuple([1.0] * (N - 1) + [None]))
+    assert il.reading_to_mw(short) is None
+    assert il.reading_to_mw(mk(account="A", meter="M2", ratio=None)) is None
+    assert il.reading_to_mw(mk(account="A", meter="M3", ratio=0.0)) is None
+
+
+def test_reading_to_mw_scales_linearly_with_the_multiplier():
+    """The conversion is a unit conversion, so doubling the meter multiplier
+    doubles the MW and changes nothing else."""
+    base = mk(account="A", meter="M1", ratio=1000.0, values=profile(48))
+    doubled = mk(account="A", meter="M1", ratio=2000.0, values=profile(48))
+    np.testing.assert_allclose(il.reading_to_mw(doubled),
+                               2.0 * il.reading_to_mw(base))
 
 
 # ---------------------------------------------------------------------------
@@ -534,6 +564,44 @@ def test_blocks_are_counted_as_pairs_not_as_records():
 
 
 # ---------------------------------------------------------------------------
+# The reading-unit gate
+# ---------------------------------------------------------------------------
+
+def test_the_reading_unit_is_declared_by_a_ruling_and_says_so():
+    """The gate is open on a declared ruling, and the record must not dress
+    that up as a data dictionary -- none exists for this workbook."""
+    assert il.require_reading_unit() == il.READING_UNIT_KW
+    assert il.READING_UNIT_SOURCE
+    assert "ruling" in il.READING_UNIT_SOURCE
+
+
+def test_the_mw_path_stops_when_no_source_declares_a_unit(monkeypatch):
+    """The gate is what actually stops the derivation, not a comment about
+    one: withdrawing the declaration closes it again."""
+    monkeypatch.setattr(il, "READING_UNIT", None)
+    with pytest.raises(ValueError, match="no source declares"):
+        il.require_reading_unit()
+    with pytest.raises(ValueError, match="no source declares"):
+        il.reading_to_mw(mk(account="A", meter="M1", ratio=10.0))
+
+
+def test_a_declared_unit_without_a_source_is_still_refused(monkeypatch):
+    """A unit written down without a citation is the same inference this gate
+    exists to stop, so it does not open the gate."""
+    monkeypatch.setattr(il, "READING_UNIT_SOURCE", None)
+    with pytest.raises(ValueError, match="no source declares"):
+        il.require_reading_unit()
+
+
+def test_reading_to_mw_refuses_a_unit_it_does_not_implement(monkeypatch):
+    """A declared unit that is not kW would make the milliwatt-per-kilowatt
+    step wrong, so the conversion refuses rather than mis-scaling silently."""
+    monkeypatch.setattr(il, "READING_UNIT", "kWh")
+    with pytest.raises(ValueError, match="does not implement"):
+        il.reading_to_mw(mk(account="A", meter="M1", ratio=10.0))
+
+
+# ---------------------------------------------------------------------------
 # End to end against the real workbook
 # ---------------------------------------------------------------------------
 
@@ -571,33 +639,51 @@ def test_real_workbook_end_to_end(tmp_path):
 
 
 @pytest.mark.slow
-def test_real_workbook_qualified_subset_is_the_frozen_one():
-    """The frozen screening figures, re-derived from the source workbook.
-
-    These are the numbers the absolute-load ruling rests on, so they are
-    asserted from the file rather than quoted from a report. A change to a
-    tolerance, to a flag list, or to the workbook moves this test instead of
-    silently moving the dataset. The two units are asserted separately and
-    never as one number.
-    """
+def test_real_workbook_gate_counts_do_not_depend_on_the_reading_unit():
+    """How many meters the check can reach, and how many it cannot, are facts
+    about what parses in the workbook. The measurement of a reading's unit does
+    not enter them, so they held before the S1 correction and must hold after."""
     path = il.resolve_workbook()
     if not path.exists():                       # pragma: no cover
         pytest.skip("industry workbook not present")
     assert il.file_sha256(path) == (
         "63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb")
 
+    verdicts = il.qualified_meters(
+        il.flag_records(list(il.iter_meter_days(str(path)))))
+    checked = [v for v in verdicts.values() if v["checkable"]]
+    assert len(verdicts) == 283
+    assert len(checked) == 200                   # the check can reach these
+    assert len(verdicts) - len(checked) == 83    # and these it cannot
+
+
+@pytest.mark.slow
+def test_real_workbook_qualified_subset_is_the_frozen_one():
+    """The screening figures the absolute-load ruling rests on, re-derived from
+    the source workbook.
+
+    These are the numbers the S1 unit correction produced: a slot reading is an
+    average power in kW, so an implied peak is `max|slot| * 综合倍率` with no
+    slot rescale. They are asserted from the file rather than quoted from a
+    report, so a change to a tolerance, a flag list, the unit or the workbook
+    moves this test instead of silently moving the dataset. The meter count and
+    the block count are asserted separately and never as one number.
+
+    The figures this replaces ran a four-fold larger implied peak and are
+    archived under `data/processed/superseded/pre_s1/`.
+    """
+    path = il.resolve_workbook()
+    if not path.exists():                       # pragma: no cover
+        pytest.skip("industry workbook not present")
     records = il.flag_records(list(il.iter_meter_days(str(path))))
 
     verdicts = il.qualified_meters(records)
     checked = [v for v in verdicts.values() if v["checkable"]]
-    assert len(verdicts) == 283
-    assert len(checked) == 200                   # the check can reach these
-    assert sum(1 for v in checked if v["qualified"]) == 87
-    assert sum(1 for v in checked if not v["qualified"]) == 113
-    assert len(verdicts) - len(checked) == 83    # and these it cannot
+    assert sum(1 for v in checked if v["qualified"]) == 109
+    assert sum(1 for v in checked if not v["qualified"]) == 91
 
     keys = il.qualified_block_keys(records)
-    assert len(keys) == 39_365                   # blocks, not records
-    assert len({k[0] for k in keys}) == 84
+    assert len(keys) == 45_736                   # blocks, not records
+    assert len({k[0] for k in keys}) == 103      # meters contributing
     assert len({k[1] for k in keys}) == 730
-    assert len({md.account for md in il.qualified_records(records)}) == 36
+    assert len({md.account for md in il.qualified_records(records)}) == 43

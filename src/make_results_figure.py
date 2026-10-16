@@ -36,7 +36,11 @@ import matplotlib.ticker as mticker
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-SCEN = ["baseline", "high_re", "peak_load", "congestion", "no_congestion"]
+from scenarios import legacy_comparison_scenarios
+
+# Read from the one declaration; `no_congestion` is a sensitivity variant the
+# figures add on top of the comparison set, and is named here as such.
+SCEN = legacy_comparison_scenarios() + ["no_congestion"]
 LABELS = {"logitreg": "旧 TD3\n(logit 惩罚)",
           "td3": "TD3\n(差分奖励)",
           "matd3": "MATD3\n(差分奖励)"}

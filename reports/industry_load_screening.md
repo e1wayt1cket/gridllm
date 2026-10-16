@@ -1,3 +1,11 @@
+> **Superseded (pre-S1).** Every figure below was computed while a slot reading
+> was treated as energy per slot, which multiplied each implied peak by four.
+> The numbers are no longer current: the rule digest has moved from
+> `f647fa60d88c3b29` to `ecb2b3aed37c520e`, the artefacts are archived under
+> `data/processed/superseded/pre_s1/`, and the recomputed figures are in
+> `reports/industry_load_rebuild.md`. The method described here still applies;
+> only the counts changed.
+
 # Industry load screening: what the validators actually decide
 
 Evidence for the load-input ruling, produced by re-running the shipped

@@ -203,16 +203,28 @@ def run_b0(band_name: str, band) -> dict:
 # ---------------------------------------------------------------------------
 
 def _config(band, opf_mode: str = "socp") -> MarketConfig:
-    config = MarketConfig(opf_mode=opf_mode, verbose=False,
-                          market_design=MarketDesignConfig(
-                              use_constraint_multi_obj=False))
+    """The scenario's own model, at this rung's voltage band.
+
+    Built by `scenarios.scenario_model_config`, which is the same construction
+    the scenario itself uses. This used to assemble a `MarketConfig` from the
+    dataclass defaults, which agree with `config/defaults.yaml` on most fields
+    and not on the ones the scenario declares: the rung cleared at a load power
+    factor of 0.90 against the scenario's 0.8503, and with an inverter rated at
+    1.0 against the scenario's 1.10. Both are choices about this study's
+    facilities, and a rung that does not carry them is not a rung of that
+    scenario.
+
+    The band and the rung's own silence about storage are the only things set
+    here -- `storage.use_nodal_price` in particular is left as configured,
+    because its two-pass re-solve is part of the market model the ladder is
+    measuring.
+    """
+    from scenarios import scenario_model_config
+
+    config = scenario_model_config(BASE_SCENARIO, opf_mode=opf_mode)
+    config.verbose = False
     config.network.v_min_pu = float(band[0])
     config.network.v_max_pu = float(band[1])
-    # Everything else is left at the project's configured values -- including
-    # `storage.use_nodal_price`, whose two-pass re-solve is part of the market
-    # model the ladder is supposed to be measuring. Overriding a knob here
-    # would make the rung a different market from the one the rest of the study
-    # clears.
     return config
 
 
@@ -701,6 +713,10 @@ def write_ladder(doc: dict, path: str) -> str:
 
 
 def main(argv=None) -> int:
+    # A non-formal entry point: this measures the control path against a
+    # market with a known shape, not against a measured one.
+    from wholesale_price import enable_non_formal_market
+    enable_non_formal_market()
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)

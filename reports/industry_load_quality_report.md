@@ -63,7 +63,7 @@ Produced by `src/industry_load.py`. Records what was measured; no value in the s
 | `negative_pv` | 7,856 |
 | `ratio_missing` | 54 |
 | `ratio_suspect` | 9,827 |
-| `capacity_inconsistent` | 16,653 |
+| `capacity_inconsistent` | 1,338 |
 | `duplicate_row` | 13,528 |
 | `duplicate_conflict` | 4 |
 | **total records** | **117,271** |
@@ -98,28 +98,28 @@ Records kept out of the shape pool: **29,760** (25.38% of rows). Advisory flags 
 | | |
 |---|---|
 | meters checked | 200 |
-| meters whose implied peak fits 运行容量 (<= 1.5x) | 87 |
-| meters whose implied peak contradicts it | 113 |
+| meters whose implied peak fits 运行容量 (<= 1.5x) | 109 |
+| meters whose implied peak contradicts it | 91 |
 
 Worst contradictions (implied peak / 运行容量):
 
 | meter | industry | ratio | 运行容量 | implied peak kW | ratio to rating |
 |---|---|---|---|---|---|
-| `M59e598348f4e` | 汽车制造业 | 440,000 | 40,000 | 183,744,000 | 4,593.6x |
-| `M1ae3bfbd4249` | 化工业 | 1,320,000 | 240,000 | 542,572,800 | 2,260.7x |
-| `M6de3741455e0` | 化工业 | 1,320,000 | 240,000 | 540,196,800 | 2,250.8x |
-| `M2c9f3e01a134` | 化工业 | 1,320,000 | 240,000 | 535,920,000 | 2,233.0x |
-| `M0f6fdf82497c` | 化工业 | 1,320,000 | 240,000 | 519,182,400 | 2,163.3x |
-| `M181c47a33d96` | 化工业 | 2,200,000 | 720,000 | 983,576,000 | 1,366.1x |
-| `Mba4eeb12ecb5` | 化工业 | 2,200,000 | 720,000 | 962,016,000 | 1,336.1x |
-| `M51f036bd42a3` | 电动汽车（充换电） | 3,000 | 2,500 | 3,264,000 | 1,305.6x |
-| `M1fa0bb3d36e3` | 钢铁 | 264,000 | 103,310 | 110,858,880 | 1,073.1x |
-| `Mb97972a568cf` | 水泥制造 | 132,000 | 83,580 | 69,648,480 | 833.3x |
-| `M505a4765c6ca` | 纺织业 | 10,500 | 6,450 | 4,562,460 | 707.4x |
-| `Mcaf9bf10a14c` | 电子设备制造业 | 44,000 | 27,500 | 18,712,320 | 680.4x |
-| `Mf32e7531faea` | 电动汽车（充换电） | 2,000 | 2,500 | 1,545,680 | 618.3x |
-| `M136ca9f032de` | 纺织业 | 14,000 | 9,700 | 5,957,280 | 614.2x |
-| `M30a738d6d057` | 水泥制造 | 132,000 | 83,580 | 49,610,880 | 593.6x |
+| `M59e598348f4e` | 汽车制造业 | 440,000 | 40,000 | 45,936,000 | 1,148.4x |
+| `M1ae3bfbd4249` | 化工业 | 1,320,000 | 240,000 | 135,643,200 | 565.2x |
+| `M6de3741455e0` | 化工业 | 1,320,000 | 240,000 | 135,049,200 | 562.7x |
+| `M2c9f3e01a134` | 化工业 | 1,320,000 | 240,000 | 133,980,000 | 558.2x |
+| `M0f6fdf82497c` | 化工业 | 1,320,000 | 240,000 | 129,795,600 | 540.8x |
+| `M181c47a33d96` | 化工业 | 2,200,000 | 720,000 | 245,894,000 | 341.5x |
+| `Mba4eeb12ecb5` | 化工业 | 2,200,000 | 720,000 | 240,504,000 | 334.0x |
+| `M51f036bd42a3` | 电动汽车（充换电） | 3,000 | 2,500 | 816,000 | 326.4x |
+| `M1fa0bb3d36e3` | 钢铁 | 264,000 | 103,310 | 27,714,720 | 268.3x |
+| `Mb97972a568cf` | 水泥制造 | 132,000 | 83,580 | 17,412,120 | 208.3x |
+| `M505a4765c6ca` | 纺织业 | 10,500 | 6,450 | 1,140,615 | 176.8x |
+| `Mcaf9bf10a14c` | 电子设备制造业 | 44,000 | 27,500 | 4,678,080 | 170.1x |
+| `Mf32e7531faea` | 电动汽车（充换电） | 2,000 | 2,500 | 386,420 | 154.6x |
+| `M136ca9f032de` | 纺织业 | 14,000 | 9,700 | 1,489,320 | 153.5x |
+| `M30a738d6d057` | 水泥制造 | 132,000 | 83,580 | 12,402,720 | 148.4x |
 
 ## Qualified subset
 
@@ -129,11 +129,11 @@ The formal absolute-load input is the intersection of two gates: the shape pool 
 |---|---|
 | meters, all | 283 |
 | meters the check cannot reach | 83 |
-| **meters qualified** | **87** |
+| **meters qualified** | **109** |
 | blocks surviving the shape pool | 87,511 |
-| **blocks in the qualified subset** | **39,365** |
-| meters contributing those blocks | 84 |
-| users covered | 36 |
+| **blocks in the qualified subset** | **45,736** |
+| meters contributing those blocks | 103 |
+| users covered | 43 |
 | dates covered | 730 |
 
 A meter the check cannot reach is not qualified: missing information is not a pass, though such a meter is not thereby accused of being wrong, and its records are untouched. A block is never admitted on its own while its meter is out, so the meter gate cannot decay into advice. The ruling and the unit of each figure are recorded in `docs/2026-10-14-data-and-experiment-decisions.md`.
@@ -178,7 +178,7 @@ Reliability threshold: at least 3 users and 30 meter-days.
 - **电解铝** — limited: users 1 < 3. Treat its curve as indicative only.
 
 - `分布式光伏` is a **generator**, not a load. Its shape is produced outside the load pool and must not be fed to a load bus; the network already carries its own PV devices.
-- These are normalised shapes. Nothing here states an absolute MW level; see `absolute_mw`, which refuses until a unit and ratio verification exists.
+- These are normalised shapes. Nothing here states an absolute MW level. A magnitude is produced by `reading_to_mw`, which converts a reading's declared unit and never rescales a curve; a normalised shape multiplied by a rated capacity is not a measured load.
 
 ## Reproduction
 

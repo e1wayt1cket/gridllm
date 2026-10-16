@@ -60,8 +60,9 @@ def rules_in_force() -> List[Tuple[str, str]]:
         ("pool drop -- total", ", ".join(il.SHAPE_DROP_FLAGS)),
         ("advisory, never dropping", ", ".join(il.ADVISORY_FLAGS)),
         ("capacity tolerance", f"implied peak <= {il.CAPACITY_PEAK_TOLERANCE}x "
-                               f"运行容量 (peak = max|slot| * 综合倍率 * "
-                               f"60/{il.SLOT_MINUTES})"),
+                               f"运行容量 (peak = max|slot| * 综合倍率; a slot "
+                               f"is average active power in "
+                               f"{il.READING_UNIT}, so no slot rescale)"),
         ("ratio outlier factor", f"departs from the industry median by more "
                                  f"than {il.RATIO_OUTLIER_FACTOR}x (descriptive)"),
         ("reliable industry floor", f">= {il.MIN_USERS_FOR_RELIABLE} users and "
@@ -69,21 +70,36 @@ def rules_in_force() -> List[Tuple[str, str]]:
     ]
 
 
-def rule_version() -> str:
-    """A digest over everything the screening decision depends on.
+def rule_inputs() -> dict:
+    """Everything the screening decision depends on, in one place.
 
-    Any change to a tolerance, a flag list or the slot width moves this digest,
-    so a manifest and a result are tied together without anyone remembering to
-    bump a version by hand.
+    The unit basis belongs here as much as the tolerance does: the capacity
+    check compares a peak against 运行容量, so a change in what a slot reading
+    *is* changes which meters pass. Including it makes the digest move by
+    itself when the unit ruling changes, which is what keeps a superseded
+    result from being mistaken for a current one.
     """
-    payload = json.dumps({
+    return {
         "reading": FROZEN_READING,
         "pool_drop_flags": sorted(il.SHAPE_DROP_FLAGS),
         "advisory_flags": sorted(il.ADVISORY_FLAGS),
         "capacity_peak_tolerance": il.CAPACITY_PEAK_TOLERANCE,
         "ratio_outlier_factor": il.RATIO_OUTLIER_FACTOR,
         "slot_minutes": il.SLOT_MINUTES,
-    }, sort_keys=True)
+        "reading_unit": il.READING_UNIT,
+        "slot_reading_is_average_power": il.READING_UNIT == il.READING_UNIT_KW,
+        "mw_per_kw": il.MW_PER_KW,
+    }
+
+
+def rule_version() -> str:
+    """A digest over everything the screening decision depends on.
+
+    Any change to a tolerance, a flag list, the slot width or the reading's unit
+    moves this digest, so a manifest and a result are tied together without
+    anyone remembering to bump a version by hand.
+    """
+    payload = json.dumps(rule_inputs(), sort_keys=True)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
@@ -158,13 +174,7 @@ def write_manifest(path: Path, workbook: Path, records: Sequence[il.MeterDay],
     manifest = {
         "reading": FROZEN_READING,
         "screening_rule_version": rule_version(),
-        "rule_inputs": json.loads(json.dumps({
-            "pool_drop_flags": sorted(il.SHAPE_DROP_FLAGS),
-            "advisory_flags": sorted(il.ADVISORY_FLAGS),
-            "capacity_peak_tolerance": il.CAPACITY_PEAK_TOLERANCE,
-            "ratio_outlier_factor": il.RATIO_OUTLIER_FACTOR,
-            "slot_minutes": il.SLOT_MINUTES,
-        })),
+        "rule_inputs": rule_inputs(),
         "source_workbook": str(workbook),
         "source_workbook_sha256": il.file_sha256(workbook),
         "source_workbook_bytes": Path(workbook).stat().st_size,

@@ -36,18 +36,25 @@ def test_algo_and_bounds_defaults():
     assert args.noise_anneal_steps == 5000
 
 
-def test_default_training_scenario_is_fixed():
-    """Default training uses a single fixed scenario, not rotation."""
-    from train_rl import _resolve_train_scenarios, DEFAULT_TRAIN_SCENARIO
-    assert _resolve_train_scenarios(None) == [DEFAULT_TRAIN_SCENARIO]
-
-
-def test_explicit_scenario_list_parses():
-    """An explicit --scenarios list restores rotation across that subset."""
+def test_a_run_must_name_its_training_scenarios():
+    """There is no default scenario. Which one a run trains on depends on
+    which data exists and what is being studied, so it is stated."""
     from train_rl import _resolve_train_scenarios
-    assert _resolve_train_scenarios("baseline,peak_load") == \
-        ["baseline", "peak_load"]
-    assert _resolve_train_scenarios("peak_load") == ["peak_load"]
+    import pytest as _pytest
+    with _pytest.raises(SystemExit, match="no --scenarios"):
+        _resolve_train_scenarios(None)
+
+
+def test_explicit_scenario_list_must_be_a_formal_subset():
+    """An explicit --scenarios list is accepted only when every name is in the
+    declared formal set. A run over a scenario priced by a generated series
+    would produce a curve that is a result about that generator."""
+    import scenarios
+    from train_rl import _resolve_train_scenarios
+    formal = scenarios.formal_scenarios()
+    assert _resolve_train_scenarios(",".join(formal)) == formal
+    with pytest.raises(ValueError, match="not in the formal scenario set"):
+        _resolve_train_scenarios("baseline,peak_load")
 
 
 def test_qmatd3_is_accepted_algo_choice():

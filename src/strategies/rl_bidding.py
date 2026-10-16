@@ -5,7 +5,7 @@ import torch
 from typing import Dict, List, Optional
 
 from models import Agent, MarketConfig
-from rl_spec import action_spec_for, OBS_V4
+from rl_spec import action_spec_for, OBS_V6
 from strategies import BiddingStrategy, register_strategy
 
 
@@ -34,10 +34,10 @@ def _reject_foreign_cached_policies(policies: dict, agents: List[Agent]) -> None
             # already checked its spec against the file's own metadata.
             continue
         obs_name = prov.get("obs_spec")
-        if obs_name not in (None, OBS_V4.name):
+        if obs_name not in (None, OBS_V6.name):
             raise ValueError(
                 f"the cached policy for {nm!r} was built with observation spec "
-                f"{obs_name!r}, but this environment uses {OBS_V4.name!r}; "
+                f"{obs_name!r}, but this environment uses {OBS_V6.name!r}; "
                 f"refusing to apply it. Pass the policy explicitly, load it "
                 f"with rl_bidding.load_policies, or clear the cache with "
                 f"rl_bidding.reset_trained_policies().")
@@ -121,9 +121,9 @@ class RLBiddingStrategy(BiddingStrategy):
                 nm = a.name
                 if nm not in policies:
                     continue
-                avg_oth, bid_std = env_temp._compute_opponent_features(nm)
+                avg_dev, dev_std = env_temp._compute_opponent_features(nm)
                 obs = env_temp._get_agent_obs(
-                    a, block_idx, None, avg_price, slr, avg_oth, bid_std)
+                    a, block_idx, None, avg_price, slr, avg_dev, dev_std)
                 obs_t = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
                 with torch.no_grad():
                     act_arr = policies[nm](obs_t).squeeze(0).numpy()

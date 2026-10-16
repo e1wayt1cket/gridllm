@@ -15,18 +15,23 @@ per-meter scale, so a ratio that is wrong by a factor of a million moves the
 shape not at all. The ratio is only consulted where a magnitude is genuinely
 being judged, in `verify_ratios`, and there it is reported rather than trusted.
 
-*Absolute MW* is built from the **qualified subset** and nothing else. `综合倍率`
-reconciles with the declared 运行容量 for some meters and not others (5G基站
-implies 2.3–2.6x its rating at a ratio of 1; several 化工/印刷 meters carry a
-ratio that implies hundreds of times theirs), so converting the whole workbook
-to MW would be a fabricated quantity wearing a measured one's clothes.
-`absolute_mw` refuses by default and says why. What it refuses for is decided
-here: `qualified_meters` is the ratio/capacity gate, one verdict per meter, and
-`qualified_records` / `qualified_block_keys` are what clear both that gate and
-the shape pool. A meter whose ratio or capacity cannot be read is **not**
-qualified — the workbook not saying is not the network agreeing — and no block
-is ever admitted on its own while its meter is out, so the gate cannot decay
-into advice.
+*Absolute MW* is built from the **qualified subset** and by `reading_to_mw`, and
+by nothing else. `综合倍率` reconciles with the declared 运行容量 for some meters
+and not others (several 化工/印刷 meters carry a ratio that implies hundreds of
+times their rating), so converting the whole workbook to MW would be a
+fabricated quantity wearing a measured one's clothes. `reading_to_mw` refuses
+while no source declares the unit of a slot reading, and refuses a record that
+is not a complete active-power day, so a magnitude cannot be published on a
+partial one. What it admits is decided here: `qualified_meters` is the
+ratio/capacity gate, one verdict per meter, and `qualified_records` /
+`qualified_block_keys` are what clear both that gate and the shape pool. A meter
+whose ratio or capacity cannot be read is **not** qualified — the workbook not
+saying is not the network agreeing — and no block is ever admitted on its own
+while its meter is out, so the gate cannot decay into advice.
+
+`reading_to_mw` converts a reading's unit; it never rescales a curve. A
+normalised shape multiplied by a rated capacity is not a measured load, which is
+why the retired `absolute_mw` — which did exactly that — has no successor here.
 
 Aggregation is hierarchical and equal-weighted at every level, because the
 workbook's row counts are not a sample design: 商业综合体2 contributes 15,867
@@ -82,6 +87,184 @@ COL_SLOT0 = 12
 
 PHASE_ACTIVE_POWER = "有功功率"
 PV_INDUSTRY = "分布式光伏"
+
+#: The unit a slot reading is in. **A declared project ruling, not a
+#: data-dictionary fact.**
+#:
+#: The workbook states no unit: its header names twelve fields and then
+#: ninety-six *times of day* and never a unit, its package metadata carries no
+#: title, subject or description, and no field specification for the system that
+#: exported it is in hand. The one column that describes the readings at all is
+#: `功率相序 = 有功功率` -- active power -- and in the load-control protocol family
+#: this workbook comes from the power fields carry kW while kWh belongs to the
+#: separate 有功电量 fields.
+#:
+#: The ruling is therefore: a slot value is the **average active power over its
+#: 15 minutes, in kW**. Two consequences follow and both are load-bearing.
+#: A 96-slot day is 96 average powers, so a day's energy is their sum times
+#: `HOURS_PER_SLOT` and a slot value is never multiplied by four. And the
+#: capacity check compares a peak against 运行容量, whose own unit is equally
+#: unstated, so that check is only meaningful under this same assumption -- it
+#: is a consistency filter, never evidence for the unit.
+READING_UNIT_KW = "kW"
+
+READING_UNIT: Optional[str] = READING_UNIT_KW
+
+#: What stands behind `READING_UNIT`. There are **two admissible bases**, and
+#: they are not the same claim:
+#:
+#: `UNIT_BASIS_EXTERNAL` means a source outside this project states the unit --
+#: a data dictionary, a field specification, a written statement from the
+#: producer. Nothing here has one.
+#:
+#: `UNIT_BASIS_RULING` means the project took the decision and recorded it. It
+#: is a **basis**, not a proof: a named quantity, a plausible magnitude and a
+#: capacity ratio are all consistent with more than one unit, so none of them
+#: corroborates this one -- the ratio in particular is a comparison whose own
+#: denominator has no stated unit either. What a ruling supplies is not
+#: evidence but **accountability**: someone decided, the decision is written
+#: down, and every figure built on it says so.
+#:
+#: Both bases admit absolute MW. Which one is in force stays visible, because
+#: `is_externally_verified()` answers that separately and stays `False` under a
+#: ruling -- see `unit_status`.
+UNIT_BASIS_EXTERNAL = "external_source"
+UNIT_BASIS_RULING = "user_confirmed_project_ruling"
+UNIT_BASES = (UNIT_BASIS_EXTERNAL, UNIT_BASIS_RULING)
+
+#: Spellings this project has used for the ruling basis. Kept so an artefact
+#: written before the vocabulary settled is still read as what it is, rather
+#: than becoming unreadable the moment the name changed.
+LEGACY_BASIS_SPELLINGS = {"ruling_only": UNIT_BASIS_RULING,
+                          "confirmed": UNIT_BASIS_EXTERNAL}
+
+
+def canonical_basis(evidence: Optional[str]) -> Optional[str]:
+    """The basis `evidence` names, under the current vocabulary.
+
+    `None` when the string names no basis at all -- an artefact that says
+    nothing is not an artefact that says something admissible.
+    """
+    if evidence in UNIT_BASES:
+        return evidence
+    return LEGACY_BASIS_SPELLINGS.get(evidence)  # type: ignore[arg-type]
+
+
+READING_UNIT_EVIDENCE = UNIT_BASIS_RULING
+
+#: The status strings carried by every artefact. The status names the **basis**,
+#: so a ledger with a recorded ruling is not labelled by what it lacks.
+UNIT_VERIFIED = "unit_verified"                  # basis: an external source
+UNIT_BASIS_RULING_STATUS = "unit_basis_ruling"   # basis: a recorded ruling
+UNIT_UNVERIFIED = "unit_unverified"              # no admissible basis
+
+#: Every status an artefact may carry.
+UNIT_STATUSES = (UNIT_VERIFIED, UNIT_BASIS_RULING_STATUS, UNIT_UNVERIFIED)
+
+
+def is_externally_verified() -> bool:
+    """Whether an outside source states the unit. **Never** true under a ruling."""
+    return canonical_basis(READING_UNIT_EVIDENCE) == UNIT_BASIS_EXTERNAL
+
+
+def status_for_basis(basis: Optional[str]) -> str:
+    """The status a basis implies. The status names the basis, so it follows.
+
+    One place decides this, so a validator comparing an artefact's status
+    against its recorded basis is comparing against the same rule the code
+    would have written it with.
+    """
+    if basis == UNIT_BASIS_EXTERNAL:
+        return UNIT_VERIFIED
+    if basis == UNIT_BASIS_RULING:
+        return UNIT_BASIS_RULING_STATUS
+    return UNIT_UNVERIFIED
+
+
+def unit_status() -> str:
+    """The basis the unit rests on, or `unit_unverified` when there is none."""
+    return status_for_basis(canonical_basis(READING_UNIT_EVIDENCE))
+
+
+def require_unit_basis() -> str:
+    """The unit, or a refusal, for a path that writes **absolute MW**.
+
+    The gate is on the **basis**, not on external certification: a recorded
+    project ruling admits absolute MW, and everything built on it carries
+    `unit_basis_ruling` together with `is_externally_verified() == False`. What
+    it refuses is a unit with no admissible basis at all, or one recorded
+    without a source -- an uncited unit is the same inference this gate exists
+    to stop, only written down.
+
+    `reading_to_mw` still converts under a rejected basis so the figures can be
+    audited; what it may not do is let a magnitude be published with nothing
+    saying what it is in.
+    """
+    if not READING_UNIT_SOURCE:
+        raise ValueError(
+            "absolute load refused: a unit is declared with no source recorded. "
+            "An uncited unit is the inference this gate exists to stop, written "
+            "down. Record READING_UNIT_SOURCE -- the ruling, dictionary or "
+            "specification it rests on -- and re-run. See "
+            "reports/industry_load_unit_gate.md.")
+    if canonical_basis(READING_UNIT_EVIDENCE) is None:
+        raise ValueError(
+            f"absolute load refused: the reading unit's basis is "
+            f"{READING_UNIT_EVIDENCE!r}, which is not one of {UNIT_BASES}. "
+            f"{READING_UNIT_SOURCE or 'No source is recorded.'} A basis may be "
+            "an external source or a recorded project ruling; anything else is "
+            "not a basis. See reports/industry_load_unit_gate.md.")
+    return READING_UNIT  # type: ignore[return-value]
+
+#: Where that declaration came from, stated as what it is so the next reader can
+#: weigh it rather than inherit it.
+READING_UNIT_SOURCE: Optional[str] = (
+    "project_ruling_2026-10-14: a slot value is the average active power over "
+    "its 15 minutes, in kW. This is a ruling, not a data dictionary -- no field "
+    "specification for this workbook is in hand. See "
+    "reports/industry_load_unit_gate.md.")
+
+#: The only sanctioned way out of the reading's unit. Named so the division
+#: appears once and reads as a unit conversion rather than a scaling factor.
+MW_PER_KW = 1e-3
+
+#: Hours covered by one slot. A day's energy is a power series times this.
+HOURS_PER_SLOT = SLOT_MINUTES / 60.0
+
+
+def slot_peak_kw(values: Sequence[float], ratio: float) -> float:
+    """The peak power a meter's readings imply, in kW.
+
+    The readings are average powers, so the implied peak is the largest of them
+    times the multiplier -- nothing else. The `60/SLOT_MINUTES` that used to
+    appear here converted an energy-per-slot reading to a power, which is the
+    reading this ruling does not hold; keeping it would overstate every peak by
+    four and reject meters for a defect they do not have.
+    """
+    return max(abs(v) for v in values) * ratio
+
+
+def require_reading_unit() -> str:
+    """The unit a slot reading is in, or a refusal explaining why not.
+
+    Every path that turns a workbook reading into MW calls this first. The gate
+    is open today on a declared ruling; it closes again if that declaration is
+    withdrawn, and it refuses a unit recorded without a source, because an
+    uncitationed unit is the same inference this gate exists to stop, only
+    written down.
+    """
+    if READING_UNIT is None or not READING_UNIT_SOURCE:
+        raise ValueError(
+            "absolute load refused: no source declares the unit of a slot "
+            "reading. The workbook states the quantity (有功功率) and the time "
+            "grid (96 x 15 min) but never a unit, and 运行容量 -- the only "
+            "magnitude a reading could be checked against -- has no stated unit "
+            "either, so the capacity relation cannot settle it. Set "
+            "READING_UNIT and READING_UNIT_SOURCE from a ruling, a data "
+            "dictionary or the system that exported the file, and re-run. Until "
+            "then no MW figure may be derived from these readings. See "
+            "reports/industry_load_unit_gate.md.")
+    return READING_UNIT
 
 # ---------------------------------------------------------------------------
 # Quality flags and the thresholds behind them
@@ -152,6 +335,13 @@ PLACEHOLDER_SUM = 12.0
 #: median by more than this factor. Descriptive only — never applied as a fix.
 RATIO_OUTLIER_FACTOR = 100.0
 #: Implied peak (kW) above this multiple of 运行容量 is a contradiction.
+#:
+#: Both sides are the same unit — an average power in kW against a rated
+#: capacity — so 1.5 is a genuine tolerance and not an artefact of the
+#: conversion. It was ~4x looser in practice before the slot value stopped being
+#: read as energy; the value is deliberately unchanged here, because moving a
+#: threshold in the same change as the unit it is measured in would conflate a
+#: unit correction with a tuning decision.
 CAPACITY_PEAK_TOLERANCE = 1.5
 
 #: An industry curve is called reliable only at or above both of these.
@@ -450,10 +640,11 @@ def _capacity_contradicted(md: MeterDay,
                            present: Sequence[float]) -> bool:
     """Does the implied peak contradict the declared 运行容量?
 
-    Implied peak in kW is `max|reading| * 综合倍率 * (60 / SLOT_MINUTES)`. The
-    comparison is only meaningful when both the ratio and the rating parse and
-    the rating is positive, so anything else is left unflagged rather than
-    guessed at. This is a *flag*: the ratio is never rewritten to make it agree.
+    The implied peak is `slot_peak_kw`, in kW, because a slot reading is an
+    average power. The comparison is only meaningful when both the ratio and the
+    rating parse and the rating is positive, so anything else is left unflagged
+    rather than guessed at. This is a *flag*: the ratio is never rewritten to
+    make it agree.
     """
     if md.ratio is None or md.ratio <= 0.0:
         return False
@@ -461,8 +652,8 @@ def _capacity_contradicted(md: MeterDay,
         return False
     if not present:
         return False
-    peak_kw = max(abs(v) for v in present) * md.ratio * (60.0 / SLOT_MINUTES)
-    return peak_kw > CAPACITY_PEAK_TOLERANCE * md.running_capacity
+    return (slot_peak_kw(present, md.ratio)
+            > CAPACITY_PEAK_TOLERANCE * md.running_capacity)
 
 
 def mark_duplicates(records: Iterable[MeterDay]) -> List[MeterDay]:
@@ -636,7 +827,7 @@ def _reliability_note(n_users: int, n_days: int,
 
 
 # ---------------------------------------------------------------------------
-# Absolute load — refused unless verified
+# Absolute load — the qualified subset, converted by `reading_to_mw`
 # ---------------------------------------------------------------------------
 
 
@@ -655,8 +846,7 @@ def verify_ratios(records: Iterable[MeterDay]) -> Dict[str, object]:
         present = [v for v in md.values if v is not None]
         if not present:
             continue
-        peak_kw = (max(abs(v) for v in present) * md.ratio
-                   * (60.0 / SLOT_MINUTES))
+        peak_kw = slot_peak_kw(present, md.ratio)
         key = (md.account, md.meter)
         entry = per_meter.setdefault(key, {
             "industry": md.industry,
@@ -679,6 +869,38 @@ def verify_ratios(records: Iterable[MeterDay]) -> Dict[str, object]:
         "meters_inconsistent": len(per_meter) - consistent,
         "per_meter": per_meter,
     }
+
+
+def reading_to_mw(md: MeterDay) -> Optional[np.ndarray]:
+    """One meter-day's 96 average powers in MW, or `None` if it is not one.
+
+    The only sanctioned way a workbook reading becomes a MW magnitude. It
+    converts a unit and nothing else: no rescaling, no normalising, no
+    substitution of a shape, and no zero for a slot the workbook left blank.
+
+    The declared unit is checked before anything is converted, so no magnitude
+    can be produced while no source says what a reading is, and a unit this
+    function does not implement is refused rather than silently mis-scaled.
+
+    `None` — never an array of zeros — is returned when the day is not a
+    complete active-power day: a slot absent, a multiplier absent or
+    non-positive, a length that is not `N_SLOTS`, or a value that is not finite.
+    The caller reports that record as excluded; filling it in would invent a
+    measurement.
+    """
+    if require_reading_unit() != READING_UNIT_KW:
+        raise ValueError(
+            f"reading_to_mw converts {READING_UNIT_KW}; the declared unit is "
+            f"{READING_UNIT!r}. Converting a magnitude from a unit this "
+            "function does not implement would be a silent mis-scaling.")
+    if md.ratio is None or md.ratio <= 0.0:
+        return None
+    if len(md.values) != N_SLOTS or any(v is None for v in md.values):
+        return None
+    arr = np.asarray(md.values, dtype=float)
+    if not np.all(np.isfinite(arr)):
+        return None
+    return arr * md.ratio * MW_PER_KW
 
 
 def qualified_meters(records: Iterable[MeterDay]) -> Dict[str, Dict[str, object]]:
@@ -759,34 +981,6 @@ def qualified_block_keys(records: Iterable[MeterDay]) -> set:
     and report its length as a block count.
     """
     return {(md.meter_key, md.date) for md in qualified_records(records)}
-
-
-def absolute_mw(shapes: IndustryShapeSet,
-                bus_map: Dict[int, str],
-                bus_ratings_mw: Dict[int, float],
-                verified_industries: Sequence[str] = ()) -> Dict[int, np.ndarray]:
-    """Convert shapes to MW per bus — **refused** unless every industry is
-    explicitly verified.
-
-    This exists so the refusal is a function rather than a convention. The
-    workbook's ratio reconciles with declared capacity for some meters and not
-    others, so a global MW conversion would produce a number with no measurement
-    behind it. Callers that have actually verified an industry pass it in
-    `verified_industries`; everything else raises.
-    """
-    unverified = sorted({ind for ind in bus_map.values()
-                         if ind not in set(verified_industries)})
-    if unverified:
-        raise ValueError(
-            "absolute MW refused: unit/ratio/ownership not verified for "
-            f"{unverified}. Verify against 运行容量 and pass those industries "
-            "in verified_industries, or use the normalised shapes instead.")
-    out: Dict[int, np.ndarray] = {}
-    for bus, industry in bus_map.items():
-        if industry not in shapes.shapes:
-            raise KeyError(f"no shape for industry {industry!r} (bus {bus})")
-        out[bus] = shapes.shape_of(industry) * float(bus_ratings_mw[bus])
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1234,8 +1428,9 @@ def quality_report(shapes: IndustryShapeSet,
         "produced outside the load pool and must not be fed to a load bus; the "
         "network already carries its own PV devices.")
     add("- These are normalised shapes. Nothing here states an absolute MW "
-        "level; see `absolute_mw`, which refuses until a unit and ratio "
-        "verification exists.")
+        "level. A magnitude is produced by `reading_to_mw`, which converts a "
+        "reading's declared unit and never rescales a curve; a normalised "
+        "shape multiplied by a rated capacity is not a measured load.")
     add("")
 
     add("## Reproduction")

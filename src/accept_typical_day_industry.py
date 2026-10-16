@@ -538,6 +538,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # A non-formal entry point: this measures the control path against a
+    # market with a known shape, not against a measured one.
+    from wholesale_price import enable_non_formal_market
+    enable_non_formal_market()
     args = build_parser().parse_args(argv)
     report = run_acceptance(workbook=args.workbook, shapes_path=args.shapes,
                             repeats=args.repeats)

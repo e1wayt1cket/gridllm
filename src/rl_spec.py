@@ -182,7 +182,11 @@ OBS_V3 = ObservationSpec(
 register_obs_spec(OBS_V3)
 
 
-#: Current compact observation (V4): 3 unique + 9 shared = 12 dims.
+#: Retired compact observation (V4): 3 unique + 9 shared = 12 dims.
+#:
+#: It fixed V3's causality, and V6 later replaced its two opponent features.
+#: Kept for the same reason as V3: a checkpoint recorded under it must be
+#: identifiable, not reinterpreted.
 #:
 #: Differs from V3 in one feature's *meaning* and in every price normalizer:
 #: `avg_lmp_hist_norm` is the mean of the LMPs **observed so far this episode**
@@ -214,6 +218,102 @@ OBS_V4 = ObservationSpec(
     ),
 )
 register_obs_spec(OBS_V4)
+
+
+#: Observed but never released: the *unsigned* magnitude form of the two
+#: opponent features, `|a - truthful| / (high - low)`.
+#:
+#: It was replaced before any policy was trained or exported under it, and it
+#: is kept registered for one reason: the name `v5_12d` must never be read as
+#: the signed definition below, and a file that carries it must fail to load
+#: rather than be reinterpreted. Nothing selects it, and no checkpoint in this
+#: repository records it.
+OBS_V5 = ObservationSpec(
+    name="v5_12d",
+    version=5,
+    unique_features=(
+        FeatureSpec("load_feat"),
+        FeatureSpec("re_feat"),
+        FeatureSpec("soc"),
+    ),
+    shared_features=(
+        FeatureSpec("last_lmp_norm"),
+        FeatureSpec("block_pos"),
+        FeatureSpec("avg_lmp_hist_norm"),
+        FeatureSpec("slr_norm"),
+        FeatureSpec("avg_other_dev"),
+        FeatureSpec("all_dev_std"),
+        FeatureSpec("ema_dev"),
+        FeatureSpec("price_trend"),
+        FeatureSpec("pred_lmp_norm"),
+    ),
+)
+register_obs_spec(OBS_V5)
+
+
+#: Current compact observation (V6): 3 unique + 9 shared = 12 dims, the same
+#: layout as V3/V4/V5, with the two opponent features redefined.
+#:
+#: V4's `avg_other_bid`/`bid_std` scaled each participant's first action into
+#: its own box and averaged the results across the fleet. A box position has no
+#: common meaning between action spaces: the storage `charge_price` box starts
+#: at its truthful point, so 0.0 there means "declaring truthfully", while the
+#: prosumer `bid_mult` box puts truthful at 1.0, so 0.0 there means "shaded as
+#: far as the space allows". Averaging the two averages distance-from-the-low-
+#: bound for one convention with distance-from-truthful for the other.
+#:
+#: V6 measures the deviation from each participant's own truthful point, **with
+#: its direction**, normalized by how far that participant could have gone in
+#: that direction:
+#:
+#:     d = (a - truthful) / (high - truthful)     when a > truthful   -> [0, +1]
+#:     d = (a - truthful) / (truthful - low)      when a < truthful   -> [-1, 0]
+#:     d = 0                                      when a == truthful
+#:
+#: So truthful is zero for every participant, shading down is negative and
+#: shading up is positive, and a participant that has used up its whole room in
+#: one direction reads exactly -1 or +1 there. Dividing by the distance to the
+#: boundary *in that direction* is what makes the two directions comparable
+#: within a participant whose box is asymmetric about truthful -- the storage
+#: charge box has no room below truthful at all and 150 above it, so a
+#: `(high - low)` denominator would report the whole downward half as
+#: unreachable while a downward move is what "shade the bid" means.
+#:
+#: The features are named `avg_other_dev` and `all_dev_std`. The first is the
+#: mean over the *other* participants, the second the spread over all of them
+#: including this one; the two sets differ, and the names say so. Both are over
+#: *signed* values, so a fleet shading both ways does not average to zero by
+#: construction.
+#:
+#: **The deviation penalty is not this quantity.** `rl_td3.normalized_deviation`
+#: is unsigned and divides by the full box width; it says how far from truthful
+#: a policy is, which is what a regularizer needs. These features say which way
+#: the fleet is leaning and by how much of its own room, which is what an
+#: observer needs. They are related and not interchangeable.
+#:
+#: None of V3, V4 or V5 is a valid V6 initialisation: all four share the layout
+#: and differ in what the vector means.
+OBS_V6 = ObservationSpec(
+    name="v6_12d",
+    version=6,
+    unique_features=(
+        FeatureSpec("load_feat"),
+        FeatureSpec("re_feat"),
+        FeatureSpec("soc"),
+    ),
+    shared_features=(
+        FeatureSpec("last_lmp_norm"),
+        FeatureSpec("block_pos"),
+        FeatureSpec("avg_lmp_hist_norm"),
+        FeatureSpec("slr_norm"),
+        FeatureSpec("avg_other_dev"),
+        FeatureSpec("all_dev_std"),
+        FeatureSpec("ema_dev"),
+        FeatureSpec("price_trend"),
+        FeatureSpec("pred_lmp_norm"),
+    ),
+)
+register_obs_spec(OBS_V6)
 
 # The non-storage action space: a multiplier on the agent's own declared price
 # and an adder to its own offer. Retained for load and prosumer participants,

@@ -31,7 +31,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -57,24 +57,43 @@ def _day_rows(evals):
     return evals[evals["day_id"].notna()]
 
 
-def check_day_rotation(metrics, run_seed: int) -> dict:
-    """Every cycle ran its twenty training days exactly once, in order."""
+def _declared_days(manifest, key: str) -> List:
+    """The days a run declared, read from its own record.
+
+    The audit has no split of its own and must not invent one: the days a run
+    was supposed to visit are part of that run's declaration, and a run that
+    declared none has nothing this check can hold it to.
+    """
+    raw = (manifest.get("cli_args") or {}).get(key)
+    if not raw:
+        return []
+    if isinstance(raw, (list, tuple)):
+        return list(raw)
+    return [d.strip() for d in str(raw).split(",") if d.strip()]
+
+
+def check_day_rotation(metrics, run_seed: int, train_days: Sequence) -> dict:
+    """Every cycle ran its declared training days exactly once, in order."""
     problems: List[str] = []
     cycles: Dict[int, List[int]] = {}
     if metrics is None or "day_id" not in metrics.columns:
         return {"ok": False, "problems": ["metrics.csv has no day_id column"],
                 "cycles": {}}
+    if not train_days:
+        return {"ok": True, "skipped": True, "cycles": {},
+                "problems": ["the run declared no training days, so there is "
+                             "no schedule to check the record against"]}
     if metrics["day_id"].isna().any():
         problems.append("some episodes recorded no day_id")
-    train = day_rotation.split_of("train")
+    days = list(train_days)
     for cycle, group in metrics.dropna(subset=["day_id"]).groupby("cycle"):
         recorded = [int(d) for d in group.sort_values("episode")["day_id"]]
         cycles[int(cycle)] = recorded
-        if sorted(recorded) != sorted(train):
+        if sorted(recorded) != sorted(days):
             problems.append(
                 f"cycle {int(cycle)} covered {sorted(recorded)}, not the "
-                f"twenty training days")
-        expected = day_rotation.cycle_days(run_seed, int(cycle))
+                f"declared days {sorted(days)}")
+        expected = day_rotation.cycle_days(days, run_seed, int(cycle))
         if recorded != expected:
             problems.append(
                 f"cycle {int(cycle)} ran {recorded}, but the schedule for "
@@ -82,12 +101,17 @@ def check_day_rotation(metrics, run_seed: int) -> dict:
     return {"ok": not problems, "problems": problems, "cycles": cycles}
 
 
-def check_held_out_isolation(metrics, evals) -> dict:
+def check_held_out_isolation(metrics, evals, train_days: Sequence,
+                             held_out_days: Sequence) -> dict:
     """No held-out day is ever trained on or validated out of its split."""
     problems: List[str] = []
-    train = set(day_rotation.split_of("train"))
-    validation = set(day_rotation.validation_days())
-    test = set(day_rotation.test_days())
+    if not train_days:
+        return {"ok": True, "skipped": True, "problems":
+                ["the run declared no day lists, so there is nothing to hold "
+                 "it to"]}
+    train = {int(d) for d in train_days}
+    validation = {int(d) for d in held_out_days}
+    test = set()
 
     if metrics is not None and "day_id" in metrics.columns:
         leaked = set(metrics["day_id"].dropna().astype(int)) - train
@@ -348,7 +372,7 @@ def check_policy_behaviour(run_dir: str, manifest: dict, evals) -> dict:
     scenario = manifest["cli_args"].get("train_scenario") or "typical_day"
     days = _day_rows(evals)
     day_ids = sorted(set(int(d) for d in days["day_id"])) if days is not None \
-        and len(days) else day_rotation.validation_days()
+        and len(days) else []
 
     problems: List[str] = []
     out_of_box = 0
@@ -450,8 +474,11 @@ def audit(run_dir: str, run_seed: Optional[int] = None,
         "run_id": manifest.get("run_id"),
         "seed": seed,
         "git_sha": manifest.get("git_sha"),
-        "day_rotation": check_day_rotation(metrics, seed),
-        "held_out_isolation": check_held_out_isolation(metrics, evals),
+        "day_rotation": check_day_rotation(
+            metrics, seed, _declared_days(manifest, "train_days")),
+        "held_out_isolation": check_held_out_isolation(
+            metrics, evals, _declared_days(manifest, "train_days"),
+            _declared_days(manifest, "validation_days")),
         "training_health": check_training_health(metrics,
                                                  manifest.get("cli_args")),
         "counterfactual": check_counterfactual(evals, kpi),

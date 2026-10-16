@@ -59,12 +59,6 @@ def _episode_econ(day_base: dict, day_rl: dict, agents, config):
         return {}, fell_backs
 
 N_EPISODES = 200
-# The native-scale research scenario, and the only one that declares
-# `wholesale_source: synthetic_v1` -- so the only one the 40-day price library
-# can price. On a legacy scenario the day id is ignored by the price layer and
-# a rotated run would be a single-priced run wearing a 40-day name.
-# `--no-day-rotation` (or `--scenarios`) reproduces the older behaviour.
-DEFAULT_TRAIN_SCENARIO = "typical_day"
 
 
 def list_agents_command():
@@ -169,13 +163,15 @@ def build_parser():
     parser.add_argument("--early-stop-threshold", type=float, default=0.05,
                         help="Relative improvement required to avoid early "
                              "stopping")
-    parser.add_argument("--day-rotation", type=str, default="auto",
-                        choices=("auto", "on", "off"),
-                        help="which day each episode runs on. 'auto' turns "
-                             "rotation on only for a scenario priced by the "
-                             "external library, where a day id selects a "
-                             "distinct price; legacy scenarios keep their "
-                             "existing behaviour. 'on'/'off' force it.")
+    parser.add_argument("--train-days", type=str, default=None,
+                        help="comma-separated days the run rotates over, taken "
+                             "from the real curves. Rotation is off when this "
+                             "is absent; there is no built-in set and no "
+                             "dataset length it could come from.")
+    parser.add_argument("--validation-days", type=str, default=None,
+                        help="comma-separated days held out of every cycle. "
+                             "Required when --train-days is given: a cycle is "
+                             "evaluated on days no gradient step has seen.")
     parser.add_argument("--train-scenario", type=str, default=None,
                         help="scenario the rotated days are priced on; "
                              "defaults to the training scenario")
@@ -187,6 +183,12 @@ def build_parser():
     parser.add_argument("--eval-use-diff-reward", action="store_true",
                         help="Use differential reward in evaluation episodes "
                              "(default off: evaluates raw profit)")
+    parser.add_argument("--allow-non-formal", action="store_true",
+                        help="Admit a --scenarios name outside the formal "
+                             "set. For an exploratory run that validates "
+                             "machinery -- a smoke test, a checkpoint check "
+                             "-- not for one whose curve is a result. The "
+                             "flag is recorded in the run artifacts.")
     parser.add_argument("--no-artifacts", action="store_true",
                         help="Disable structured run artifacts "
                              "(outputs/rl/<run_id>/)")
@@ -223,17 +225,38 @@ def build_parser():
     return parser
 
 
-def _resolve_train_scenarios(scenarios_arg):
+def _resolve_train_scenarios(scenarios_arg, allow_non_formal: bool = False):
     """Resolve the training scenario list from a --scenarios argument.
 
-    Default is a single fixed scenario (DEFAULT_TRAIN_SCENARIO) so that each
-    training run trains on one scenario only, keeping the reward curve free of
-    scenario-rotation noise. Passing an explicit comma-separated list restores
-    rotation across that subset.
+    There is no default. A single scenario keeps the reward curve free of
+    scenario-rotation noise, but which scenario that is depends on which data
+    is available and what is being studied, so it is named rather than assumed.
+
+    The names must be a subset of the formal set declared in
+    `config/scenarios.yaml`. A run that names a scenario priced by a generated
+    series is refused here rather than after it has produced a curve: the
+    curve would be a result about that generator.
+
+    `--allow-non-formal` admits a name outside that set for an **exploratory**
+    run that validates machinery -- an environment smoke test, a checkpoint
+    check -- where the day is an input rather than the subject. The flag is
+    left in `vars(args)`, which the run artifacts record, so a curve produced
+    this way carries the reason it is not a result.
     """
-    if scenarios_arg:
-        return [s.strip() for s in scenarios_arg.split(",")]
-    return [DEFAULT_TRAIN_SCENARIO]
+    if not scenarios_arg:
+        raise SystemExit(
+            "no --scenarios given. A training run names the scenario(s) it "
+            "trains on; there is no default research scenario.")
+    names = [s.strip() for s in scenarios_arg.split(",") if s.strip()]
+    from scenarios import assert_formal_subset, formal_scenarios
+    resolved = assert_formal_subset(names, allow_non_formal=allow_non_formal)
+    if allow_non_formal:
+        outside = sorted(set(resolved) - set(formal_scenarios()))
+        if outside:
+            print(f"  ! EXPLORATORY RUN: {outside} are outside the formal "
+                  "scenario set. This run validates machinery; the curve it "
+                  "produces is not a result.", flush=True)
+    return resolved
 
 
 def _train_matd3(args, env, action_bounds, rl_agent_names,
@@ -263,31 +286,35 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
     low = action_bounds[0].numpy()
     high = action_bounds[1].numpy()
 
-    # Which day each episode runs on. `auto` turns rotation on exactly when it
-    # can mean anything -- a scenario priced by the external library, where a
-    # day id selects a distinct price curve. On a legacy scenario the day id is
-    # ignored by the price layer, so rotation would run 800 episodes on one
-    # price while reporting a 40-day protocol, and nothing would look wrong.
-    rotation_mode = getattr(args, "day_rotation", "auto")
+    # Which day each episode runs on. Rotation needs the days that actually
+    # exist in the real curves, named explicitly: a schedule built from a
+    # dataset length would be a length the data has to be made to fit, and there
+    # is no such length here. Without days, a run visits only what a scenario
+    # declares by itself.
+    def _day_list(name):
+        raw = getattr(args, name, None)
+        return [d.strip() for d in (raw or "").split(",") if d.strip()]
+
+    rotation_days = _day_list("train_days")
+    held_out_days = _day_list("validation_days")
     rotation_scenario = getattr(args, "train_scenario", None) or \
-        DEFAULT_TRAIN_SCENARIO
-    if rotation_mode == "on":
-        rotation_on = True
-    elif rotation_mode == "off":
-        rotation_on = False
-    else:
-        from wholesale_price import get_scenario_cfg_source
-        rotation_on = (get_scenario_cfg_source(rotation_scenario)
-                       == "synthetic_v1")
+        (train_scenarios[0] if train_scenarios else None)
+    rotation_on = bool(rotation_days)
     run_seed = int(args.seed)
+    if rotation_on and not held_out_days:
+        raise SystemExit(
+            "day rotation is on but no --validation-days were given. A cycle "
+            "is evaluated on days held out of it, and there is no built-in "
+            "set to fall back on: name the real days to validate on.")
     if rotation_on:
-        protocol = day_rotation.assert_protocol()
+        day_rotation.assert_days(rotation_days)
+        day_rotation.assert_days(held_out_days)
         print(f"Day rotation: on | scenario {rotation_scenario} | "
-              f"split {protocol['sizes']} | run seed {run_seed}")
-        print(f"  validation {day_rotation.validation_days()}")
+              f"{len(rotation_days)} days | run seed {run_seed}")
+        print(f"  validation {held_out_days}")
     else:
-        print(f"Day rotation: off (mode={rotation_mode}, "
-              f"scenario={rotation_scenario})")
+        print(f"Day rotation: off (scenario={rotation_scenario}); every "
+              "episode runs on what the scenario declares by itself")
 
     stopped_early = False
     eval_envs = tracker.build_eval_envs(env.config) if tracker is not None \
@@ -302,10 +329,10 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
             # runs with the same seed see the same twenty days in a different
             # order, so a difference between them is a difference in the
             # learning rather than in the data.
-            slot = day_rotation.episode_day(run_seed, ep)
+            slot = day_rotation.episode_day(rotation_days, run_seed, ep)
             sc_name = rotation_scenario
             agents_sc, wholesale = get_scenario(
-                sc_name, T=env.T, config=config_copy, day_id=slot["day_id"])
+                sc_name, T=env.T, config=config_copy, day_id=slot["day"])
         else:
             sc_name = random.choice(train_scenarios)
             agents_sc, wholesale = get_scenario(sc_name, T=env.T,
@@ -420,7 +447,8 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
         # interval argument is ignored in that mode rather than silently
         # producing selections off the end of an incomplete cycle.
         eval_due = ((ep + 1) % args.eval_interval == 0
-                    if not rotation_on else day_rotation.is_cycle_end(ep))
+                    if not rotation_on
+                    else day_rotation.is_cycle_end(rotation_days, ep))
         if tracker is not None and args.eval_interval > 0 and eval_due:
             metrics = tracker.evaluate(eval_envs, matd3.actors)
             if rotation_on:
@@ -429,7 +457,7 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                 # path can name them.
                 metrics.update(validation_kpis(
                     matd3.actors, env.config, rotation_scenario,
-                    rl_agent_names, day_rotation.validation_days(),
+                    rl_agent_names, held_out_days,
                     T=env.T, n_blocks=N_BLOCKS,
                     obs_spec=env.obs_spec, action_spec=env.action_spec))
                 for key in ("mean_delta_pi", "mean_pi_ai",
@@ -642,7 +670,8 @@ def main():
               f"truthful={list(spec.truthful_array())}", flush=True)
 
     # ---- Determine training and evaluation scenarios ----
-    train_scenarios = _resolve_train_scenarios(args.scenarios)
+    train_scenarios = _resolve_train_scenarios(args.scenarios,
+                                               args.allow_non_formal)
     if args.eval_scenarios:
         eval_scenarios = [s.strip() for s in args.eval_scenarios.split(",")]
     else:

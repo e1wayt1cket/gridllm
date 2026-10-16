@@ -50,6 +50,10 @@ PER_BLOCK_KINDS: Tuple[str, ...] = ("truthful", "rule", "myopic", "rl")
 
 #: How a result is marked when it may not enter the aggregate.
 EXCLUDED_SOLVER_FAILURE = "solver_failure_or_fallback"
+#: The clear succeeded but its price field is not nodal for every period, so
+#: the profit was settled on a price the day did not make. Kept apart from a
+#: solver failure: nothing went wrong with the solve.
+EXCLUDED_MIXED_PRICE_FIELD = "mixed_wholesale_price_fallback"
 EXCLUDED_INCOMPLETE = "incomplete_settlement"
 EXCLUDED_SOC_INFEASIBLE = "soc_constraint_violated"
 
@@ -332,14 +336,32 @@ def evaluate_arm(arm: ArmRef, scen: ScenarioRef, config,
     record["settled_clean"] = bool(clean)
     record["solver_status"] = (result or {}).get("solver") if isinstance(
         result, dict) else None
+    # How much of the price field the profit was settled on is not a nodal
+    # price. Carried on every record, clean or not, so a reader of the file can
+    # always tell what the price column was.
+    record["lmp_price_source"] = (result or {}).get("lmp_price_source",
+                                                   "nodal") if isinstance(
+        result, dict) else None
+    record["lmp_fallback_periods"] = (
+        list((result or {}).get("lmp_fallback_periods", []))
+        if isinstance(result, dict) else None)
+    record["lmp_fallback_reason"] = (result or {}).get("lmp_fallback_reason", "")         if isinstance(result, dict) else None
+    record["has_wholesale_fallback"] = bool(
+        (result or {}).get("has_wholesale_fallback")) if isinstance(
+        result, dict) else None
     record["soc"] = _soc_report(agents, result, [])
 
     if not clean or profits is None:
+        mixed = bool((result or {}).get("has_wholesale_fallback"))             if isinstance(result, dict) else False
         record.update({
             "settled_net_profit_cny": None, "per_agent_profit_cny": None,
             "traded": None, "included": False,
-            "exclusion_reason": EXCLUDED_SOLVER_FAILURE,
-            "failure": record.get("failure", "settlement not clean"),
+            "exclusion_reason": (EXCLUDED_MIXED_PRICE_FIELD if mixed
+                                 else EXCLUDED_SOLVER_FAILURE),
+            "failure": record.get(
+                "failure",
+                "price field is not nodal for every period"
+                if mixed else "settlement not clean"),
         })
         return record
 
