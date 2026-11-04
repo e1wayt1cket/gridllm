@@ -10,6 +10,14 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+# `grid` must load before `pandas` in this process. The user-site `ortools`
+# build on this platform fails to load its DLLs once pandas is imported
+# (WinError 127), and pytest imports test modules in filesystem order, so a
+# subset run can begin with a module that imports pandas. The full suite
+# already reaches `grid` first by collection order; importing it here makes
+# that a property of the session rather than of the order.
+import grid  # noqa: E402,F401
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _non_formal_market_session():

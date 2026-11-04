@@ -352,6 +352,18 @@ ACTION_STORAGE_QUOTE_V2 = ActionSpec(
 )
 register_action_spec(ACTION_STORAGE_QUOTE_V2)
 
+# Same box and truthful point as v2; the change is the logit-to-quote map on
+# the open gate branch (linear core plus quadratic tails, `da_quote_map`).
+# A v2 actor's price logits mean something different and must not be reused.
+ACTION_STORAGE_QUOTE_V3 = ActionSpec(
+    name="storage_quote_v3",
+    version=3,
+    action_names=("charge_price", "discharge_price"),
+    bounds={"charge_price": (0.0, 150.0), "discharge_price": (0.0, 300.0)},
+    truthful={"charge_price": 0.0, "discharge_price": 0.0},
+)
+register_action_spec(ACTION_STORAGE_QUOTE_V3)
+
 
 def action_spec_for(agent, storage_spec: ActionSpec = None,
                     other_spec: ActionSpec = None) -> ActionSpec:

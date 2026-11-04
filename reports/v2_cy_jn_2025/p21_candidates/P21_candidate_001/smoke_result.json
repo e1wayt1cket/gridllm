@@ -1,0 +1,179 @@
+{
+  "run_id": "P21_candidate_001_smoke_seed11",
+  "control": "P21_control_smoke_seed11",
+  "protocol": "reports/v2_cy_jn_2025/phase21_smoke_protocol.json",
+  "acceptance": {
+    "hard_gates_control": true,
+    "hard_gates_candidate": true,
+    "non_inferior_mean": true,
+    "non_inferior_positive_days": true,
+    "no_unit_worse_by_10": true,
+    "target_metric": "actor-loss/execution map equality PASS",
+    "accepted": true
+  },
+  "control_best_mean": -24.987826924999908,
+  "candidate_best_mean": -18.495524667015996,
+  "control_best_round": 2,
+  "candidate_best_round": 4,
+  "hard_checks": {
+    "control": {
+      "exact_episodes": true,
+      "exact_days": true,
+      "four_exposures_per_day": true,
+      "exact_block_rows": true,
+      "block_rows_96": true,
+      "four_validation_passes": true,
+      "eleven_validation_days": true,
+      "common_split": true,
+      "train_subset_fixed": true,
+      "no_h2": true,
+      "no_test": true,
+      "no_legacy_test": true,
+      "terminal_soc": true,
+      "no_voltage": true,
+      "no_line": true,
+      "no_lmp_fallback": true,
+      "settlement_identity": true,
+      "all_pass": true
+    },
+    "candidate": {
+      "exact_episodes": true,
+      "exact_days": true,
+      "four_exposures_per_day": true,
+      "exact_block_rows": true,
+      "block_rows_96": true,
+      "four_validation_passes": true,
+      "eleven_validation_days": true,
+      "common_split": true,
+      "train_subset_fixed": true,
+      "no_h2": true,
+      "no_test": true,
+      "no_legacy_test": true,
+      "terminal_soc": true,
+      "no_voltage": true,
+      "no_line": true,
+      "no_lmp_fallback": true,
+      "settlement_identity": true,
+      "all_pass": true
+    }
+  },
+  "quote_stats": {
+    "control": {
+      "ESS9.charge": {
+        "count": 480,
+        "median": 0.036426205188035965,
+        "mean": 28.716075435032447,
+        "high_share": 0.008333333333333333,
+        "zero_share": 0.4979166666666667
+      },
+      "ESS9.discharge": {
+        "count": 480,
+        "median": 0.0,
+        "mean": 54.34188301960627,
+        "high_share": 0.014583333333333334,
+        "zero_share": 0.50625
+      },
+      "ESS14.charge": {
+        "count": 480,
+        "median": 17.468777656555176,
+        "mean": 29.288864106498657,
+        "high_share": 0.008333333333333333,
+        "zero_share": 0.4270833333333333
+      },
+      "ESS14.discharge": {
+        "count": 480,
+        "median": 0.29909050464630127,
+        "mean": 53.02146591988082,
+        "high_share": 0.016666666666666666,
+        "zero_share": 0.47708333333333336
+      },
+      "ESS17.charge": {
+        "count": 480,
+        "median": 0.42239050567150116,
+        "mean": 23.432483045731594,
+        "high_share": 0.010416666666666666,
+        "zero_share": 0.45416666666666666
+      },
+      "ESS17.discharge": {
+        "count": 480,
+        "median": 1.4656835794448853,
+        "mean": 55.28779924232513,
+        "high_share": 0.016666666666666666,
+        "zero_share": 0.45208333333333334
+      },
+      "ESS27.charge": {
+        "count": 480,
+        "median": 0.715171605348587,
+        "mean": 24.15008753783768,
+        "high_share": 0.00625,
+        "zero_share": 0.48333333333333334
+      },
+      "ESS27.discharge": {
+        "count": 480,
+        "median": 48.99094009399414,
+        "mean": 70.2830848508204,
+        "high_share": 0.016666666666666666,
+        "zero_share": 0.41875
+      }
+    },
+    "candidate": {
+      "ESS9.charge": {
+        "count": 480,
+        "median": 0.08174673840403557,
+        "mean": 28.585828321656056,
+        "high_share": 0.00625,
+        "zero_share": 0.49583333333333335
+      },
+      "ESS9.discharge": {
+        "count": 480,
+        "median": 0.0,
+        "mean": 53.864084432646635,
+        "high_share": 0.016666666666666666,
+        "zero_share": 0.525
+      },
+      "ESS14.charge": {
+        "count": 480,
+        "median": 23.218381881713867,
+        "mean": 30.56467041669724,
+        "high_share": 0.00625,
+        "zero_share": 0.40625
+      },
+      "ESS14.discharge": {
+        "count": 480,
+        "median": 0.15819218009710312,
+        "mean": 52.02711018941675,
+        "high_share": 0.0125,
+        "zero_share": 0.4895833333333333
+      },
+      "ESS17.charge": {
+        "count": 480,
+        "median": 0.5032412558794022,
+        "mean": 23.469454654377962,
+        "high_share": 0.008333333333333333,
+        "zero_share": 0.45
+      },
+      "ESS17.discharge": {
+        "count": 480,
+        "median": 18.33968448638916,
+        "mean": 58.28444273794691,
+        "high_share": 0.016666666666666666,
+        "zero_share": 0.4354166666666667
+      },
+      "ESS27.charge": {
+        "count": 480,
+        "median": 0.9052050709724426,
+        "mean": 24.945370893622748,
+        "high_share": 0.00625,
+        "zero_share": 0.4791666666666667
+      },
+      "ESS27.discharge": {
+        "count": 480,
+        "median": 49.406755447387695,
+        "mean": 70.72861704913278,
+        "high_share": 0.01875,
+        "zero_share": 0.41041666666666665
+      }
+    }
+  },
+  "evidence_file": "data/processed/v2_cy_jn_2025/phase21_smoke_control_vs_candidate_001.json"
+}

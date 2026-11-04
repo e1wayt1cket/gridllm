@@ -1,0 +1,23 @@
+{
+  "commands": [
+    "python -m pytest tests/test_da_quote_mapping.py -q",
+    "python -m pytest tests/test_rl_b_c2_gate.py tests/test_truthful_gate_actor_adapter.py tests/test_train_da_gate_guards.py -q",
+    "PYTHONPATH=src python src/audit_phase20_action_routing.py"
+  ],
+  "results": [
+    {
+      "command": "test_da_quote_mapping",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "command": "trainer/gate/guard regression",
+      "passed": 19,
+      "failed": 0
+    },
+    {
+      "command": "action_routing",
+      "all_pass": true
+    }
+  ]
+}

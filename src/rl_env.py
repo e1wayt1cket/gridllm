@@ -293,7 +293,8 @@ class BiddingEnv:
                  bid_mult_low: float = BID_MULT_LOW,
                  bid_mult_high: float = BID_MULT_HIGH,
                  obs_spec: Optional[ObservationSpec] = None,
-                 action_spec: Optional[ActionSpec] = None):
+                 action_spec: Optional[ActionSpec] = None,
+                 terminal_soc_target: Optional[float] = None):
         self.all_agents = agents
         self.config = config
         self.T = 96
@@ -304,6 +305,10 @@ class BiddingEnv:
         # what every caller that predates day rotation expects.
         self.day_id = None
         self.roll_horizon = roll_horizon  # look-ahead periods per window
+        # Absolute day-end SOC the settled horizon must reach. None leaves the
+        # rolling interface unpinned, as every pre-existing caller expects.
+        self.terminal_soc_target = terminal_soc_target
+        self._apply_terminal_target(agents)
 
         # Per-agent action bounds (configurable per training run)
         self.bid_mult_low = bid_mult_low
@@ -482,7 +487,21 @@ class BiddingEnv:
         }
         if wholesale is not None:
             self.wholesale = wholesale
+        self._apply_terminal_target(agents)
         self._agent_peaks = self._compute_agent_peaks()
+
+    def _apply_terminal_target(self, agents: List[Agent]) -> None:
+        """Stamp the absolute day-end target on every storage unit.
+
+        The dispatch engines read the target from the unit they are clearing,
+        and window agents are deep copies, so the value has to live on the
+        population rather than on the environment alone.
+        """
+        if self.terminal_soc_target is None:
+            return
+        for a in agents:
+            if a.storage is not None:
+                a.storage.terminal_soc_target = float(self.terminal_soc_target)
 
     # ------------------------------------------------------------------
     # Observation helpers
@@ -936,10 +955,16 @@ class BiddingEnv:
             t_start=t_start, day_id=self.day_id)
         self._last_wholesale = wholesale
 
+        # A window whose own end is the day's last period is cleared as the
+        # settled horizon when an absolute target is configured; every earlier
+        # window stays unpinned.
+        horizon = ("day_end"
+                   if self.terminal_soc_target is not None
+                   and window_end == self.T else "window")
         try:
             result = clear_market(window_agents, window_T, self.stage,
                                   window_actions, window_config,
-                                  wholesale=wholesale, horizon_type="window")
+                                  wholesale=wholesale, horizon_type=horizon)
         except Exception:
             result = None
         self._last_result = result
@@ -981,7 +1006,7 @@ class BiddingEnv:
                 base_result = clear_market(
                     base_window_agents, window_T, self.stage,
                     base_actions, window_config, wholesale=wholesale,
-                    horizon_type="window")
+                    horizon_type=horizon)
             except Exception:
                 base_result = None
             self._last_base_result = base_result

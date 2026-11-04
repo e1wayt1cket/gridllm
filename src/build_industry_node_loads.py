@@ -387,31 +387,47 @@ def date_audit(records: Sequence[il.MeterDay], user_bus: Dict[str, int],
             continue
         entry = per_date.setdefault(md.date, {
             "meters": set(), "users": set(), "buses": set(),
+            "blocks": set(), "complete_users": set(),
             "readings": 0, "unconvertible": 0,
         })
         entry["readings"] += 1
         entry["users"].add(md.user_key)
-        entry["buses"].add(bus)
-        if il.reading_to_mw(md) is None:
+        entry["blocks"].add(md.meter_key)
+        arr = il.reading_to_mw(md)
+        if arr is None:
             entry["unconvertible"] += 1
             continue
         entry["meters"].add(md.meter_key)
+        entry["buses"].add(bus)
+        entry["complete_users"].add(md.user_key)
 
     wanted = set(int(b) for b in mapped_buses)
+    required_users = set(user_bus)
     rows = []
     for date in sorted(per_date):
         entry = per_date[date]
         covered = entry["buses"] & wanted
+        complete_users = entry["complete_users"]
+        missing_users = sorted(required_users - complete_users)
         rows.append({
             "date": str(date),
             "meters_with_a_complete_day": len(entry["meters"]),
+            "users_required": len(required_users),
             "users_covered": len(entry["users"]),
+            "users_complete": len(complete_users),
+            "users_missing": ";".join(missing_users),
+            "qualified_blocks": len(entry["blocks"]),
             "buses_covered": len(covered),
             "buses_mapped": len(wanted),
             "buses_without_data": ";".join(str(b) for b in
                                            sorted(wanted - covered)),
             "readings": entry["readings"],
             "readings_not_convertible": entry["unconvertible"],
+            # `reading_to_mw` returns a full 96-point curve or None, so a user
+            # that appears here has already passed the slot check. The flag is
+            # explicit so a manifest can gate on it without re-deriving that
+            # contract.
+            "slots_complete": bool(complete_users),
             "load_complete": bool(covered == wanted),
             "price_date_available": False,
             "price_note": "no dated real price curve overlaps this load date",
@@ -431,7 +447,8 @@ def write_date_audit(rows: Sequence[dict], reports_dir: Path) -> Path:
 
 def build(scenario: str, date, out_dir: Path, map_csv: Path,
           formal: bool = False, selection: Optional[dict] = None,
-          records: Optional[Sequence[il.MeterDay]] = None) -> dict:
+          records: Optional[Sequence[il.MeterDay]] = None,
+          workbook_sha256: Optional[str] = None) -> dict:
     # Reading the 64 MiB workbook takes minutes, so a caller that has already
     # read it hands its flagged records in rather than paying for a second read
     # of the same bytes. Nothing about the ledger depends on who read them.
@@ -505,7 +522,8 @@ def build(scenario: str, date, out_dir: Path, map_csv: Path,
         "reading_unit_source": il.READING_UNIT_SOURCE,
         "mapping_version": "industry_bus_map_v2",
         "mapping_sha256": il.file_sha256(map_csv),
-        "workbook_sha256": il.file_sha256(il.resolve_workbook()),
+        "workbook_sha256": (workbook_sha256
+                            or il.file_sha256(il.resolve_workbook())),
         "buses": list(ALL_BUSES),
         "slots_per_day": il.N_SLOTS,
         "rows": len(rows),

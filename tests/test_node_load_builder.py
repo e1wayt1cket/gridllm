@@ -227,6 +227,29 @@ def test_the_date_audit_reports_a_missing_bus_rather_than_a_complete_day():
     assert audit["2021-01-02"]["buses_without_data"] == "16"
 
 
+def test_the_date_audit_distinguishes_covered_users_from_complete_users():
+    """A user with a qualified block that cannot convert is covered but not
+    complete. The manifest gates on completeness, so the two counts must not be
+    conflated."""
+    complete_a = _md("M1", "U1", "化工业", date="2021-01-01")
+    complete_b = _md("M2", "U2", "钢铁", date="2021-01-01")
+    short = _md("M3", "U3", "化工业", date="2021-01-01")
+    short = il.MeterDay(**{**short.__dict__,
+                           "values": tuple([0.1] * (N - 1) + [None])})
+    records = [complete_a, complete_b, short]
+    user_bus = {complete_a.user_key: 16, complete_b.user_key: 23,
+                short.user_key: 24}
+    row = bnl.date_audit(records, user_bus, [16, 23, 24])[0]
+    assert row["users_required"] == 3
+    assert row["users_covered"] == 3
+    assert row["users_complete"] == 2
+    assert row["users_missing"] == short.user_key
+    assert row["qualified_blocks"] == 3
+    assert row["readings_not_convertible"] == 1
+    assert row["slots_complete"] is True
+    assert row["load_complete"] is False
+
+
 def test_the_date_audit_never_invents_a_price_date():
     """The real price curves carry no date that overlaps a load day, so every
     row says so. A filled-in price date would be a fabricated alignment."""

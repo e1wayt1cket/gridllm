@@ -25,6 +25,12 @@ network:
   # in scenarios.yaml; see the comment there.
   inverter_smax_multiplier: 1.0
   n_loss_iters: 3
+  # The `line50_q2.0` support assumption: R/X halved and ideal local reactive
+  # compensation of 2x each bus's load Q. Both defaults are OFF, so the
+  # benchmark network and every recorded result keep the values they had.
+  # Ampacity remains the installed conductor's; only impedance is scaled.
+  line_impedance_scale: 1.0
+  reactive_fraction_of_load_q: 0.0
 
 profiles:
   pv:
@@ -379,6 +385,12 @@ wholesale_market:
   # Quoted because `261009` would otherwise parse as an integer.
   dianyicha_file: docs/日前价格261009.xlsx
   dianyicha_curves: ["261009", "7days", "30days", "halfyear"]
+  # `jn2025`: one recorded curve per complete 2025 date of the Jiangsu
+  # day-ahead price, keyed by ISO date. `day_id` is that date, not an index.
+  # The curves are produced by `src/audit_jn_price_source.py`, and the unit is
+  # an inference recorded in `reports/v2_cy_jn_2025/data_audit.md`, not an
+  # externally confirmed reading.
+  jn2025_file: data/processed/v2_cy_jn_2025/price_curves.npz
   price_floor: 120.0
   price_cap: 1000.0
   # Noise rides on the stack but must not dominate it: at 15 CNY/MWh against a

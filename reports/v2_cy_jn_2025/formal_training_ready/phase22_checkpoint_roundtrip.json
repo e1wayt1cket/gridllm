@@ -1,0 +1,57 @@
+{
+  "boundary": "temporary checkpoint only; the source run is read-only",
+  "source_run": "runs\\P21_candidate_001_smoke_seed11",
+  "checks": {
+    "actions_equal": true,
+    "counters_equal": true,
+    "buffer_equal": true,
+    "losses_equal": true,
+    "schema_v3": true,
+    "actor_loss_map": true
+  },
+  "all_pass": true,
+  "before_counters": {
+    "total_steps": 480,
+    "episodes": 20,
+    "updates": 353,
+    "buffer_len": 480
+  },
+  "after_counters": {
+    "total_steps": 480,
+    "episodes": 20,
+    "updates": 353,
+    "buffer_len": 480
+  },
+  "losses": {
+    "critic_loss": {
+      "source": 0.03259660676121712,
+      "restored": 0.03259660676121712
+    },
+    "actor_loss": {
+      "source": 0.5189111307263374,
+      "restored": 0.5189111307263374
+    },
+    "q_gap": {
+      "source": 0.08556431345641613,
+      "restored": 0.08556431345641613
+    }
+  },
+  "actions": {
+    "ESS9": [
+      57.376651763916016,
+      115.85061645507812
+    ],
+    "ESS14": [
+      61.15361404418945,
+      127.28648376464844
+    ],
+    "ESS17": [
+      54.8232536315918,
+      108.82867431640625
+    ],
+    "ESS27": [
+      58.197513580322266,
+      118.18386840820312
+    ]
+  }
+}

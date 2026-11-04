@@ -657,7 +657,7 @@ def _window(node, eta_ch, eta_dis, cycle_cost):
     from arbitrage_lp import required_margin
 
     required = required_margin(cycle_cost, eta_ch, eta_dis)
-    breakeven = (valley / (eta_ch * eta_dis) + required) / (eta_dis * valley)
+    breakeven = (valley / eta_ch + required) / (eta_dis * valley)
     return {"lmp_valley": valley, "lmp_peak": peak, "ratio": peak / valley,
             "breakeven_ratio": breakeven, "margin": peak / valley - breakeven}
 

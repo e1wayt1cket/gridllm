@@ -1,0 +1,3779 @@
+diff --git a/tests/test_da_quote_mapping.py b/tests/test_da_quote_mapping.py
+new file mode 100644
+index 0000000..9e6b661
+--- /dev/null
++++ b/tests/test_da_quote_mapping.py
+@@ -0,0 +1,148 @@
++"""The D+A actor loss must differentiate the quote map it executes."""
++
++from __future__ import annotations
++
++from types import SimpleNamespace
++
++import numpy as np
++import torch
++
++import da_quote_map
++import rl_b_c2_gate as base
++import rl_da_gate as da
++import truthful_gate_actor_adapter as v2
++
++NAMES = ("ESS9", "ESS14", "ESS17", "ESS27")
++
++
++def _env():
++    return SimpleNamespace(
++        rl_agents=[SimpleNamespace(name=n) for n in NAMES],
++        get_state_dim=lambda: 12,
++    )
++
++
++def _same_draw_update_and_execution(trainer, policy_out):
++    torch.manual_seed(0)
++    update_quotes = trainer._actor_loss_quotes(policy_out)
++    torch.manual_seed(0)
++    execution_quotes = da_quote_map.forward_policy_v3(
++        policy_out, train=True,
++        gate_temperature=trainer.current_gate_temperature())["quotes"]
++    return update_quotes, execution_quotes
++
++
++def test_update_path_equals_execution_path_on_batched_open_gates():
++    trainer = da.DAGateTrainer(
++        _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
++    policy = torch.tensor([
++        [10.0, 10.0, -5.0, -5.0],
++        [10.0, 10.0, 0.0, 0.0],
++        [10.0, 10.0, 2.5, 2.5],
++        [10.0, 10.0, 5.0, 5.0],
++        [10.0, 10.0, -5.0, 5.0],
++        [10.0, 10.0, 5.0, -5.0],
++    ])
++    update_quotes, execution_quotes = _same_draw_update_and_execution(
++        trainer, policy)
++    assert torch.allclose(update_quotes, execution_quotes, atol=1e-6)
++    assert update_quotes.shape == (6, 2)
++    # Same price logit on both legs: the 300 box is twice the 150 box.
++    assert torch.all(update_quotes[:4, 1] > update_quotes[:4, 0])
++
++
++def test_closed_gate_is_exactly_zero_in_the_update_path():
++    trainer = da.DAGateTrainer(
++        _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
++    policy = torch.tensor([[-100.0, 100.0, 2.5, 2.5]])
++    torch.manual_seed(0)
++    quotes = trainer._actor_loss_quotes(policy)
++    assert float(quotes[0, 1]) > 0.0
++    assert float(quotes[0, 0]) == 0.0
++
++
++def test_update_path_uses_the_scheduled_gate_temperature():
++    trainer = da.DAGateTrainer(
++        _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
++    policy = torch.tensor([[10.0, 10.0, 0.0, 0.0]])
++    for episode in (0, da.DAExperimentConfig.gate_warmup_episodes // 2,
++                    da.DAExperimentConfig.gate_warmup_episodes):
++        trainer._current_episode = episode
++        torch.manual_seed(3)
++        got = trainer._actor_loss_quotes(policy)
++        torch.manual_seed(3)
++        expected = da_quote_map.forward_policy_v3(
++            policy, train=True,
++            gate_temperature=trainer.current_gate_temperature())["quotes"]
++        assert torch.allclose(got, expected, atol=1e-6)
++
++
++def test_update_path_is_v3_not_v2():
++    trainer = da.DAGateTrainer(
++        _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
++    policy = torch.tensor([[10.0, 10.0, 2.5, 2.5]])
++    torch.manual_seed(0)
++    got = trainer._actor_loss_quotes(policy)
++    with torch.no_grad():
++        old = v2.forward_policy(policy, train=False)["quotes"]
++    assert torch.allclose(got, torch.tensor([[148.5, 297.0]]), atol=1e-4)
++    assert torch.max(torch.abs(got - old)) > 1.0
++
++
++def test_quote_map_autograd_matches_finite_difference():
++    points = torch.tensor([-5.0, -2.5, -1.0, 0.0, 1.0, 2.5, 5.0],
++                          dtype=torch.float64)
++    z = points.clone().requires_grad_(True)
++    fractions = da_quote_map.map_fraction(z)
++    grad, = torch.autograd.grad(fractions.sum(), z)
++    h = 1e-6
++    numeric = (da_quote_map.map_fraction_np(points.numpy() + h)
++               - da_quote_map.map_fraction_np(points.numpy() - h)) / (2 * h)
++    assert np.allclose(grad.detach().numpy(), numeric, atol=1e-5)
++
++
++def _fill_buffer(trainer, size=128):
++    obs = np.zeros((4, 12), dtype=np.float32)
++    action = np.array([[75.0, 150.0]] * 4, dtype=np.float32)
++    reward = np.zeros(4, dtype=np.float32)
++    extras = {
++        "gates": np.ones((4, 2), dtype=np.float32),
++        "probs": np.full((4, 2), 0.5, dtype=np.float32),
++        "gate_logits": np.zeros((4, 2), dtype=np.float32),
++        "price_logits": np.zeros((4, 2), dtype=np.float32),
++        "price_quotes": action.copy(),
++        "sampled": np.ones((4, 2), dtype=np.float32),
++        "explored": np.zeros((4, 2), dtype=np.float32),
++        "exploration_source": np.zeros((4, 2), dtype=np.float32),
++    }
++    for _ in range(size):
++        trainer.buffer.add(obs, action, reward, obs, 0.0, extras)
++
++
++def test_update_does_not_call_the_v2_map(monkeypatch):
++    trainer = da.DAGateTrainer(
++        _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
++    _fill_buffer(trainer)
++
++    def forbidden(*args, **kwargs):
++        raise AssertionError("actor update called the v2 quote map")
++
++    monkeypatch.setattr(base, "forward_policy", forbidden)
++    torch.manual_seed(0)
++    out = trainer.update()
++    assert out["actor_loss"] is not None
++    assert trainer.updates == 1
++
++
++def test_base_trainer_keeps_the_v2_actor_loss_map():
++    trainer = base.MATD3BC2Gate(
++        _env(), base.EXPERIMENTS["NEAR_B_C2_GATE"],
++        agent_names=list(NAMES))
++    policy = torch.tensor([[10.0, 10.0, 2.5, 2.5]])
++    torch.manual_seed(4)
++    got = trainer._actor_loss_quotes(policy)
++    torch.manual_seed(4)
++    expected = v2.forward_policy(
++        policy, train=True,
++        temperature=trainer.experiment.gate_temperature)["quotes"]
++    assert torch.allclose(got, expected, atol=1e-6)
+diff --git a/tests/test_train_da_gate_guards.py b/tests/test_train_da_gate_guards.py
+new file mode 100644
+index 0000000..fb40f83
+--- /dev/null
++++ b/tests/test_train_da_gate_guards.py
+@@ -0,0 +1,51 @@
++"""Contracts for the D+A training entry's run guards and fixed-subset mode."""
++
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++import train_da_gate as t
++
++
++def test_no_improvement_streak_counts_trailing_non_best():
++    evaluations = [
++        {"mean_fleet_delta": 1.0},
++        {"mean_fleet_delta": 2.0},
++        {"mean_fleet_delta": 1.5},
++        {"mean_fleet_delta": 0.5},
++    ]
++    assert t.no_improvement_streak(evaluations) == 2
++    assert t.no_improvement_streak([]) == 0
++    assert t.no_improvement_streak([{"mean_fleet_delta": 1.0}]) == 0
++
++
++def test_artifact_hashes_covers_present_outputs(tmp_path: Path):
++    (tmp_path / "episodes.csv").write_text("episode\n1\n", encoding="utf-8")
++    (tmp_path / "eval_history.json").write_text("[]", encoding="utf-8")
++    hashes = t.artifact_hashes(tmp_path)
++    assert set(hashes) == {"episodes.csv", "eval_history.json"}
++    assert all(len(value) == 64 for value in hashes.values())
++
++
++def test_fresh_run_refuses_non_empty_run_dir(tmp_path: Path, monkeypatch):
++    monkeypatch.setattr(t, "RUNS", tmp_path / "runs")
++    monkeypatch.setattr(t, "SNAPSHOTS", tmp_path / "snapshots")
++    run_dir = tmp_path / "runs" / "occupied"
++    run_dir.mkdir(parents=True)
++    (run_dir / "train.log").write_text("old run", encoding="utf-8")
++
++    with pytest.raises(FileExistsError):
++        t.main(["--run-id", "occupied", "--split", "common", "--skip-eval",
++                "--exposures", "1", "--max-episodes", "1"])
++
++
++def test_train_days_must_belong_to_selected_split(tmp_path: Path, monkeypatch):
++    monkeypatch.setattr(t, "RUNS", tmp_path / "runs")
++    monkeypatch.setattr(t, "SNAPSHOTS", tmp_path / "snapshots")
++
++    with pytest.raises(ValueError, match="not in common train split"):
++        t.main(["--run-id", "bad_subset", "--split", "common",
++                "--train-days", "1999-01-01", "--skip-eval",
++                "--exposures", "1", "--max-episodes", "1"])
+diff --git a/src/audit_phase20_oracle_surrogate.py b/src/audit_phase20_oracle_surrogate.py
+new file mode 100644
+index 0000000..069e205
+--- /dev/null
++++ b/src/audit_phase20_oracle_surrogate.py
+@@ -0,0 +1,326 @@
++"""P20-B: critic gradient versus an offline piecewise-linear value oracle.
++
++Read-only. No training, no checkpoint write, no replay addition, no H2 and no
++legacy test.
++
++Inputs are the Phase 18/19 matched counterfactuals:
++
++* ``daily_counterfactual_action_validation.csv``: the five named validation
++  states, discharge only, five to six unique quotes per state and checkpoint.
++* ``phase19_critic_training_calibration_rows.csv``: three NEAR training days,
++  both legs, seven to eight unique quotes per state and checkpoint.
++
++The oracle is a piecewise-linear interpolation of the matched full-day payoff
++over the observed quote grid; outside the grid it is constant. It is an
++offline proxy, not the environment gradient. The virtual update moves only the
++target leg's price logit, with the gate held at its observed value, through the
++same v3 map the actor executes.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++import math
++import sys
++from collections import defaultdict
++from pathlib import Path
++
++import numpy as np
++
++import da_quote_map as qmap
++
++DATA = Path("data/processed/v2_cy_jn_2025")
++TRAIN_ROWS = DATA / "phase19_critic_training_calibration_rows.csv"
++VALID_ROWS = DATA / "daily_counterfactual_action_validation.csv"
++OUT_JSON = DATA / "phase20_oracle_surrogate.json"
++OUT_CSV = DATA / "phase20_oracle_surrogate.csv"
++HIGHS = {"charge": 150.0, "discharge": 300.0}
++LRS = (1e-4, 1e-3, 1e-2)
++MIN_SPREAD_CNY = 1.0
++MIN_SPREAD_SCALED = MIN_SPREAD_CNY / 1000.0
++
++
++def read_rows(path: Path) -> list[dict]:
++    if not path.exists():
++        raise FileNotFoundError(path)
++    with path.open(encoding="utf-8") as fh:
++        return list(csv.DictReader(fh))
++
++
++def group_rows(rows: list[dict], checkpoints: set[str]) -> dict:
++    groups = defaultdict(list)
++    for row in rows:
++        if row.get("checkpoint") not in checkpoints:
++            continue
++        key = (row["checkpoint"], row["pair_id"], int(row["block"]),
++               row["unit"], row["leg"])
++        groups[key].append(row)
++    out = {}
++    for key, values in groups.items():
++        values.sort(key=lambda r: float(r["quote"]))
++        out[key] = values
++    return out
++
++
++def curve(rows: list[dict]) -> tuple[np.ndarray, np.ndarray, np.ndarray,
++                                     np.ndarray]:
++    quotes = np.asarray([float(r["quote"]) for r in rows], dtype=float)
++    returns = np.asarray([float(r["training_return_scaled"]) for r in rows],
++                         dtype=float)
++    qvals = np.asarray([float(r["q_min"]) for r in rows], dtype=float)
++    full = np.asarray([float(r.get("full_delta_cny") or 0.0)
++                       for r in rows], dtype=float)
++    keep = np.concatenate([[True], np.diff(quotes) > 1e-9])
++    return quotes[keep], returns[keep], qvals[keep], full[keep]
++
++
++def slope_at(quotes: np.ndarray, values: np.ndarray, point: float) -> float:
++    if len(quotes) < 2:
++        return 0.0
++    if point <= quotes[0] or point >= quotes[-1]:
++        return 0.0
++    knot = np.flatnonzero(np.abs(quotes - point) < 1e-9)
++    if knot.size:
++        k = int(knot[0])
++        slopes = []
++        if k > 0:
++            slopes.append((values[k] - values[k - 1])
++                          / (quotes[k] - quotes[k - 1]))
++        if k + 1 < len(quotes):
++            slopes.append((values[k + 1] - values[k])
++                          / (quotes[k + 1] - quotes[k]))
++        return float(np.mean(slopes)) if slopes else 0.0
++    i = int(np.searchsorted(quotes, point, side="right") - 1)
++    j = min(i + 1, len(quotes) - 1)
++    if j == i:
++        return 0.0
++    return float((values[j] - values[i]) / (quotes[j] - quotes[i]))
++
++
++def value_at(quotes: np.ndarray, values: np.ndarray, point: float) -> float:
++    if point <= quotes[0]:
++        return float(values[0])
++    if point >= quotes[-1]:
++        return float(values[-1])
++    i = int(np.searchsorted(quotes, point, side="right") - 1)
++    j = min(i + 1, len(quotes) - 1)
++    if j == i:
++        return float(values[i])
++    w = (point - quotes[i]) / (quotes[j] - quotes[i])
++    return float(values[i] + w * (values[j] - values[i]))
++
++
++def inverse_logit(quote: float, high: float) -> float:
++    fraction = float(np.clip(quote / high, 1e-9, qmap.Q_HI))
++    if fraction >= qmap.Q_HI:
++        fraction = qmap.Q_HI - 1e-9
++    if fraction <= 0.5 - qmap.SLOPE * qmap.Z_CORE:
++        fraction = 0.5 - qmap.SLOPE * qmap.Z_CORE + 1e-9
++    if fraction < 0.5 + qmap.SLOPE * qmap.Z_CORE:
++        return float((fraction - 0.5) / qmap.SLOPE)
++    ratio = math.sqrt(1e-2 / max(1e-12, 1.0 - fraction))
++    return float(qmap.Z_CORE + (ratio - 1.0) / qmap.TAIL_B)
++
++
++def quote_derivative(z: float, high: float) -> float:
++    return float(high * qmap.map_derivative_np(
++        np.asarray([z], dtype=float))[0])
++
++
++def actor_row(rows: list[dict]) -> dict:
++    flagged = [r for r in rows if r.get("actor_is_quote") == "True"]
++    if flagged:
++        return flagged[0]
++    actor_quote = float(rows[0]["actor_quote"])
++    return min(rows, key=lambda r: abs(float(r["quote"]) - actor_quote))
++
++
++def ranking(quotes: np.ndarray, returns: np.ndarray,
++            qvals: np.ndarray) -> dict:
++    if len(quotes) < 2 or np.std(returns) < 1e-12 or np.std(qvals) < 1e-12:
++        return {"spearman": None, "q_top": None, "return_top": None,
++                "top_match": None}
++    def ranks(a):
++        return np.argsort(np.argsort(a))
++    rho = float(np.corrcoef(ranks(qvals), ranks(returns))[0, 1])
++    q_top = float(quotes[int(np.argmax(qvals))])
++    r_top = float(quotes[int(np.argmax(returns))])
++    return {"spearman": rho, "q_top": q_top, "return_top": r_top,
++            "top_match": abs(q_top - r_top) < 1e-6}
++
++
++def analyse_group(key, rows, source: str) -> dict | None:
++    checkpoint, pair_id, block, unit, leg = key
++    high = HIGHS[leg]
++    quotes, returns, qvals, full_delta = curve(rows)
++    spread = float(np.max(returns) - np.min(returns)) if len(returns) else 0.0
++    row = actor_row(rows)
++    actor_quote = float(row["actor_quote"])
++    if actor_quote < 0.0 or actor_quote > high:
++        actor_quote = float(np.clip(actor_quote, 0.0, high))
++    q_slope = slope_at(quotes, qvals, actor_quote)
++    oracle_slope = slope_at(quotes, returns, actor_quote)
++    z0 = inverse_logit(actor_quote, high)
++    dqdz = quote_derivative(z0, high)
++    q_dz = q_slope * dqdz
++    r_dz = oracle_slope * dqdz
++    best_quote = float(quotes[int(np.argmax(returns))]) if len(returns) else 0.0
++    best_return = float(np.max(returns)) if len(returns) else 0.0
++    full_slope = slope_at(quotes, full_delta, actor_quote)
++    full_best_quote = (float(quotes[int(np.argmax(full_delta))])
++                       if len(full_delta) else 0.0)
++    full_best = float(np.max(full_delta)) if len(full_delta) else 0.0
++    full_actor = value_at(quotes, full_delta, actor_quote)
++    full_spread = (float(np.max(full_delta) - np.min(full_delta))
++                   if len(full_delta) else 0.0)
++    full_direction = bool(
++        np.sign(q_slope) == np.sign(full_slope)
++        and abs(q_slope) > 0 and abs(full_slope) > 0)
++    out = {
++        "source": source,
++        "checkpoint": checkpoint,
++        "pair_id": pair_id,
++        "block": block,
++        "unit": unit,
++        "leg": leg,
++        "informative": bool(spread >= MIN_SPREAD_SCALED),
++        "return_spread_scaled": spread,
++        "return_spread_cny_equiv": 1000.0 * spread,
++        "grid_points": int(len(quotes)),
++        "actor_quote": actor_quote,
++        "actor_return_scaled": value_at(quotes, returns, actor_quote),
++        "best_quote": best_quote,
++        "best_return_scaled": best_return,
++        "critic_slope_scaled_per_quote": q_slope,
++        "oracle_slope_scaled_per_quote": oracle_slope,
++        "critic_slope_cny_equiv_per_quote": 1000.0 * q_slope,
++        "oracle_slope_cny_equiv_per_quote": 1000.0 * oracle_slope,
++        "quote_derivative_cny_per_logit": dqdz,
++        "critic_gradient_scaled_per_logit": q_dz,
++        "oracle_gradient_scaled_per_logit": r_dz,
++        "direction_match": bool(
++            np.sign(q_slope) == np.sign(oracle_slope)
++            and abs(q_slope) > 0 and abs(oracle_slope) > 0),
++        **ranking(quotes, returns, qvals),
++        "full_delta_spread_cny": full_spread,
++        "full_delta_actor_cny": full_actor,
++        "full_delta_best_cny": full_best,
++        "full_delta_best_quote": full_best_quote,
++        "full_delta_slope_cny_per_quote": full_slope,
++        "full_delta_direction_match": full_direction,
++        "q_vs_full_delta_spearman": ranking(
++            quotes, full_delta, qvals)["spearman"],
++        "updates": [],
++    }
++    for lr in LRS:
++        z_c = z0 + lr * q_dz
++        z_o = z0 + lr * r_dz
++        q_c = float(np.clip(high * qmap.map_fraction_np(
++            np.asarray([z_c]))[0], 0.0, high))
++        q_o = float(np.clip(high * qmap.map_fraction_np(
++            np.asarray([z_o]))[0], 0.0, high))
++        out["updates"].append({
++            "logit_step": lr,
++            "critic_quote": q_c,
++            "oracle_quote": q_o,
++            "critic_quote_delta": q_c - actor_quote,
++            "oracle_quote_delta": q_o - actor_quote,
++            "critic_surrogate_return": value_at(quotes, returns, q_c),
++            "oracle_surrogate_return": value_at(quotes, returns, q_o),
++            "critic_regret_to_best": best_return
++            - value_at(quotes, returns, q_c),
++            "oracle_regret_to_best": best_return
++            - value_at(quotes, returns, q_o),
++        })
++    return out
++
++
++def summary(rows: list[dict]) -> dict:
++    out = {}
++    for checkpoint in sorted({r["checkpoint"] for r in rows}):
++        subset = [r for r in rows if r["checkpoint"] == checkpoint]
++        material = [r for r in subset if r["informative"]]
++        full_material = [r for r in subset
++                         if r["full_delta_spread_cny"] >= MIN_SPREAD_CNY]
++        out[checkpoint] = {
++            "groups": len(subset),
++            "informative_groups": len(material),
++            "direction_match": sum(r["direction_match"] for r in material),
++            "top_match": sum(bool(r["top_match"]) for r in material
++                             if r["top_match"] is not None),
++            "median_spearman": float(np.nanmedian(
++                [r["spearman"] for r in material
++                 if r["spearman"] is not None])) if material else None,
++            "median_best_minus_actor_cny": float(1000.0 * np.median(
++                [r["best_return_scaled"] - r["actor_return_scaled"]
++                 for r in material])) if material else None,
++            "full_delta_informative_groups": len(full_material),
++            "full_delta_direction_match": sum(
++                r["full_delta_direction_match"] for r in full_material),
++            "median_q_vs_full_delta_spearman": float(np.nanmedian(
++                [r["q_vs_full_delta_spearman"] for r in full_material
++                 if r["q_vs_full_delta_spearman"] is not None]))
++            if full_material else None,
++            "median_full_delta_best_minus_actor_cny": float(np.median(
++                [r["full_delta_best_cny"] - r["full_delta_actor_cny"]
++                 for r in full_material])) if full_material else None,
++        }
++    return out
++
++
++def main() -> int:
++    training = read_rows(TRAIN_ROWS)
++    validation = read_rows(VALID_ROWS)
++    groups = {
++        "training": group_rows(training, {"da_best", "da_final"}),
++        "validation": group_rows(validation, {"da_best", "da_final"}),
++    }
++    rows = []
++    for source, grouped in groups.items():
++        for key, values in sorted(grouped.items()):
++            result = analyse_group(key, values, source)
++            if result is not None:
++                rows.append(result)
++    payload = {
++        "oracle": ("piecewise-linear matched-rollout proxy over the observed "
++                   "quote grid; constant outside the grid"),
++        "boundary": ("offline diagnosis only; no training, no checkpoint "
++                     "write, no H2 and no legacy test"),
++        "training_grid": "both legs, seven to eight unique quotes",
++        "validation_grid": "discharge only, five to six unique quotes",
++        "min_informative_spread_cny": MIN_SPREAD_CNY,
++        "logit_steps": list(LRS),
++        "summary": summary(rows),
++        "rows": rows,
++    }
++    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
++    OUT_JSON.write_text(json.dumps(payload, indent=2), encoding="utf-8")
++    with OUT_CSV.open("w", newline="", encoding="utf-8") as fh:
++        fields = ["source", "checkpoint", "pair_id", "block", "unit", "leg",
++                  "informative", "return_spread_scaled",
++                  "return_spread_cny_equiv", "grid_points", "actor_quote",
++                  "actor_return_scaled", "best_quote", "best_return_scaled",
++                  "critic_slope_scaled_per_quote",
++                  "oracle_slope_scaled_per_quote",
++                  "critic_slope_cny_equiv_per_quote",
++                  "oracle_slope_cny_equiv_per_quote",
++                  "quote_derivative_cny_per_logit",
++                  "critic_gradient_scaled_per_logit",
++                  "oracle_gradient_scaled_per_logit", "direction_match",
++                  "spearman", "q_top", "return_top", "top_match",
++                  "full_delta_spread_cny", "full_delta_actor_cny",
++                  "full_delta_best_cny", "full_delta_best_quote",
++                  "full_delta_slope_cny_per_quote",
++                  "full_delta_direction_match",
++                  "q_vs_full_delta_spearman"]
++        writer = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
++        writer.writeheader()
++        writer.writerows(rows)
++    print(json.dumps(payload["summary"], indent=2))
++    print(f"wrote {OUT_JSON} and {OUT_CSV}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/audit_phase20_bellman_diagnostics.py b/src/audit_phase20_bellman_diagnostics.py
+new file mode 100644
+index 0000000..1a4613a
+--- /dev/null
++++ b/src/audit_phase20_bellman_diagnostics.py
+@@ -0,0 +1,273 @@
++"""P20-C: twin gap, Bellman residual and target variance on the D+A replay.
++
++Read-only. No training, no checkpoint write, no replay addition, no H2 and no
++legacy test.
++
++The Bellman target is reconstructed from the code path actually used by
++``MATD3BC2Gate.update``:
++
++    target = reward + gamma * (1 - done) * min(target_Q1, target_Q2)
++
++with the target actions produced by ``DAGateTrainer._target_quotes`` (v3 map
++plus the configured target noise). The replay TD residual is a different
++quantity from the Phase 19 matched full-day return; both are reported and
++labelled separately.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++import sys
++from collections import defaultdict
++from pathlib import Path
++
++import numpy as np
++import torch
++
++import da_quote_map as qmap
++import diagnose_critic_long_horizon as diag
++import rl_da_gate as newmod
++import train_da_gate as tb
++
++DATA = Path("data/processed/v2_cy_jn_2025")
++OUT_JSON = DATA / "phase20_bellman_diagnostics.json"
++OUT_CSV = DATA / "phase20_bellman_diagnostics.csv"
++CALIBRATION = (
++    DATA / "phase19_critic_training_calibration_rows.csv",
++    DATA / "daily_counterfactual_action_validation.csv",
++)
++NAMES = ("ESS9", "ESS14", "ESS17", "ESS27")
++HIGHS = (150.0, 300.0)
++BATCH = 2048
++SEED = 20261102
++RUNS = Path("runs")
++NEW_RUN = RUNS / "DEV_DA_GATE_seed11_v2"
++NEW_BEST = RUNS / "DEV_DA_GATE_seed11_v2_best"
++
++
++def read_rows(path: Path) -> list[dict]:
++    if not path.exists():
++        return []
++    with path.open(encoding="utf-8") as fh:
++        return list(csv.DictReader(fh))
++
++
++def load_da(template):
++    manifest = json.loads(
++        (NEW_RUN / "run_manifest.json").read_text(encoding="utf-8"))
++    experiment = newmod.DAExperimentConfig(**manifest["experiment"])
++    out = {}
++    for label, root in (("da_best", NEW_BEST),
++                        ("da_final", NEW_RUN)):
++        trainer = newmod.DAGateTrainer(template, experiment)
++        trainer.load(root)
++        out[label] = trainer
++    return out
++
++
++def contiguous_batch(trainer, batch: int) -> dict:
++    rows = list(trainer.buffer.buffer)
++    if not rows:
++        raise RuntimeError("empty replay buffer")
++    idx = np.linspace(0, len(rows) - 1, min(batch, len(rows))).astype(int)
++    picked = [rows[i] for i in idx]
++    obs, act, rew, next_obs, done = zip(*picked)
++    return {
++        "obs": torch.as_tensor(np.asarray(obs), dtype=torch.float32),
++        "act": torch.as_tensor(np.asarray(act), dtype=torch.float32),
++        "rew": torch.as_tensor(np.asarray(rew), dtype=torch.float32),
++        "next_obs": torch.as_tensor(np.asarray(next_obs),
++                                    dtype=torch.float32),
++        "done": torch.as_tensor(np.asarray(done),
++                                dtype=torch.float32),
++        "n": len(picked),
++    }
++
++
++def target_with_noise(trainer, next_obs: torch.Tensor) -> torch.Tensor:
++    return torch.stack(
++        [trainer._target_quotes(trainer.actor_targets[nm],
++                                next_obs[:, j, :])
++         for j, nm in enumerate(trainer.agent_names)], dim=1)
++
++
++def target_without_noise(trainer, next_obs: torch.Tensor) -> torch.Tensor:
++    return torch.stack(
++        [qmap.target_quotes_v3(trainer.actor_targets[nm](
++            next_obs[:, j, :]))
++         for j, nm in enumerate(trainer.agent_names)], dim=1)
++
++
++def band(quote: float, high: float) -> str:
++    frac = quote / high
++    return "low" if frac < 1 / 3 else ("mid" if frac < 2 / 3 else "high")
++
++
++def replay_diagnostics(trainer, label: str) -> dict:
++    batch = contiguous_batch(trainer, BATCH)
++    obs, act, rew, next_obs, done = (
++        batch["obs"], batch["act"], batch["rew"], batch["next_obs"],
++        batch["done"])
++    size = batch["n"]
++    obs_flat = obs.reshape(size, -1)
++    torch.manual_seed(SEED)
++    target_actions = target_with_noise(trainer, next_obs)
++    torch.manual_seed(SEED)
++    target_actions_nn = target_without_noise(trainer, next_obs)
++    rows = []
++    for i, nm in enumerate(trainer.agent_names):
++        target_critic = trainer.critic_targets[nm]
++        with torch.no_grad():
++            tq1, tq2 = target_critic(
++                obs_flat, target_actions.reshape(size, -1))
++            tq1_nn, tq2_nn = target_critic(
++                obs_flat, target_actions_nn.reshape(size, -1))
++            target = rew[:, i:i + 1] + trainer.experiment.gamma \
++                * (1.0 - done[:, None]) * torch.min(tq1, tq2)
++            target_nn = rew[:, i:i + 1] + trainer.experiment.gamma \
++                * (1.0 - done[:, None]) * torch.min(tq1_nn, tq2_nn)
++            q1, q2 = trainer.critics[nm](
++                obs_flat, act.reshape(size, -1))
++        gap = (q1 - q2).abs().flatten()
++        residual1 = (q1 - target).flatten()
++        residual2 = (q2 - target).flatten()
++        smooth = (target - target_nn).flatten()
++        nonzero = float(np.std(target.detach().numpy()))
++        for leg in (0, 1):
++            quotes = act[:, i, leg].numpy()
++            for level in ("low", "mid", "high"):
++                mask = np.asarray(
++                    [band(float(q), HIGHS[leg]) == level for q in quotes])
++                if not mask.any():
++                    continue
++                rows.append({
++                    "checkpoint": label,
++                    "agent": nm,
++                    "leg": "charge" if leg == 0 else "discharge",
++                    "band": level,
++                    "n": int(mask.sum()),
++                    "twin_gap_mean": float(gap.numpy()[mask].mean()),
++                    "twin_gap_median": float(np.median(gap.numpy()[mask])),
++                    "q1_target_error_mean": float(
++                        residual1.numpy()[mask].mean()),
++                    "q2_target_error_mean": float(
++                        residual2.numpy()[mask].mean()),
++                    "abs_residual_median": float(np.median(np.abs(
++                        residual1.numpy()[mask]))),
++                    "target_mean": float(target.numpy()[mask].mean()),
++                    "target_std": float(target.numpy()[mask].std()),
++                    "target_std_across_batch": nonzero,
++                    "smoothing_abs_delta_mean": float(
++                        np.abs(smooth.numpy()[mask]).mean()),
++                    "smoothing_spearman": _spearman(
++                        target.numpy()[mask].ravel(),
++                        target_nn.numpy()[mask].ravel()),
++                })
++    return {
++        "checkpoint": label,
++        "buffer_rows": len(trainer.buffer),
++        "batch_rows": size,
++        "gamma": trainer.experiment.gamma,
++        "target_noise": trainer.experiment.target_policy_noise,
++        "target_noise_clip": trainer.experiment.target_noise_clip,
++        "rows": rows,
++    }
++
++
++def _spearman(a, b) -> float | None:
++    if len(a) < 2 or np.std(a) < 1e-12 or np.std(b) < 1e-12:
++        return None
++    ra = np.argsort(np.argsort(a))
++    rb = np.argsort(np.argsort(b))
++    return float(np.corrcoef(ra, rb)[0, 1])
++
++
++def matched_return_rows() -> list[dict]:
++    rows = []
++    for path in CALIBRATION:
++        for row in read_rows(path):
++            if row.get("checkpoint") not in ("da_best", "da_final"):
++                continue
++            q = float(row["q_min"])
++            r = float(row["training_return_scaled"])
++            spread = 0.0
++            rows.append({
++                "checkpoint": row["checkpoint"],
++                "pair_id": row["pair_id"],
++                "block": int(row["block"]),
++                "unit": row["unit"],
++                "leg": row["leg"],
++                "quote": float(row["quote"]),
++                "q_min": q,
++                "training_return_scaled": r,
++                "twin_gap": float(row.get("twin_gap") or 0.0),
++                "full_delta_cny": float(row.get("full_delta_cny") or 0.0),
++                "_spread": spread,
++            })
++    groups = defaultdict(list)
++    for row in rows:
++        groups[(row["checkpoint"], row["pair_id"], row["block"],
++                row["unit"], row["leg"])].append(row)
++    out = []
++    for key, values in groups.items():
++        returns = np.asarray([v["training_return_scaled"] for v in values])
++        qvals = np.asarray([v["q_min"] for v in values])
++        spread = float(np.max(returns) - np.min(returns))
++        out.append({
++            "checkpoint": key[0],
++            "pair_id": key[1],
++            "block": key[2],
++            "unit": key[3],
++            "leg": key[4],
++            "groups": 1,
++            "rows": len(values),
++            "return_spread_scaled": spread,
++            "return_spread_cny_equiv": 1000.0 * spread,
++            "q_return_spearman": _spearman(qvals, returns),
++            "median_twin_gap": float(np.median(
++                [v["twin_gap"] for v in values])),
++            "median_abs_q_minus_return_cny": float(1000.0 * np.median(
++                np.abs(qvals - returns))),
++        })
++    return out
++
++
++def main() -> int:
++    pair_map, _ = diag.pairs()
++    template = tb.envmod.build_env_for_pair(
++        pair_map[diag.WINTER[0]], differential_reward=False,
++        terminal_soc_target=0.5)
++    trainers = load_da(template)
++    replay = [replay_diagnostics(trainers[label], label)
++              for label in ("da_best", "da_final")]
++    matched = matched_return_rows()
++    payload = {
++        "boundary": ("read-only replay diagnostics; the TD residual is "
++                     "recomputed from the stored reward and next observation, "
++                     "not from the matched full-day return"),
++        "batch_rule": "evenly spaced transitions over the whole buffer",
++        "batch_size": BATCH,
++        "seed": SEED,
++        "replay": replay,
++        "matched_return_groups": matched,
++    }
++    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
++    OUT_JSON.write_text(json.dumps(payload, indent=2), encoding="utf-8")
++    rows = [row for block in replay for row in block["rows"]]
++    with OUT_CSV.open("w", newline="", encoding="utf-8") as fh:
++        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
++        writer.writeheader()
++        writer.writerows(rows)
++    for block in replay:
++        gaps = [r["twin_gap_median"] for r in block["rows"]]
++        resid = [r["abs_residual_median"] for r in block["rows"]]
++        print(block["checkpoint"], "buffer", block["buffer_rows"],
++              "median twin gap", round(float(np.median(gaps)), 4),
++              "median |residual|", round(float(np.median(resid)), 4))
++    print(f"wrote {OUT_JSON} and {OUT_CSV}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/audit_phase20_own_action_sensitivity.py b/src/audit_phase20_own_action_sensitivity.py
+new file mode 100644
+index 0000000..0590333
+--- /dev/null
++++ b/src/audit_phase20_own_action_sensitivity.py
+@@ -0,0 +1,190 @@
++"""P20-D: own-action versus cross-action critic sensitivity, best vs final.
++
++Read-only. No training, no checkpoint write, no H2 and no legacy test.
++
++The measurement is local: at a fixed joint state, perturb one unit's quote and
++differentiate the target critic's min(Q1, Q2) with respect to that quote. The
++absolute sensitivity is scaled Q per CNY/MWh; the box-normalized sensitivity
++multiplies it by the leg's (high - low) so a unit is one full box width. The
++critic is evaluated without dropout so best and final see the same mask.
++"""
++
++from __future__ import annotations
++
++import argparse
++import csv
++import json
++import sys
++from pathlib import Path
++
++import numpy as np
++import torch
++
++import diagnose_critic_long_horizon as diag
++import rl_da_gate as newmod
++import train_da_gate as tb
++
++DATA = Path("data/processed/v2_cy_jn_2025")
++OUT_JSON = DATA / "phase20_own_action_sensitivity.json"
++OUT_CSV = DATA / "phase20_own_action_sensitivity.csv"
++RUNS = Path("runs")
++NEW_RUN = RUNS / "DEV_DA_GATE_seed11_v2"
++NEW_BEST = RUNS / "DEV_DA_GATE_seed11_v2_best"
++LEGS = ("charge", "discharge")
++HIGHS = {"charge": 150.0, "discharge": 300.0}
++UNITS = ("ESS14", "ESS27")
++# Initial states: the four Phase 19 training states plus the five named
++# validation cases. The validation cases are offline diagnosis only.
++INITIAL = (
++    ("2022-12-24|2025-12-21", 8, "ESS14", "train_near"),
++    ("2022-12-24|2025-12-21", 8, "ESS27", "train_near"),
++    ("2022-12-29|2025-12-30", 14, "ESS14", "train_near"),
++    ("2022-12-29|2025-12-30", 14, "ESS27", "train_near"),
++    ("2022-12-30|2025-12-31", 10, "ESS14", "validation_near"),
++    ("2022-12-13|2025-12-11", 12, "ESS27", "validation_near"),
++    ("2022-12-30|2025-12-31", 11, "ESS14", "validation_near"),
++    ("2022-12-13|2025-12-11", 3, "ESS14", "validation_near"),
++    ("2022-12-31|2025-12-28", 17, "ESS14", "validation_near"),
++)
++# Pre-registered expansion if the initial states do not separate best/final.
++EXPAND = (
++    ("2022-12-16|2025-12-17", 8, "ESS14", "train_near"),
++    ("2022-12-17|2025-12-14", 14, "ESS27", "train_near"),
++    ("2022-12-22|2025-12-23", 10, "ESS14", "train_near"),
++)
++
++
++def load_da(template):
++    manifest = json.loads(
++        (NEW_RUN / "run_manifest.json").read_text(encoding="utf-8"))
++    experiment = newmod.DAExperimentConfig(**manifest["experiment"])
++    out = {}
++    for label, root in (("da_best", NEW_BEST), ("da_final", NEW_RUN)):
++        trainer = newmod.DAGateTrainer(template, experiment)
++        trainer.load(root)
++        out[label] = trainer
++    return out
++
++
++def sensitivity(trainer, obs, baseline, critic_unit, perturb_unit, leg,
++                quote):
++    names = list(baseline)
++    leg_idx = LEGS.index(leg)
++    actions = {nm: baseline[nm].copy() for nm in names}
++    actions[perturb_unit][leg_idx] = quote
++    obs_t = torch.tensor(np.stack([obs[nm] for nm in names]),
++                         dtype=torch.float32).reshape(1, -1)
++    quote_t = torch.tensor(
++        [quote if i == leg_idx else float(baseline[perturb_unit][i])
++         for i in range(2)], dtype=torch.float32, requires_grad=True)
++    full = torch.tensor(np.stack([actions[nm] for nm in names]),
++                        dtype=torch.float32)
++    full[names.index(perturb_unit)] = quote_t
++    critic = trainer.critics[critic_unit]
++    critic.eval()
++    critic.zero_grad()
++    q1, q2 = critic(obs_t, full.reshape(1, -1))
++    torch.min(q1, q2).mean().backward()
++    gradient = float(quote_t.grad[leg_idx].detach())
++    critic.train()
++    return gradient
++
++
++def state_rows(label, trainer, pair, block, critic_unit, source):
++    env, obs, baseline, past, soc, *_ = diag.collect_state(
++        trainer, pair, block)
++    names = list(baseline)
++    own = {}
++    cross = {}
++    for leg in LEGS:
++        quote = float(baseline[critic_unit][LEGS.index(leg)])
++        g = sensitivity(trainer, obs, baseline, critic_unit, critic_unit,
++                        leg, quote)
++        own[leg] = g
++        cross[leg] = {}
++        for other in names:
++            if other == critic_unit:
++                continue
++            cross[leg][other] = sensitivity(
++                trainer, obs, baseline, critic_unit, other, leg,
++                float(baseline[other][LEGS.index(leg)]))
++    own_abs = sum(own.values())
++    own_sq = sum((own[leg] * (HIGHS[leg] - 0.0)) ** 2 for leg in LEGS)
++    cross_sq = sum((value * (HIGHS[leg] - 0.0)) ** 2
++                   for leg in LEGS for value in cross[leg].values())
++    total = own_sq + cross_sq
++    return {
++        "checkpoint": label,
++        "source": source,
++        "pair_id": f"{pair['load_date']}|{pair['price_date']}",
++        "block": block,
++        "critic_unit": critic_unit,
++        "charge_own_abs": own["charge"],
++        "discharge_own_abs": own["discharge"],
++        "charge_own_norm": own["charge"] * HIGHS["charge"],
++        "discharge_own_norm": own["discharge"] * HIGHS["discharge"],
++        "own_abs_sum": own_abs,
++        "own_norm_sq": own_sq,
++        "cross_norm_sq": cross_sq,
++        "own_share": own_sq / total if total > 0 else 0.0,
++        "own_cross_ratio": (float(np.sqrt(own_sq / cross_sq))
++                            if cross_sq > 0 else None),
++        "cross_charge": {k: v for k, v in cross["charge"].items()},
++        "cross_discharge": {k: v for k, v in cross["discharge"].items()},
++        "soc": float(soc[critic_unit]),
++    }
++
++
++def main(argv=None) -> int:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--expand", action="store_true",
++                        help="add the pre-registered three training states")
++    args = parser.parse_args(argv)
++    states = INITIAL + (EXPAND if args.expand else ())
++    pair_map, _ = diag.pairs()
++    template = tb.envmod.build_env_for_pair(
++        pair_map[diag.WINTER[0]], differential_reward=False,
++        terminal_soc_target=0.5)
++    trainers = load_da(template)
++    rows = []
++    for label, trainer in trainers.items():
++        for pid, block, unit, source in states:
++            rows.append(state_rows(
++                label, trainer, pair_map[pid], block, unit, source))
++    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
++    OUT_JSON.write_text(json.dumps({
++        "boundary": ("read-only local critic sensitivity; no training, no "
++                     "checkpoint write, no H2 and no legacy test"),
++        "states": [{"pair_id": p, "block": b, "unit": u, "role": s}
++                   for p, b, u, s in states],
++        "note": ("the four training states use the near/split.json role of "
++                 "the D+A run; the named cases are validation there and "
++                 "training days under common_split"),
++        "rows": rows,
++    }, indent=2), encoding="utf-8")
++    with OUT_CSV.open("w", newline="", encoding="utf-8") as fh:
++        writer = csv.DictWriter(
++            fh, fieldnames=["checkpoint", "source", "pair_id", "block",
++                            "critic_unit", "charge_own_abs",
++                            "discharge_own_abs", "charge_own_norm",
++                            "discharge_own_norm", "own_abs_sum",
++                            "own_norm_sq", "cross_norm_sq", "own_share",
++                            "own_cross_ratio"])
++        writer.writeheader()
++        writer.writerows([{k: r[k] for k in writer.fieldnames} for r in rows])
++    for label in ("da_best", "da_final"):
++        subset = [r for r in rows if r["checkpoint"] == label
++                  and r["critic_unit"] in UNITS]
++        for unit in UNITS:
++            values = [r["own_share"] for r in subset
++                      if r["critic_unit"] == unit]
++            if values:
++                print(label, unit, "median own_share",
++                      round(float(np.median(values)), 3),
++                      "n", len(values))
++    print(f"wrote {OUT_JSON} and {OUT_CSV}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/audit_phase20_action_routing.py b/src/audit_phase20_action_routing.py
+new file mode 100644
+index 0000000..85a6da6
+--- /dev/null
++++ b/src/audit_phase20_action_routing.py
+@@ -0,0 +1,222 @@
++"""P20-E: action routing, tensor dimensions and update-path call audit.
++
++Read-only. No training, no checkpoint write, no H2 and no legacy test.
++
++This audit answers one question: does every D+A route that produces a critic
++action or an actor-loss quote use the same ESS order, leg order, tensor shape
++and v3 quote map as execution? It also instruments one real ``update()`` and
++requires the v2 sigmoid map to be called zero times.
++"""
++
++from __future__ import annotations
++
++import json
++import sys
++from pathlib import Path
++from types import SimpleNamespace
++
++import numpy as np
++import torch
++
++import da_quote_map as qmap
++import diagnose_critic_long_horizon as diag
++import rl_b_c2_gate as base
++import rl_da_gate as da
++import rl_spec
++import v2_cy_jn_env as envmod
++
++DATA = Path("data/processed/v2_cy_jn_2025")
++OUT = DATA / "phase20_action_routing.json"
++NAMES = ("ESS9", "ESS14", "ESS17", "ESS27")
++
++
++def fake_env():
++    return SimpleNamespace(
++        rl_agents=[SimpleNamespace(name=n) for n in NAMES],
++        get_state_dim=lambda: 12,
++    )
++
++
++def routing_checks() -> dict:
++    trainer = da.DAGateTrainer(
++        fake_env(), da.DAExperimentConfig(), agent_names=list(NAMES))
++    policy = torch.tensor([[-100.0, 100.0, 2.5, 2.5]])
++    torch.manual_seed(0)
++    quotes = trainer._actor_loss_quotes(policy)
++    actor_out = trainer.actors["ESS14"](
++        torch.zeros(1, trainer.obs_dim))
++    critic = trainer.critics["ESS14"]
++    critic_out = critic(torch.zeros(1, trainer.n_agents * trainer.obs_dim),
++                        torch.zeros(1, trainer.n_agents * trainer.act_dim))
++    baseline = {nm: np.array([75.0, 150.0]) for nm in NAMES}
++    obs = {nm: np.zeros(12, dtype=np.float32) for nm in NAMES}
++    grads = {}
++    finite = {}
++    # Dropout is a training regularizer; a deterministic gradient check needs
++    # the same mask on both sides of the finite difference.
++    critic.eval()
++    for leg in ("charge", "discharge"):
++        q = float(baseline["ESS14"][diag.LEGS.index(leg)])
++        grads[leg] = diag.critic_q(trainer, obs, baseline, "ESS14", leg, q)
++        h = 1e-2
++        def value(quote_value):
++            acts = {nm: baseline[nm].copy() for nm in NAMES}
++            acts["ESS14"][diag.LEGS.index(leg)] = quote_value
++            obs_t = torch.tensor(np.stack([obs[nm] for nm in NAMES]),
++                                 dtype=torch.float32).reshape(1, -1)
++            act_t = torch.tensor(np.stack([acts[nm] for nm in NAMES]),
++                                 dtype=torch.float32)
++            q1, q2 = critic(obs_t, act_t.reshape(1, -1))
++            return float(torch.min(q1, q2).mean())
++        finite[leg] = (value(q + h) - value(q - h)) / (2 * h)
++    critic.train()
++    next_obs = torch.zeros(1, trainer.obs_dim)
++    with torch.no_grad():
++        torch.manual_seed(7)
++        target = trainer._target_quotes(
++            trainer.actor_targets["ESS14"], next_obs)
++        torch.manual_seed(7)
++        policy_out = trainer.actor_targets["ESS14"](next_obs)
++        noise = (torch.randn_like(policy_out[..., 2:])
++                 * trainer.experiment.target_policy_noise).clamp(
++                     -trainer.experiment.target_noise_clip,
++                     trainer.experiment.target_noise_clip)
++        smoothed = torch.cat(
++            [policy_out[..., :2], policy_out[..., 2:] + noise], dim=-1)
++        expected_target = qmap.target_quotes_v3(smoothed)
++    pair_map, _ = diag.pairs()
++    real_env = envmod.build_env_for_pair(
++        pair_map[diag.WINTER[0]], differential_reward=False,
++        terminal_soc_target=0.5)
++    return {
++        "ess_order_expected": list(NAMES),
++        "ess_order_trainer": list(trainer.agent_names),
++        "ess_order_real_env": [a.name for a in real_env.rl_agents],
++        "actor_output_dim": int(actor_out.shape[-1]),
++        "quote_dim": int(quotes.shape[-1]),
++        "critic_input_dim": int(
++            trainer.n_agents * trainer.obs_dim
++            + trainer.n_agents * trainer.act_dim),
++        "critic_output_shapes": [list(critic_out[0].shape),
++                                 list(critic_out[1].shape)],
++        "closed_charge_quote": float(quotes[0, 0]),
++        "open_discharge_quote": float(quotes[0, 1]),
++        "leg_gradients": grads,
++        "finite_difference_dq_dquote": finite,
++        "finite_difference_abs_error": {
++            leg: abs(float(grads[leg]["dq_dquote"]) - finite[leg])
++            for leg in finite},
++        "target_route_equals_v3": bool(torch.allclose(
++            target, expected_target, atol=1e-6)),
++        "target_route_with_noise_finite": bool(torch.isfinite(target).all()),
++        "env_action_spec": {
++            "name": real_env.action_spec.name,
++            "bounds": real_env.action_spec.bounds,
++        },
++        "trainer_action_spec": {
++            "name": trainer.action_spec.name,
++            "bounds": trainer.action_spec.bounds,
++        },
++        "same_bounds_as_v3": real_env.action_spec.bounds
++        == rl_spec.ACTION_STORAGE_QUOTE_V3.bounds,
++    }
++
++
++def _fill_buffer(trainer, size=128):
++    obs = np.zeros((4, 12), dtype=np.float32)
++    action = np.array([[75.0, 150.0]] * 4, dtype=np.float32)
++    reward = np.zeros(4, dtype=np.float32)
++    extras = {
++        "gates": np.ones((4, 2), dtype=np.float32),
++        "probs": np.full((4, 2), 0.5, dtype=np.float32),
++        "gate_logits": np.zeros((4, 2), dtype=np.float32),
++        "price_logits": np.zeros((4, 2), dtype=np.float32),
++        "price_quotes": action.copy(),
++        "sampled": np.ones((4, 2), dtype=np.float32),
++        "explored": np.zeros((4, 2), dtype=np.float32),
++        "exploration_source": np.zeros((4, 2), dtype=np.float32),
++    }
++    for _ in range(size):
++        trainer.buffer.add(obs, action, reward, obs, 0.0, extras)
++
++
++def update_call_audit() -> dict:
++    trainer = da.DAGateTrainer(
++        fake_env(), da.DAExperimentConfig(), agent_names=list(NAMES))
++    _fill_buffer(trainer)
++    counts = {"v2": 0, "v3_actor_loss": 0, "v3_target": 0}
++    original_v2 = base.forward_policy
++    original_v3 = da.forward_policy_v3
++    original_target = qmap.forward_policy_v3
++
++    def v2_counter(*args, **kwargs):
++        counts["v2"] += 1
++        return original_v2(*args, **kwargs)
++
++    def v3_counter(*args, **kwargs):
++        counts["v3_actor_loss"] += 1
++        return original_v3(*args, **kwargs)
++
++    def target_counter(*args, **kwargs):
++        counts["v3_target"] += 1
++        return original_target(*args, **kwargs)
++
++    base.forward_policy = v2_counter
++    da.forward_policy_v3 = v3_counter
++    qmap.forward_policy_v3 = target_counter
++    try:
++        torch.manual_seed(0)
++        out = trainer.update()
++    finally:
++        base.forward_policy = original_v2
++        da.forward_policy_v3 = original_v3
++        qmap.forward_policy_v3 = original_target
++    return {
++        "calls": counts,
++        "v2_calls_in_update": counts["v2"],
++        "v3_calls_in_update": counts["v3_actor_loss"] + counts["v3_target"],
++        "actor_loss": out["actor_loss"],
++        "actor_loss_finite": bool(np.isfinite(out["actor_loss"])),
++    }
++
++
++def main() -> int:
++    routing = routing_checks()
++    update = update_call_audit()
++    checks = {
++        "ess_order_matches": routing["ess_order_trainer"]
++        == routing["ess_order_expected"] == routing["ess_order_real_env"],
++        "actor_output_4": routing["actor_output_dim"] == 4,
++        "quote_dim_2": routing["quote_dim"] == 2,
++        "critic_input_56": routing["critic_input_dim"] == 56,
++        "closed_gate_zero": routing["closed_charge_quote"] == 0.0,
++        "open_gate_positive": routing["open_discharge_quote"] > 0.0,
++        "target_route_v3": routing["target_route_equals_v3"],
++        "finite_difference": all(
++            value <= 5e-2 for value in
++            routing["finite_difference_abs_error"].values()),
++        "v2_not_called_in_update": update["v2_calls_in_update"] == 0,
++        "v3_called_in_update": update["v3_calls_in_update"] > 0,
++        "actor_loss_finite": update["actor_loss_finite"],
++    }
++    payload = {
++        "boundary": ("read-only routing audit; one in-memory update, no "
++                     "checkpoint write, no H2 and no legacy test"),
++        "checks": checks,
++        "all_pass": all(checks.values()),
++        "routing": routing,
++        "update_audit": update,
++        "note": ("the environment carries the v2 action spec as metadata; "
++                 "its bounds and truthful point are identical to v3, so this "
++                 "does not change the numeric action contract"),
++    }
++    OUT.parent.mkdir(parents=True, exist_ok=True)
++    OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
++    print(json.dumps({"all_pass": payload["all_pass"], "checks": checks},
++                     indent=2))
++    print(f"wrote {OUT}")
++    return 0 if payload["all_pass"] else 1
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/audit_phase21_smoke.py b/src/audit_phase21_smoke.py
+new file mode 100644
+index 0000000..1cd6008
+--- /dev/null
++++ b/src/audit_phase21_smoke.py
+@@ -0,0 +1,252 @@
++"""P21: compare the control and candidate smoke on the frozen protocol.
++
++Read-only over two finished run directories. It verifies the smoke shape
++(5 days x 4 rounds), the absence of test/H2 evaluation, the physics and
++settlement identities, and the pre-registered non-inferiority rule.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++import math
++import sys
++from collections import Counter
++from pathlib import Path
++
++import numpy as np
++
++DATA = Path("data/processed/v2_cy_jn_2025")
++REPORTS = Path("reports/v2_cy_jn_2025")
++RUNS = Path("runs")
++PROTOCOL = REPORTS / "phase21_smoke_protocol.json"
++CONTROL = "P21_control_smoke_seed11"
++CANDIDATE = "P21_candidate_001_smoke_seed11"
++OUT = DATA / "phase21_smoke_control_vs_candidate_001.json"
++
++
++def read_csv(path: Path) -> list[dict]:
++    with path.open(encoding="utf-8") as fh:
++        return list(csv.DictReader(fh))
++
++
++def load_run(run_id: str) -> dict:
++    root = RUNS / run_id
++    manifest = json.loads(
++        (root / "run_manifest.json").read_text(encoding="utf-8"))
++    episodes = read_csv(root / "episodes.csv")
++    evals = json.loads(
++        (root / "eval_history.json").read_text(encoding="utf-8"))
++    decisions = []
++    path = root / "block_decisions.jsonl"
++    if path.exists():
++        decisions = [json.loads(line) for line in
++                     path.read_text(encoding="utf-8").splitlines() if line]
++    return {"run_id": run_id, "root": root, "manifest": manifest,
++            "episodes": episodes, "evals": evals, "decisions": decisions}
++
++
++def shape_checks(run: dict, protocol: dict) -> dict:
++    manifest = run["manifest"]
++    episodes = run["episodes"]
++    evals = run["evals"]
++    decisions = run["decisions"]
++    expected_days = protocol["smoke"]["train_days"]
++    rounds = protocol["smoke"]["rounds"]
++    exposures = Counter(e["pair_id"].split("|")[0] for e in episodes)
++    blocks = Counter(d["episode"] for d in decisions)
++    expected_episodes = protocol["smoke"]["episodes"]
++    return {
++        "episodes": len(episodes),
++        "expected_episodes": expected_episodes,
++        "days": sorted(exposures),
++        "days_expected": sorted(expected_days),
++        "exposures_per_day": dict(exposures),
++        "exposures_all_four": all(v == rounds for v in exposures.values()),
++        "block_rows": len(decisions),
++        "expected_block_rows": expected_episodes * 24 * 4,
++        "block_rows_all_96": all(v == 96 for v in blocks.values()),
++        "validation_passes": len(evals),
++        "validation_days_per_pass": [len(e["days"]) for e in evals],
++        "split_name": manifest.get("split_name"),
++        "train_subset": manifest.get("train_subset"),
++        "h2_holdout_read": manifest.get("h2_holdout_read"),
++        "test_evaluation": manifest.get("test_evaluation"),
++        "legacy_seen_test_run": manifest.get("legacy_seen_test_run"),
++        "artifacts": sorted(manifest.get("artifacts_sha256", {})),
++    }
++
++
++def physics_checks(run: dict) -> dict:
++    evals = run["evals"]
++    terminal = max(float(e.get("terminal_soc_max_err", 0.0)) for e in evals)
++    return {
++        "max_terminal_soc_error": terminal,
++        "terminal_ok": terminal <= 1e-5,
++        "voltage_violation_cells": int(sum(
++            e.get("voltage_violation_cells", 0) for e in evals)),
++        "line_overload_cells": int(sum(
++            e.get("line_overload_cells", 0) for e in evals)),
++        "lmp_fallbacks": int(sum(e.get("lmp_fallbacks", 0) for e in evals)),
++        "all_terminal_0p5": all(
++            abs(float(v) - 0.5) <= 1e-5
++            for e in evals for v in e["mean_terminal_soc"].values()),
++    }
++
++
++def settlement_checks(run: dict) -> dict:
++    max_err = 0.0
++    for episode in run["episodes"]:
++        lhs = float(episode["G_policy_fleet"]) \
++            - float(episode["G_b1_fleet"])
++        max_err = max(max_err, abs(lhs - float(episode["delta_fleet"])))
++    return {"max_identity_error": max_err, "identity_ok": max_err <= 1e-6}
++
++
++def quote_stats(run: dict) -> dict:
++    out = {}
++    for unit in ("ESS9", "ESS14", "ESS17", "ESS27"):
++        for leg, high in ((0, 150.0), (1, 300.0)):
++            values = [float(d["quotes"][leg]) for d in run["decisions"]
++                      if d["agent"] == unit]
++            if not values:
++                continue
++            arr = np.asarray(values)
++            out[f"{unit}.{'charge' if leg == 0 else 'discharge'}"] = {
++                "count": int(arr.size),
++                "median": float(np.median(arr)),
++                "mean": float(arr.mean()),
++                "high_share": float(np.mean(arr >= 0.95 * high)),
++                "zero_share": float(np.mean(arr <= 0.0)),
++            }
++    return out
++
++
++def best_eval(run: dict) -> dict:
++    return max(run["evals"],
++               key=lambda e: e.get("mean_fleet_delta", -math.inf))
++
++
++def compare(control: dict, candidate: dict) -> dict:
++    cbest = best_eval(control)
++    best = best_eval(candidate)
++    cdays = {d["pair_id"]: float(d["delta_fleet"]) for d in cbest["days"]}
++    bdays = {d["pair_id"]: float(d["delta_fleet"]) for d in best["days"]}
++    common = sorted(set(cdays) & set(bdays))
++    paired = np.asarray([bdays[d] - cdays[d] for d in common])
++    sd = float(np.std(paired, ddof=1)) if paired.size > 1 else 0.0
++    unit_delta = {
++        unit: float(best["mean_delta_by_unit"][unit]
++                    - cbest["mean_delta_by_unit"][unit])
++        for unit in best["mean_delta_by_unit"]
++    }
++    return {
++        "control_best_round": int(cbest["round"]),
++        "control_best_mean": float(cbest["mean_fleet_delta"]),
++        "control_best_positive_days": int(cbest["positive_days"]),
++        "candidate_best_round": int(best["round"]),
++        "candidate_best_mean": float(best["mean_fleet_delta"]),
++        "candidate_best_positive_days": int(best["positive_days"]),
++        "paired_days": len(common),
++        "paired_mean_difference": float(paired.mean()) if paired.size else None,
++        "paired_sd": sd,
++        "non_inferior_mean_threshold": float(
++            cbest["mean_fleet_delta"] - sd),
++        "mean_non_inferior": bool(
++            best["mean_fleet_delta"] >= cbest["mean_fleet_delta"] - sd),
++        "positive_days_non_inferior": bool(
++            best["positive_days"] >= cbest["positive_days"] - 1),
++        "unit_delta_vs_control": unit_delta,
++        "no_unit_worse_by_10": all(v >= -10.0 for v in unit_delta.values()),
++        "rounds": [
++            {"run": run_id, "round": e["round"],
++             "mean": e["mean_fleet_delta"],
++             "positive_days": e["positive_days"]}
++            for run_id, run in (("control", control),
++                                ("candidate", candidate))
++            for e in run["evals"]],
++    }
++
++
++def main() -> int:
++    protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
++    control = load_run(CONTROL)
++    candidate = load_run(CANDIDATE)
++    checks = {
++        run_id: {
++            "shape": shape_checks(run, protocol),
++            "physics": physics_checks(run),
++            "settlement": settlement_checks(run),
++        }
++        for run_id, run in (("control", control),
++                            ("candidate", candidate))
++    }
++    hard = {}
++    for name, block in checks.items():
++        shape, physics, settlement = (
++            block["shape"], block["physics"], block["settlement"])
++        hard[name] = {
++            "exact_episodes": shape["episodes"] == shape["expected_episodes"],
++            "exact_days": shape["days"] == shape["days_expected"],
++            "four_exposures_per_day": shape["exposures_all_four"],
++            "exact_block_rows": shape["block_rows"]
++            == shape["expected_block_rows"],
++            "block_rows_96": shape["block_rows_all_96"],
++            "four_validation_passes": shape["validation_passes"]
++            == protocol["smoke"]["validation_passes"],
++            "eleven_validation_days": all(
++                n == 11 for n in shape["validation_days_per_pass"]),
++            "common_split": shape["split_name"] == "common",
++            "train_subset_fixed": sorted(
++                p.split("|")[0] for p in (shape["train_subset"] or []))
++            == sorted(shape["days_expected"]),
++            "no_h2": shape["h2_holdout_read"] is False,
++            "no_test": shape["test_evaluation"] is None,
++            "no_legacy_test": shape["legacy_seen_test_run"] is False,
++            "terminal_soc": physics["terminal_ok"]
++            and physics["all_terminal_0p5"],
++            "no_voltage": physics["voltage_violation_cells"] == 0,
++            "no_line": physics["line_overload_cells"] == 0,
++            "no_lmp_fallback": physics["lmp_fallbacks"] == 0,
++            "settlement_identity": settlement["identity_ok"],
++        }
++        hard[name]["all_pass"] = all(hard[name].values())
++    comparison = compare(control, candidate)
++    comparison["map_consistency"] = "PASS (routing audit)"
++    comparison["acceptance"] = {
++        "hard_gates_control": hard["control"]["all_pass"],
++        "hard_gates_candidate": hard["candidate"]["all_pass"],
++        "non_inferior_mean": comparison["mean_non_inferior"],
++        "non_inferior_positive_days": comparison["positive_days_non_inferior"],
++        "no_unit_worse_by_10": comparison["no_unit_worse_by_10"],
++        "target_metric": "actor-loss/execution map equality PASS",
++    }
++    comparison["acceptance"]["accepted"] = all([
++        comparison["acceptance"]["hard_gates_control"],
++        comparison["acceptance"]["hard_gates_candidate"],
++        comparison["acceptance"]["non_inferior_mean"],
++        comparison["acceptance"]["non_inferior_positive_days"],
++        comparison["acceptance"]["no_unit_worse_by_10"],
++    ])
++    payload = {
++        "protocol": str(PROTOCOL),
++        "control": CONTROL,
++        "candidate": CANDIDATE,
++        "hard_checks": hard,
++        "comparison": comparison,
++        "quote_stats": {
++            "control": quote_stats(control),
++            "candidate": quote_stats(candidate),
++        },
++    }
++    OUT.parent.mkdir(parents=True, exist_ok=True)
++    OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
++    print(json.dumps(comparison["acceptance"], indent=2))
++    print("control best", comparison["control_best_mean"],
++          "candidate best", comparison["candidate_best_mean"])
++    print(f"wrote {OUT}")
++    return 0 if comparison["acceptance"]["accepted"] else 1
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/src/rl_b_c2_gate.py b/src/rl_b_c2_gate.py
+new file mode 100644
+index 0000000..6c31217
+--- /dev/null
++++ b/src/rl_b_c2_gate.py
+@@ -0,0 +1,762 @@
++"""MATD3_B_C2_GATE: daily differential reward plus truthful-gate quotes.
++
++This trainer is a separate branch. It does not modify the old MATD3 entry
++points, the pilot artifacts, or their reward definition.
++
++Components
++----------
++- Actors emit four logits per ESS: two gate logits and two continuous price
++  logits. `truthful_gate_actor_adapter` turns that into the executed quote.
++  Training samples the gate from Bernoulli(prob) and uses the straight-through
++  surrogate for the gate gradient; evaluation uses the deterministic hard gate.
++- The centralized critic consumes the **executed quote** for every ESS, so its
++  action space is the market's, not the gate's.
++- The reward is the whole-day differential B, paid at block 23. The C2 mode adds
++  the time-decaying SOC potential every block. A fixed positive scale is
++  applied; no running reward standardisation is used.
++- `GateReplayBuffer` stores the executed quote, gate value, gate probability,
++  gate logit, price logit and the Bernoulli draw, so a resumed run can continue
++  the same estimator.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++import random
++from collections import Counter, deque
++from dataclasses import asdict, dataclass, field
++from pathlib import Path
++from typing import Dict, List, Mapping, Optional, Sequence
++
++import numpy as np
++import torch
++import torch.nn as nn
++import torch.optim as optim
++
++from c2_reward import C2Config, c2_reward
++from checkpoint_loader_v2 import load_checkpoint, restore_checkpoint
++from checkpoint_writer_v2 import save_checkpoint
++from daily_reward_b import (B1Cache, B1Day, RewardBConfig,
++                            day_reward_b_from_cache)
++from rl_bidding import CentralizedCritic
++from rl_env import BLOCK_SIZE, BiddingEnv, N_BLOCKS
++from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V6
++from truthful_gate_actor_adapter import (LEG_HIGHS, POLICY_DIM, QUOTE_DIM,
++                                         fleet_mode, forward_policy,
++                                         target_quotes)
++
++B1_RESULTS = "data/processed/v2_cy_jn_2025/b1_terminal_neutral_results.csv"
++B1_BLOCKS = "data/processed/v2_cy_jn_2025/b1_terminal_neutral_block_payoffs.json"
++B1_MANIFEST = "data/processed/v2_cy_jn_2025/b1_terminal_neutral_manifest.json"
++PAIRING = "data/processed/v2_cy_jn_2025/load_price_pairing.csv"
++
++
++@dataclass(frozen=True)
++class ExperimentConfig:
++    """Frozen knobs of one trainer branch.
++
++    `reward_mode` is the only thing that differs between the two declared
++    experiments; everything else is shared so a comparison changes one thing.
++    """
++
++    experiment_id: str
++    reward_mode: str                 # "B" or "B_C2"
++    gamma: float = 0.99
++    fixed_scale: float = 1000.0
++    gate_temperature: float = 1.0
++    price_noise_std: float = 0.5
++    target_policy_noise: float = 0.2
++    target_noise_clip: float = 0.5
++    lr: float = 3e-4
++    tau: float = 0.005
++    policy_delay: int = 2
++    batch_size: int = 128
++    buffer_capacity: int = 100_000
++    start_steps: int = 0
++
++    def __post_init__(self):
++        if self.reward_mode not in ("B", "B_C2"):
++            raise ValueError("reward_mode must be 'B' or 'B_C2'")
++        if not 0.0 < self.gamma <= 1.0:
++            raise ValueError("gamma must be in (0, 1]")
++        if self.fixed_scale <= 0:
++            raise ValueError("fixed_scale must be positive")
++        if self.gate_temperature <= 0:
++            raise ValueError("gate_temperature must be positive")
++
++    @property
++    def uses_c2(self) -> bool:
++        return self.reward_mode == "B_C2"
++
++    def as_dict(self) -> dict:
++        return asdict(self)
++
++
++# The two declared branches differ only in the reward mode and its id.
++EXPERIMENTS = {
++    "NEAR_B_C2_GATE": ExperimentConfig("NEAR_B_C2_GATE", "B_C2"),
++    "NEAR_B_ONLY_GATE": ExperimentConfig("NEAR_B_ONLY_GATE", "B"),
++}
++
++
++def config_hash(config) -> str:
++    payload = json.dumps(asdict(config), sort_keys=True, default=str)
++    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
++
++
++def pair_data_hash(pair_row: Mapping[str, str]) -> str:
++    """Bind a B1 lookup to the two curves the day actually clears on."""
++    payload = (str(pair_row["load_curve_sha256"])
++               + "|" + str(pair_row["price_curve_sha256"]))
++    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
++
++
++def _read_csv(path: str | Path) -> List[dict]:
++    import csv
++    with Path(path).open(encoding="utf-8") as fh:
++        return list(csv.DictReader(fh))
++
++
++def load_b1_cache(results_path: str = B1_RESULTS,
++                  blocks_path: str = B1_BLOCKS,
++                  manifest_path: str = B1_MANIFEST,
++                  pairing_path: str = PAIRING) -> B1Cache:
++    """Build the strict B1 cache from the terminal-neutral run.
++
++    A day that did not clear, did not pin, or is missing any unit's block
++    payoffs is refused rather than approximated.
++    """
++    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
++    mechanism_hash = manifest.get("mechanism_hash")
++    if not mechanism_hash:
++        raise ValueError(
++            "the B1 manifest has no mechanism_hash; the old rolling B1 "
++            "(no terminal pin) cannot be reused as the terminal-neutral "
++            "benchmark")
++    results = {r["pair_id"]: r for r in _read_csv(results_path)}
++    blocks = json.loads(Path(blocks_path).read_text(encoding="utf-8"))
++    pairing = {f"{r['load_date']}|{r['price_date']}": r
++               for r in _read_csv(pairing_path)}
++    cache = B1Cache()
++    for pair_id, payoffs in blocks.items():
++        row = results.get(pair_id)
++        if row is None:
++            raise KeyError(f"B1 result missing for {pair_id}")
++        if str(row.get("feasible")).lower() not in ("true", "1"):
++            raise ValueError(f"B1 day {pair_id} was not feasible")
++        pair = pairing.get(pair_id)
++        if pair is None:
++            raise KeyError(f"pairing row missing for {pair_id}")
++        cache.add(B1Day(
++            pair_id=pair_id,
++            soc0=float(row["soc0"]),
++            # The field name is historical; the value is the mechanism hash,
++            # so a no-pin B1 with the same market config cannot collide.
++            config_hash=mechanism_hash,
++            data_hash=pair_data_hash(pair),
++            block_payoffs={u: list(v) for u, v in payoffs.items()},
++            soc_end={u: float(row[f"soc_end_{u}"]) for u in payoffs},
++        ))
++    return cache
++
++
++class GateActor(nn.Module):
++    """obs -> four logits: [gate_charge, gate_discharge, price_charge,
++    price_discharge]. No tanh: the adapter owns the gate and sigmoid mapping."""
++
++    def __init__(self, obs_dim: int, hidden: int = 256):
++        super().__init__()
++        self.net = nn.Sequential(
++            nn.Linear(obs_dim, hidden), nn.ReLU(),
++            nn.Linear(hidden, hidden // 2), nn.ReLU(),
++            nn.Linear(hidden // 2, POLICY_DIM),
++        )
++
++    def forward(self, obs: torch.Tensor) -> torch.Tensor:
++        return self.net(obs)
++
++
++class GateReplayBuffer:
++    """Transitions plus the gate branch's own quantities.
++
++    `buffer` keeps the (obs, action, reward, next_obs, done) tuple the schema-v2
++    writer already knows; `extras` carries the gate, logit and sampling fields.
++    """
++
++    def __init__(self, capacity: int = 100_000):
++        self.capacity = int(capacity)
++        self.buffer: deque = deque(maxlen=self.capacity)
++        self.extras: Dict[str, deque] = {
++            "gates": deque(maxlen=self.capacity),
++            "probs": deque(maxlen=self.capacity),
++            "gate_logits": deque(maxlen=self.capacity),
++            "price_logits": deque(maxlen=self.capacity),
++            "price_quotes": deque(maxlen=self.capacity),
++            "sampled": deque(maxlen=self.capacity),
++        }
++
++    def add(self, obs, action, reward, next_obs, done, extras: dict) -> None:
++        self.buffer.append((
++            np.asarray(obs, dtype=np.float32).copy(),
++            np.asarray(action, dtype=np.float32).copy(),
++            np.asarray(reward, dtype=np.float32).copy(),
++            np.asarray(next_obs, dtype=np.float32).copy(),
++            float(done),
++        ))
++        for key in self.extras:
++            self.extras[key].append(
++                np.asarray(extras[key], dtype=np.float32).copy())
++
++    def sample(self, batch_size: int) -> dict:
++        n = min(batch_size, len(self.buffer))
++        idx = random.sample(range(len(self.buffer)), n)
++        rows = [self.buffer[i] for i in idx]
++        obs, act, rew, next_obs, done = zip(*rows)
++        out = {
++            "obs": torch.as_tensor(np.asarray(obs), dtype=torch.float32),
++            "actions": torch.as_tensor(np.asarray(act), dtype=torch.float32),
++            "rewards": torch.as_tensor(np.asarray(rew), dtype=torch.float32),
++            "next_obs": torch.as_tensor(np.asarray(next_obs),
++                                        dtype=torch.float32),
++            "done": torch.as_tensor(np.asarray(done), dtype=torch.float32),
++        }
++        for key, values in self.extras.items():
++            out[key] = torch.as_tensor(
++                np.asarray([values[i] for i in idx]), dtype=torch.float32)
++        return out
++
++    @property
++    def extra_arrays(self) -> Dict[str, np.ndarray]:
++        return {key: np.asarray(list(values)) for key, values in
++                self.extras.items()}
++
++    def load_arrays(self, arrays: Mapping[str, np.ndarray]) -> None:
++        self.buffer.clear()
++        for values in self.extras.values():
++            values.clear()
++        n = len(arrays["obs"])
++        for i in range(n):
++            self.buffer.append((
++                np.asarray(arrays["obs"][i], dtype=np.float32).copy(),
++                np.asarray(arrays["actions"][i], dtype=np.float32).copy(),
++                np.asarray(arrays["rewards"][i], dtype=np.float32).copy(),
++                np.asarray(arrays["next_obs"][i], dtype=np.float32).copy(),
++                float(arrays["done"][i]),
++            ))
++        for key in self.extras:
++            if key in arrays:
++                for row in arrays[key]:
++                    self.extras[key].append(
++                        np.asarray(row, dtype=np.float32).copy())
++
++    def __len__(self) -> int:
++        return len(self.buffer)
++
++
++class MATD3BC2Gate:
++    """Twin-delayed MATD3 with the B/C2 reward and per-leg truthful gates."""
++
++    def __init__(self, env: BiddingEnv, experiment: ExperimentConfig,
++                 *, agent_names: Optional[Sequence[str]] = None,
++                 obs_spec=None, action_spec=None):
++        self.env = env
++        self.experiment = experiment
++        self.obs_spec = obs_spec or getattr(env, "obs_spec", OBS_V6)
++        self.action_spec = action_spec or getattr(
++            env, "action_spec", ACTION_STORAGE_QUOTE_V2)
++        self.agent_names = list(agent_names or [a.name for a in env.rl_agents])
++        self.obs_dim = env.get_state_dim()
++        self.act_dim = QUOTE_DIM
++        self.n_agents = len(self.agent_names)
++
++        self.actors = {nm: GateActor(self.obs_dim) for nm in self.agent_names}
++        self.actor_targets = {
++            nm: GateActor(self.obs_dim) for nm in self.agent_names}
++        self.critics = {
++            nm: CentralizedCritic(self.n_agents, self.obs_dim, self.act_dim)
++            for nm in self.agent_names}
++        self.critic_targets = {
++            nm: CentralizedCritic(self.n_agents, self.obs_dim, self.act_dim)
++            for nm in self.agent_names}
++        for nm in self.agent_names:
++            self.actor_targets[nm].load_state_dict(
++                self.actors[nm].state_dict())
++            self.critic_targets[nm].load_state_dict(
++                self.critics[nm].state_dict())
++            self.critic_targets[nm].eval()
++
++        self.actor_opts = {
++            nm: optim.Adam(self.actors[nm].parameters(), lr=experiment.lr,
++                           weight_decay=1e-5)
++            for nm in self.agent_names}
++        self.critic_opts = {
++            nm: optim.Adam(self.critics[nm].parameters(), lr=experiment.lr,
++                           weight_decay=1e-4)
++            for nm in self.agent_names}
++
++        self.buffer = GateReplayBuffer(experiment.buffer_capacity)
++        self.total_steps = 0
++        self.updates = 0
++        self.episodes = 0
++        # pair_id -> number of full-day exposures. Saved beside every
++        # checkpoint so a resumed run continues the log rather than restarting
++        # it.
++        self.exposure: Counter = Counter()
++        self.gate_stats = self._empty_gate_stats()
++
++    # ------------------------------------------------------------------
++    # Actions
++    # ------------------------------------------------------------------
++    def _empty_gate_stats(self) -> dict:
++        return {
++            "open": {(nm, leg): 0 for nm in self.agent_names
++                     for leg in ("charge", "discharge")},
++            "prob_sum": {(nm, leg): 0.0 for nm in self.agent_names
++                         for leg in ("charge", "discharge")},
++            "steps": 0,
++            "modes": Counter(),
++            "saturated_upper": 0,
++            "saturated_lower": 0,
++        }
++
++    def _policy_action(self, actor: nn.Module, obs: np.ndarray,
++                       *, train: bool) -> dict:
++        obs_t = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
++        policy_out = actor(obs_t)
++        if train and self.experiment.price_noise_std > 0:
++            noise = torch.randn_like(policy_out[..., 2:]) \
++                * self.experiment.price_noise_std
++            policy_out = torch.cat(
++                [policy_out[..., :2], policy_out[..., 2:] + noise], dim=-1)
++        out = forward_policy(
++            policy_out, train=train,
++            temperature=self.experiment.gate_temperature)
++        return {
++            "quotes": out["quotes"].squeeze(0).detach().numpy(),
++            "gates": out["gates"].squeeze(0).detach().numpy(),
++            "probs": out["probs"].squeeze(0).detach().numpy(),
++            "gate_logits": policy_out[..., :2].squeeze(0).detach().numpy(),
++            "price_logits": policy_out[..., 2:].squeeze(0).detach().numpy(),
++            "price_quotes": out["price_quotes"].squeeze(0).detach().numpy(),
++            # In train mode `gates` is the hard Bernoulli draw (the
++            # straight-through term adds zero in the forward pass).
++            "sampled": out["gates"].squeeze(0).detach().numpy(),
++            "mode": int(out["mode"].reshape(-1)[0].item()),
++        }
++
++    def select_action(self, obs: np.ndarray, agent_name: str,
++                      *, train: bool = False) -> dict:
++        return self._policy_action(self.actors[agent_name], obs, train=train)
++
++    def _fleet_action(self, obs: Mapping[str, np.ndarray], *,
++                      train: bool) -> tuple[dict, dict]:
++        actions, diags = {}, {}
++        for nm in self.agent_names:
++            d = self._policy_action(self.actors[nm], obs[nm], train=train)
++            actions[nm] = np.asarray(d["quotes"], dtype=float)
++            diags[nm] = d
++        return actions, diags
++
++    def _target_quotes(self, actor: nn.Module,
++                       next_obs: torch.Tensor) -> torch.Tensor:
++        """Smooth the price branch only; a closed gate stays exactly zero."""
++        policy_out = actor(next_obs)
++        noise = (torch.randn_like(policy_out[..., 2:])
++                 * self.experiment.target_policy_noise).clamp(
++                     -self.experiment.target_noise_clip,
++                     self.experiment.target_noise_clip)
++        policy_out = torch.cat(
++            [policy_out[..., :2], policy_out[..., 2:] + noise], dim=-1)
++        return target_quotes(policy_out)
++
++    def _actor_loss_quotes(self, policy_out: torch.Tensor) -> torch.Tensor:
++        """Quote map used by the actor loss; the subclass owns its map."""
++        return forward_policy(
++            policy_out, train=True,
++            temperature=self.experiment.gate_temperature)["quotes"]
++
++    # ------------------------------------------------------------------
++    # Reward
++    # ------------------------------------------------------------------
++    def _day_rewards(self, block_payoffs: Mapping[str, Sequence[float]],
++                     soc_path: Mapping[str, Sequence[float]],
++                     done: Sequence[bool],
++                     b1_cache: B1Cache, pair_id: str, config_hash: str,
++                     data_hash: str) -> dict:
++        base = day_reward_b_from_cache(
++            block_payoffs, b1_cache, pair_id=pair_id, soc0=0.5,
++            config_hash=config_hash, data_hash=data_hash,
++            config=RewardBConfig(gamma=self.experiment.gamma,
++                                 fixed_scale=1.0))
++        out = {"b": base.as_dict(),
++               "b_reward_by_block": {nm: list(base.reward[nm])
++                                     for nm in base.reward}}
++        if self.experiment.uses_c2:
++            shaped = c2_reward(
++                base.reward, soc_path, done=np.asarray(done, dtype=bool),
++                config=C2Config(gamma=self.experiment.gamma))
++            out["c2"] = shaped.as_dict()
++            out["c2_shaping_by_block"] = {
++                nm: list(shaped.shaping_terms[nm])
++                for nm in shaped.shaping_terms}
++            per_block = shaped.reward
++        else:
++            per_block = base.reward
++        out["per_block"] = per_block
++        return out
++
++    @staticmethod
++    def _stack_obs(obs: Mapping[str, np.ndarray],
++                   names: Sequence[str]) -> np.ndarray:
++        return np.stack([np.asarray(obs[nm], dtype=np.float32)
++                         for nm in names])
++
++    def _accumulate_gate_stats(self, diags: Mapping[str, dict]) -> None:
++        modes = []
++        for nm in self.agent_names:
++            d = diags[nm]
++            modes.append(d["mode"])
++            for leg_idx, leg in enumerate(("charge", "discharge")):
++                self.gate_stats["open"][(nm, leg)] += int(
++                    d["gates"][leg_idx] > 0)
++                self.gate_stats["prob_sum"][(nm, leg)] += float(
++                    d["probs"][leg_idx])
++            executed = np.asarray(d["quotes"], dtype=float)
++            opened = np.asarray(d["gates"], dtype=float) > 0
++            # A closed gate is an exact zero by construction, not a quote
++            # pressed against its lower bound; saturation is counted only on
++            # legs that actually declared a price.
++            if opened.any():
++                open_quotes = executed[opened]
++                open_highs = np.asarray(LEG_HIGHS)[opened]
++                self.gate_stats["saturated_upper"] += int(
++                    np.sum(open_quotes >= 0.99 * open_highs))
++                self.gate_stats["saturated_lower"] += int(
++                    np.sum(open_quotes <= 0.01 * open_highs))
++        self.gate_stats["modes"][fleet_mode(modes)] += 1
++        self.gate_stats["steps"] += 1
++
++    # ------------------------------------------------------------------
++    # One training day
++    # ------------------------------------------------------------------
++    def train_day(self, env: BiddingEnv, pair: dict, b1_cache: B1Cache,
++                  *, config_hash_value: str, data_hash: str) -> dict:
++        if getattr(env, "terminal_soc_target", None) != 0.5:
++            raise ValueError(
++                "the B/C2 trainer requires the terminal-neutral 24-block "
++                "environment (SOC0=SOC24=0.5); refusing a different mechanism")
++        pair_id = f"{pair['load_date']}|{pair['price_date']}"
++        obs = env.reset()
++        soc_path = {
++            nm: [float(next(a for a in env.all_agents
++                            if a.name == nm).storage.soc0)]
++            for nm in self.agent_names}
++        block_payoffs = {nm: [] for nm in self.agent_names}
++        pending = []
++        done_flags = []
++        checks = {"clears": 0, "fallbacks": 0, "lmp_fallbacks": 0,
++                  "all_optimal": True, "voltage_violation_cells": 0,
++                  "line_overload_cells": 0, "losses_mwh": 0.0,
++                  "charge_mwh": {nm: 0.0 for nm in self.agent_names},
++                  "discharge_mwh": {nm: 0.0 for nm in self.agent_names}}
++        v_lo = float(env.config.network.v_min_pu)
++        v_hi = float(env.config.network.v_max_pu)
++        for block in range(N_BLOCKS):
++            actions, diags = self._fleet_action(obs, train=True)
++            next_obs, _, done, info = env.step(actions)
++            if env._last_result is None:
++                raise RuntimeError(
++                    f"{pair_id} block {block}: clearing failed; training stops")
++            result = env._last_result
++            checks["clears"] += 1
++            checks["lmp_fallbacks"] += int(result.get("lmp_fallbacks", 0))
++            checks["all_optimal"] &= bool(
++                result.get("solver", {}).get("final", {}).get("optimal"))
++            # The result covers the whole look-ahead window; only the
++            # committed periods are part of the executed day.
++            n_commit = min(BLOCK_SIZE, env.T - block * BLOCK_SIZE)
++            voltage = np.asarray(result.get("bus_voltage", []),
++                                 dtype=float)[:n_commit]
++            if voltage.size:
++                checks["voltage_violation_cells"] += int(
++                    ((voltage < v_lo - 1e-7) | (voltage > v_hi + 1e-7)).sum())
++            util = np.asarray(result.get("line_utilization", []),
++                              dtype=float)[:n_commit]
++            if util.size:
++                checks["line_overload_cells"] += int(
++                    (util > 1.0 + 1e-7).sum())
++            loss = result.get("line_loss_mw")
++            if loss is not None:
++                checks["losses_mwh"] += float(
++                    np.sum(np.asarray(loss, dtype=float)[:n_commit]) * 0.25)
++            for nm in self.agent_names:
++                ws = (result.get("schedules") or {}).get(nm)
++                if ws is not None:
++                    checks["charge_mwh"][nm] += float(
++                        np.sum(np.asarray(ws["p_ch"][:n_commit])) * 0.25)
++                    checks["discharge_mwh"][nm] += float(
++                        np.sum(np.asarray(ws["p_dis"][:n_commit])) * 0.25)
++                block_payoffs[nm].append(
++                    float(info.get("raw_profit", {}).get(nm, 0.0)))
++                soc_path[nm].append(
++                    float(env.prev_soc.get(nm, soc_path[nm][-1])))
++            pending.append((obs, actions, next_obs, done, diags))
++            done_flags.append(bool(done))
++            obs = next_obs
++            if done:
++                break
++        if len(pending) != N_BLOCKS:
++            raise RuntimeError(f"{pair_id}: episode ended after "
++                               f"{len(pending)} blocks")
++
++        rewards = self._day_rewards(
++            block_payoffs, soc_path, done_flags, b1_cache, pair_id,
++            config_hash_value, data_hash)
++        per_block = rewards["per_block"]
++        for t, (obs_t, act_t, next_obs_t, done_t, diag_t) in enumerate(pending):
++            nm_list = self.agent_names
++            reward = np.array(
++                [per_block[nm][t] / self.experiment.fixed_scale
++                 for nm in nm_list], dtype=np.float32)
++            extras = {
++                "gates": np.stack([diag_t[nm]["gates"] for nm in nm_list]),
++                "probs": np.stack([diag_t[nm]["probs"] for nm in nm_list]),
++                "gate_logits": np.stack(
++                    [diag_t[nm]["gate_logits"] for nm in nm_list]),
++                "price_logits": np.stack(
++                    [diag_t[nm]["price_logits"] for nm in nm_list]),
++                "price_quotes": np.stack(
++                    [diag_t[nm]["price_quotes"] for nm in nm_list]),
++                "sampled": np.stack(
++                    [diag_t[nm]["sampled"] for nm in nm_list]),
++            }
++            self.buffer.add(
++                self._stack_obs(obs_t, nm_list),
++                np.stack([act_t[nm] for nm in nm_list]),
++                reward,
++                self._stack_obs(next_obs_t, nm_list),
++                done_t, extras)
++            self.total_steps += 1
++            if len(self.buffer) >= self.experiment.batch_size \
++                    and self.total_steps > self.experiment.start_steps:
++                self.update()
++            self._accumulate_gate_stats(diag_t)
++        self.episodes += 1
++        self.exposure[pair_id] += 1
++        e_max = {nm: float(next(a for a in env.all_agents
++                                if a.name == nm).storage.e_max)
++                 for nm in self.agent_names}
++        checks["cycles"] = {
++            nm: ((checks["charge_mwh"][nm] + checks["discharge_mwh"][nm])
++                 / (2.0 * e_max[nm]) if e_max[nm] > 0 else 0.0)
++            for nm in self.agent_names}
++        checks["terminal_soc"] = {
++            nm: soc_path[nm][-1] for nm in self.agent_names}
++        return {
++            "pair_id": pair_id,
++            "b": rewards["b"],
++            "c2": rewards.get("c2"),
++            "b_reward_by_block": rewards["b_reward_by_block"],
++            "c2_shaping_by_block": rewards.get("c2_shaping_by_block"),
++            "checks": checks,
++            "soc_end": {nm: soc_path[nm][-1] for nm in self.agent_names},
++            "gate": self.gate_stats_snapshot(),
++        }
++
++    def gate_stats_snapshot(self) -> dict:
++        steps = max(self.gate_stats["steps"], 1)
++        return {
++            "steps": self.gate_stats["steps"],
++            "open_frequency": {
++                f"{nm}.{leg}": self.gate_stats["open"][(nm, leg)] / steps
++                for nm in self.agent_names
++                for leg in ("charge", "discharge")},
++            "mean_probability": {
++                f"{nm}.{leg}": self.gate_stats["prob_sum"][(nm, leg)] / steps
++                for nm in self.agent_names
++                for leg in ("charge", "discharge")},
++            "mode_counts": {str(k): int(v)
++                            for k, v in sorted(
++                                self.gate_stats["modes"].items())},
++            "distinct_modes": len(self.gate_stats["modes"]),
++            "saturated_upper": self.gate_stats["saturated_upper"],
++            "saturated_lower": self.gate_stats["saturated_lower"],
++        }
++
++    # ------------------------------------------------------------------
++    # Update
++    # ------------------------------------------------------------------
++    def update(self) -> dict:
++        if len(self.buffer) < self.experiment.batch_size:
++            return {"critic_loss": None, "actor_loss": None,
++                    "q1_mean": None, "q2_mean": None, "q_gap": None,
++                    "reward_scale": self.experiment.fixed_scale}
++        batch = self.buffer.sample(self.experiment.batch_size)
++        obs = batch["obs"]
++        act = batch["actions"]
++        rew = batch["rewards"]
++        next_obs = batch["next_obs"]
++        done = batch["done"]
++        batch_size = obs.shape[0]
++        obs_flat = obs.reshape(batch_size, -1)
++        critic_losses, q1s, q2s, q_gaps = [], [], [], []
++
++        for i, nm in enumerate(self.agent_names):
++            critic = self.critics[nm]
++            target_critic = self.critic_targets[nm]
++            with torch.no_grad():
++                target_actions = torch.stack(
++                    [self._target_quotes(self.actor_targets[nm2],
++                                         next_obs[:, j, :])
++                     for j, nm2 in enumerate(self.agent_names)], dim=1)
++                target_q1, target_q2 = target_critic(
++                    obs_flat, target_actions.reshape(batch_size, -1))
++                target = rew[:, i:i + 1] + self.experiment.gamma \
++                    * (1.0 - done[:, None]) * torch.min(target_q1, target_q2)
++            current_q1, current_q2 = critic(obs_flat, act.reshape(
++                batch_size, -1))
++            loss = nn.functional.mse_loss(current_q1, target) \
++                + nn.functional.mse_loss(current_q2, target)
++            self.critic_opts[nm].zero_grad()
++            loss.backward()
++            nn.utils.clip_grad_norm_(critic.parameters(), 1.0)
++            self.critic_opts[nm].step()
++            critic_losses.append(float(loss.detach()))
++            q1s.append(float(current_q1.mean().detach()))
++            q2s.append(float(current_q2.mean().detach()))
++            q_gaps.append(float((current_q1 - current_q2).abs().mean()
++                                .detach()))
++
++        actor_losses = {}
++        if self.total_steps % max(self.experiment.policy_delay, 1) == 0:
++            for i, nm in enumerate(self.agent_names):
++                actor = self.actors[nm]
++                critic = self.critics[nm]
++                policy_out = actor(obs[:, i, :])
++                replaced = act.clone()
++                replaced[:, i, :] = self._actor_loss_quotes(policy_out)
++                q1, q2 = critic(obs_flat, replaced.reshape(batch_size, -1))
++                loss = -torch.min(q1, q2).mean()
++                self.actor_opts[nm].zero_grad()
++                loss.backward()
++                nn.utils.clip_grad_norm_(actor.parameters(), 1.0)
++                self.actor_opts[nm].step()
++                actor_losses[nm] = float(loss.detach())
++
++        for nm in self.agent_names:
++            for target, source in (
++                    (self.actor_targets[nm], self.actors[nm]),
++                    (self.critic_targets[nm], self.critics[nm])):
++                for tp, sp in zip(target.parameters(), source.parameters()):
++                    tp.data.copy_(self.experiment.tau * sp.data
++                                  + (1.0 - self.experiment.tau) * tp.data)
++        self.updates += 1
++        return {
++            "critic_loss": float(np.mean(critic_losses)),
++            "actor_loss": (float(np.mean(list(actor_losses.values())))
++                           if actor_losses else None),
++            "actor_loss_by_agent": actor_losses,
++            "q1_mean": float(np.mean(q1s)),
++            "q2_mean": float(np.mean(q2s)),
++            "q_gap": float(np.mean(q_gaps)),
++            "reward_scale": self.experiment.fixed_scale,
++        }
++
++    # ------------------------------------------------------------------
++    # Checkpoint
++    # ------------------------------------------------------------------
++    def save(self, root: str | Path, *, level: str, dataset: str, seed: int,
++             config_hash_value: str, data: Optional[dict] = None,
++             code_revision: str = "working-tree",
++             exposure_log: Optional[str] = None,
++             eval_provenance: Optional[str] = None) -> Path:
++        if level == "bundle" and not data:
++            raise ValueError("a bundle checkpoint needs the four data hashes")
++        root = Path(root)
++        root.mkdir(parents=True, exist_ok=True)
++        exposure_path = root / "exposure.json"
++        exposure_path.write_text(
++            json.dumps(dict(sorted(self.exposure.items())), indent=2),
++            encoding="utf-8")
++        exposure_log = exposure_log or str(exposure_path)
++        reward = {
++            "definition": self.experiment.reward_mode,
++            "gamma": self.experiment.gamma,
++            "scale": self.experiment.fixed_scale,
++            "potential": (C2Config(gamma=self.experiment.gamma).__dict__
++                          if self.experiment.uses_c2 else None),
++            "normalization": "fixed_scale_only",
++            "terminal_rule": "soc_end_0.5_settlement",
++            "b1_source": "b1_terminal_neutral",
++            "gate": {
++                "policy_dim": POLICY_DIM,
++                "quote_dim": QUOTE_DIM,
++                "leg_highs": list(LEG_HIGHS),
++                "temperature": self.experiment.gate_temperature,
++                "estimator": "straight_through_bernoulli",
++                "initial_probability": 0.5,
++            },
++            "price_noise_std": self.experiment.price_noise_std,
++        }
++        counters = {
++            "total_steps": self.total_steps,
++            "episode": self.episodes,
++            "updates": self.updates,
++            "buffer_len": len(self.buffer),
++        }
++        optimizers = {}
++        for nm in self.agent_names:
++            optimizers[f"actor_{nm}"] = self.actor_opts[nm]
++            optimizers[f"critic_{nm}"] = self.critic_opts[nm]
++        return save_checkpoint(
++            root, level=level, run_id=self.experiment.experiment_id,
++            dataset=dataset, seed=seed, code_revision=code_revision,
++            config_hash=config_hash_value,
++            specs={
++                "obs_spec": {"name": self.obs_spec.name,
++                             "version": self.obs_spec.version},
++                "action_spec": {"name": self.action_spec.name,
++                                "version": self.action_spec.version},
++            },
++            actors=self.actors, actor_targets=self.actor_targets,
++            critics=self.critics, critic_targets=self.critic_targets,
++            optimizers=optimizers, counters=counters, reward=reward,
++            data=data or {},
++            hyperparameters=self.experiment.as_dict(),
++            exposure_log=exposure_log, eval_provenance=eval_provenance,
++            buffer=self.buffer)
++
++    def load(self, root: str | Path) -> dict:
++        bundle = load_checkpoint(root)
++        saved = bundle["manifest"]["reward"]
++        if saved.get("definition") != self.experiment.reward_mode:
++            raise ValueError(
++                f"checkpoint reward {saved.get('definition')!r} does not match "
++                f"this trainer's {self.experiment.reward_mode!r}")
++        if float(saved.get("scale", -1)) != self.experiment.fixed_scale:
++            raise ValueError("checkpoint reward scale does not match")
++        if float(saved.get("gamma", -1)) != self.experiment.gamma:
++            raise ValueError("checkpoint gamma does not match")
++        optimizers = {}
++        for nm in self.agent_names:
++            optimizers[f"actor_{nm}"] = self.actor_opts[nm]
++            optimizers[f"critic_{nm}"] = self.critic_opts[nm]
++        restore_checkpoint(
++            bundle, actors=self.actors, actor_targets=self.actor_targets,
++            critics=self.critics, critic_targets=self.critic_targets,
++            optimizers=optimizers)
++        self.critic_targets = {nm: mod.eval()
++                              for nm, mod in self.critic_targets.items()}
++        counters = bundle["counters"]
++        self.total_steps = int(counters["total_steps"])
++        self.episodes = int(counters["episode"])
++        self.updates = int(counters["updates"])
++        exposure_path = Path(root) / "exposure.json"
++        if exposure_path.exists():
++            self.exposure = Counter(
++                {str(k): int(v) for k, v in
++                 json.loads(exposure_path.read_text(encoding="utf-8")).items()})
++        if "buffer" in bundle:
++            self.buffer.load_arrays(bundle["buffer"])
++        return bundle
+diff --git a/src/rl_da_gate.py b/src/rl_da_gate.py
+new file mode 100644
+index 0000000..a5bba0f
+--- /dev/null
++++ b/src/rl_da_gate.py
+@@ -0,0 +1,519 @@
++"""MATD3_DA_GATE_v2: D1 quote map + D2 stratified replay + D3 exploration + A1.
++
++The economic core is inherited unchanged from `rl_b_c2_gate`: whole-day B,
++the C2 potential, gamma=0.99, fixed scale 1000, terminal SOC 0.5, twin
++centralised critics and the existing clearing engine. This module changes only:
++
++* D1: the open-gate quote map (`da_quote_map.forward_policy_v3`);
++* D2: the replay sampler (`da_replay.DAReplayBuffer`);
++* D3: bounded random quote exploration on training episodes;
++* A1: a gate-logit temperature warmup with evaluation at τ=1.
++
++A v2 checkpoint is refused. The price logits mean something different under
++the new map, so R2/R10 are baseline references only and are never loaded as
++initialisations.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++import random
++from collections import Counter
++from dataclasses import asdict, dataclass
++from pathlib import Path
++from typing import Dict, Mapping, Optional, Sequence
++
++import numpy as np
++import torch
++import torch.nn as nn
++
++import rl_b_c2_gate as base
++from c2_reward import C2Config
++from checkpoint_loader_v2 import load_checkpoint, restore_checkpoint
++from checkpoint_writer_v2 import save_checkpoint
++from da_quote_map import (LEG_HIGHS, POLICY_DIM, QUOTE_DIM, fleet_mode,
++                          forward_policy_v3, target_quotes_v3)
++from da_replay import DAReplayBuffer
++from daily_reward_b import B1Cache, B1Day, RewardBConfig, day_reward_b_from_cache
++from rl_env import BLOCK_SIZE, N_BLOCKS
++from rl_spec import ACTION_STORAGE_QUOTE_V3, OBS_V6
++
++# Re-export the provenance helpers the training script reads.
++B1_RESULTS = base.B1_RESULTS
++B1_BLOCKS = base.B1_BLOCKS
++B1_MANIFEST = base.B1_MANIFEST
++PAIRING = base.PAIRING
++load_b1_cache = base.load_b1_cache
++pair_data_hash = base.pair_data_hash
++config_hash = base.config_hash
++GateActor = base.GateActor
++GateReplayBuffer = base.GateReplayBuffer
++
++
++@dataclass(frozen=True)
++class DAExperimentConfig:
++    """Frozen D+A knobs. The inherited economic knobs keep their old values."""
++
++    experiment_id: str = "MATD3_DA_GATE_v2"
++    reward_mode: str = "B_C2"
++    gamma: float = 0.99
++    fixed_scale: float = 1000.0
++    gate_temperature: float = 1.0       # evaluation value
++    price_noise_std: float = 0.5
++    target_policy_noise: float = 0.2
++    target_noise_clip: float = 0.5
++    lr: float = 3e-4
++    tau: float = 0.005
++    policy_delay: int = 2
++    batch_size: int = 128
++    buffer_capacity: int = 100_000
++    start_steps: int = 0
++    action_schema: str = "storage_quote_v3"
++    quote_map: str = "linear_core_v1"
++    gate_temperature_start: float = 4.0
++    gate_temperature_end: float = 1.0
++    gate_warmup_episodes: int = 106
++    exploration_epsilon_start: float = 0.20
++    exploration_epsilon_end: float = 0.05
++    exploration_decay_episodes: int = 159
++    exploration_charge_scale: float = 0.5
++    exploration_high_fraction: float = 0.5
++    uniform_fraction: float = 0.5
++    sampling_beta: float = 0.5
++    sampling_max_upweight: float = 5.0
++
++    def __post_init__(self):
++        if self.reward_mode not in ("B", "B_C2"):
++            raise ValueError("reward_mode must be 'B' or 'B_C2'")
++        if not 0.0 < self.gamma <= 1.0:
++            raise ValueError("gamma must be in (0, 1]")
++        if self.fixed_scale <= 0:
++            raise ValueError("fixed_scale must be positive")
++        if self.gate_temperature_start < 1.0:
++            raise ValueError("gate_temperature_start must be >= 1")
++        if not 0.0 <= self.exploration_epsilon_start <= 1.0:
++            raise ValueError("exploration epsilon must be in [0,1]")
++        if not 0.0 <= self.uniform_fraction <= 1.0:
++            raise ValueError("uniform_fraction must be in [0,1]")
++        if self.action_schema != "storage_quote_v3":
++            raise ValueError("this trainer only builds storage_quote_v3")
++
++    @property
++    def uses_c2(self) -> bool:
++        return self.reward_mode == "B_C2"
++
++    def as_dict(self) -> dict:
++        return asdict(self)
++
++    def gate_temperature_at(self, episode: int) -> float:
++        if self.gate_warmup_episodes <= 0:
++            return self.gate_temperature_end
++        progress = min(1.0, max(0.0, float(episode)
++                                / float(self.gate_warmup_episodes)))
++        return float(self.gate_temperature_start
++                     + (self.gate_temperature_end
++                        - self.gate_temperature_start) * progress)
++
++    def exploration_epsilon_at(self, episode: int) -> float:
++        if self.exploration_decay_episodes <= 0:
++            return self.exploration_epsilon_end
++        progress = min(1.0, max(0.0, float(episode)
++                                / float(self.exploration_decay_episodes)))
++        return float(self.exploration_epsilon_start
++                     + (self.exploration_epsilon_end
++                        - self.exploration_epsilon_start) * progress)
++
++
++class DAGateTrainer(base.MATD3BC2Gate):
++    """The B/C2 gate trainer with D+A behind the new action schema."""
++
++    def __init__(self, env, experiment: DAExperimentConfig,
++                 *, agent_names: Optional[Sequence[str]] = None,
++                 obs_spec=None, action_spec=None):
++        super().__init__(env, experiment, agent_names=agent_names,
++                         obs_spec=obs_spec or OBS_V6,
++                         action_spec=action_spec or ACTION_STORAGE_QUOTE_V3)
++        self.action_spec = ACTION_STORAGE_QUOTE_V3
++        self.obs_spec = OBS_V6
++        self.buffer = DAReplayBuffer(
++            experiment.buffer_capacity,
++            uniform_fraction=experiment.uniform_fraction,
++            beta=experiment.sampling_beta,
++            max_upweight=experiment.sampling_max_upweight)
++        self._current_episode = 0
++
++    # ------------------------------------------------------------------
++    # Actions
++    # ------------------------------------------------------------------
++    def current_gate_temperature(self) -> float:
++        return self.experiment.gate_temperature_at(self._current_episode)
++
++    def _policy_action(self, actor: nn.Module, obs: np.ndarray,
++                       *, train: bool) -> dict:
++        obs_t = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
++        policy_out = actor(obs_t)
++        if train and self.experiment.price_noise_std > 0:
++            noise = torch.randn_like(policy_out[..., 2:]) \
++                * self.experiment.price_noise_std
++            policy_out = torch.cat(
++                [policy_out[..., :2], policy_out[..., 2:] + noise], dim=-1)
++        gate_temp = self.current_gate_temperature() if train else 1.0
++        out = forward_policy_v3(policy_out, train=train,
++                                gate_temperature=gate_temp)
++        quotes = out["quotes"].squeeze(0).detach().numpy().copy()
++        gates = out["gates"].squeeze(0).detach().numpy()
++        probs = out["probs"].squeeze(0).detach().numpy()
++        actor_quotes = quotes.copy()
++        explored = np.zeros(2, dtype=np.float32)
++        source = np.zeros(2, dtype=np.float32)
++        if train:
++            eps = self.experiment.exploration_epsilon_at(
++                self._current_episode)
++            for leg in (1, 0):
++                p = eps if leg == 1 else eps * \
++                    self.experiment.exploration_charge_scale
++                if p > 0.0 and np.random.rand() < p and gates[leg] > 0.0:
++                    high = LEG_HIGHS[leg]
++                    if np.random.rand() < \
++                            self.experiment.exploration_high_fraction:
++                        quotes[leg] = high * (0.8 + 0.2 * np.random.rand())
++                        source[leg] = 2.0
++                    else:
++                        quotes[leg] = high * np.random.rand()
++                        source[leg] = 1.0
++                    explored[leg] = 1.0
++        return {
++            "quotes": quotes,
++            "gates": gates,
++            "probs": probs,
++            "gate_logits": policy_out[..., :2].squeeze(0).detach().numpy(),
++            "price_logits": policy_out[..., 2:].squeeze(0).detach().numpy(),
++            "price_quotes": out["price_quotes"].squeeze(0).detach().numpy(),
++            "sampled": gates.copy(),
++            "mode": int(out["mode"].reshape(-1)[0].item()),
++            "explored": explored,
++            "exploration_source": source,
++            "actor_quotes": actor_quotes,
++            "gate_temperature": float(gate_temp),
++        }
++
++    def _target_quotes(self, actor: nn.Module,
++                       next_obs: torch.Tensor) -> torch.Tensor:
++        policy_out = actor(next_obs)
++        noise = (torch.randn_like(policy_out[..., 2:])
++                 * self.experiment.target_policy_noise).clamp(
++                     -self.experiment.target_noise_clip,
++                     self.experiment.target_noise_clip)
++        policy_out = torch.cat(
++            [policy_out[..., :2], policy_out[..., 2:] + noise], dim=-1)
++        return target_quotes_v3(policy_out)
++
++    def _actor_loss_quotes(self, policy_out: torch.Tensor) -> torch.Tensor:
++        """The actor loss must differentiate the map the actor executes."""
++        return forward_policy_v3(
++            policy_out, train=True,
++            gate_temperature=self.current_gate_temperature())["quotes"]
++
++    # ------------------------------------------------------------------
++    # One training day (same accounting as the parent; new extras only)
++    # ------------------------------------------------------------------
++    def train_day(self, env, pair: dict, b1_cache: B1Cache, *,
++                  config_hash_value: str, data_hash: str,
++                  trace: bool = False) -> dict:
++        if getattr(env, "terminal_soc_target", None) != 0.5:
++            raise ValueError(
++                "the B/C2 trainer requires the terminal-neutral 24-block "
++                "environment (SOC0=SOC24=0.5); refusing a different mechanism")
++        self._current_episode = self.episodes
++        pair_id = f"{pair['load_date']}|{pair['price_date']}"
++        obs = env.reset()
++        soc_path = {
++            nm: [float(next(a for a in env.all_agents
++                            if a.name == nm).storage.soc0)]
++            for nm in self.agent_names}
++        block_payoffs = {nm: [] for nm in self.agent_names}
++        pending = []
++        done_flags = []
++        trace_rows = []
++        checks = {"clears": 0, "fallbacks": 0, "lmp_fallbacks": 0,
++                  "all_optimal": True, "voltage_violation_cells": 0,
++                  "line_overload_cells": 0, "losses_mwh": 0.0,
++                  "charge_mwh": {nm: 0.0 for nm in self.agent_names},
++                  "discharge_mwh": {nm: 0.0 for nm in self.agent_names}}
++        v_lo = float(env.config.network.v_min_pu)
++        v_hi = float(env.config.network.v_max_pu)
++        for block in range(N_BLOCKS):
++            actions, diags = self._fleet_action(obs, train=True)
++            next_obs, _, done, info = env.step(actions)
++            if env._last_result is None:
++                raise RuntimeError(
++                    f"{pair_id} block {block}: clearing failed; training stops")
++            result = env._last_result
++            checks["clears"] += 1
++            checks["lmp_fallbacks"] += int(result.get("lmp_fallbacks", 0))
++            checks["all_optimal"] &= bool(
++                result.get("solver", {}).get("final", {}).get("optimal"))
++            n_commit = min(BLOCK_SIZE, env.T - block * BLOCK_SIZE)
++            voltage = np.asarray(result.get("bus_voltage", []),
++                                 dtype=float)[:n_commit]
++            if voltage.size:
++                checks["voltage_violation_cells"] += int(
++                    ((voltage < v_lo - 1e-7) | (voltage > v_hi + 1e-7)).sum())
++            util = np.asarray(result.get("line_utilization", []),
++                              dtype=float)[:n_commit]
++            if util.size:
++                checks["line_overload_cells"] += int(
++                    (util > 1.0 + 1e-7).sum())
++            loss = result.get("line_loss_mw")
++            if loss is not None:
++                checks["losses_mwh"] += float(
++                    np.sum(np.asarray(loss, dtype=float)[:n_commit]) * 0.25)
++            for nm in self.agent_names:
++                ws = (result.get("schedules") or {}).get(nm)
++                if ws is not None:
++                    checks["charge_mwh"][nm] += float(
++                        np.sum(np.asarray(ws["p_ch"][:n_commit])) * 0.25)
++                    checks["discharge_mwh"][nm] += float(
++                        np.sum(np.asarray(ws["p_dis"][:n_commit])) * 0.25)
++                block_payoffs[nm].append(
++                    float(info.get("raw_profit", {}).get(nm, 0.0)))
++                soc_path[nm].append(
++                    float(env.prev_soc.get(nm, soc_path[nm][-1])))
++            if trace:
++                for nm in self.agent_names:
++                    d = diags[nm]
++                    trace_rows.append({
++                        "pair_id": pair_id,
++                        "block": block,
++                        "agent": nm,
++                        "gate_logits": np.asarray(
++                            d["gate_logits"], dtype=float).tolist(),
++                        "price_logits": np.asarray(
++                            d["price_logits"], dtype=float).tolist(),
++                        "probs": np.asarray(d["probs"], dtype=float).tolist(),
++                        "gates": np.asarray(d["gates"], dtype=float).tolist(),
++                        "quotes": np.asarray(actions[nm],
++                                             dtype=float).tolist(),
++                        "explored": np.asarray(
++                            d["explored"], dtype=float).tolist(),
++                        "exploration_source": np.asarray(
++                            d["exploration_source"], dtype=float).tolist(),
++                        "mode": int(d["mode"]),
++                        "payoff": float(
++                            info.get("raw_profit", {}).get(nm, 0.0)),
++                    })
++            pending.append((obs, actions, next_obs, done, diags))
++            done_flags.append(bool(done))
++            obs = next_obs
++            if done:
++                break
++        if len(pending) != N_BLOCKS:
++            raise RuntimeError(f"{pair_id}: episode ended after "
++                               f"{len(pending)} blocks")
++
++        rewards = self._day_rewards(
++            block_payoffs, soc_path, done_flags, b1_cache, pair_id,
++            config_hash_value, data_hash)
++        per_block = rewards["per_block"]
++        for t, (obs_t, act_t, next_obs_t, done_t, diag_t) in enumerate(pending):
++            nm_list = self.agent_names
++            reward = np.array(
++                [per_block[nm][t] / self.experiment.fixed_scale
++                 for nm in nm_list], dtype=np.float32)
++            extras = {
++                "gates": np.stack([diag_t[nm]["gates"] for nm in nm_list]),
++                "probs": np.stack([diag_t[nm]["probs"] for nm in nm_list]),
++                "gate_logits": np.stack(
++                    [diag_t[nm]["gate_logits"] for nm in nm_list]),
++                "price_logits": np.stack(
++                    [diag_t[nm]["price_logits"] for nm in nm_list]),
++                "price_quotes": np.stack(
++                    [diag_t[nm]["price_quotes"] for nm in nm_list]),
++                "sampled": np.stack(
++                    [diag_t[nm]["sampled"] for nm in nm_list]),
++                "explored": np.stack(
++                    [diag_t[nm]["explored"] for nm in nm_list]),
++                "exploration_source": np.stack(
++                    [diag_t[nm]["exploration_source"] for nm in nm_list]),
++            }
++            self.buffer.add(
++                self._stack_obs(obs_t, nm_list),
++                np.stack([act_t[nm] for nm in nm_list]),
++                reward,
++                self._stack_obs(next_obs_t, nm_list),
++                done_t, extras)
++            self.total_steps += 1
++            if len(self.buffer) >= self.experiment.batch_size \
++                    and self.total_steps > self.experiment.start_steps:
++                self.update()
++            self._accumulate_gate_stats(diag_t)
++        self.episodes += 1
++        self.exposure[pair_id] += 1
++        e_max = {nm: float(next(a for a in env.all_agents
++                                if a.name == nm).storage.e_max)
++                 for nm in self.agent_names}
++        checks["cycles"] = {
++            nm: ((checks["charge_mwh"][nm] + checks["discharge_mwh"][nm])
++                 / (2.0 * e_max[nm]) if e_max[nm] > 0 else 0.0)
++            for nm in self.agent_names}
++        checks["terminal_soc"] = {
++            nm: soc_path[nm][-1] for nm in self.agent_names}
++        return {
++            "pair_id": pair_id,
++            "block_decisions": trace_rows,
++            "b": rewards["b"],
++            "c2": rewards.get("c2"),
++            "b_reward_by_block": rewards["b_reward_by_block"],
++            "c2_shaping_by_block": rewards.get("c2_shaping_by_block"),
++            "checks": checks,
++            "soc_end": {nm: soc_path[nm][-1] for nm in self.agent_names},
++            "gate": self.gate_stats_snapshot(),
++            "gate_temperature": self.current_gate_temperature(),
++            "exploration_epsilon": self.experiment.exploration_epsilon_at(
++                self._current_episode),
++            "sampler": dict(self.buffer.last_stats),
++        }
++
++    def update(self) -> dict:
++        out = super().update()
++        out["sampler"] = dict(self.buffer.last_stats)
++        return out
++
++    # ------------------------------------------------------------------
++    # Checkpoint v3
++    # ------------------------------------------------------------------
++    def _da_metadata(self) -> dict:
++        return {
++            "da_gate": {
++                "experiment": self.experiment.as_dict(),
++                "action_schema": "storage_quote_v3",
++                "quote_map": "linear_core_v1",
++                "actor_loss_map": "linear_core_v1",
++                "actor_loss_gate_temperature": "current_gate_temperature",
++                "gate_temperature_schedule": {
++                    "start": self.experiment.gate_temperature_start,
++                    "end": self.experiment.gate_temperature_end,
++                    "warmup_episodes": self.experiment.gate_warmup_episodes,
++                    "evaluation_temperature": 1.0,
++                },
++                "exploration": {
++                    "start": self.experiment.exploration_epsilon_start,
++                    "end": self.experiment.exploration_epsilon_end,
++                    "decay_episodes": self.experiment.exploration_decay_episodes,
++                    "charge_scale": self.experiment.exploration_charge_scale,
++                    "high_fraction": self.experiment.exploration_high_fraction,
++                    "bounded": [0.0, 1.0],
++                },
++            },
++            "sampler": self.buffer.sampler_state(),
++        }
++
++    def save(self, root, *, level: str, dataset: str, seed: int,
++             config_hash_value: str, data: Optional[dict] = None,
++             code_revision: str = "working-tree",
++             exposure_log: Optional[str] = None,
++             eval_provenance: Optional[str] = None):
++        root = Path(root)
++        root.mkdir(parents=True, exist_ok=True)
++        exposure_path = root / "exposure.json"
++        exposure_path.write_text(
++            json.dumps(dict(sorted(self.exposure.items())), indent=2),
++            encoding="utf-8")
++        exposure_log = exposure_log or str(exposure_path)
++        reward = {
++            "definition": self.experiment.reward_mode,
++            "gamma": self.experiment.gamma,
++            "scale": self.experiment.fixed_scale,
++            "potential": (C2Config(gamma=self.experiment.gamma).__dict__
++                          if self.experiment.uses_c2 else None),
++            "normalization": "fixed_scale_only",
++            "terminal_rule": "soc_end_0.5_settlement",
++            "b1_source": "b1_terminal_neutral",
++            "gate": {
++                "policy_dim": POLICY_DIM,
++                "quote_dim": QUOTE_DIM,
++                "leg_highs": list(LEG_HIGHS),
++                "temperature": 1.0,
++                "estimator": "straight_through_bernoulli",
++                "initial_probability": 0.5,
++                "temperature_schedule": {
++                    "start": self.experiment.gate_temperature_start,
++                    "end": self.experiment.gate_temperature_end,
++                    "warmup_episodes": self.experiment.gate_warmup_episodes,
++                },
++            },
++            "price_noise_std": self.experiment.price_noise_std,
++        }
++        counters = {
++            "total_steps": self.total_steps,
++            "episode": self.episodes,
++            "updates": self.updates,
++            "buffer_len": len(self.buffer),
++        }
++        optimizers = {}
++        for nm in self.agent_names:
++            optimizers[f"actor_{nm}"] = self.actor_opts[nm]
++            optimizers[f"critic_{nm}"] = self.critic_opts[nm]
++        return save_checkpoint(
++            root, level=level, run_id=self.experiment.experiment_id,
++            dataset=dataset, seed=seed, code_revision=code_revision,
++            config_hash=config_hash_value,
++            specs={
++                "obs_spec": {"name": self.obs_spec.name,
++                             "version": self.obs_spec.version},
++                "action_spec": {"name": ACTION_STORAGE_QUOTE_V3.name,
++                                "version": ACTION_STORAGE_QUOTE_V3.version,
++                                "quote_map": "linear_core_v1"},
++            },
++            actors=self.actors, actor_targets=self.actor_targets,
++            critics=self.critics, critic_targets=self.critic_targets,
++            optimizers=optimizers, counters=counters, reward=reward,
++            data=data or {},
++            hyperparameters=self.experiment.as_dict(),
++            exposure_log=exposure_log, eval_provenance=eval_provenance,
++            buffer=self.buffer, schema_version="matd3-checkpoint-v3",
++            extra_manifest=self._da_metadata())
++
++    def load(self, root) -> dict:
++        bundle = load_checkpoint(root)
++        manifest = bundle["manifest"]
++        if manifest.get("schema_version") != "matd3-checkpoint-v3":
++            raise ValueError(
++                f"checkpoint schema {manifest.get('schema_version')!r} is not "
++                "matd3-checkpoint-v3; the v3 quote map cannot reuse v2 actors")
++        spec = manifest.get("specs", {}).get("action_spec", {})
++        if spec.get("name") != ACTION_STORAGE_QUOTE_V3.name:
++            raise ValueError(
++                f"action spec {spec.get('name')!r} is not "
++                f"{ACTION_STORAGE_QUOTE_V3.name!r}")
++        saved = manifest["reward"]
++        if saved.get("definition") != self.experiment.reward_mode:
++            raise ValueError("checkpoint reward definition does not match")
++        if float(saved.get("scale", -1)) != self.experiment.fixed_scale:
++            raise ValueError("checkpoint reward scale does not match")
++        if float(saved.get("gamma", -1)) != self.experiment.gamma:
++            raise ValueError("checkpoint gamma does not match")
++        optimizers = {}
++        for nm in self.agent_names:
++            optimizers[f"actor_{nm}"] = self.actor_opts[nm]
++            optimizers[f"critic_{nm}"] = self.critic_opts[nm]
++        restore_checkpoint(
++            bundle, actors=self.actors, actor_targets=self.actor_targets,
++            critics=self.critics, critic_targets=self.critic_targets,
++            optimizers=optimizers)
++        self.critic_targets = {nm: mod.eval()
++                              for nm, mod in self.critic_targets.items()}
++        counters = bundle["counters"]
++        self.total_steps = int(counters["total_steps"])
++        self.episodes = int(counters["episode"])
++        self.updates = int(counters["updates"])
++        exposure_path = Path(root) / "exposure.json"
++        if exposure_path.exists():
++            self.exposure = Counter(
++                {str(k): int(v) for k, v in
++                 json.loads(exposure_path.read_text(encoding="utf-8")).items()})
++        if "buffer" in bundle:
++            self.buffer.load_arrays(bundle["buffer"])
++        self._current_episode = self.episodes
++        return bundle
+diff --git a/src/train_da_gate.py b/src/train_da_gate.py
+new file mode 100644
+index 0000000..21448c5
+--- /dev/null
++++ b/src/train_da_gate.py
+@@ -0,0 +1,976 @@
++"""Development training run for MATD3_DA_GATE_v2.
++
++This is an **exploratory/development** run. The current data have no joint
++source-load holdout (H1 = 0), so its test-set numbers cannot support a paper
++claim. It trains on the selected NEAR training split only and never reads the
++H2 holdout pairs.
++
++`--split near` (default) preserves the original near/split.json reproduction.
++`--split common` selects the common_split.json NEAR view used for the formal
++run. In both cases the test and holiday blocks are recorded but never run.
++
++Per round: one exposure to each selected training day, then deterministic
++validation on the split's validation days. The selection metric is the mean
++fleet delta G from actual settlement, never a training reward. A full resume
++checkpoint is saved every round; a separate best checkpoint is saved whenever
++validation improves. `--train-days` restricts training to a fixed subset for a
++controlled smoke run; `--trace-blocks` writes one decision row per block/ESS.
++
++Usage:
++    PYTHONPATH=src python src/train_da_gate.py --split common \
++        --seed 11 --exposures 10 --run-id FORMAL_NEAR_COMMON_seed11
++"""
++
++from __future__ import annotations
++
++import argparse
++import csv
++import datetime as dt
++import hashlib
++import json
++import math
++import random
++import subprocess
++import sys
++import time
++import traceback
++from pathlib import Path
++from typing import Dict, List, Sequence
++
++import numpy as np
++import torch
++
++import b1_daily_baseline as b1_base
++import rl_da_gate as mod
++import v2_cy_jn_env as envmod
++from market import clear_market  # noqa: F401  (kept for import-order parity)
++
++ROOT = Path.cwd()
++NEAR_PAIRING = ROOT / "data/processed/v2_cy_jn_2025/near/load_price_pairing.csv"
++FULL_PAIRING = ROOT / "data/processed/v2_cy_jn_2025/load_price_pairing.csv"
++NEAR_SPLIT = ROOT / "data/processed/v2_cy_jn_2025/near/split.json"
++BUS_LOADS = ROOT / "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz"
++PRICE_CURVES = ROOT / "data/processed/v2_cy_jn_2025/price_curves.npz"
++COMMON_SPLIT = ROOT / "data/processed/v2_cy_jn_2025/common_split.json"
++RUNS = ROOT / "runs"
++SNAPSHOTS = ROOT / "snapshots"
++
++
++def sha(path: Path) -> str:
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++SOURCE_FILES = (
++    "rl_da_gate.py", "da_quote_map.py", "da_replay.py", "rl_b_c2_gate.py",
++    "rl_spec.py", "rl_env.py", "dispatch_socp.py", "b1_daily_baseline.py",
++    "c2_reward.py", "daily_reward_b.py", "v2_cy_jn_env.py",
++    "train_da_gate.py",
++)
++
++
++def source_hashes() -> Dict[str, str]:
++    return {name: sha(ROOT / "src" / name) for name in SOURCE_FILES}
++
++
++def artifact_hashes(run_dir: Path) -> Dict[str, str]:
++    out = {}
++    for name in ("episodes.csv", "gate_stats.jsonl", "sampler_stats.jsonl",
++                 "block_decisions.jsonl", "eval_history.json", "train.log"):
++        path = run_dir / name
++        if path.exists():
++            out[name] = sha(path)
++    return out
++
++
++def no_improvement_streak(evaluations: Sequence[dict]) -> int:
++    """Consecutive evaluations after the best validation value."""
++    if not evaluations:
++        return 0
++    best_idx = max(range(len(evaluations)),
++                   key=lambda i: evaluations[i].get("mean_fleet_delta",
++                                                    -math.inf))
++    return len(evaluations) - 1 - best_idx
++
++
++def read_csv(path: Path) -> List[dict]:
++    with path.open(encoding="utf-8") as fh:
++        return list(csv.DictReader(fh))
++
++
++def now() -> str:
++    return dt.datetime.now(dt.timezone.utc).isoformat()
++
++
++def code_revision() -> str:
++    try:
++        rev = subprocess.check_output(
++            ["git", "rev-parse", "--short", "HEAD"], text=True).strip()
++        dirty = bool(subprocess.check_output(
++            ["git", "status", "--porcelain"], text=True).strip())
++        return rev + ("+dirty" if dirty else "")
++    except Exception:
++        return "working-tree"
++
++
++def season_order(pairs: Sequence[dict], seed: int) -> List[dict]:
++    """Season-stratified, deterministic order; every three episodes mix seasons."""
++    by = {}
++    for pair in pairs:
++        by.setdefault(pair.get("season", ""), []).append(pair)
++    rng = random.Random(seed)
++    for values in by.values():
++        rng.shuffle(values)
++    order = []
++    seasons = [s for s in ("summer", "autumn", "winter") if s in by]
++    while any(by[s] for s in seasons):
++        for s in seasons:
++            if by[s]:
++                order.append(by[s].pop())
++    return order
++
++
++def data_hashes() -> Dict[str, str]:
++    return {
++        "pairing": sha(NEAR_PAIRING),
++        "bus_loads": sha(BUS_LOADS),
++        "price_curves": sha(PRICE_CURVES),
++        "common_split": sha(COMMON_SPLIT),
++    }
++
++
++def eval_day(trainer: mod.DAGateTrainer, pair: dict, b1_cache, *,
++             mechanism_hash: str, pair_row: dict) -> dict:
++    """Deterministic full-day evaluation; no buffer write, no exposure.
++
++    Records settlement, per-ESS energy/cycles, raw SOC extrema and the
++    deterministic gate behaviour of every quote leg. It does not call
++    `train_day`, so validation cannot change the model or the exposure log.
++    """
++    env = envmod.build_env_for_pair(
++        pair, differential_reward=False, terminal_soc_target=0.5)
++    obs = env.reset()
++    names = trainer.agent_names
++    block_payoffs = {nm: [] for nm in names}
++    soc_path = {nm: [float(next(a for a in env.all_agents
++                                if a.name == nm).storage.soc0)]
++                for nm in names}
++    charge_mwh = {nm: 0.0 for nm in names}
++    discharge_mwh = {nm: 0.0 for nm in names}
++    gate_open = {nm: [0, 0] for nm in names}
++    gate_prob_sum = {nm: [0.0, 0.0] for nm in names}
++    gate_closed = {nm: [0, 0] for nm in names}
++    quote_open = {nm: [[], []] for nm in names}
++    mode_counts: Dict[int, int] = {}
++    sat_upper = sat_lower = 0
++    soc_min = {nm: math.inf for nm in names}
++    soc_max = {nm: -math.inf for nm in names}
++    decisions = {nm: 0 for nm in names}
++    for block in range(24):
++        acts, unit_modes = {}, []
++        for nm in names:
++            d = trainer.select_action(obs[nm], nm, train=False)
++            acts[nm] = np.asarray(d["quotes"], dtype=float)
++            unit_modes.append(int(d["mode"]))
++            gates = np.asarray(d["gates"], dtype=float)
++            probs = np.asarray(d["probs"], dtype=float)
++            price_quotes = np.asarray(d["price_quotes"], dtype=float)
++            decisions[nm] += 1
++            for leg in (0, 1):
++                gate_prob_sum[nm][leg] += float(probs[leg])
++                if gates[leg] > 0:
++                    gate_open[nm][leg] += 1
++                    quote_open[nm][leg].append(float(price_quotes[leg]))
++                    if price_quotes[leg] >= 0.99 * mod.LEG_HIGHS[leg]:
++                        sat_upper += 1
++                    if price_quotes[leg] <= 0.01 * mod.LEG_HIGHS[leg]:
++                        sat_lower += 1
++                else:
++                    gate_closed[nm][leg] += 1
++        mode = mod.fleet_mode(unit_modes)
++        mode_counts[mode] = mode_counts.get(mode, 0) + 1
++        next_obs, _, done, info = env.step(acts)
++        if env._last_result is None:
++            raise RuntimeError(f"{pair}: clearing failed at block {block}")
++        result = env._last_result
++        n_commit = min(4, env.T - block * 4)
++        for nm in names:
++            block_payoffs[nm].append(
++                float(info.get("raw_profit", {}).get(nm, 0.0)))
++            soc_path[nm].append(float(env.prev_soc.get(nm, soc_path[nm][-1])))
++            ws = (result.get("schedules") or {}).get(nm)
++            if ws is None:
++                continue
++            charge_mwh[nm] += float(
++                np.sum(np.asarray(ws["p_ch"])[:n_commit]) * 0.25)
++            discharge_mwh[nm] += float(
++                np.sum(np.asarray(ws["p_dis"])[:n_commit]) * 0.25)
++            soc_arr = ws.get("soc")
++            if soc_arr is not None:
++                vals = np.asarray(soc_arr, dtype=float)[:n_commit + 1]
++                if vals.size:
++                    soc_min[nm] = min(soc_min[nm], float(np.min(vals)))
++                    soc_max[nm] = max(soc_max[nm], float(np.max(vals)))
++        obs = next_obs
++        if done:
++            break
++    pair_id = f"{pair['load_date']}|{pair['price_date']}"
++    b1_day = b1_cache.get(pair_id, 0.5, mechanism_hash,
++                          mod.pair_data_hash(pair_row))
++    G_pi = {nm: float(sum(block_payoffs[nm])) for nm in names}
++    G_b1 = {nm: float(sum(b1_day.block_payoffs[nm])) for nm in names}
++    delta = {nm: G_pi[nm] - G_b1[nm] for nm in names}
++    e_max = {nm: float(next(a for a in env.all_agents
++                            if a.name == nm).storage.e_max) for nm in names}
++    cycles = {
++        nm: ((charge_mwh[nm] + discharge_mwh[nm]) / (2.0 * e_max[nm])
++             if e_max[nm] > 0 else 0.0)
++        for nm in names}
++    for nm in names:
++        if not math.isfinite(soc_min[nm]):
++            soc_min[nm] = min(soc_path[nm])
++            soc_max[nm] = max(soc_path[nm])
++    result = env._last_result
++    voltage = result.get("bus_voltage")
++    v = np.asarray(voltage, dtype=float) if voltage is not None else np.zeros(0)
++    util_src = result.get("line_utilization")
++    util = np.asarray(util_src, dtype=float) \
++        if util_src is not None else np.zeros(0)
++    return {
++        "pair_id": pair_id,
++        "season": pair.get("season", ""),
++        "G_policy": G_pi,
++        "G_b1": G_b1,
++        "delta": delta,
++        "delta_fleet": float(sum(delta.values())),
++        "terminal_soc": {nm: soc_path[nm][-1] for nm in names},
++        "charge_mwh": charge_mwh,
++        "discharge_mwh": discharge_mwh,
++        "cycles": cycles,
++        "soc_min": soc_min,
++        "soc_max": soc_max,
++        "clears": 24,
++        "lmp_fallbacks": int(result.get("lmp_fallbacks", 0)),
++        "voltage_violation_cells": int(
++            ((v < env.config.network.v_min_pu - 1e-7)
++             | (v > env.config.network.v_max_pu + 1e-7)).sum())
++        if v.size else 0,
++        "line_overload_cells": int((util > 1.0 + 1e-7).sum())
++        if util.size else 0,
++        "gate_open_frequency": {
++            nm: [gate_open[nm][leg] / max(decisions[nm], 1)
++                 for leg in (0, 1)] for nm in names},
++        "gate_mean_probability": {
++            nm: [gate_prob_sum[nm][leg] / max(decisions[nm], 1)
++                 for leg in (0, 1)] for nm in names},
++        "gate_closed_fraction": {
++            nm: [gate_closed[nm][leg] / max(decisions[nm], 1)
++                 for leg in (0, 1)] for nm in names},
++        "quote_open_values": quote_open,
++        "gate_saturation_upper": sat_upper,
++        "gate_saturation_lower": sat_lower,
++        "mode_counts": {str(k): int(v) for k, v in sorted(mode_counts.items())},
++        "distinct_modes": len(mode_counts),
++    }
++
++
++def _quote_stats(values: Sequence[float]):
++    if not values:
++        return None
++    a = np.asarray(values, dtype=float)
++    return {
++        "count": int(a.size),
++        "mean": float(np.mean(a)),
++        "std": float(np.std(a)),
++        "min": float(np.min(a)),
++        "p05": float(np.percentile(a, 5)),
++        "p50": float(np.percentile(a, 50)),
++        "p95": float(np.percentile(a, 95)),
++        "max": float(np.max(a)),
++    }
++
++
++def evaluate(trainer: mod.DAGateTrainer, pairs: Sequence[dict], b1_cache,
++             *, mechanism_hash: str, pair_rows: Dict[str, dict]) -> dict:
++    days = []
++    for pair in pairs:
++        pair_id = f"{pair['load_date']}|{pair['price_date']}"
++        row = pair_rows[pair_id]
++        days.append(eval_day(trainer, pair, b1_cache,
++                             mechanism_hash=mechanism_hash, pair_row=row))
++    units = trainer.agent_names
++    fleet = [d["delta_fleet"] for d in days]
++    per_unit = {nm: float(np.mean([d["delta"][nm] for d in days]))
++                for nm in units}
++    terminal_err = max(
++        abs(v - 0.5) for d in days for v in d["terminal_soc"].values())
++    voltage_cells = int(sum(d["voltage_violation_cells"] for d in days))
++    line_cells = int(sum(d["line_overload_cells"] for d in days))
++    c2 = mod.C2Config()
++    raw_soc_min = min(d["soc_min"][nm] for d in days for nm in units)
++    raw_soc_max = max(d["soc_max"][nm] for d in days for nm in units)
++    raw_band_violation = max(0.0, c2.soc_lo - raw_soc_min,
++                             raw_soc_max - c2.soc_hi)
++    if terminal_err > 1e-5 or voltage_cells or line_cells \
++            or raw_band_violation > 1e-6:
++        raise RuntimeError(
++            "validation/evaluation physical check failed: "
++            f"terminal_err={terminal_err:.2e} voltage={voltage_cells} "
++            f"line={line_cells} raw_soc_band={raw_band_violation:.2e}")
++    gate_open = {
++        f"{nm}.{leg}": float(np.mean([d["gate_open_frequency"][nm][i]
++                                      for d in days]))
++        for nm in units for i, leg in enumerate(("charge", "discharge"))}
++    gate_prob = {
++        f"{nm}.{leg}": float(np.mean([d["gate_mean_probability"][nm][i]
++                                      for d in days]))
++        for nm in units for i, leg in enumerate(("charge", "discharge"))}
++    gate_closed = {
++        f"{nm}.{leg}": float(np.mean([d["gate_closed_fraction"][nm][i]
++                                      for d in days]))
++        for nm in units for i, leg in enumerate(("charge", "discharge"))}
++    quote_dist = {
++        f"{nm}.{leg}": _quote_stats(
++            [value for d in days for value in d["quote_open_values"][nm][i]])
++        for nm in units for i, leg in enumerate(("charge", "discharge"))}
++    modes: Dict[str, int] = {}
++    for d in days:
++        for key, count in d["mode_counts"].items():
++            modes[key] = modes.get(key, 0) + int(count)
++    return {
++        "days": days,
++        "mean_fleet_delta": float(np.mean(fleet)),
++        "median_fleet_delta": float(np.median(fleet)),
++        "mean_delta_by_unit": per_unit,
++        "positive_days": int(sum(1 for x in fleet if x > 0)),
++        "mean_charge_mwh": {nm: float(np.mean(
++            [d["charge_mwh"][nm] for d in days])) for nm in units},
++        "mean_discharge_mwh": {nm: float(np.mean(
++            [d["discharge_mwh"][nm] for d in days])) for nm in units},
++        "mean_cycles": {nm: float(np.mean(
++            [d["cycles"][nm] for d in days])) for nm in units},
++        "mean_terminal_soc": {nm: float(np.mean(
++            [d["terminal_soc"][nm] for d in days])) for nm in units},
++        "soc_min": raw_soc_min,
++        "soc_max": raw_soc_max,
++        "raw_soc_band_violation": raw_band_violation,
++        "voltage_violation_cells": voltage_cells,
++        "line_overload_cells": line_cells,
++        "lmp_fallbacks": int(sum(d["lmp_fallbacks"] for d in days)),
++        "terminal_soc_max_err": terminal_err,
++        "gate": {
++            "open_frequency": gate_open,
++            "mean_probability": gate_prob,
++            "closed_fraction": gate_closed,
++            "quote_distribution": quote_dist,
++            "mode_counts": {k: int(v) for k, v in sorted(
++                modes.items(), key=lambda kv: int(kv[0]))},
++            "distinct_modes": int(len(modes)),
++            "permanent_open": sorted(
++                k for k, v in gate_open.items() if v >= 1.0 - 1e-12),
++            "permanent_closed": sorted(
++                k for k, v in gate_open.items() if v <= 1e-12),
++            "saturation_upper": int(sum(
++                d["gate_saturation_upper"] for d in days)),
++            "saturation_lower": int(sum(
++                d["gate_saturation_lower"] for d in days)),
++        },
++    }
++
++
++def main(argv: Sequence[str] | None = None) -> int:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--seed", type=int, default=11)
++    parser.add_argument("--exposures", type=int, default=3)
++    parser.add_argument("--run-id", default="")
++    parser.add_argument("--max-episodes", type=int, default=0)
++    parser.add_argument("--split", choices=("near", "common"), default="near",
++                        help="near: near/split.json (legacy reproduction); "
++                             "common: common_split.json near view (formal)")
++    parser.add_argument("--train-days", default="",
++                        help="comma-separated load dates; must be a subset of "
++                             "the selected split's train days and is used in "
++                             "the given order")
++    parser.add_argument("--early-stop-patience", type=int, default=3,
++                        help="stop after this many validation evaluations "
++                             "without a new best; 0 disables")
++    parser.add_argument("--trace-blocks", action="store_true",
++                        help="write block_decisions.jsonl (24 blocks x 4 ESS "
++                             "per episode)")
++    parser.add_argument("--skip-eval", action="store_true")
++    parser.add_argument("--resume", action="store_true",
++                        help="continue from the latest v3 checkpoint in --run-id")
++    parser.add_argument("--pause-after-rounds", type=int, default=0,
++                        help="run this many rounds, save a resume checkpoint, "
++                             "and stop")
++    parser.add_argument("--batch-size", type=int, default=128)
++    parser.add_argument("--buffer-capacity", type=int, default=100_000)
++    parser.add_argument("--uniform-fraction", type=float, default=0.5)
++    parser.add_argument("--sampling-beta", type=float, default=0.5)
++    parser.add_argument("--sampling-max-upweight", type=float, default=5.0)
++    parser.add_argument("--exploration-start", type=float, default=0.20)
++    parser.add_argument("--exploration-end", type=float, default=0.05)
++    parser.add_argument("--exploration-decay-episodes", type=int, default=159)
++    parser.add_argument("--gate-temperature-start", type=float, default=4.0)
++    parser.add_argument("--gate-temperature-end", type=float, default=1.0)
++    parser.add_argument("--gate-warmup-episodes", type=int, default=106)
++    args = parser.parse_args(argv)
++
++    run_id = args.run_id or f"DEV_DA_GATE_seed{args.seed}_v2"
++    run_dir = RUNS / run_id
++    snap_dir = SNAPSHOTS / run_id
++    best_root = RUNS / f"{run_id}_best"
++    if not args.resume:
++        for path in (run_dir, snap_dir, best_root):
++            if path.exists() and any(path.iterdir()):
++                raise FileExistsError(
++                    f"{path} already exists and is not empty; use --resume or "
++                    "a new --run-id")
++    run_dir.mkdir(parents=True, exist_ok=True)
++    snap_dir.mkdir(parents=True, exist_ok=True)
++    log_path = run_dir / "train.log"
++    log_fh = log_path.open("a", encoding="utf-8")
++    if not (run_dir / "eval_history.json").exists():
++        (run_dir / "eval_history.json").write_text("[]", encoding="utf-8")
++
++    def log(message: str) -> None:
++        line = f"[{now()}] {message}"
++        print(line, flush=True)
++        log_fh.write(line + "\n")
++        log_fh.flush()
++
++    random.seed(args.seed)
++    np.random.seed(args.seed)
++    torch.manual_seed(args.seed)
++
++    near_rows = read_csv(NEAR_PAIRING)
++    full_rows = read_csv(FULL_PAIRING)
++    near_by_pair = {f"{r['load_date']}|{r['price_date']}": r
++                    for r in near_rows}
++    full_by_pair = {f"{r['load_date']}|{r['price_date']}": r
++                    for r in full_rows}
++    load_to_pair = {r["load_date"]: f"{r['load_date']}|{r['price_date']}"
++                    for r in near_rows}
++
++    def pairs_for(load_dates: Sequence[str]) -> List[dict]:
++        out = []
++        for load in load_dates:
++            pid = load_to_pair.get(load)
++            if pid is None:
++                raise KeyError(f"{load}: no NEAR pairing")
++            out.append({"load_date": load,
++                        "price_date": full_by_pair[pid]["price_date"],
++                        "season": near_by_pair[pid].get("season", ""),
++                        "pair_id": pid})
++        return out
++
++    def pairs_from_ids(pair_ids: Sequence[str]) -> List[dict]:
++        out = []
++        for pid in pair_ids:
++            row = near_by_pair.get(pid)
++            if row is None:
++                raise KeyError(f"{pid}: no NEAR pairing")
++            out.append({"load_date": row["load_date"],
++                        "price_date": full_by_pair[pid]["price_date"],
++                        "season": row.get("season", ""),
++                        "pair_id": pid})
++        return out
++
++    if args.split == "common":
++        split_path = COMMON_SPLIT
++        split_doc = json.loads(split_path.read_text(encoding="utf-8"))
++        split_view = split_doc["near"]
++        train = pairs_from_ids(split_view["train"])
++        validation = pairs_from_ids(split_view["validation"])
++        test = pairs_from_ids(split_view["test"])
++        holiday = pairs_from_ids(split_view["holiday_block"])
++    else:
++        split_path = NEAR_SPLIT
++        split_doc = json.loads(split_path.read_text(encoding="utf-8"))
++        split_view = split_doc
++        train = pairs_for(split_view["train"])
++        validation = pairs_for(split_view["validation"])
++        test = pairs_for(split_view["test"])
++        holiday = pairs_for(split_view.get("holiday_block", []))
++
++    sets = {
++        "train": {p["pair_id"] for p in train},
++        "validation": {p["pair_id"] for p in validation},
++        "test": {p["pair_id"] for p in test},
++        "holiday": {p["pair_id"] for p in holiday},
++    }
++    for left, right in (("train", "validation"), ("train", "test"),
++                        ("train", "holiday"), ("validation", "test"),
++                        ("validation", "holiday"), ("test", "holiday")):
++        overlap = sets[left] & sets[right]
++        if overlap:
++            raise RuntimeError(
++                f"split {args.split}: {left}/{right} overlap {sorted(overlap)}")
++
++    train_full = train
++    if args.train_days:
++        requested = [s.strip() for s in args.train_days.split(",")
++                     if s.strip()]
++        if len(set(requested)) != len(requested):
++            raise ValueError("--train-days contains duplicate dates")
++        by_load = {p["load_date"]: p for p in train_full}
++        missing = [d for d in requested if d not in by_load]
++        if missing:
++            raise ValueError(
++                f"--train-days not in {args.split} train split: {missing}")
++        train = [by_load[d] for d in requested]
++        order = list(train)
++    else:
++        order = season_order(train, args.seed)
++    budget = len(order) * args.exposures
++    if args.max_episodes:
++        budget = min(budget, args.max_episodes)
++
++    b1_manifest = json.loads(Path(mod.B1_MANIFEST).read_text(encoding="utf-8"))
++    mechanism_hash = b1_manifest["mechanism_hash"]
++    b1_cache = mod.load_b1_cache()
++
++    template_env = envmod.build_env_for_pair(
++        train[0], differential_reward=False, terminal_soc_target=0.5)
++    experiment = mod.DAExperimentConfig(
++        run_id, "B_C2", batch_size=args.batch_size,
++        buffer_capacity=args.buffer_capacity,
++        uniform_fraction=args.uniform_fraction,
++        sampling_beta=args.sampling_beta,
++        sampling_max_upweight=args.sampling_max_upweight,
++        exploration_epsilon_start=args.exploration_start,
++        exploration_epsilon_end=args.exploration_end,
++        exploration_decay_episodes=args.exploration_decay_episodes,
++        gate_temperature_start=args.gate_temperature_start,
++        gate_temperature_end=args.gate_temperature_end,
++        gate_warmup_episodes=args.gate_warmup_episodes)
++    trainer = mod.DAGateTrainer(template_env, experiment)
++    market_hash = mod.config_hash(template_env.config)
++    hashes = data_hashes()
++
++    resume_from = None
++    if args.resume:
++        if not (run_dir / "manifest.json").exists():
++            raise FileNotFoundError(f"{run_dir}: no checkpoint manifest to resume")
++        if not (run_dir / "run_manifest.json").exists():
++            raise FileNotFoundError(f"{run_dir}: no run manifest to resume")
++        saved = json.loads(
++            (run_dir / "run_manifest.json").read_text(encoding="utf-8"))
++        checks = {
++            "seed": saved.get("seed") == args.seed,
++            "data_hashes": saved.get("data_hashes") == hashes,
++            "market_config_hash":
++                saved.get("market_config_hash") == market_hash,
++            "b1_mechanism_hash":
++                saved.get("b1_mechanism_hash") == mechanism_hash,
++            "split": saved.get("split") == str(split_path),
++            "exposures_per_day":
++                saved.get("exposures_per_day") == args.exposures,
++            "budget_episodes": saved.get("budget_episodes") == budget,
++            "train_subset": saved.get("train_subset")
++                == [p["pair_id"] for p in train],
++            "action_schema":
++                saved.get("action_schema") == "storage_quote_v3",
++            "quote_map": saved.get("quote_map") == "linear_core_v1",
++            "source_sha256": saved.get("source_sha256") == source_hashes(),
++        }
++        bad = [key for key, ok in checks.items() if not ok]
++        if bad:
++            raise RuntimeError(
++                f"resume refused: run manifest mismatch in {bad}")
++        bundle = trainer.load(run_dir)
++        da_meta = (bundle.get("manifest") or {}).get("da_gate") or {}
++        if da_meta.get("actor_loss_map") != "linear_core_v1":
++            raise RuntimeError(
++                "resume refused: checkpoint predates the actor-loss v3 map "
++                "fix and cannot be continued under the corrected trainer")
++        completed = int(trainer.episodes)
++        if completed % len(order):
++            # A partial round is not in the last checkpoint. Restart at the
++            # next full-round boundary; the discarded partial exposure is
++            # reported, not silently counted.
++            completed = ((completed // len(order)) + 1) * len(order)
++        resume_from = {
++            "checkpoint_step": bundle["manifest"]["step"],
++            "episodes_in_checkpoint": int(trainer.episodes),
++            "resume_episode": completed,
++            "partial_round_discarded": bool(
++                int(trainer.episodes) % len(order)),
++        }
++        for path, key in ((run_dir / "episodes.csv", "episode"),
++                          (run_dir / "gate_stats.jsonl", "episode"),
++                          (run_dir / "sampler_stats.jsonl", "episode"),
++                          (run_dir / "block_decisions.jsonl", "episode")):
++            if not path.exists():
++                continue
++            if path.suffix == ".csv":
++                rows = read_csv(path)
++                keep = [r for r in rows if int(r[key]) <= completed]
++                if rows:
++                    with path.open("w", newline="", encoding="utf-8") as fh:
++                        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
++                        writer.writeheader()
++                        writer.writerows(keep)
++            else:
++                lines = path.read_text(encoding="utf-8").splitlines()
++                keep = []
++                for line in lines:
++                    try:
++                        row = json.loads(line)
++                    except json.JSONDecodeError:
++                        continue
++                    if int(row.get("episode", 0)) <= completed:
++                        keep.append(line)
++                path.write_text("\n".join(keep) + ("\n" if keep else ""),
++                                encoding="utf-8")
++        log(f"RESUME from checkpoint step {resume_from['checkpoint_step']} "
++            f"at episode {completed}; partial-round="
++            f"{resume_from['partial_round_discarded']}")
++    if args.resume and (run_dir / "run_manifest.json").exists():
++        provenance = json.loads(
++            (run_dir / "run_manifest.json").read_text(encoding="utf-8"))
++        provenance.update({
++            "status": "resumed",
++            "resumed_at": now(),
++            "resume_from": resume_from,
++            "code_revision": code_revision(),
++            "source_sha256": source_hashes(),
++        })
++    else:
++        provenance = {
++            "run_id": run_id,
++            "status": "exploratory_development",
++            "seed": args.seed,
++            "experiment": experiment.as_dict(),
++            "dataset": "JN-Base-NEAR train 53",
++            "split": str(split_path),
++            "split_name": args.split,
++            "split_view": "near" if args.split == "common" else "root",
++            "train_days": [p["load_date"] for p in train_full],
++            "train_pairs": [p["pair_id"] for p in train_full],
++            "train_subset": [p["pair_id"] for p in train],
++            "validation_days": [p["load_date"] for p in validation],
++            "validation_pairs": [p["pair_id"] for p in validation],
++            "test_days": [p["load_date"] for p in test],
++            "test_pairs": [p["pair_id"] for p in test],
++            "holiday_pairs": [p["pair_id"] for p in holiday],
++            "legacy_seen_test_pairs": sorted(
++                sets["test"] | sets["holiday"]),
++            "exposures_per_day": args.exposures,
++            "budget_episodes": budget,
++            "data_hashes": hashes,
++            "market_config_hash": market_hash,
++            "b1_mechanism_hash": mechanism_hash,
++            "action_schema": "storage_quote_v3",
++            "quote_map": "linear_core_v1",
++            "sampler": {
++                "uniform_fraction": args.uniform_fraction,
++                "beta": args.sampling_beta,
++                "max_upweight": args.sampling_max_upweight,
++                "cells": 432,
++            },
++            "exploration": {
++                "epsilon_start": args.exploration_start,
++                "epsilon_end": args.exploration_end,
++                "decay_episodes": args.exploration_decay_episodes,
++                "charge_scale": experiment.exploration_charge_scale,
++                "high_fraction": experiment.exploration_high_fraction,
++                "bounded": [0.0, 1.0],
++            },
++            "gate_schedule": {
++                "start": args.gate_temperature_start,
++                "end": args.gate_temperature_end,
++                "warmup_episodes": args.gate_warmup_episodes,
++                "evaluation_temperature": 1.0,
++            },
++            "test_evaluation": None,
++            "legacy_seen_test_run": False,
++            "da_config": experiment.as_dict(),
++            "code_revision": code_revision(),
++            "source_sha256": source_hashes(),
++            "created_at": now(),
++            "h2_holdout_read": False,
++            "claim": ("exploratory/development only; no joint source-load "
++                      "holdout exists"),
++        }
++    (run_dir / "run_manifest.json").write_text(
++        json.dumps(provenance, indent=2), encoding="utf-8")
++    log(f"run {run_id} seed={args.seed} budget={budget} episodes; "
++        f"train={len(train)} val={len(validation)} test={len(test)}"
++        + (f"; resume={resume_from}" if resume_from else ""))
++
++    episode_rows = []
++    evaluations = []
++    if args.resume and (run_dir / "eval_history.json").exists():
++        evaluations = json.loads(
++            (run_dir / "eval_history.json").read_text(encoding="utf-8"))
++    best = {"value": float("-inf"), "round": -1, "checkpoint": ""}
++    if evaluations:
++        existing = max(evaluations,
++                       key=lambda r: r.get("mean_fleet_delta", -math.inf))
++        snap = snap_dir / f"round_{int(existing['round']):03d}.json"
++        checkpoint = ""
++        if snap.exists():
++            checkpoint = json.loads(
++                snap.read_text(encoding="utf-8")).get("checkpoint", "")
++        best = {"value": existing["mean_fleet_delta"],
++                "round": existing["round"], "checkpoint": checkpoint}
++    started = time.perf_counter()
++    early_stop = {
++        "patience": int(args.early_stop_patience),
++        "triggered": False,
++        "round": None,
++        "best_round": best["round"],
++        "best_value": best["value"],
++    }
++    try:
++        episode = (resume_from["resume_episode"] if resume_from else 0)
++        round_idx = episode // len(order)
++        chunk_end = budget
++        if args.pause_after_rounds > 0:
++            chunk_end = min(
++                budget, episode + args.pause_after_rounds * len(order))
++        while episode < chunk_end:
++            round_idx += 1
++            round_start = episode
++            while episode < chunk_end \
++                    and episode - round_start < len(order):
++                pair = order[episode - round_start]
++                pair_id = f"{pair['load_date']}|{pair['price_date']}"
++                row = full_by_pair[pair_id]
++                env = envmod.build_env_for_pair(
++                    pair, differential_reward=False,
++                    terminal_soc_target=0.5)
++                out = trainer.train_day(
++                    env, pair, b1_cache,
++                    config_hash_value=mechanism_hash,
++                    data_hash=mod.pair_data_hash(row),
++                    trace=args.trace_blocks)
++                episode += 1
++                b = out["b"]
++                explored = np.asarray(
++                    trainer.buffer.extras["explored"])[-24:]
++                sampler = out.get("sampler", {})
++                row_out = {
++                    "episode": episode,
++                    "round": round_idx,
++                    "pair_id": pair_id,
++                    "delta_fleet": float(sum(b["delta"].values())),
++                    "G_policy_fleet": float(sum(b["G_policy"].values())),
++                    "G_b1_fleet": float(sum(b["G_b1"].values())),
++                    "updates": trainer.updates,
++                    "total_steps": trainer.total_steps,
++                    "gate_temperature": out["gate_temperature"],
++                    "exploration_epsilon": out["exploration_epsilon"],
++                    "explored_legs": int(explored.sum()),
++                    "explored_discharge": int(explored[:, :, 1].sum()),
++                    "sampler_cells": sampler.get("cells_nonempty", ""),
++                    "sampler_ess_fraction": sampler.get("ess_fraction", ""),
++                    "sampler_prob_max": sampler.get("sample_prob_max", ""),
++                    "gate_distinct_modes": out["gate"]["distinct_modes"],
++                    "gate_saturated_upper": out["gate"]["saturated_upper"],
++                    "gate_saturated_lower": out["gate"]["saturated_lower"],
++                }
++                for nm in trainer.agent_names:
++                    row_out[f"delta_{nm}"] = float(b["delta"][nm])
++                    row_out[f"G_policy_{nm}"] = float(
++                        b["G_policy"][nm])
++                    row_out[f"G_b1_{nm}"] = float(b["G_b1"][nm])
++                episode_rows.append(row_out)
++                with (run_dir / "episodes.csv").open(
++                        "a", newline="", encoding="utf-8") as fh:
++                    writer = csv.DictWriter(fh, fieldnames=list(row_out))
++                    if fh.tell() == 0:
++                        writer.writeheader()
++                    writer.writerow(row_out)
++                with (run_dir / "gate_stats.jsonl").open(
++                        "a", encoding="utf-8") as fh:
++                    fh.write(json.dumps({"episode": episode,
++                                         "pair_id": pair_id,
++                                         "gate": out["gate"],
++                                         "gate_temperature":
++                                             out["gate_temperature"],
++                                         "exploration_epsilon":
++                                             out["exploration_epsilon"]})
++                             + "\n")
++                with (run_dir / "sampler_stats.jsonl").open(
++                        "a", encoding="utf-8") as fh:
++                    fh.write(json.dumps({"episode": episode,
++                                         "pair_id": pair_id,
++                                         "sampler": out.get("sampler", {})})
++                             + "\n")
++                if args.trace_blocks:
++                    with (run_dir / "block_decisions.jsonl").open(
++                            "a", encoding="utf-8") as fh:
++                        for decision in out.get("block_decisions", []):
++                            fh.write(json.dumps({
++                                "episode": episode,
++                                "round": round_idx,
++                                **decision}) + "\n")
++                log(f"ep {episode}/{budget} r{round_idx} {pair_id} "
++                    f"delta={row_out['delta_fleet']:.1f} "
++                    f"upd={trainer.updates}")
++                if episode >= budget:
++                    break
++
++            if args.skip_eval:
++                continue
++            val = evaluate(trainer, validation, b1_cache,
++                           mechanism_hash=mechanism_hash,
++                           pair_rows=full_by_pair)
++            val.update({"round": round_idx, "episode": episode,
++                        "timestamp": now()})
++            evaluations.append(val)
++            (run_dir / "eval_history.json").write_text(
++                json.dumps(evaluations, indent=2), encoding="utf-8")
++            ckpt = trainer.save(
++                run_dir, level="resume", dataset="NEAR", seed=args.seed,
++                config_hash_value=market_hash, data=hashes,
++                code_revision=provenance["code_revision"],
++                exposure_log=str(run_dir / "exposure.json"),
++                eval_provenance=str(run_dir / "eval_history.json"))
++            snap = {
++                "round": round_idx,
++                "episode": episode,
++                "checkpoint": str(ckpt),
++                "validation": val,
++                "counters": {
++                    "total_steps": trainer.total_steps,
++                    "updates": trainer.updates,
++                    "episodes": trainer.episodes,
++                    "buffer_len": len(trainer.buffer),
++                },
++                "timestamp": now(),
++            }
++            (snap_dir / f"round_{round_idx:03d}.json").write_text(
++                json.dumps(snap, indent=2), encoding="utf-8")
++            if val["mean_fleet_delta"] > best["value"]:
++                best = {"value": val["mean_fleet_delta"],
++                        "round": round_idx, "checkpoint": str(ckpt)}
++                best_ckpt = trainer.save(
++                    best_root, level="resume", dataset="NEAR",
++                    seed=args.seed, config_hash_value=market_hash,
++                    data=hashes,
++                    code_revision=provenance["code_revision"],
++                    exposure_log=str(best_root / "exposure.json"),
++                    eval_provenance=str(run_dir / "eval_history.json"))
++                best["checkpoint"] = str(best_ckpt)
++                log(f"new best val mean fleet delta={best['value']:.1f} "
++                    f"round={round_idx}")
++            log(f"val r{round_idx}: mean fleet delta={val['mean_fleet_delta']:.1f} "
++                f"positive={val['positive_days']}/{len(val['days'])} "
++                f"v_cells={val['voltage_violation_cells']} "
++                f"line_cells={val['line_overload_cells']}")
++            patience = int(args.early_stop_patience)
++            if patience > 0 and no_improvement_streak(evaluations) >= patience:
++                early_stop.update({
++                    "triggered": True,
++                    "round": round_idx,
++                    "best_round": best["round"],
++                    "best_value": best["value"],
++                })
++                log(f"early stop at round {round_idx}: {patience} "
++                    "evaluations without a new best")
++                break
++
++        if episode < budget and not early_stop["triggered"]:
++            ckpt = trainer.save(
++                run_dir, level="resume", dataset="NEAR", seed=args.seed,
++                config_hash_value=market_hash, data=hashes,
++                code_revision=provenance["code_revision"],
++                exposure_log=str(run_dir / "exposure.json"),
++                eval_provenance=str(run_dir / "eval_history.json"))
++            provenance.update({
++                "status": "paused",
++                "paused_at": now(),
++                "paused_episode": episode,
++                "next_round": episode // len(order) + 1,
++                "episodes_run": trainer.episodes,
++                "total_steps": trainer.total_steps,
++                "updates": trainer.updates,
++                "buffer_len": len(trainer.buffer),
++                "best": best,
++                "early_stop": early_stop,
++                "paused_checkpoint": str(ckpt),
++            })
++            log_fh.flush()
++            provenance["artifacts_sha256"] = artifact_hashes(run_dir)
++            (run_dir / "run_manifest.json").write_text(
++                json.dumps(provenance, indent=2), encoding="utf-8")
++            (snap_dir / "run_manifest.json").write_text(
++                json.dumps(provenance, indent=2), encoding="utf-8")
++            log(f"paused at episode {episode}; next round "
++                f"{episode // len(order) + 1}; checkpoint {ckpt}")
++            return 0
++
++        final = trainer.save(
++            run_dir, level="bundle", dataset="NEAR", seed=args.seed,
++            config_hash_value=market_hash, data=hashes,
++            code_revision=provenance["code_revision"],
++            exposure_log=str(run_dir / "exposure.json"),
++            eval_provenance=str(run_dir / "eval_history.json"))
++        final_counters = {
++            "episodes": trainer.episodes,
++            "total_steps": trainer.total_steps,
++            "updates": trainer.updates,
++            "buffer_len": len(trainer.buffer),
++        }
++        # The legacy test split is deliberately not evaluated in this phase.
++        test_result = None
++        log("legacy test not evaluated; H2 unread")
++        provenance.update({
++            "status": ("completed_early_stop" if early_stop["triggered"]
++                       else "completed"),
++            "finished_at": now(),
++            "runtime_s": round(time.perf_counter() - started, 1),
++            "episodes_run": final_counters["episodes"],
++            "total_steps": final_counters["total_steps"],
++            "updates": final_counters["updates"],
++            "buffer_len": final_counters["buffer_len"],
++            "best": best,
++            "early_stop": early_stop,
++            "final_checkpoint": str(final),
++            "evaluations": str(run_dir / "eval_history.json"),
++            "test_evaluation": None,
++            "legacy_seen_test_run": False,
++            "h2_holdout_read": False,
++        })
++        log_fh.flush()
++        provenance["artifacts_sha256"] = artifact_hashes(run_dir)
++        (run_dir / "run_manifest.json").write_text(
++            json.dumps(provenance, indent=2), encoding="utf-8")
++        (snap_dir / "run_manifest.json").write_text(
++            json.dumps(provenance, indent=2), encoding="utf-8")
++        log(f"completed: best round {best['round']} "
++            f"val={best['value']:.1f}; final={final}")
++        return 0
++    except Exception:
++        err = traceback.format_exc()
++        log("FAILED:\n" + err)
++        try:
++            trainer.save(
++                run_dir, level="resume", dataset="NEAR", seed=args.seed,
++                config_hash_value=market_hash, data=hashes,
++                code_revision=provenance["code_revision"],
++                exposure_log=str(run_dir / "exposure.json"),
++                eval_provenance=str(run_dir / "eval_history.json"))
++        except Exception:
++            log("could not save diagnostic checkpoint")
++        provenance.update({
++            "status": "failed", "error": err, "finished_at": now(),
++            "episodes_run": trainer.episodes,
++            "total_steps": trainer.total_steps,
++            "updates": trainer.updates,
++            "buffer_len": len(trainer.buffer),
++            "early_stop": early_stop,
++        })
++        log_fh.flush()
++        provenance["artifacts_sha256"] = artifact_hashes(run_dir)
++        (run_dir / "run_manifest.json").write_text(
++            json.dumps(provenance, indent=2), encoding="utf-8")
++        raise
++    finally:
++        log_fh.close()
++
++
++if __name__ == "__main__":
++    sys.exit(main())

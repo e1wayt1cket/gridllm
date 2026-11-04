@@ -621,16 +621,22 @@ class _CachedOPFModel:
                 m.addConstr(net_tm1 - net_t <= ramp,
                             f"ramp_down_grid_{t}")
 
-        # Terminal state of charge pinned to the initial one on a settled
-        # horizon; see dispatch_core.pins_terminal_soc for what decides that.
-        # Without this the flag is silently ignored here while SOCP honours it,
-        # and the two engines would answer the same request differently.
+        # Terminal state of charge pinned on a settled horizon; see
+        # dispatch_core.pins_terminal_soc for what decides that. Without this
+        # the flag is silently ignored here while SOCP honours it, and the two
+        # engines would answer the same request differently. `day_end` pins the
+        # unit's absolute target; the other settled type pins end to start.
         if pins_terminal_soc(config, self.horizon_type):
+            absolute = self.horizon_type == "day_end"
             for a in storage_agents:
-                m.addConstr(soc[a.name][T] == soc[a.name][0],
+                target = a.storage.terminal_soc_target if absolute else None
+                rhs = soc[a.name][0] if target is None else float(target)
+                m.addConstr(soc[a.name][T] == rhs,
                             f"terminal_soc_{a.name}")
             for su in su_list:
-                m.addConstr(soc[su.name][T] == soc[su.name][0],
+                target = su.storage.terminal_soc_target if absolute else None
+                rhs = soc[su.name][0] if target is None else float(target)
+                m.addConstr(soc[su.name][T] == rhs,
                             f"terminal_soc_{su.name}")
 
     def solve(self, agents, T, stage, config, action_params, wholesale,

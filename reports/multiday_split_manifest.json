@@ -1,0 +1,25 @@
+{
+  "candidate_days": 103,
+  "ledger_eligible_days": 103,
+  "pairs": [
+    {
+      "day_type": "weekday",
+      "holiday_class": "national_day",
+      "load_date": "2022-10-09",
+      "load_eligible": true,
+      "pair_quality": "same_month_day_day_type_mismatch",
+      "pair_reason": "",
+      "price_curve_sha256": "852a82945d9991e89f0887e19bb3bb3b5d4a65cf8fda0fc6936a72b8704de461",
+      "price_date": "2026-10-09",
+      "price_pair_rule": "same_month_day_across_years",
+      "price_source": "\u65e5\u524d\u4ef7\u683c261009.xlsx#261009",
+      "price_year_gap": 4
+    }
+  ],
+  "priced_days": 1,
+  "reason": "1 distinct real priced day(s); at least 30 are required before a split is frozen. No train/validation/test dates were assigned.",
+  "required_minimum_priced_days": 30,
+  "split": {},
+  "status": "blocked",
+  "test_days_sealed": false
+}

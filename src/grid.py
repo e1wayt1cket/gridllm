@@ -27,7 +27,9 @@ def build_base_network(config: MarketConfig) -> pp.pandapowerNet:
     min_ka = get_default("network.min_line_ka", 0.15)
     max_ka = get_default("network.max_line_ka", 0.80)
     line_overrides = config.network.line_capacity_overrides or get_default("network.line_capacity_overrides", {})
-    cache_key = (mult, base_ka, min_ka, max_ka, tuple(sorted(line_overrides.items())))
+    z_scale = float(config.network.line_impedance_scale)
+    cache_key = (mult, base_ka, min_ka, max_ka,
+                 tuple(sorted(line_overrides.items())), z_scale)
     if _net_cache is not None and _net_cache_cfg == cache_key:
         return _net_cache
     net_name = get_default("network.name", "case33bw")
@@ -46,6 +48,10 @@ def build_base_network(config: MarketConfig) -> pp.pandapowerNet:
     for line_idx, ov_mult in line_overrides.items():
         if line_idx in net.line.index:
             net.line.at[line_idx, 'max_i_ka'] *= ov_mult
+    # Impedance scaling comes last so ampacity stays the installed conductor's.
+    if z_scale != 1.0:
+        net.line["r_ohm_per_km"] *= z_scale
+        net.line["x_ohm_per_km"] *= z_scale
     _net_cache = net
     _net_cache_cfg = cache_key
     return net  # type: ignore

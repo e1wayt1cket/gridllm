@@ -25,7 +25,7 @@ STORAGE_MODE_THRESHOLD = 1e-6  # below this, ch/dis is treated as zero
 # ===========================================================================
 # Horizon semantics
 # ===========================================================================
-HORIZON_TYPES = ("full_day", "window")
+HORIZON_TYPES = ("full_day", "window", "day_end")
 
 
 def pins_terminal_soc(config, horizon_type: str) -> bool:
@@ -36,6 +36,11 @@ def pins_terminal_soc(config, horizon_type: str) -> bool:
     whichever policy ran the battery down. It belongs to the settled horizon
     and not to a rolling window, where the pin would forbid the trajectory the
     window was opened to choose.
+
+    `day_end` is the rolling window whose own end is the end of the day. It is
+    a distinct type rather than a length test: the last four windows all reach
+    the day's final period, and each one's look-ahead plan must be able to land
+    on the day-end target. Earlier windows stay `window`.
 
     The horizon is stated, never inferred. It used to be guessed from the
     period count, which is wrong in both directions: a rolling window that
@@ -49,7 +54,7 @@ def pins_terminal_soc(config, horizon_type: str) -> bool:
             f"{HORIZON_TYPES}")
     if not config.storage.terminal_soc_equal:
         return False
-    return horizon_type == "full_day"
+    return horizon_type in ("full_day", "day_end")
 
 
 # ===========================================================================

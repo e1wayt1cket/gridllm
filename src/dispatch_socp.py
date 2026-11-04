@@ -312,7 +312,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             soc[nm][T].UB = mpc_soc_arr[T]
 
     pf = config.network.load_power_factor
-    q_ratio = np.tan(np.arccos(pf))
+    # Net reactive load after ideal local compensation. At 0.0 this is the
+    # uncompensated load; at 2.0 the bus carries one load-Q of leading
+    # injection, matching the pandapower shunt the support screen applies.
+    q_ratio = np.tan(np.arccos(pf)) * (
+        1.0 - float(config.network.reactive_fraction_of_load_q))
     p_bal_constr = {}  # save refs for LMP extraction
 
     # --- Per-period constraints ---
@@ -474,17 +478,22 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 m.addConstr(dis[nm][t - 1] - dis[nm][t] <= stor.ramp_down_dis,
                             f"ramp_down_dis_{nm}_{t}")
 
-    # Terminal state of charge pinned to the initial one, so a whole-horizon
-    # comparison does not reward a unit for finishing with banked energy. Only a
-    # whole-day clear can carry this: on a rolling window the pin would forbid
-    # the trajectory the window was opened to choose, and the day is what is
-    # being settled.
+    # Terminal state of charge pinned, so a settled-horizon comparison does not
+    # reward a unit for finishing with banked energy. A rolling window that
+    # reaches the true day end may pin an absolute target; every earlier window
+    # stays unpinned, because the pin would forbid the trajectory it was opened
+    # to choose. `full_day` keeps the original end-to-start pin.
     if pins_terminal_soc(config, horizon_type):
+        absolute = horizon_type == "day_end"
         for a in storage_agents:
-            m.addConstr(soc[a.name][T] == soc[a.name][0],
+            target = a.storage.terminal_soc_target if absolute else None
+            rhs = soc[a.name][0] if target is None else float(target)
+            m.addConstr(soc[a.name][T] == rhs,
                         f"terminal_soc_{a.name}")
         for su in storage_units:
-            m.addConstr(soc[su.name][T] == soc[su.name][0],
+            target = su.storage.terminal_soc_target if absolute else None
+            rhs = soc[su.name][0] if target is None else float(target)
+            m.addConstr(soc[su.name][T] == rhs,
                         f"terminal_soc_{su.name}")
 
     # Grid ramping constraint (peak shaving): limit net exchange change rate
@@ -771,6 +780,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             s['wind_used'][t] = wind[nm][t].X
             s['p_ch'][t] = ch[nm][t].X
             s['p_dis'][t] = dis[nm][t].X
+            # The inverter's reactive output is a variable of this model; the
+            # solved value belongs in the schedule, as `dispatch_ldf` already
+            # puts it there, or the reactive balance cannot be rebuilt.
+            if nm in q_re:
+                s['q_re'][t] = q_re[nm][t].X
             s['soc'][t] = soc[nm][t].X if nm in soc else 0.0
             if nm in soc:
                 # The boundary trajectory. Filled for 0..T-1 here and for T
@@ -825,6 +839,19 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
          for t in range(T)])
     line_flow_mw = np.array([[float(P[t, l].X) for l in lines]
                              for t in range(T)])
+    # Reactive readouts, so the reactive balance can be rebuilt from the
+    # result the way the active one is. Without them a caller can only trust
+    # the constraint was written, not that it held.
+    line_flow_mvar = np.array([[float(Q[t, l].X) for l in lines]
+                               for t in range(T)])
+    # The loss terms the balance subtracts at each line's receiving end, so a
+    # caller can close both balances instead of mistaking the loss for an
+    # imbalance. r and x are per unit on a 1 MVA base, so these are MW/MVar.
+    line_loss_mw = np.array([[float(r[l] * I_sq[t, l].X) for l in lines]
+                             for t in range(T)])
+    line_loss_mvar = np.array([[float(x_val[l] * I_sq[t, l].X) for l in lines]
+                               for t in range(T)])
+    grid_q_mvar = np.array([float(q_grid[t].X) for t in range(T)])
     grid_import_mw, grid_export_mw = grid_import_export(p_grid_mw)
 
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0
@@ -860,6 +887,10 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         "line_utilization": line_utilization,
         "line_indices": list(lines),
         "line_flow_mw": line_flow_mw,
+        "line_flow_mvar": line_flow_mvar,
+        "line_loss_mw": line_loss_mw,
+        "line_loss_mvar": line_loss_mvar,
+        "grid_q_mvar": grid_q_mvar,
         # The SOCP path never fills schedules['GRID']['g_grid'], so grid
         # exchange is only available from here.
         "grid_import_mw": grid_import_mw,

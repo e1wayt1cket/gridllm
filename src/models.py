@@ -26,6 +26,17 @@ class NetworkConfig:
     # diagnose_typical_day.
     inverter_smax_multiplier: float = 1.0
     n_loss_iters: int = 3            # I²R loss linearization iterations (0=no losses)
+    # Line impedance multiplier applied to R and X after ampacity is derived
+    # from the unmodified conductor. 1.0 is the benchmark network; the
+    # ``line50_q2.0`` support assumption is 0.5. Ampacity stays the one the
+    # installed conductor sets, so this models better conductors at the same
+    # rating rather than a different line.
+    line_impedance_scale: float = 1.0
+    # Ideal local reactive compensation as a fraction of each bus's own load Q.
+    # 0.0 injects nothing; 2.0 is the ``line50_q2.0`` assumption, which leaves
+    # the bus one load-Q leading. A fraction above 1.0 is a modelling
+    # assumption, not a device rating.
+    reactive_fraction_of_load_q: float = 0.0
 
 
 @dataclass
@@ -165,6 +176,8 @@ YAML_FIELD_MAP = {
         "load_power_factor": "network.load_power_factor",
         "inverter_smax_multiplier": "network.inverter_smax_multiplier",
         "n_loss_iters": "network.n_loss_iters",
+        "line_impedance_scale": "network.line_impedance_scale",
+        "reactive_fraction_of_load_q": "network.reactive_fraction_of_load_q",
     },
     "storage": {
         "charge_discount": "storage.charge_discount",
@@ -325,6 +338,9 @@ class StorageSpec:
     ramp_down_ch: Optional[float] = None
     ramp_up_dis: Optional[float] = None
     ramp_down_dis: Optional[float] = None
+    # Absolute state of charge a settled horizon must end on. None keeps the
+    # older behaviour of pinning the end to the horizon's own start.
+    terminal_soc_target: Optional[float] = None
 
     def max_discharge_feasible(self, soc, dt=0.25):
         if soc <= self.soc_min + 1e-6:
