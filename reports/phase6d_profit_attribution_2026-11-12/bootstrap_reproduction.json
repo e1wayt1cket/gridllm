@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-11-12T15:29:23+08:00",
+  "config": {
+    "n_resamples": 1000,
+    "seed": 20261112,
+    "cluster": "pair_id (date)",
+    "interval": "percentile",
+    "statistic": "mean of the date-level paired delta"
+  },
+  "source": "bootstrap_summary.json in the Phase 6 directory",
+  "groups": 40,
+  "max_abs_diff": 0,
+  "all_match": true
+}

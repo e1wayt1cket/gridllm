@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-11-12T15:29:23+08:00",
+  "phase6_dir": "reports\\phase6_frozen_policy_2026-11-12",
+  "checks": {
+    "phase6_config": {
+      "status": "PASS",
+      "detail": "label=NON_FORMAL_DIAGNOSTIC, control=2.5, candidate=10.0"
+    },
+    "output_hashes": {
+      "status": "PASS",
+      "detail": "14 recorded files, mismatches=none"
+    },
+    "source_hashes": {
+      "status": "PASS",
+      "detail": "43 recorded source/checkpoint files on disk, mismatches=none"
+    },
+    "phase6_input_sources_on_disk": {
+      "status": "PASS",
+      "detail": "27 Phase 6 source inputs recorded, missing=none"
+    },
+    "checkpoint_actors": {
+      "status": "PASS",
+      "detail": "16 actor files, mismatches=none"
+    },
+    "result_row_counts": {
+      "status": "PASS",
+      "detail": "counts={'A': 64, 'B': 212, 'C': 44}, expected={'A': 64, 'B': 212, 'C': 44}"
+    },
+    "no_duplicate_rows": {
+      "status": "PASS",
+      "detail": "duplicate keys=none"
+    },
+    "arm_pairing_complete": {
+      "status": "PASS",
+      "detail": "160 checkpoint/date groups, incomplete=none"
+    },
+    "arm_metadata_identical": {
+      "status": "PASS",
+      "detail": "mismatched fields=none"
+    },
+    "day_ok_all": {
+      "status": "PASS",
+      "detail": "failed days=none"
+    },
+    "terminal_inventory_zero": {
+      "status": "PASS",
+      "detail": "max |term|=0.000e+00"
+    },
+    "pairs_declared_in_config": {
+      "status": "PASS",
+      "detail": "64 distinct dates, outside=none"
+    },
+    "phase6_preflight": {
+      "status": "PASS",
+      "detail": "all_pass=True"
+    },
+    "original_verdict_preserved": {
+      "status": "PASS",
+      "detail": "Phase 6 report states PARTIAL"
+    },
+    "bootstrap_config": {
+      "status": "PASS",
+      "detail": "config={'n_resamples': 1000, 'seed': 20261112, 'cluster': 'pair_id (date)', 'interval': 'percentile'}"
+    }
+  },
+  "essential_checks": [
+    "output_hashes",
+    "source_hashes",
+    "phase6_input_sources_on_disk",
+    "checkpoint_actors",
+    "result_row_counts",
+    "arm_pairing_complete",
+    "arm_metadata_identical"
+  ],
+  "overall": "PASS"
+}

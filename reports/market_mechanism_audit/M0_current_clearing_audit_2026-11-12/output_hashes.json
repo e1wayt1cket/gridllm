@@ -1,0 +1,69 @@
+{
+  "audit_id": "M0_current_clearing_audit_2026-11-12",
+  "generated": "2026-11-12",
+  "algorithm": "sha256 over raw file bytes",
+  "note": "written last, after every other deliverable was final; this file excludes itself",
+  "count": 12,
+  "files": [
+    {
+      "name": "clearing_model_current.md",
+      "bytes": 20409,
+      "sha256": "b9549a4c63c764d37ae1266268ffaf1fda9f287b379b1ac587e9c105d607902c"
+    },
+    {
+      "name": "constraint_register.csv",
+      "bytes": 7856,
+      "sha256": "0dd0494cf29bdb8cb78c634c16f5ccdd48ea3b4de20630c3ea3999ed9bc83bb1"
+    },
+    {
+      "name": "cycle_cost_dataflow.md",
+      "bytes": 7329,
+      "sha256": "fd01426622eae19c7f5594be2abc3861272ca01fd092d6bd84aa38e3d0df6b6a"
+    },
+    {
+      "name": "decision_report.md",
+      "bytes": 18405,
+      "sha256": "29faa7be5465810c3c737d24a7026ce5c122022d3d910d83860d47df13ac05b4"
+    },
+    {
+      "name": "information_timing_audit.md",
+      "bytes": 7983,
+      "sha256": "c900b9a623af979a8546f1e8286c9ee1eaa99b44bebc81592511bd890755ded6"
+    },
+    {
+      "name": "input_manifest.json",
+      "bytes": 9616,
+      "sha256": "6fda1beda1b1e1ec69a087320c2cc69125126e2b0461d4eb4dfe02a6667c7e38"
+    },
+    {
+      "name": "objective_terms.csv",
+      "bytes": 6002,
+      "sha256": "bbabcf013cd589c09fd8374325bfbb2f497fbd2e5045bcc765fe2b0716c95c49"
+    },
+    {
+      "name": "price_formation_audit.csv",
+      "bytes": 6273,
+      "sha256": "bc9c396056ba3e8bf142a649beb833db7f6c2e05423911eaef3781bae3b13528"
+    },
+    {
+      "name": "settlement_reconciliation.md",
+      "bytes": 8809,
+      "sha256": "2756c1eb808fc8029a8e7664bc279364f3ebf1fc27dccbdb23d6dd7cacf97ddd"
+    },
+    {
+      "name": "soc_mpc_terminal_audit.md",
+      "bytes": 7474,
+      "sha256": "ca0b92fdfa55610e7b77860a4c03f9023457649517bf7cad1ebbfe146c1815df"
+    },
+    {
+      "name": "source_map.csv",
+      "bytes": 12509,
+      "sha256": "30596fbd33bc29ff0ca8663e30199a9851adaa420fb85e1956ec9c73645fa201"
+    },
+    {
+      "name": "verification_report.json",
+      "bytes": 11944,
+      "sha256": "98e3d93693a3b3732e423f6ba89aa487d52bf0a0d2068194d70bc70b89cd8721"
+    }
+  ]
+}

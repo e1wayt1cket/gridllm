@@ -1,0 +1,88 @@
+{
+  "manifest_id": "m1_jiangsu_da_rule_audit_2026-11-12",
+  "generated": "2026-11-12",
+  "note": "Hashes of the files this audit created or modified. No file under src/, config/, tests/, policies/, runs/ or snapshots/ is listed because none was touched.",
+  "file_count": 16,
+  "files": [
+    {
+      "path": "docs/project_context/00_PROJECT_CHARTER.md",
+      "sha256": "70738f337d92b24afa6eb0602693081e390a932e547246aa81d20028b5ef89b0",
+      "bytes": 3804
+    },
+    {
+      "path": "docs/project_context/01_RESEARCH_SCOPE.md",
+      "sha256": "9676a3528a41a55a90b661592396d0a7cc802cf2f9df69fd9f91fd19e39f2ded",
+      "bytes": 4566
+    },
+    {
+      "path": "docs/project_context/09_CURRENT_STATE.md",
+      "sha256": "ca7692d329aeccd8d8c6ba560a1348b99cff0bbc219bc020a4550fee128f6a6f",
+      "bytes": 6320
+    },
+    {
+      "path": "docs/project_context/10_DECISION_LOG.md",
+      "sha256": "49397886f5b68b74f913b2809dbe93c91f1ba56363fb93827c37d90d9a09cf91",
+      "bytes": 5123
+    },
+    {
+      "path": "docs/project_context/11_OPEN_ISSUES.md",
+      "sha256": "0fa049a038c9491fc30b46ac6eedafd89d4b514b5165aded95b4184b00c883de",
+      "bytes": 10305
+    },
+    {
+      "path": "tasks/M1_RULE_AUDIT.md",
+      "sha256": "af6ddf519bb51bacd806e13aef0e5f1f71f7cd767c4c305ec7739122467af34c",
+      "bytes": 4129
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/M1_decision_report.md",
+      "sha256": "d6505c86c1f6cfdbdc2d383f30afaf2f11265947b27b5cc4246e9df5a2804984",
+      "bytes": 12897
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/bid_schema_spec.json",
+      "sha256": "da0f39cecbeacfd784a282a28c99dc02c3a4c35eefb11bf92f0efabe6143f9b6",
+      "bytes": 5969
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/clearing_mathematical_model.md",
+      "sha256": "ced2cb59fe8cadc0ad0b05d4bca977d1b7780a59a37a26ba9440995510bc56b7",
+      "bytes": 16628
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/data_information_timing_spec.md",
+      "sha256": "dc0b28fc36787963d80cc4b341bfc6fc9971f8ccd2a0c31439e45ee0fb288246",
+      "bytes": 8199
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/episode_independence_spec.md",
+      "sha256": "5f6b894e0b147360b893687f1d6de65fa5a799ca58abdb76fb9b9af57adcc191",
+      "bytes": 4861
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/jiangsu_da_market_spec.md",
+      "sha256": "3e6b7617b97ac435539e91938bcda0072dd89e38991df12cfe93c5de53a674c5",
+      "bytes": 22236
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/market_rule_traceability.csv",
+      "sha256": "4d0a95de010bc298e96487b76bac87d50894566316fcf68aa1f85a3423d525be",
+      "bytes": 18518
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/settlement_spec.md",
+      "sha256": "3ffbafd7c11f1a33789542e7efedeedf8a30b48c886545cbf4f68954b27e8cec",
+      "bytes": 6574
+    },
+    {
+      "path": "reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/verification_plan.md",
+      "sha256": "cc20057296874e6126fbbf6df74523ee19b1031716adef8797585d72c2b2b46e",
+      "bytes": 7164
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "7cb04616650f01e763faff36825479fe61dbcfa604057130093339be622bde5e",
+      "bytes": 19970
+    }
+  ]
+}

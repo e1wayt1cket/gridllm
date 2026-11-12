@@ -1,0 +1,28 @@
+{
+  "sections": {
+    "seed_artifacts": {
+      "trees": 11,
+      "drifted": {},
+      "missing": [],
+      "identical": true
+    },
+    "unsnapshotted_trees": {
+      "trees": 3,
+      "drifted": {},
+      "missing": [],
+      "identical": true
+    },
+    "manifest_dirs": {
+      "trees": 2,
+      "drifted": {},
+      "missing": [],
+      "identical": true
+    },
+    "protected_files": {
+      "files": 18,
+      "drifted": {},
+      "identical": true
+    }
+  },
+  "identical": true
+}

@@ -1,0 +1,1265 @@
+=== page 1 ===
+IEEETRANSACTIONSONSMARTGRID,VOL.11,NO.2,MARCH2020 1343
+Deep Reinforcement Learning for Strategic
+Bidding in Electricity Markets
+Yujian Ye , Member, IEEE, Dawei Qiu , Student Member, IEEE, Mingyang Sun , Member, IEEE,
+Dimitrios Papadaskalopoulos , Member, IEEE, and Goran Strbac , Member, IEEE
+Abstract—Bi-level optimization and reinforcement learning Parameters
+(RL) constitute the state-of-the-art frameworks for modeling
+N Length of market horizon
+strategic bidding decisions in deregulated electricity markets. H
+λG Marginal cost of block b of producer i (£/MWh)
+However, the former neglects the market participants’ physi- i,b
+cal non-convex operating characteristics, while conventional RL CNL No-load cost of producer i (£/h)
+i
+methods require discretization of state and/or action spaces and kmax Upper limit of strategic bidding variable of producer
+i
+thussufferfromthecurseofdimensionality.Thispaperproposes i
+a novel deep reinforcement learning (DRL) based methodol- λD Marginal benefit of block c of demand j at hour h
+ogy, combining a deep deterministic policy gradient (DDPG) j,h,c
+(£/MWh)
+method with a prioritized experience replay (PER) strategy.
+This approach sets up the problem in multi-dimensional con- d j m ,h a , x c Maximum demand limit of block c of demand j at
+tinuous state and action spaces, enabling market participants hour h (MW)
+to receive accurate feedback regarding the impact of their bid- λmax Market price cap (£/MWh).
+ding decisions on the market clearing outcome, and devise
+more profitable bidding decisions by exploiting the entire action
+domain, also accounting for the effect of non-convex operat- Variables
+ing characteristics. Case studies demonstrate that the proposed
+methodologyachievesasignificantlyhigherprofitthanthealter-
+g i,h,b Poweroutputofblockbofproduceriathourh(MW)
+native state-of-the-art methods, and exhibits a more favourable u i,h Binary unit commitment status of producer i at hour
+computationalperformancethanbenchmarkRLmethodsdueto h (u i,h = 1 if it is on, u i,h = 0 if it is off)
+the employment of the PER strategy. C i U ,h Start-up cost incurred by producer i at hour h (£/h)
+CD Shut-downcostincurredbyproduceriathourh(£/h)
+Index Terms—Bi-level optimization, deep neural networks, i,h
+deep reinforcement learning, electricity markets, strategic bid- ξ i,h Vector of operating variables of producer i at hour h
+ding, unit commitment. k i,h Strategic bidding variable of producer i at hour h
+d j,h,c Power input of block c of demand j at hour h (MW)
+λ Market clearing price at hour h (£/MWh).
+h
+NOMENCLATURE
+Indices and Sets I. INTRODUCTION
+h∈H Index and set of hours A. Background and Motivation
+i∈I Index and set of producers
+INHERITED from the era of vertically integrated electric-
+i− Index of producers other than i
+ity utilities, most economic models employed in the power
+j∈J Index and set of demands
+systems literature have been centralized in nature, optimiz-
+b∈B Index and set of generation blocks
+ing system objectives (e.g., maximizing social welfare) and
+c∈C Index and set of demand blocks
+assuming that market participants behave in a perfectly com-
+G Operating constraints set of producer i.
+i petitive (price-taking) manner. However, the ongoing efforts
+towards the deregulation of the electricity industry have
+Manuscript received December 9, 2018; revised June 7, 2019; accepted introduced competition among multiple self-interested (profit-
+August13,2019.DateofpublicationAugust19,2019;dateofcurrentversion
+driven) market participants, particularly in generation and
+February19,2020.ThisworkwassupportedbytheSysFlexProjectthrough
+the European Union’s Horizon 2020 Research and Innovation Program. supply sectors [1]. This paradigm change implies that tra-
+Paperno.TSG-01884-2018.(Correspondingauthor:MingyangSun.) ditional centralized models are not able to provide accurate
+Y. Ye is with Fetch.AI, St. John’s Innovation Centre, Cambridge CB4
+insights anymore, since self-interested market players’ actions
+0WS, U.K., and also with the Department of Electrical and Electronic
+are not generally aligned with social optimality. New market
+Engineering, Imperial College London, London SW7 2AZ, U.K. (e-mail:
+yujian.ye@fetch.ai). models are required instead, which should be capable of cap-
+D. Qiu, M. Sun, D. Papadaskalopoulos, and G. Strbac are with the turing the strategic (price-making) behavior of self-interested
+Department of Electrical and Electronic Engineering, Imperial College
+market players and identifying the market outcomes emerging
+London, London SW7 2AZ, U.K. (e-mail: dawei.qiu15@imperial.ac.uk;
+mingyang.sun11@imperial.ac.uk; d.papadaskalopoulos08@imperial.ac.uk; from the interactions of these players.
+g.strbac@imperial.ac.uk). Bi-level optimization constitutes the most widely employed
+Color versions of one or more of the figures in this article are available
+methodological framework for developing such market mod-
+onlineathttp://ieeexplore.ieee.org.
+DigitalObjectIdentifier10.1109/TSG.2019.2936142 els over the last two decades [2]–[10]. The popularity of
+1949-3053(cid:3)c 2019IEEE.Personaluseispermitted,butrepublication/redistributionrequiresIEEEpermission.
+Seehttp://www.ieee.org/publications_standards/publications/rights/index.htmlformoreinformation.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 2 ===
+1344 IEEETRANSACTIONSONSMARTGRID,VOL.11,NO.2,MARCH2020
+this methodology lies in its ability to capture the interaction Q-learning algorithms and its variants [22]. This type of algo-
+between the strategic decision making of self-interested play- rithmsreliesonlook-uptablestoapproximatetheaction-value
+ers (modeled in the upper level - UL) and the competitive function for each possible state-action pair and thus requires
+clearing of the electricity market (modeled in the lower level discretization of both state and action spaces. Therefore, it
+- LL). Bi-level optimization problems are usually solved after suffers severely fromthe curse of dimensionality; as the num-
+converting them to single-level Mathematical Programs with ber of considered discrete states and actions increases, the
+Equilibrium Constraints (MPEC), through the replacement of computationalburdengrowsexponentially,soonrenderingthe
+the LL problem by its equivalent Karush-Kuhn-Tucker (KKT) problem intractable. If on the other hand a small number
+optimality conditions. of discrete states and actions are considered, the feedback
+Nevertheless, this modeling framework exhibits a funda- the agents receive regarding the impact of their actions on
+mental limitation: the LL problem does not include any the environment is distorted and the feasible action space is
+binary decision variables since the derivation of the equiv- adversely affected, leading to sub-optimal bidding decisions.
+alent KKT optimality conditions is only possible when this This challenge is aggravated in the setting of the examined
+problem is continuous and convex [11]. As a result, the mod- market modeling problem, since both states of the environ-
+els developed in all previous bi-level optimization papers ment (market clearing prices and dispatches) and agents’
+(including [2]–[10]) consider only the variable costs, maxi- actions (strategic bidding decisions) are not only continuous,
+mum output limits and ramp rates of generation units and but also multi-dimensional (due to the multi-period nature of
+they neglect physical non-convex cost components and con- the problem).
+straints that are associated with binary unit commitment (UC) Inthecontextofaddressingsuchdimensionalitychallenges,
+decisions, including no-load, start-up and shut-down costs, a fitted Q-iteration algorithm with kernal-based approxima-
+minimum stable generation limits, and minimum-up/down tionoftheaction-valuefunctionisproposedin[23].However,
+time constraints. However, these complex operating charac- the heuristic choice of the kernel function significantly affects
+teristics affect the market clearing outcome determined by the its performance. More recently, a growing interest in a new
+LL problem and consequently the strategic decisions of the promising research area, known as deep reinforcement learn-
+market players determined by the UL problem. This implies ing(DRL),hasbeenwitnessed,whichcombinesRLwithdeep
+that the employment of these bi-level optimization market learning principles and is driven by the universal function
+models may lead to sub-optimal bidding decisions for strate- approximationpropertiesofdeepneuralnetworks(DNN)[24].
+gic players. This limitation is particularly important when As an extension of Q-learning on multi-dimensional continu-
+modeling markets with complex bidding mechanisms, whose ous state space, authors in [25], [26] proposed the deep Q
+clearing algorithm involves the solution of a multi-period, network (DQN) method which employs a DNN to approxi-
+mixed-integerUCproblem,suchasmanymarketsintheUSA mate the action-value function, and has performed at the level
+(e.g.,California,PJM,NewYork)[12]–[14].Beyondthisfun- of expert humans in playing Atari 2600 games. Inspired by
+damental limitation, this modeling framework assumes that this pioneering work, several recent papers have employed
+marketplayershaveknowledgeofthecomputationalalgorithm the DQN method to various smart grid applications such
+of the market clearing process and the operating parameters as voltage control [27], residential load control [28], build-
+of their competitors, which generally constitutes a limiting ing energy management systems [29], electric vehicles [30]
+assumption [15], [16]. and energy storage scheduling [31] and energy trading for
+Driven by the rapid advancements in artificial intelligence, prosumers[32].However,althoughpreviousworkhasdemon-
+reinforcement learning (RL) has recently attracted increasing strated high quality performance of the DQN method in
+research interest in the power systems community and has problems with continuous state spaces, its performance in
+emergedasaninterestingalternativetoMPECformulationsin problems with continuous action spaces is less satisfactory
+electricity market modeling. In this modeling framework, the because the employed DNN is trained to produce discrete
+bi-leveloptimizationproblemisnotconvertedtoasingle-level, action-value estimates rather than continuous actions [33],
+closed-formMPEC.Instead,itissolvedinarecursivefashion; which significantly hinders its effectiveness in addressing the
+the market players (agents) gradually learn how to improve examined market modeling problem, since market players’
+their strategies by utilizing experiences acquired from their actions are continuous and multi-dimensional.
+repeated interactions with the market clearing process (envi-
+ronment). In other words, the market players do not rely on
+knowledgeofthecomputationalalgorithmofthemarkerclear-
+B. Scope and Contributions
+ing process and the operating parameters of their competitors,
+but only on their own operating parameters and the observed This paper aims at addressing the limitations of previous
+marketclearingoutcomes.Moreimportantly,sincethisframe- approaches in optimizing the strategic bidding decisions of
+work avoids the derivation of the equivalent KKT optimality a self-interested producer participating in an electricity mar-
+conditions of the LL problem, it is capable of addressing the ket with complex bidding and UC clearing mechanisms. In
+aforementionedchallengeofincorporatingnon-convexoperat- order to achieve this, this paper proposes a novel DRL-based
+ingcharacteristicsintothemarketclearingprocess,despitethe methodology, namely the deep deterministic policy gradient
+factthatsolutionoptimalitycannotbetheoreticallyguaranteed. (DDPG) method with an innovative prioritized experience
+However, previous works employing RL in electricity replay (PER) strategy. Case studies demonstrate the value of
+market modeling [15]–[21] have employed conventional the proposed method by comparing it against state-of-the-art
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 3 ===
+YEetal.:DRLFORSTRATEGICBIDDINGINELECTRICITYMARKETS 1345
+RL methods, namely Q-learning and DQN, as well as the submitted offers may replace i in the merit order and/or the
+state-of-the-art MPEC approach. demand may reduce demand at h.
+More specifically, the novel contributions of this paper are iv) Each demand submits to the market a non-increasing
+outlined below: (capturing the effect of demand’s self-price elasticity) step-
+- A new bi-level optimization problem is formulated to wise bid curve, consisting of a number of blocks [34].
+model the examined problem, which, in contrast with state- Following the paradigm of the relevant literature [2]–[10],
+of-the-art bi-level formulations, accounts for the physical thispaperfocusesonaddressingthestrategicbiddingproblem
+non-convex operating characteristics of the producers, aligned discussedinpointiii)above,whichisformulatedasabi-level
+with complex bidding markets. optimization model. However, as discussed in Section I-A,
+- A novel DRL-based methodology, combining a DDPG state-of-the-art bi-level models neglect physical non-convex
+method with a PER strategy is developed to address the operating characteristics of the producers. Therefore, in this
+examined problem. In contrast with previously proposed RL section, we propose a new bi-level optimization model con-
+methods, this approach sets up the examined problem in sidering these non-convexities. This model, optimizing the
+multi-dimensionalcontinuousstateandactionspaces,properly strategic bidding of producer i, is formulated as follows:
+accounting for the effect of non-convex operating characteris- (Upper level):
+(cid:2) (cid:2)
+tics.
+ach
+-
+ie
+C
+ve
+a
+s
+se
+a
+st
+s
+u
+ig
+d
+n
+ie
+i
+s
+fica
+d
+n
+e
+t
+m
+ly
+on
+h
+s
+i
+t
+g
+ra
+h
+t
+e
+e
+r
+t
+p
+h
+r
+a
+o
+t
+fit
+the
+tha
+p
+n
+ro
+t
+p
+h
+o
+e
+sed
+alte
+m
+rn
+e
+a
+th
+ti
+o
+v
+d
+e
+m
+{ki
+a
+,h
+x
+} h,b(cid:2)
+λ h g i,h,b −
+h,b(cid:2)
+λG i,b g i,h,b
+(cid:2)
+state-of-the-art methods, and also exhibits a more favourable − C i NLu i,h − C i U ,h − C i D ,h (1)
+computational performance than benchmark RL methods due
+h h h
+to the employment of the proposed PER strategy. subject to: 1≤k i,h ≤k i max,∀h (2)
+- A sensitivity analysis is performed to explore the impact
+of the value selection of different hyperparameters associated (Lower level):
+⎡⎛
+with the design of the proposed method on its performance.
+(cid:2) (cid:2) (cid:2)
+C. Paper Structure {ξ i, m h ,d i j n ,h,c } ⎣⎝ h,b k i,h λG i,b ⎞ g i,h, ⎛ b + h C i NLu i,h + t C i U ,h
+Therestofthispaperisorganizedasfollows.SectionIIfor- (cid:2) (cid:2) (cid:2)
+mulates the examined strategic bidding problem. Section III + C i D ,h ⎠+⎝ λG i−,b g i−,h,b + C i N − Lu i−,h
+details the proposed DDPG-PER methodology. Section IV h i−,h,b ⎞ i−,h ⎤
+presents case studies validating the proposed methodology. (cid:2) (cid:2) (cid:2)
+Finally,SectionVdiscussesconclusionsandfutureextensions + C i U −,h + C i D −,h ⎠− λD j,h,c d j,h,c ⎦
+of this work. i−,h i−,h j,h,c
+(3)
+(cid:2) (cid:2)
+II. STRATEGICBIDDINGPROBLEMINCORPORATING subjectto: d j,h,c − g i,h,b =0:λ h ,∀h (4)
+NON-CONVEXOPERATINGCHARACTERISTICS
+j,c
+(cid:11)
+i,b
+(cid:12)
+(cid:2)
+For clarity reasons, the main assumptions behind the exam- ξ i,h = g i,h,b ,u i,h ,C i U ,h ,C i D ,h ∈G i ;∀i,∀h (5)
+ined strategic bidding problem are outlined below:
+b
+i) The modeled market is a pool-based, energy-only market 0≤d j,h,c ≤d j m ,h a , x c ,∀j,∀h,∀c (6)
+with a complex bidding mechanism. The clearing algorithm
+involves the solution of a mixed-integer UC problem, maxi- ξ i,h denotes the vector of operating variables of producer i at
+mizing the perceived social welfare. hour h, and includes the power output g i,h,b of each of its
+ii)Withoutlossofgenerality,weassumethateachproducer blocks b, its binary UC status u i,h , and its start-up and shut-
+i owns a single generation unit. down costs C i U ,h and C i D ,h , while its no-load cost is expressed
+iii) The examined problem lies in the optimization of the by the parameter CNL. Each demand j is modeled through the
+i
+strategic bidding decisions of a single producer i. Following decision variable d j,h,c , which expresses the power input of
+the model employed in [10], the strategic behavior of pro- each of its blocks c, and the parameters dmax and λD which
+j,h,c j,h,c
+ducer i is expressed through a decision variable 1 ≤ k i,h ≤ express the maximum demand limit and the marginal benefit
+k
+i
+max,∀h. If k i,h = 1, producer i behaves competitively and of each block, respectively.
+offers its actual marginal costs λG ,∀b to the market at The overall structure of the strategic bidding problem for-
+i,b
+hour h. Otherwise, if 1 < k i,h ≤ k
+i
+max, producer i behaves mulation is illustrated in Fig. 1. The UL problem determines
+strategically and offers higher than its actual marginal costs theoptimalbidding strategiesofproducer isoastomaximize
+(k i,h ∗λG i,b ,∀h,∀b) to the market at hour h. Producer i should its profit (1). This problem is subject to the limits of the
+optimizethevalueofk i,h athourhbyaccountingforthetrade- strategic bidding variables (2) and the LL problem (3)-(6).
+off between higher market clearing price and lower clearing The latter represents the market clearing process, minimiz-
+quantity. More specifically, a higher k i,h will tend to increase ing the perceived negative social welfare (3), subject to
+marketpriceath,butatthesametimeitwilltendtodecrease demand-supply balance constraints (4), producers’ operating
+thequantitysoldbyproduceriath,sinceproducerswithlower constraints(5)anddemands’powerbounds(6).Followingthe
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 4 ===
+1346 IEEETRANSACTIONSONSMARTGRID,VOL.11,NO.2,MARCH2020
+can be described as a Markov Decision Process (MDP)
+which includes: 1) a state space S; 2) an action space A;
+3) a transition dynamics distribution with conditional transi-
+tion probability p(s t+1 |s t ,a t ), satisfying the Markov property,
+i.e., p(s t+1 |s t ,a t ) = p(s t+1 |s 1 ,a 1 ,...,s t ,a t ); and 4) a reward
+function r : S×A→R.
+The decision as to which action a is chosen in a cer-
+t
+tain state s is governed by a policy π(s) = a. The agent
+t t t
+employsitspolicytointeractwiththeMDPandemitatrajec-
+tory of states, actions and rewards: (cid:13)s
+1
+,a
+1
+,r
+1
+,s
+2
+,a
+2
+,r
+2
+,...,
+over S × A × R. The return R = ∞ t=0 γtr t+1 is the dis-
+counted reward where γ ∈ [0,1] is the discount factor that
+is used to trade off the importance between immediate and
+futurerewards.Theactionvaluefunction(ortheQ-valuefunc-
+tion) Qπ (s
+t
+,a
+t
+) = E[R|s
+t
+,a
+t
+,π], forms an estimation of the
+expected, accumulative, discounted reward given an action a,
+t
+at state s, and following the policy π from the succeeding
+t
+states onwards. An optimal policy can be derived from the
+optimal Q-values Q∗ (s
+t
+,a
+t
+) = maxπQπ (s
+t
+,a
+t
+) by selecting
+the action corresponding to the highest Q-value in each state.
+B. Q-Learning
+Fig.1. Illustrationofstrategicbiddingproblemformulation.
+TheQ-valuefunctioncanbedescribedinarecursiveformat
+according to the Bellman equation [37]:
+(cid:14) (cid:15)
+model presented in [35], the producers’ operating constraints Qπ (s t ,a t )=E r t +γQπ (s t+1 ,π(s t+1 )) . (7)
+set G include minimum stable generation limits, maximum
+i
+This indicates that the Q-value function can be improved by
+output limits, ramp-up and ramp-down constraints, no-load,
+bootstrapping, i.e., using the current value of the estimate of
+start-up and shut-down cost constraints, and minimum-up and
+minimum-downtimeconstraints.Forbrevityreasonshowever,
+Qπ to improve its future estimate. This serves as the founda-
+tion of Q-learning [38], a form of temporal difference (TD)
+they are given in the compact form (5). Following actual
+learning [22], where the update of the Q-value after taking
+practice in markets with complex bidding and UC clearing
+mechanisms, the clearing prices λ are obtained by solving a action a t in state s t and observing the reward r t and resulting
+h
+continuous version of the problem (3)-(6), where the binary state s t+1 is:
+UC variables are fixed to their optimal values [36]. Q(s,a)← Q(s,a)+αδ (8)
+t t t t t
+As discussed in Section I-A, state-of-the-art bi-level
+optimizationmodelsaresolvedafterconvertingthemtosingle- δ t =r t +γ max at+1 Q(s t+1 ,a t+1 )−Q(s t ,a t ) (9)
+level MPEC, by replacing the LL problem by its equivalent where α ∈ [0,1] is the step size, δ represents the correction
+t
+KKToptimalityconditions[2]–[10].Thisreformulationispos- for the estimation of the Q-value function (known as the TD
+sible since the LL problem in these models is convex, as it error), and r t +γ max at+1 Q(s t+1 ,a t+1 ) represents the target
+neglects binary UC decisions and the associated non-convex Q-value at time step t.
+operating characteristics of the producers. However, it is not IftheQ-valueforeachadmissiblestate-actionpairisvisited
+applicable to the bi-level optimization model (1)-(6) since the infinitelyoften,andthelearningrateα decreasesoverthetime
+latterincludesthesebinarydecisionswhichpreventthederiva- step t in a suitable way, then as t → ∞, Q(s,a) converges
+tion of equivalent KKT conditions. In order to address this with probability one to the optimal Q∗ (s,a) for all admissible
+challenge, we adopt a RL-based methodology, since it avoids state-action pairs [38].
+the derivation of the equivalent KKT optimality conditions of Although Q-learning merits simplicity and its convergence
+the LL problem and solves the above bi-level optimization istheoreticallyguaranteed,itsuffersseverelyfromthecurseof
+problem in a recursive fashion (Section I-A). dimensionality [22]. This is because Q-learning stores the Q-
+value function in a look-up table, which then necessitates the
+RL problem being set up in discrete state and action spaces.
+III. PROPOSEDDEEPREINFORCEMENT
+Therefore, as the number of considered discrete states and
+LEARNING-BASEDMETHODOLOGY
+actions increases, the computational burden grows exponen-
+A. RL Background
+tially, soon rendering the problem intractable. For example, if
+Before introducing the proposed methodology, prelimi- we discretize each state and action dimension in 10 integer
+naries of RL are first presented in this section. In the values, then for a 10-dimensional state and action vector, this
+context of RL, an agent acts in an environment by sequen- leads to 1010 rows and 1010 columns of the look-up table.
+tially taking actions over a sequence of time steps, in In other words, the granularity of the discretization of the
+order to maximize a cumulative reward. In general, RL state and action spaces affects significantly the performance
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 5 ===
+YEetal.:DRLFORSTRATEGICBIDDINGINELECTRICITYMARKETS 1347
+of Q-learning. Specifically, a lower granularity results in poor 1) Agent: Strategic producer i constitutes the agent, which
+generalization capabilities of Q-learning, whereas a higher graduallylearnshowtoimproveitsstrategicbiddingdecisions
+granularity, despite helping Q-learning generalize better, leads byutilizingexperiencesfromitsrepeatedinteractionswiththe
+to an exponential growth of the number of states and actions, environment.
+and consequently impractical memory requirements. 2) Environment: The environment is represented by the
+market clearing process, which involves the LL problem of
+C. DQN Fig. 1.
+3) State: The state vector s serves as a feedback signal
+In order to overcome the above drawbacks of tabular-based
+for the agent regarding the impact of its action on the status
+Q-learning, the DQN method [25], [26] employs a DNN,
+parameterizedbyθ,asafunctionapproximatortorepresentthe of the environment and is composed of the three compo-
+nents of the market clearing outcome (Fig. 1). Specifically,
+Q-value function in multi-dimensional continuous state space:
+Q(s t ,a t )≈Q(s t ,a t |θ) (10) s ac = tor [u a i, n 1 d :NH c , ri g ti i, c 1:N n H et , w λ o 1: r N k H s ] ( ∈ Fi S g. ( 2 e ) n ) co is de a d 3 in × in N p H ut -d la im ye e r ns o i f on th a e l
+The DQN takes as input a continuous state s t and outputs vector where u i,1:NH ∈ {0,1} and g i,1:NH ∈ [0]∪[gm i in,gm i ax]
+represent, respectively, the N UC schedules and generation
+an estimate for the Q-value function for each discrete action H
+dispatches of producer i, and λ ∈ [0,λmax] indicates the
+and, when acting, selects the maximally valued output at a 1:NH
+N market clearing prices.
+given state. The training of the DNN is based on minimizing H
+the following loss function representing the mean-squared TD 4) Action: The action a = [k i,1:NH ] ∈ A (encoded in out-
+put layer of the actor networks (Fig. 2)) is a N -dimensional
+error: H
+L(θ)= (cid:16) r t +γ max at+1 Q(s t+1 ,a t+1 |θ)−Q(s t ,a t |θ) (cid:17) 2. s c t o r n at ti e n g u ic ou b s id v d e in ct g or de w ci h s e io re ns k i o ,h f p ∈ rod [1 u , c k e i m r a i x . ] represents the N H
+(11) 5) Reward: Therewardr ofthestrategicproduceriresult-
+i
+ing from its bidding strategy a is set to be a function of its
+Prior to DQN, the use of large, non-linear function approx-
+economic profit pro as given by:
+imators (such as DNNs) for learning the Q-value function has i
+(cid:2)(cid:18) (cid:19) (cid:2)(cid:16) (cid:17)
+g te e e n s e a ra re lly im b p e o e s n si a b v le e , rt a e n d d s t i h n e ce le t a h r e n o in re g ti t c e a n l ds co to nv b e e rg u e n n s c t e ab g le ua [ r 2 a 2 n ] - . pro i = λ h g i,h,b −λG i,b g i,h,b − C i NLu i,h +C i U ,h +C i D ,h
+h,b h
+However, such non-linear approximators prove to be essential
+(12)
+for the agent to learn and generalize on a multi-dimensional (cid:20) (cid:16) (cid:17)
+continuousstatespace[33].Nevertheless,DQNisabletolearn r = l p(cid:16)pro i −proc i (cid:17) if pro i >proc i (13)
+i l pro −proc if pro ≤proc
+theQ-valuefunctionusingDNNinastableandrobustfashion. n i i i i
+This is enabled by two innovations: the use of the experience where proc represents the baseline profit obtained when pro-
+replay [25], [26] and the target network [26]. In brief, the duceribeh i avescompetitively(i.e.,k i,h =1,∀h),andl p andl n
+former stores the gathered experiences in a replay buffer and
+are parameters that limit the size of the reward. By employ-
+randomly samples to train the DNN, enabling de-correlation
+ing (13), producer i is incentivized to favor actions that result
+of consecutively generated training samples. The employment inhigherprofitsthanprocsinceitwillreceiveapositivereward
+ofatargetnetworktemporarilyfreezestheQ-valuetargetdur- proportional to the add i itional amount of profit pro − proc
+ing training, thereby stabilizing the learning process. A more i i
+obtained. On the other hand, actions leading to lower profits
+detailed discussion of these two mechanisms is presented in than proc are penalized through a negative reward.
+Section III-D. i
+Featuring an actor-critic architecture, the proposed method-
+Although DQN performs well in problems with continuous
+ology employs two DNNs for different purposes [33]. The
+statespace,thecurseofdimensionalitypersists.Thisisowing critic network Q, parameterized by θQ, takes as input a state
+tothefactthattheDNNaretrainedtooutputdiscreteestimates
+s and action a and outputs a scalar estimate of the Q-value
+t t
+of the Q-values rather than continuous actions. Therefore, to functionQ(s,a).Theactornetwork μ,parameterizedbyθμ ,
+t t
+address problems with a continuous action domain, dicretiza-
+takes as input a state s and performs the policy improvement
+t
+tion of the action space is required. Furthermore, even if a
+task which updates the policy with respect to the estimated
+goodapproximationoftheQ-valuefunctioncanbeobtained,it
+Q-value function and outputs a continuous action a.
+t
+isstillchallengingtofindacontinuousactionthatcorresponds
+Concerning the policy improvement, the common approach
+to the highest Q-value at a given state. This motivates inves-
+employed in the Q-learning and DQN methods is a greedy
+tigation of more sophisticated RL methods which facilitate maximization of the Q-value function, i.e., μ(s t+1 ) =
+e
+a
+f
+c
+f
+t
+e
+io
+c
+n
+tiv
+s
+e
+pa
+l
+c
+e
+e
+a
+s
+r
+,
+ni
+a
+n
+s
+g
+pr
+i
+e
+n
+sc
+m
+ri
+u
+b
+l
+e
+ti
+d
+-d
+b
+i
+y
+m
+t
+e
+h
+n
+e
+si
+e
+o
+x
+n
+a
+a
+m
+l
+i
+c
+n
+o
+e
+n
+d
+ti
+m
+nu
+a
+o
+rk
+u
+e
+s
+t
+s
+p
+t
+r
+a
+o
+te
+ble
+a
+m
+nd
+.
+argmax at+1 Q(s t+1 ,a t+1 ) (Sections III-A and III-B). However,
+it is constructive to highlight that in multi-dimensional con-
+tinuous action spaces, greedy policy improvement becomes
+D. Proposed DDPG-PER Methodology
+intractable as it necessitates globally maximizing the Q-value
+In this section, we detail the proposed DRL-based method- function at every time step. Instead, the proposed method-
+ology, namely DDPG-PER, the overall workflow of which is ology employs the actor network μ to generate a next-state
+presented in Fig. 2. The key elements associated with the action μ(s t+1 |θμ) (process 4 of Fig. 2). The critic network
+application of the proposed methodology in the examined then performs the policy evaluation task, criticizing the policy
+market problem are outlined as follows: byprovidinganestimateoftheQ-valuefunctionQ(s,a|θQ)≈
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 6 ===
+1348 IEEETRANSACTIONSONSMARTGRID,VOL.11,NO.2,MARCH2020
+Fig.2. WorkflowofproposedDDPG-PERmethodology.
+Q(s,a) with TD learning. This is achieved by minimizing the can take advantage of the accumulated experience and favor
+following loss function (process 5 of Fig. 2): actions it has tried in the past and found to be rewarding).
+(cid:18) (cid:19) Therefore, the parameters σ are designed to follow an expo-
+t
+LQ s t ,a t |θQ =δ t 2 (14) nentiallyannealingschedule(18),whereζ indicatesthedecay
+(cid:18) (cid:16) (cid:17) (cid:19) (cid:18) (cid:19) rate of the exploration noise.
+δ t =r t +γQ s t+1 ,μ s t+1 |θμ |θQ −Q s t ,a t |θQ (15) (cid:18) (cid:19)
+μˆ(s)=μ(s|θμ)+N 0,σ2I (17)
+where δ t and r t +γQ(s t+1 ,μ(s t+1 |θμ)|θQ) represent, respec- t t t t
+tively,theTDerrorandthetargetQ-valueattimestept.Rather σ t =e −ζ×t (18)
+thangloballymaximizingQ(s,a|θQ),thecriticprovidesgra-
+t t
+dients ∇ Q(s,a|θQ) which suggest directions of change of As discussed in Section III-C, RL tends to exhibit unsta-
+a t t
+ble learning behavior when used in synergy with a DNN as
+action leading to higher estimated Q-values. These gradients
+the Q-value function approximator. Since the on-line network
+are computed via back-propagation through the critic, which
+Q(s,a|θQ)beingupdatedisalsousedincalculatingthetarget
+is more computational efficient than solving an optimization t t
+problem in continuous action space. To update the actor μ, valuer t +γQ(s t+1 ,μ(s t+1 |θμ)|θQ)(asshownin(14)-(15)),the
+update of Q-value is therefore prone to oscillations. An effec-
+these gradients are placed at the actor’s output layer and then
+tive solution to address this instability is to introduce a target
+back-propagated through the network. For a given state s, a
+t
+network [26] for the actor and critic networks, denoted as
+c
+fo
+ri
+r
+t
+w
+ic
+ar
+e
+d
+va
+p
+l
+a
+u
+s
+a
+s
+te
+t
+s
+h
+,
+ro
+a
+u
+n
+g
+d
+h
+th
+th
+e
+e
+r
+a
+e
+c
+s
+t
+u
+o
+l
+r
+tin
+p
+g
+ro
+p
+d
+o
+u
+l
+c
+i
+e
+c
+s
+y
+a
+g
+n
+ra
+a
+d
+c
+i
+t
+e
+io
+n
+n
+ts
+a
+∇
+t
+θ
+t
+μ
+h
+μ
+at t
+a
+h
+re
+e μ(cid:13)(s
+t
+|θμ(cid:13))andQ (cid:13)(s
+t
+,a
+t
+|θQ(cid:13))respectively,andusethemtocom-
+putethetargetvalues.Theweightsofthesetargetnetworksare
+used to update the actor (processes 7 and 8 of Fig. 2).
+(cid:18) (cid:19) updated by having them slowly tracking the online networks
+∇ θμ μ=∇ a Q s,a|θQ | s=st ,a=μ(st ) ∇ θμ μ(s|θμ)| s=st (16) μ(s t |θμ)andQ(s t ,a t |θQ)asθ(cid:13) ←τθ+(1−τ)θ(cid:13) withτ (cid:14)1.
+The rationale behind this soft update is to constrain the target
+When selecting agent’s actions, it is necessary to maintain values to change slowly so as to improve the stability of the
+an appropriate balance between exploration and exploitation. learning process.
+Exploration implies that the agent gathers more information During the learning process, state samples are generated
+by trying out different actions in the action space; exploita- as the agent sequentially interacts with the environment,
+tion implies that the agent makes the best decision given the meaning that these samples are not independently and iden-
+current information. An advantage of the proposed DDPG- tically distributed as assumed by most deep learning algo-
+PER method is that the problem of exploration can be tackled rithms. To address this issue, an experience reply buffer R
+independently from the learning algorithm. To this end, we is employed [26]. This buffer is a cache of size N which
+R
+constructanexplorationpolicyμˆ(s)(17)(process1ofFig.2) storespreviousexperiences(anexperienceisatransitiontuple
+t
+by adding a random Gaussian noise N t (0,σ t 2I) to our actor (s t ,a t ,r t ,s t+1 )) (process 2 of Fig. 2) and samples uniformly
+policy
+μ(s|θμ)
+to help the agent exploring the environment a minibatch (of size N) of experiences to update the actor
+t
+thoroughly [39]. To encourage effective learning, the magni- and critic at each time step. Mixing recent with past expe-
+tudeofthenoiseshouldbelargeintheearlystagesoflearning riences serves to dwindle the temporal correlations existing
+(as the agent has no concrete knowledge of the environment in the replayed experiences. To further enhance the sampling
+and should thus explore the action space further), and should efficiency of this mechanism and thus speed up the learn-
+graduallyreducealongthecourseoflearning(sothattheagent ing process, a prioritized experience replay (PER) method
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 7 ===
+YEetal.:DRLFORSTRATEGICBIDDINGINELECTRICITYMARKETS 1349
+is proposed [40]. In this method, the magnitude of TD- Algorithm 1 Proposed DDPG-PER Algorithm
+error acts as the correction for the Q-value estimation and 1: Initialize the online critic and actor networks with random
+reflects to what extent an agent could learn from an experi- weights θQ and θμ , respectively.
+ence. Experiences with large positive TD-errors correspond to 2:
+InitializethetargetcriticandactornetworkswithweightsθQ(cid:13)
+←
+θQ and θμ(cid:13) ←θμ , respectively.
+very successful attempts, while experiences with large nega-
+3: Initializeparametersζ forthedecayrateoftheexplorationnoise,
+tive TD-errors signify the conditions where the agent behaves τ for the target networks, β 1, β 2, and NR for the PER method,
+exceedingly wrong and thus the states of these conditions are and minibatch size N.
+poorly learned. Prioritizing learning from these experiences 4: for episode = 1:M do
+(process 3 of Fig. 2) not only allows the agent to devise its 5: Producer i selects random bids in the action space and the
+optimal policy quickly from very successful attempts but also resulting market clearing outcome is used as the initial state
+of the environment for the current episode.
+prevents the agent from selecting the wrong actions in some
+6: Initialize a random Gaussian exploration noise N t.
+states, and thereby improves the quality of the policy learned.
+7: for time step (i.e., trading day) = 1 : T do
+To this end, we define the probability P n of sampling 8: Producer i selects its bidding decisions using (17).
+experience n on the basis of the absolute TD error as: 9: The LL problem of Fig. 1 is solved to determine the
+(cid:21)(cid:2)
+market clearing outcome which serves as the new state
+P n =p β n 1 p β m 1 (19) st+1. Producer i then observes the reward rt calculated
+m
+using (13).
+where β 1 controls the amount of prioritization used, p n = 10: Store,inbufferR,experience(st ,at ,rt ,st+1 )andsetpt =
+1/rank n is the priority assigned to experience n, and rank n is maxn<tpn.
+therankofexperiencenwhenRisorderedconformingtothe 11: for n=1 : N do
+absolute TD error |δ |, which is defined as: 12: Sample experience n with probability Pn in (19).
+|δ n |= (cid:22) (cid:22) (cid:22)r n +γQ (cid:13) (cid:18) s n+ n 1 ,μ(cid:13) (cid:18) s n+1 |θμ(cid:13) (cid:19) |θQ(cid:13) (cid:19) −Q (cid:18) s n ,a n |θQ (cid:19)(cid:22) (cid:22) (cid:22) 1 1 3 4 : : C C o o m m p p u u t t e e t t h h e e a IS bs w ol e u i t g e h T ts D W -e n rr u o s r in |δ g n | (2 u 1 s ) i . ng (20).
+15: Update the priority pn according to |δ n |.
+(20) 16: end for
+However,sinceexperienceswithhigh|δ|aremoreregularly 17: Update the critic network using (22) and (24).
+18: Update the actor network using (23) and (25).
+replayed, this practice alters the visitation frequency of some
+19: Update the target networks using (26) and (27).
+states and thus introduces bias. To correct this bias, we resort 20: Decay the magnitude of exploration noise using (18).
+to importance-sampling (IS) weights: 21: end for
+22: end for
+W =(N P )−β 2/max W (21)
+n R n m m
+where β controls the amount of correction used. These
+2
+weights are then incorporated in the computation of the critic
+lossby substitutingδ with W δ .For stabilityreasons, theIS IV. CASESTUDIES
+n n n
+weights are normalized by max m W m . A. Test System and Implementation
+Finally, by employing the target networks and the PER
+The main objective of the case studies lies in validating the
+method, the critic loss (12) and the actor update (14) can be
+proposed DDPG-PER method by comparing its performance
+restated as follows:
+againstthetwobenchmarkRLmethods(Q-learningandDQN)
+(cid:18) (cid:19)
+1
+(cid:2)N
+as well as the state-of-the-art MPEC approach. These case
+LQ θQ = W δ2 (22)
+N n n studies are carried out on the test market of [41], which
+n=1 involvesaday-aheadhorizon,hourlyresolutionand7electric-
+∇ θμ μ= N 1 (cid:2)N ∇ a Q (cid:18) s,a|θQ (cid:19)(cid:22) (cid:22) s=sn ,a=μ(sn ) ∇ θμ μ (cid:16) s|θμ (cid:17)(cid:22) (cid:22) s=sn i i t n y [ p 4 r 1 o ] d . u N ce o r t s e ,t t h h e at op th e e rat o i r n i g gi p n a a r l am qu e a t d er r s at o ic fw va h r i i c a h bl a e re c p o r s e t s c e u n r te v d e
+n=1 of each producer has been transformed to a piecewise lin-
+(23)
+ear function [35] of five blocks, which implies a stepwise
+Thefollowingupdatesarethenappliedtotheweightsofthe marginal cost curve, as prescribed by the formulation of this
+online critic and actor networks (processes 6 and 9 of Fig. 2), paper. The stepwise marginal benefit curve of the demand is
+respectively, where αQ and αμ are the learning rates of the analogouslyderived.Aspreviouslydiscussed,theinvestigated
+gradient decent algorithm: market problem lies in learning the optimal strategic bidding
+(cid:18) (cid:19)
+decisions of a single producer. In the examined case stud-
+θQ ←θQ+αQ·∇ θQ LQ θQ (24) ies, this corresponds to producer 5 of [41] while the rest of
+θμ ←θμ+αμ·∇ θμ μ (25) the producers are assumed to behave competitively, revealing
+their true characteristics to the market. The upper limit of the
+The target critic and actor networks are updated to gradually strategic bidding variable is assumed kmax =2.
+5
+tracktheonlinecriticandactornetworks(process10ofFig.2)
+The implementation of the two benchmark RL methods is
+according to:
+briefly discussed below.
+θQ(cid:13) ←τθQ+(1−τ)θQ(cid:13) (26) Q-learning: To apply Q-learning, the RL problem must
+θμ(cid:13) ←τθμ+(1−τ)θμ(cid:13)
+(27)
+be set up in discrete state and action spaces (Section I-A).
+In the examined market problem, the states and actions cor-
+The final DDPG-PER method is outlined in Algorithm 1. respond to the hourly market clearing prices λ and the
+h
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 8 ===
+1350 IEEETRANSACTIONSONSMARTGRID,VOL.11,NO.2,MARCH2020
+hourly bidding decisions k 5,h respectively. We discretize the
+continuousstatesandactionsin100integervalues.Therefore,
+producer i employs 24 look-up tables, each of size 100×100,
+to store and update the Q-values of state-action pairs at each
+hour h. Note that it is impractical to use a single look-up
+table of size 10024 × 10024 to store the Q-values associ-
+ated with different daily state-action pairs under the assumed
+discretization.
+DQN:TheDQNmethodemploysaDNNasanapproxima-
+tor that provides the Q-value estimate for each discrete action
+and,whenacting,selectstheactioncorrespondingtothehigh-
+est Q-value at a given state. Similar to the practice adopted
+in [29], in the examined problem, the state is represented as
+a time-window of two adjacent hours, i.e., hour identifier h, Fig. 3. Episodic average profit over 10 different random seeds for the
+andmarketprice,UCschedule,anddispatchoftheproduceri examinedRLmethods.
+at hours h−1 and h, resulting in 7 neurons in the input layer
+TABLEI
+of the DNN. The continuous action space is discretized in the MEANμ(£)ANDSTANDARDDEVIATIONσ (£)OFTHEAVERAGE
+same fashion as in Q-learning, resulting in 100 neurons in the PROFITOVER10DIFFERENTRANDOMSEEDSATDIFFERENT
+output layer of the DNN. EPISODESFORTHEEXAMINEDRLMETHODS
+For the proposed DDPG-PER method, we employ two
+DNNs (i.e., online and target) for actor and critic respectively
+(Fig. 2). The Adam optimizer [42] is used for learning the
+neural network weights with a learning rate αμ = 10 −4 and
+αQ =10 −3 for the actor and critic respectively. For the critic,
+we use a discount factor of γ = 0.7, and include a L reg-
+2
+ularization term in its loss function with a weight decay rate
+of 0.015 in order to avoid very large weights [43]. We use
+ζ = 0.001 for the decay rate of the exploration noise and
+τ = 0.001 for the target network updating rate. As shown
+in Fig. 2, the actor has 3 hidden layers with 400, 300 and 6-core 3.50 GHz Intel Xeon E5-1650 v3 processor and
+100 neurons respectively. The critic has 2 hidden layers with 32 GB of RAM.
+200 and 100 neurons respectively. Both the actor and critic
+employ the rectified non-linearity (ReLU) [44] for all hidden
+B. Performance Comparison of RL Methods
+layers. The output layer of the actor is a softsign layer [45] to
+bound the continuous actions. We train with a minibatch size We generate 10 different random seeds, and for each seed
+of 128. The parameters used in the PER method are set to be wetraineachRLmethodfor1000episodes,whereanepisode
+β = 0.6, β = 0.4, and N = 104. We use l = 1.45 and is composed of 20 time steps (Algorithm 1).
+1 2 R p
+l =1.05 for the reward function (13). Fig. 3 and Table I present the episodic average profit over
+n
+It should be noted that the suitable selection of the hyper- 10 different random seeds for the three examined RL meth-
+parameters associated with the DDPG-PER method is a chal- ods. The mean μ and the standard deviation σ of the average
+lenging task which has been addressed in this work through profit over the 10 seeds for different episodes are illustrated
+the following approach. First of all, we have reviewed the through the solid lines and the shaded areas, respectively, in
+relevant literature and collected the relevant hyperparameters’ Fig. 3 and are also given in Table I. The horizontal black
+valuesemployedtherein.Specifically,thevaluesofmostofthe line in Fig. 3 indicates the baseline profit of producer 5 when
+hyperparametersassociatedwiththedesignandtrainingofthe it behaves competitively. As shown in Fig. 3, the average
+DNNandthedesignofthePERhavebeengatheredfrom[33] profit is lower than the baseline level during the initial phase
+and [40], respectively. Then, starting from these values we of learning, which means the corresponding average reward
+have carried out an extensive sensitivity analysis to explore is negative. This suggests that producer 5 is gathering more
+theimpactofthevalueselectionfordifferenthyperparameters experiencesbyrandomlyexploringdifferentactions.Forthose
+and ultimately select the values yielding the most satisfactory actions resulting in profits lower than the baseline level, a
+performanceoftheDDPG-PERmethodintermsoftheaverage negative reward is used to avoid selecting such actions in the
+profitatconvergence[30].SectionIV-Epresentstheimpactof future (Section III-D). As the learning process continues and
+the most critical hyperparameters on the performance of the more experiences are being accumulated, the average profit
+proposed method. becomeshigherthanthebaselinelevel(whichmeanstheaver-
+The examined RL methods have been implemented using age reward turns positive), it keeps increasing, and eventually
+Tensorflow [46] in Python. The LL problem of Fig. 1 reachesconvergenceforallthreeRLmethods.Thisisreflected
+and the MPEC approach have been implemented using bythestabilizedmeanoftheaverageprofitandthedecreasing
+the Xpress Optimizer Python interface [47]. The case standard deviation as the learning process approaches the end
+studies have been carried out on a computer with a (Fig. 3 and Table I).
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 9 ===
+YEetal.:DRLFORSTRATEGICBIDDINGINELECTRICITYMARKETS 1351
+TABLEII
+BIDDINGDECISIONSANDPROFITOFPRODUCER5ATHOURS12-16
+FORDQNANDDDPG-PERMETHODS
+Fig. 4. Evolution of the episodic average market clearing prices for the
+proposedDDPG-PERmethod.
+DDPG-PERinitiallyexhibitsrelativelylargerstandarddevi-
+ation compared to Q-learning and DQN, and slower learning
+compared to DQN. This is because exploring a suitable bid-
+ding strategy in multi-dimensional continuous action space
+is more challenging than in discrete space (i.e., Q-learning
+and DQN). Nevertheless, as the learning process continues,
+DDPG-PER significantly outperforms the other two methods,
+obtaining the highest average profit £588,572 and exhibit- Fig. 5. Generation dispatch of producers 5, 6, and 7 and market clearing
+ing the smallest standard deviation £6,526 at convergence. pricesathours12-16forDQNandDDPG-PERmethods.
+In relative terms, DDPG-PER achieves 20%/11% higher
+average profit and 54%/34% lower standard deviation over
+Q-learning/DQN, respectively. The superior performance of resulting in increased dispatch of producer 5 and the shut-
+DDPG-PER is justified by i) its ability to model multi- down of producer 7 (Section II). Driven by the non-convex
+dimensional continuous state space through analogous state minimum-down time limit of producer 7, it has to remain off
+vectors, in contrast to discrete scalar states employed in for at least 4 hours, increasing the dispatch of producer 5
+Q-learning, which enables producer 5 to receive more accu- for these 4 hours. In both cases, producer 5 is the marginal
+rate feedback regarding the impact of its bidding decisions on producer who sets the prices at these hours according to
+themulti-periodmarketclearingoutcome;andii)itsabilityto λ h = k 5,h λG 5,b . The higher dispatch in DDPG-PER activates
+model multi-dimensional continuous action space, in contrast a higher block in the marginal cost curve and thus leads
+to the naïve discretization approach employed in DQN, which to a higher clearing price than DQN, despite the selection
+enables producer 5 to preserve more accurate information of a slightly lower k 5,h . The combination of higher price and
+regarding the entire action space. dispatch contributes to approximately 49% higher profit dur-
+Fig. 4 illustrates the evolution of the episodic average ing the examined period (Table II). It can be concluded that
+market clearing prices (extracted from the state vectors) for learning in discrete action space may result in sub-optimal
+the DDPG-PER method. Significant increase in prices dur- bidding decisions in the examined market problem where the
+ing peak-periods is observed in the course of learning. This non-convex generation operating characteristics are taken into
+is driven by the increasing slope of the producers’ bidding account.Ontheotherhand,DDPG-PERpreservesallrelevant
+curves at higher demand levels and the higher need to utilize informationconcerningtheentirecontinuousactionspace,and
+available generation capacity in the system. In line with the thus is capable of learning a more profitable bidding strategy.
+trend observed in Fig. 3, after around 250 episodes, the prices Finally, we demonstrate the impact of PER, by comparing
+remain unchanged which signifies that the optimal bidding the performance of the DDPG-PER method against the origi-
+strategies have been found. nalDDPGmethodadoptinguniformsampling(SectionIII-D).
+Going further, we analyze in more depth the physical sig- Fig. 6 presents the performance of the examined methods in
+nificance of the ability of DDPG-PER to model continuous termsoftheirlearningspeedandpolicyquality.Thesolidlines
+actions, in the context of the examined problem. Table II illustrate the episodic average profit over 10 different random
+presents the bidding decisions and the cumulative profit of seeds for the two examined methods, while the dashed lines
+producer 5 at hours 12-16, at the convergence state of the indicate the number of episodes required to reach the average
+DQN and DDPG-PER methods. Fig. 5 illustrates the corre- profit of the DQN method at convergence (which is indicated
+sponding dispatch of producers 5, 6, and 7, and the market by the straight blue line).
+clearing price at hours 12-16. As shown in Fig. 6, DDPG-PER and DDPG reach the
+It should be noted that the bidding decisions and the result- DQN profit in approximately 150 and 300 episodes, respec-
+ing market clearing outcome of the two methods are very tively, suggesting that the learning speed of DDPG-PER is
+close, apart from hours 13-16. During hours 13-16, how- approximately twice as fast as DDPG. Furthermore, DDPG-
+ever, producer 5 selects lower values for k 5,h in DDPG-PER, PER results in more profitable bidding decisions, reflected by
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 10 ===
+1352 IEEETRANSACTIONSONSMARTGRID,VOL.11,NO.2,MARCH2020
+TABLEIV
+PROFITOFPRODUCER5UNDERANON-CONVEX
+MARKETCLEARINGALGORITHM
+DDPG-PER method achieves a profit which is very close to
+the profit of the MPEC approach (only 0.04% lower) and sig-
+nificantlyhigherthantheprofitsachievedbytheDQNandthe
+Q-learning methods (which are 9.2% and 16.16% lower than
+Fig.6. Episodicaverageprofitover10differentrandomseedsfortheDDPG
+the profit of the MPEC approach).
+andDDPG-PERmethods.
+Inthesecondscenario,theactualmarketclearingalgorithm
+TABLEIII accounts for the physical non-convex operating characteris-
+PROFITOFPRODUCER5UNDERACONVEX tics of the producers. As discussed in Section I-A, this is the
+MARKETCLEARINGALGORITHM
+scenario that provides the very motivation of our work, and
+closelyreflectsmarketswithcomplexbiddingmechanisms.In
+thisscenario,theMPECapproachisnotdirectlyapplicableas
+KKT conditions cannot be derived for a non-convex problem.
+However, it can be applied in an indirect fashion, which
+roughly reflects the “best outcome” this approach can achieve
+in this context. Specifically, the original bi-level optimization
+problem is modified by excluding the binary UC variables
+and therefore neglecting non-convex operating characteristics,
+the approximately 5% higher average profit at convergence. in order to preserve the MPEC convertibility. The obtained
+The reason behind such superior learning speed and policy valuesofthestrategicbiddingvariablesk 5,h ofproducer 5are
+quality lies in the fact that the PER method more frequently then inputted to the actual, non-convex market clearing algo-
+replays experiences corresponding to higher TD-error which rithm (3)-(6) to obtain the actual clearing dispatch and prices
+promises significant benefits in improving the agent’s policy. and subsequently calculate the actual profit of producer 5.
+On the other hand, such experiences may be rarely (or never) TableIVpresentstheprofitsobtainedbythedifferentmeth-
+replayed when uniform sampling is adopted. odsinthisscenario.Incontrastwiththepreviousscenario,the
+MPEC approach provides the lowest profit as it is completely
+myopictothenon-convexoperatingcharacteristicsofthepro-
+C. Comparison Against MPEC Approach
+ducers which are accounted in the market clearing process.
+Theaimofthissectionliesincomparingtheperformanceof
+On the other hand, the three RL methods yield a higher profit
+the examined RL methods against the state-of-the-art MPEC
+than the MPEC method, since they are capable of dealing
+approach in addressing the investigated strategic bidding
+with a non-convex market clearing process. Furthermore, as
+problem. This comparison includes two different scenarios. In
+already demonstrated in Section IV-B, it can be observed that
+the first one, the actual market clearing algorithm employed
+the proposed DDPG-PER method achieves the highest profit
+by the market operator (i.e., the LL problem) is convex and
+among the three RL methods.
+therefore neglects the physical non-convex operating char-
+Inconclusion,theproposedDDPG-PERmethodisgenerally
+acteristics associated with binary UC decisions. This is the
+themosteffectivemethodinaddressingtheinvestigatedstrate-
+scenario examined in [2]–[10], and closely reflects markets
+gic bidding problem. When non-convexities are neglected in
+with simple bidding mechanisms. In order to simulate this
+themarketclearingprocess,incontrastwithotherRLmethods,
+scenario,alloperatingcharacteristicsassociatedwithUCdeci-
+the DDPG-PER method approximates very closely the profit
+sions (no-load, start-up and shutdown costs, minimum stable
+obtainedbythestate-of-the-artMPECapproach,whichinthis
+generation limits, and minimum-up/down time constraints)
+case provides the benchmark solution. When non-convexities
+are neglected.
+are considered in the market clearing process (the scenario
+Table III presents the profits obtained by the differ-
+which provides the very motivation of this work), the DDPG-
+ent methods in this scenario. As expected, the MPEC
+PERmethodachievesasignificantlyhigherprofitthanallother
+approach provides the highest profit as the original bi-level
+methods while the MPEC approach can only be applied in an
+optimization problem is converted to a single-level, closed-
+indirect fashion and exhibits very poor performance.
+form optimization problem which can be effectively solved
+usingcommercialoptimizationsolvers.Ontheotherhand,the
+D. Analysis of Computational Performance
+threeRLmethodsyieldalowerprofitthantheMPECmethod,
+since the bi-level optimization problem is solved in a recur- Theaimofthissectionliesincomparingthecomputational
+sive fashion. However, it can be observed that the proposed performance of the proposed DDPG-PER method against the
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 11 ===
+YEetal.:DRLFORSTRATEGICBIDDINGINELECTRICITYMARKETS 1353
+TABLEV
+COMPUTATIONALPERFORMANCEOFTHEEXAMINEDRLMETHODS
+twobenchmark RLmethods.Inthiscontext, TableVpresents
+the total computational time required to reach convergence,
+the number of episodes required to reach convergence, which
+is a measure of the learning speed of the strategic producer,
+and the average computational time per episode, for each of
+Fig.7. ImpactofdiscountfactorontheperformanceofDDPG-PER.
+the examined RL methods.
+The average computational time per episode is the low-
+est in Q-learning (since this method relies on look-up tables
+and does not require training of a DNN which is compara-
+tively computationally intensive), higher in DQN (since this
+method involves training of one DNN) and the highest in the
+proposed DDPG-PER (since this method involves training of
+two DNNs). However, the number of episodes and the total
+computationaltimerequiredtoreachconvergenceisthelowest
+in DDPG-PER due to the employment of the proposed PER
+method, followed by DQN and Q-learning.
+These results demonstrate that beyond achieving a higher
+average profit and a smaller standard deviation of profit at
+convergence with respect to the two benchmark RL methods
+(SectionIV-B),theproposedDDPG-PERmethodalsoexhibits
+a more favorable computational performance. Fig. 8. Impact of decay rate of exploration noise on the performance of
+DDPG-PER.
+E. Selection of Hyperparameters
+As discussed in Section IV-A, the suitable selection of the impact of the decay rate on the performance of DDPG-PER.
+hyperparameters associated with the DDPG-PER method is Under a high decay rate (ζ = 0.005), the proposed method
+a challenging task which has been addressed in this work exhibitsinsufficientexplorationandprematureexploitation;as
+throughacombinationofliteraturesurveyandsensitivityanal- a result, although it converges faster, the profit at convergence
+ysis. The aim of this section lies in presenting the impact of is significantly lower (£520,627) (Fig. 8). Under a low decay
+the most critical hyperparameters on the performance of the rate (ζ = 0.0005), the proposed method exhibits excessive
+proposed method. exploration and insufficient exploitation; as a result, although
+The first examined hyperparameter, which is generally crit- it eventually converges to a higher profit (£580,572), this is
+ical for all RL methods, is the discount factor γ which is achieved in a very slow fashion (Fig. 8). Under ζ = 0.001,
+usedtotradeofftheimportancebetweenimmediateandfuture the proposed method achieves an effective tradeoff between
+rewards(SectionIII-A).Fig.7illustratestheimpactofthedis- exploration and exploitation, converging to the highest profit
+count factor on the performance of DDPG-PER. Under a low (£588,211) in a timely fashion.
+discount factor (γ = 0.1), the proposed method prioritizes Finally, the performance of DDPG-PER was found to be
+excessively immediate rewards and becomes myopic to the significantly affected by the design of the activation function
+agent’s future rewards; as a result, the method converges to a oftheoutputlayeroftheactornetwork.In[33],thehyperbolic
+less profitable policy [48], as also observed in Fig. 7. Under tangent(tanh)functionhasbeenemployed,whichexhibitsthe
+a high discount factor (γ = 0.99), the proposed method pri- well established limitation of quickly saturating at −1 and 1
+oritizes excessively future rewards and becomes farsighted; (Fig.9),especiallywhentheweightsofthenetworkarelarge,
+however, targetingahighdiscountfactor mayleadtoinstabil- implying that if the activity in the network during training is
+ity or divergence in the Q-value function estimates, yielding close to 1 then the gradient of the network may vanish [43].
+a poor quality policy [48], as also observed in Fig. 7. Under Considering the actor network, this saturation effect means
+γ = 0.7, the proposed method achieves an effective tradeoff that the bidding decisions of the strategic producer are likely
+betweentheabovetwoeffects,convergingtoamoreprofitable to be either equal to 1 (i.e., the producer behaves competi-
+policy. tively) or equal to the maximum limit (i.e., 2 in the examined
+Thesecondcriticalhyperparameteristhedecayrateζ ofthe case studies), which hinders effective exploration of continu-
+explorationnoisewhichisusedtotradeofftheexplorationand ous actions between these two values and ultimately yields a
+exploitationofthemethod(SectionIII-D).Fig.8illustratesthe lower profit level (approximately £510,000) (Fig. 10).
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 12 ===
+1354 IEEETRANSACTIONSONSMARTGRID,VOL.11,NO.2,MARCH2020
+the profitability and learning speed as it learns by prioritized
+sampling.
+Case studies on a test market with day-ahead horizon and
+hourlyresolutionhavedemonstratedthattheproposedmethod
+achieves approximately 41%, 20% and 11% higher profit for
+the examined strategic producer than the MPEC, Q-learning
+and DQN methods, respectively. Furthermore, although it
+exhibits the highest computational time per episode (as it
+involves training of two DNNs), its required number of
+episodes and total computational time until convergence is
+Fig.9. Illustrationofhyperbolictangentandsoftsignfunctions. the lowest compared to Q-learning and DQN, due to the
+employmentoftheproposedPERstrategy.Finally,adedicated
+sensitivity analysis has demonstrated that the most critical
+hyperparameters for the performance of the proposed method
+are the discount factor, the decay rate of the exploration
+noise, and the activation function of the output layer of the
+actor network. Regarding the last one, the proposed softsign
+activation function in combination with the L regularization
+2
+has been demonstrated to outperform the hyperbolic tangent
+function employed in the relevant literature.
+Future work aims at enhancing the proposed DDPG-PER
+method in two directions. The first one lies in applying the
+proposed methodology in the multi-agent setting of modeling
+animperfectmarketwithmultiplestrategicproducers(instead
+of the application examined in this paper, which focuses on
+Fig.10. Impactofactivationfunctionoftheoutputlayeroftheactornetwork optimizing the strategic bidding decisions of a single strategic
+andtheuseoftheL2 regularizationontheperformanceofDDPG-PER.
+producer) and exploring the market outcomes stemming from
+theirinteractions.Thesecondoneliesinenhancingthegener-
+alization performance of the proposed methodology to render
+In order to address this limitation, we propose the employ-
+it robust to variations of exogenous market conditions (e.g.,
+ment of the softsign activation function [45], which saturates
+demand, renewable generation) which are independent of the
+slower than then tanh function (Fig. 9), in combination with
+producers’ actions, going beyond the market settingexamined
+the L regularization which penalizes large network weights.
+2 in this paper, where these conditions are fixed.
+This design yields a higher profit at convergence (£588,211)
+by effectively bounding the continuous action and achieving
+effective exploration of profitable actions.
+REFERENCES
+V. CONCLUSIONANDFUTUREWORK [1] D. S. Kirschen and G. Strbac, Fundamentals of Power System
+Economics.WestSussex,U.K.:Wiley,2004.
+Bi-level optimization/MPEC formulations and reinforce-
+[2] B.F.Hobbs,C.B.Metzler,andJ.-S.Pang,“Strategicgaminganalysis
+ment learning (RL) methods constitute the state-of-the-art for electric power systems: An MPEC approach,” IEEE Trans. Power
+frameworks for modeling strategic bidding decisions in the Syst.,vol.15,no.2,pp.638–645,May2000.
+deregulated electricity market. However, the former neglects [3] A. G. Bakirtzis, N. P. Ziogos, A. C. Tellidou, and G. A. Bakirtzis,
+“Electricity producer offering strategies in day-ahead energy mar-
+themarketparticipants’physicalnon-convexoperatingcharac-
+ket with step-wise offers,” IEEE Trans. Power Syst., vol. 22, no. 4,
+teristicsandthuscannoteffectivelydealwithcomplexbidding pp.1804–1818,Nov.2007.
+markets,whileconventionalRLmethodsrequirediscretization [4] C. Ruiz and A. J. Conejo, “Pool strategy of a producer with endoge-
+nousformationoflocationalmarginalprices,”IEEETrans.PowerSyst.,
+of state and/or action spaces, which is not aligned with the
+vol.24,no.4,pp.1855–1866,Nov.2009.
+continuous nature of the market modeling problem, and thus
+[5] S. J. Kazempour, A. J. Conejo, and C. Ruiz, “Strategic bidding for a
+suffer from the curse of dimensionality. largeconsumer,”IEEETrans.PowerSyst.,vol.30,no.2,pp.848–856,
+Inordertoaddresstheselimitations,thispaperhasproposed Mar.2015.
+[6] E.Moiseeva,M.R.Hesamzadeh,andD.R.Biggar,“Exerciseofmarket
+a novel DRL-based approach, combining a DDPG method
+power on ramp rate in wind-integrated power systems,” IEEE Trans.
+withaPERstrategy.IncontrastwithconventionalRLmethods PowerSyst.,vol.30,no.3,pp.1614–1623,May2015.
+(Q-learning and DQN), this approach sets up the examined [7] P.Zou,Q.Chen,Q.Xia,G.He,C.Kang,andA.J.Conejo,“Poolequi-
+problem in multi-dimensional continuous state and action libriaincludingstrategicstorage,”Appl.Energy,vol.177,pp.260–270,
+Sep.2016.
+spaces, enabling market participants to receive accurate feed-
+[8] E.MoiseevaandM.R.Hesamzadeh,“Strategicbiddingofahydropower
+back regarding the impact of their bidding decisions on the producer under uncertainty: Modified benders approach,” IEEE Trans.
+market clearing outcome, and devise more profitable bid- PowerSyst.,vol.33,no.1,pp.861–873,Jan.2018.
+ding decisions by exploring the entire action domain, also [9] E. Nasrolahpour, J. Kazempour, H. Zareipour, and W. D. Rosehart,
+“Impactsoframpinginflexibilityofconventionalgeneratorsonstrategic
+accounting for the effect of non-convex operating characteris-
+operationofenergystoragefacilities,”IEEETrans.SmartGrid,vol.9,
+tics.Furthermore,theemployedPERstrategyimprovesfurther no.2,pp.1334–1344,Mar.2018.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 13 ===
+YEetal.:DRLFORSTRATEGICBIDDINGINELECTRICITYMARKETS 1355
+[10] Y.Ye,D.Papadaskalopoulos,andG.Strbac,“Investigatingtheabilityof [36] R. P. O’Neill, P. M. Sotkiewicz, B. F. Hobbs, M. H. Rothkopf, and
+demandshiftingtomitigateelectricityproducers’marketpower,”IEEE W. R. Stewart, Jr., “Efficient market-clearing prices in markets with
+Trans.PowerSyst.,vol.33,no.4,pp.3800–3811,Jul.2018. nonconvexities,” Eur. J. Oper. Res., vol.164, no. 1, pp.269–285, Jul.
+[11] S.BoydandL.Vandenberghe,ConvexOptimization.Cambridge,U.K.: 2005.
+CambridgeUniv.Press,2004. [37] R.Bellman,“Onthetheoryofdynamicprogramming,”Proc.Nat.Acad.
+[12] CAISO. (2017). Business Practice Manual for Market Instruments. Sci.USA,vol.38,no.8,pp.716–719,Aug.1952.
+[Online].Available:https://bpmcm.caiso.com/BPM [38] C.J.WatkinsandP.Dayan,“Q-learning,”Mach.Learn.,vol.8,nos.3–4,
+[13] PJM. (2018). Manual 11, Energy and Ancillary pp.279–292,May1992.
+Services Markets Operations. [Online]. Available: [39] M.Plappertetal.,“Parameterspacenoiseforexploration,”inProc.6th
+http://www.pjm.com/∼/media/documents/manuals/m11.ashx Int.Conf.Learn.Represent.(ICLR),Jun.2018,pp.1–18.
+[14] NYISO. (2017). Day Ahead Scheduling Manual. [Online]. Available: [40] T.Schaul,J.Quan,I.Antonoglou,andD.Silver,“Prioritizedexperience
+http://www.nyiso.com replay,” in Proc. 4th Int. Conf. Learn. Represent. (ICLR), San Juan,
+PuertoRico,May2016,pp.1–21.
+[15] G.Xiong,T.Hashiyama,andS.Okuma,“Anelectricitysupplierbidding
+[41] Y.Ye,D.Papadaskalopoulos,andG.Strbac,“Factoringflexibledemand
+strategythroughQ-learning,”inProc.PowerEng.Soc.SummerMeeting,
+non-convexitiesinelectricitymarkets,”IEEETrans.PowerSyst.,vol.30,
+vol.3.Chicago,IL,USA,Jul.2002,pp.1516–1521.
+no.4,pp.2090–2099,Jul.2015.
+[16] M. B. Naghibi-Sistani, M. R. Akbarzadeh-Tootoonchi,
+[42] D.P.KingmaandJ.Ba,“Adam:Amethodforstochasticoptimization,”
+M.H.J.-D.Bayaz,andH.Rajabi-Mashhadi,“ApplicationofQ-learning
+inProc.3rdInt.Conf.Learn.Represent.(ICLR),SanJuan,PuertoRico,
+with temperature variation for bidding strategies in market based
+May2015,pp.1–15.
+power systems,” Energy Convers. Manage., vol. 47, nos.11–12,
+[43] I.Goodfellow,Y.Bengio,andA.Courville,DeepLearning.Cambridge,
+pp.1529–1538,Jul.2006.
+MA,USA:MITPress,2016.
+[17] H. Song, C.-C. Liu, J. Lawarrée, and R. W. Dahlgren, “Optimal elec-
+[44] X. Glorot, A. Bordes, and Y. Bengio, “Deep sparse rectifier
+tricitysupplybiddingbyMarkovdecisionprocess,”IEEETrans.Power
+neural networks,” in Proc. 14th Conf. Artif. Intell. Stat. (AISTATS),
+Syst.,vol.15,no.2,pp.618–624,May2000.
+FortLauderdale,FL,USA,Apr.2011,pp.315–323.
+[18] V. Nanduri and T. K. Das, “A reinforcement learning model to assess
+[45] J.Bergstra,G.Desjardins,P.Lamblin,andY.Bengio,“Quadraticpoly-
+marketpowerunderauction-basedenergypricing,”IEEETrans.Power
+nomialslearnbetterimagefeatures,”Dept.IRO,UniversitédeMontréal,
+Syst.,vol.22,no.1,pp.85–95,Feb.2007.
+Rep.1337,Apr.2009.
+[19] A. C. Tellidou and A. G. Bakirtzis, “Agent-based analysis of capac- [46] M.Abadietal.(2015).TensorFlow:Large-ScaleMachineLearningon
+itywithholdingandtacitcollusioninelectricitymarkets,”IEEETrans. HeterogeneousSystems.[Online].Available:https://www.tensorflow.org/
+PowerSyst.,vol.22,no.4,pp.1735–1742,Nov.2007. [47] (2017). Xpress Optimizer Python Interface. [Online]. Available:
+[20] M.RahimiyanandH.R.Mashhadi,“AnadaptiveQ-learningalgorithm https://www.msi-jp.com/xpress/learning/square/01-python-interface.pdf
+developed for agent-based computational modeling of electricity mar- [48] V.François-Lavet,R.Fonteneau,andD.Ernst,“Howtodiscountdeep
+ket,” IEEE Trans. Syst., Man, Cybern. C, Appl. Rev., vol. 40, no. 5, reinforcementlearning:Towardsnewdynamicstrategies,”inProc.NIP
+pp.547–556,Sep.2010. DeepRLWorkshop,Montreal,QC,Canada,Dec.2015,pp.1–9.
+[21] N.-P. Yu, C.-C. Liu, and J. Price, “Evaluation of market rules using a
+multi-agent system method,” IEEE Trans. Power Syst., vol. 25, no. 1,
+pp.470–479,Feb.2010.
+[22] R.S.SuttonandA.G.Barto,ReinforcementLearning:AnIntroduction.
+Cambridge,MA,USA:MITPress,2018. YujianYe(M’12)receivedtheM.Sc.andPh.D.degreesfromImperialCollege
+[23] D.OrmoneitandS´.Sen,“Kernel-basedreinforcementlearning,”Mach. London, London, U.K., in 2013 and 2017, respectively. He is currently a
+Learn,vol.49,nos.2–3,pp.161–178,Nov.2002. Machine Learning Scientist with Feth.AI, Cambridge, U.K., anda Research
+[24] S.LiangandR.Srikant,“Whydeepneuralnetworksforfunctionapprox- AssociatewithImperialCollegeLondon.Hiscurrentresearchinterestsinclude
+imation?” in Proc. 5th Int. Conf. Learn. Represent. (ICLR), Toulon, development and application of novel machine learning, agent-based and
+France,Apr.2017,pp.1–17. game-theoreticmethodologiesinmodelingenergymarkets,andsmartenergy
+[25] V. Mnih et al., “Playing Atari with deep reinforcement learning,” in systems.
+Proc.NIPSDeepLearn.Workshop,Dec.2013,pp.1–9.
+[26] V. Mnih et al., “Human-level control through deep reinforcement
+learning,”Nature,vol.518,no.7540,pp.529–533,Feb.2015.
+[27] R. Dan et al., “Autonomous voltage control for grid operation using
+Dawei Qiu (S’18) is currently pursuing the Ph.D. degree with Imperial
+deep reinforcement learning,” in Proc. IEEE Power Energy Soc. Gen.
+College London, London, U.K. His current research interests include game-
+Meeting,Atlanta,GA,USA,Aug.2019,pp.1–5.
+theoretic and agent-based modeling in wholesale as well as retail electricity
+[28] B. J. Claessens, P. Vrancx, and F. Ruelens, “Convolutional neural markets.
+networks for automatic state-time feature extraction in reinforcement
+learning applied to residential load control,” IEEE Trans. Smart Grid,
+vol.9,no.4,pp.3259–3269,Jul.2018.
+[29] E. Mocanu et al., “On-line building energy optimization using deep
+reinforcement learning,” IEEE Trans. Smart Grid, vol. 10, no. 4, Mingyang Sun (M’16) received the Ph.D. degree from Imperial College
+pp.3698–3708,Jul.2019. London,London,U.K.,in2017,whereheiscurrentlyaResearchAssociate.
+[30] Z. Wan, H. Li, H. He, and D. Prokhorov, “Model-free real-time EV Hiscurrentresearchinterestsincludebigdataanalyticsandartificialintelli-
+chargingschedulingbasedondeepreinforcementlearning,”IEEETrans. genceinenergysystems.
+SmartGrid,tobepublished.
+[31] I.Boukas,D.Ernst,A.Papavasiliou,andB.Cornélusse,“Intra-daybid-
+ding strategies for storage devices using deep reinforcement learning,”
+inProc.15thInt.Conf.Eur.EnergyMarket(EEM),Łódz´,Poland,Jun.
+Dimitrios Papadaskalopoulos (M’13) is a Research Fellow with Imperial
+2018,pp.1–6.
+College London, London, U.K. His current research focuses on the devel-
+[32] T.ChenandW.Su,“Localenergytradingbehaviormodelingwithdeep
+opment and application of distributed and market-based approaches for the
+reinforcementlearning,”IEEEAccess,vol.6,pp.62806–62814,2018.
+coordinationofoperationandplanningdecisionsinpowersystems,employing
+[33] T. P. Lillicrap et al., “Continuous control with deep reinforcement
+optimization,andgametheoreticprinciples.
+learning,” in Proc. 4th Int. Conf. Learn. Represent. (ICLR), San Juan,
+PuertoRico,May2016,pp.1–14.
+[34] Y.Wang,Q.Chen,T.Hong,andC.Kang,“Reviewofsmartmeterdata
+analytics: Applications, methodologies, and challenges,” IEEE Trans.
+SmartGrid,vol.10,no.3,pp.3125–3148,May2019. Goran Strbac (M’95) is a Professor of electrical energy systems with
+[35] M.CarriónandJ.M.Arroyo,“Acomputationallyefficientmixed-integer Imperial College London, London, U.K. His research interests include elec-
+linear formulation for the thermal unit commitment problem,” IEEE tricitysystemoperation,investmentandpricing,andintegrationofrenewable
+Trans.PowerSyst.,vol.21,no.3,pp.1371–1378,Aug.2006. generationanddistributedenergyresources.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on August 02,2026 at 14:06:33 UTC from IEEE Xplore. Restrictions apply.

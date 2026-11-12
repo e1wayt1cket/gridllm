@@ -19,8 +19,8 @@ import yaml
 
 ROOT = Path(".")
 DATA = ROOT / "data/processed/v2_cy_jn_2025"
-OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_ready"
-CANDIDATE = "P21_candidate_001"
+OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v4"
+CANDIDATE = "V4_candidate_001"
 INPUTS = (
     "near/load_price_pairing.csv",
     "bus_loads_96x33.npz",
@@ -36,9 +36,27 @@ INPUTS = (
 SOURCE_FILES = (
     "rl_da_gate.py", "rl_b_c2_gate.py", "train_da_gate.py", "da_quote_map.py",
     "da_replay.py", "truthful_gate_actor_adapter.py", "rl_spec.py",
+    # rl_bidding.py defines the actor/critic networks and the v4 anchor; it
+    # escaped the v3 pin list and is pinned from v4 on. The calibration
+    # scripts selected the anchor weight and the hinge delta and are pinned
+    # for provenance.
+    "rl_bidding.py", "calibrate_anchor_v4.py", "calibrate_hinge_v4.py",
     "rl_env.py", "c2_reward.py", "daily_reward_b.py",
     "b1_daily_baseline.py", "dispatch_socp.py", "v2_cy_jn_env.py",
     "checkpoint_writer_v2.py", "checkpoint_loader_v2.py",
+    # The launcher, the contract, the auditor and this generator supply and
+    # check the budget and the stop rule, so they are part of the protocol.
+    "run_formal_training.py", "training_contract.py", "audit_run.py",
+    "make_formal_training_manifests.py",
+)
+TESTS = (
+    "tests/test_da_quote_mapping.py",
+    "tests/test_train_da_gate_guards.py",
+    "tests/test_train_da_gate_resume.py",
+    "tests/test_training_contract.py",
+    "tests/test_frozen_guard.py",
+    "tests/test_v4_mechanics.py",
+    "src/audit_phase20_action_routing.py",
 )
 
 
@@ -57,6 +75,18 @@ def git_state() -> dict:
     except Exception:
         return {"revision": "working-tree", "dirty": True,
                 "dirty_paths": []}
+
+
+def code_payload() -> dict:
+    """The pinned sources and tests; the launcher verifies against this."""
+    return {
+        "candidate": CANDIDATE,
+        "source_sha256": {
+            name: sha(ROOT / "src" / name) for name in SOURCE_FILES
+        },
+        "git": git_state(),
+        "tests": {Path(name).name: sha(ROOT / name) for name in TESTS},
+    }
 
 
 def data_payload() -> dict:
@@ -102,7 +132,7 @@ def config_payload(data: dict, code: dict) -> dict:
     return {
         "formal_training": {
             "experiment_id": "FORMAL_NEAR_COMMON_B_C2_GATE",
-            "protocol_version": 2,
+            "protocol_version": 4,
             "accepted_candidate": CANDIDATE,
             "dataset": "JN-Base-NEAR / common_split near view",
             "split": data["split_file"],
@@ -110,7 +140,7 @@ def config_payload(data: dict, code: dict) -> dict:
             "split_seed": data["split_seed"],
             "reward_mode": "B_C2",
             "gamma": 0.99,
-            "fixed_scale": 1000.0,
+            "fixed_scale": 100.0,
             "terminal_soc": {"initial": 0.5, "final": 0.5,
                              "day_end_window_only": True},
             "cycle_cost_cny_per_mwh": 100.0,
@@ -120,7 +150,7 @@ def config_payload(data: dict, code: dict) -> dict:
             "settlement": "two_settlement_ledger",
             "observation": {"name": "v6_12d", "version": 6,
                             "dimensions": 12},
-            "action": {"name": "storage_quote_v3", "version": 3,
+            "action": {"name": "storage_quote_v4", "version": 4,
                        "quote_map": "linear_core_v1",
                        "dimensions_per_unit": 2,
                        "ess_order": ["ESS9", "ESS14", "ESS17", "ESS27"]},
@@ -128,12 +158,37 @@ def config_payload(data: dict, code: dict) -> dict:
                      "straight_through_bernoulli",
                      "temperature_start": 4.0, "temperature_end": 1.0,
                      "warmup_episodes": 106,
-                     "evaluation_temperature": 1.0},
+                     "evaluation_temperature": 1.0,
+                     "logit_bound": 4.0},
             "networks": {"actor": "256-128-4",
-                         "critic": "centralized twin 256-256"},
+                         "critic": "centralized twin 256-256 no dropout"},
             "optimizer": {"name": "Adam", "lr": 3e-4, "tau": 0.005,
                           "policy_delay": 2, "batch_size": 128,
-                          "buffer_capacity": 100000, "start_steps": 0},
+                          "buffer_capacity": 6000, "start_steps": 480,
+                          "critic_weight_decay": 0.0,
+                          "actor_weight_decay": 1e-5,
+                          "calibration_interval": 8},
+            "anchor": {"weight": 0.01,
+                       "form": "quadratic on quotes scaled by leg highs",
+                       "calibrated_by":
+                           "reports/algorithm_diagnostics/"
+                           "v4_anchor_calibration.json",
+                       "selection_rule": "largest weight with zero corner "
+                                         "excess over weight 0",
+                       "note": "not a profit-selected hyperparameter"},
+            "hinge": {"advantage_hinge_delta": 0.10,
+                      "twin_gap_weight": 1.0,
+                      "form": "-ReLU(Q(a) - Q(a_truthful) - delta_eff) with "
+                              "delta_eff = clamp(twin_gap_weight * "
+                              "|Q1 - Q2|, min=delta)",
+                      "calibrated_by":
+                          "reports/algorithm_diagnostics/"
+                          "v4_hinge_calibration.json",
+                      "selection_rule": "delta = round_up_0.05(max Q "
+                                        "variation over states whose payoff "
+                                        "range over the three lowest quotes "
+                                        "< 0.5 CNY)",
+                      "note": "not a profit-selected hyperparameter"},
             "sampler": {"uniform_fraction": 0.5, "beta": 0.5,
                         "max_upweight": 5.0},
             "exploration": {"epsilon_start": 0.20, "epsilon_end": 0.05,
@@ -143,7 +198,7 @@ def config_payload(data: dict, code: dict) -> dict:
             "target": {"policy_noise": 0.2, "noise_clip": 0.5},
             "episode": {"blocks": 24, "commit_periods": 4,
                         "lookahead_periods": 16},
-            "budget": {"seeds": [11, 23, 37, 53, 71],
+            "budget": {"seeds": [11, 23],
                        "minimum_rounds": 10,
                        "exposures_per_day_min": 10,
                        "exposures_per_day_max": 15,
@@ -161,6 +216,15 @@ def config_payload(data: dict, code: dict) -> dict:
                 "resume_checkpoint": "every round",
                 "final_checkpoint": "end of budget or early stop",
                 "early_stop_patience": 3,
+            },
+            "compatibility": {
+                "supersedes": "reports/v2_cy_jn_2025/formal_training_v3",
+                "reward_scale": "fixed_scale 100 (v4) vs 1000 (v3): reward "
+                                "and delta-G magnitudes are NOT comparable "
+                                "across protocols; compare settlement-side "
+                                "G_policy/G_b1 in CNY only",
+                "checkpoints": "v4 runs refuse to load v3 checkpoints "
+                               "(action schema storage_quote_v4)",
             },
             "boundaries": {
                 "train_only_in_replay": True,
@@ -205,21 +269,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     out = Path(args.out)
     data = data_payload()
-    code = {
-        "candidate": CANDIDATE,
-        "source_sha256": {
-            name: sha(ROOT / "src" / name) for name in SOURCE_FILES
-        },
-        "git": git_state(),
-        "tests": {
-            "test_da_quote_mapping.py": sha(
-                ROOT / "tests/test_da_quote_mapping.py"),
-            "test_train_da_gate_guards.py": sha(
-                ROOT / "tests/test_train_da_gate_guards.py"),
-            "audit_phase20_action_routing.py": sha(
-                ROOT / "src/audit_phase20_action_routing.py"),
-        },
-    }
+    code = code_payload()
     config = config_payload(data, code)
     config_hash = hashlib.sha256(
         json.dumps(config, sort_keys=True).encode("utf-8")).hexdigest()
@@ -247,27 +297,53 @@ def main(argv=None) -> int:
         },
     }
     manifest["checks"]["all_pass"] = all(manifest["checks"].values())
-    out.mkdir(parents=True, exist_ok=True)
+    files = {
+        "formal_training_data_manifest.json": data,
+        "formal_training_code_manifest.json": code,
+        "formal_training_config.yaml": config,
+        "formal_training_manifest.json": manifest,
+    }
     if args.check:
         problems = []
-        for name, expected in (
-                ("formal_training_data_manifest.json", data),
-                ("formal_training_code_manifest.json", code),
-                ("formal_training_manifest.json", manifest)):
-            path = out / name
-            if not path.exists():
-                problems.append(f"missing {path}")
-                continue
-            existing = json.loads(path.read_text(encoding="utf-8"))
-            if name == "formal_training_manifest.json":
-                for key in ("config_sha256", "data_manifest_sha256",
-                            "code_manifest_sha256"):
-                    if existing.get(key) != expected.get(key):
-                        problems.append(f"{name}: {key} mismatch")
-            elif existing != expected:
-                problems.append(f"{name}: content mismatch")
+        paths = {name: out / name for name in files}
+        missing = [str(p) for p in paths.values() if not p.exists()]
+        if missing:
+            print(json.dumps({"ok": False, "problems":
+                              [f"missing {p}" for p in missing]}, indent=2))
+            return 1
+        saved_data = json.loads(
+            paths["formal_training_data_manifest.json"].read_text(
+                encoding="utf-8"))
+        saved_code = json.loads(
+            paths["formal_training_code_manifest.json"].read_text(
+                encoding="utf-8"))
+        saved_config = yaml.safe_load(
+            paths["formal_training_config.yaml"].read_text(encoding="utf-8"))
+        saved_manifest = json.loads(
+            paths["formal_training_manifest.json"].read_text(
+                encoding="utf-8"))
+        if saved_data != data:
+            problems.append("formal_training_data_manifest.json: "
+                            "content mismatch")
+        # Git state is provenance, not integrity: an untracked file must not
+        # turn a frozen manifest red. Source and test hashes are the contract.
+        for key in ("candidate", "source_sha256", "tests"):
+            if saved_code.get(key) != code.get(key):
+                problems.append(
+                    f"formal_training_code_manifest.json: {key} mismatch")
+        for key, payload in (
+                ("config_sha256", saved_config),
+                ("data_manifest_sha256", saved_data),
+                ("code_manifest_sha256", saved_code)):
+            expected = hashlib.sha256(
+                json.dumps(payload, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+            if saved_manifest.get(key) != expected:
+                problems.append(f"formal_training_manifest.json: "
+                                f"{key} mismatch")
         print(json.dumps({
             "ok": not problems, "problems": problems,
+            "git_drift": saved_code.get("git") != code.get("git"),
             "checks": manifest["checks"]}, indent=2))
         return 0 if not problems else 1
     if args.finalize:
@@ -276,7 +352,15 @@ def main(argv=None) -> int:
             raise FileNotFoundError(results_path)
         results = json.loads(results_path.read_text(encoding="utf-8"))
         manifest_path = out / "formal_training_manifest.json"
+        if not manifest_path.exists():
+            raise FileNotFoundError(manifest_path)
         existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if existing.get("status") == "finalized":
+            print(json.dumps({
+                "refused": "manifest is already finalized",
+                "manifest": str(manifest_path),
+            }, indent=2))
+            return 4
         status = ("GO_FORMAL_TRAINING" if results.get("all_pass")
                   else "NO_GO")
         existing.update({
@@ -295,14 +379,25 @@ def main(argv=None) -> int:
             "manifest": str(manifest_path),
         }, indent=2))
         return 0 if results.get("all_pass") else 1
-    (out / "formal_training_data_manifest.json").write_text(
-        json.dumps(data, indent=2), encoding="utf-8")
-    (out / "formal_training_code_manifest.json").write_text(
-        json.dumps(code, indent=2), encoding="utf-8")
-    (out / "formal_training_config.yaml").write_text(
-        yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
-    (out / "formal_training_manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8")
+    conflicts = [str(out / name) for name in files if (out / name).exists()]
+    if conflicts:
+        print(json.dumps({
+            "refused": "target already contains formal-training manifests; "
+                       "write a new version directory instead",
+            "paths": conflicts,
+        }, indent=2))
+        return 4
+    out.mkdir(parents=True, exist_ok=True)
+    for name, payload in files.items():
+        text = (yaml.safe_dump(payload, sort_keys=False)
+                if name.endswith(".yaml") else json.dumps(payload, indent=2))
+        (out / name).write_text(text, encoding="utf-8")
+    (out / "manifest_generation.json").write_text(json.dumps({
+        "generated_on": dt.datetime.now().isoformat(timespec="seconds"),
+        "candidate": CANDIDATE,
+        "config_sha256": config_hash,
+        "source_sha256": code["source_sha256"],
+    }, indent=2), encoding="utf-8")
     print(json.dumps(manifest["checks"], indent=2))
     print(f"wrote {out}")
     return 0 if manifest["checks"]["all_pass"] else 1

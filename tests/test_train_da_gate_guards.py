@@ -110,11 +110,72 @@ def test_without_early_stop_runs_to_max_round_fifteen():
 
 def test_resume_restores_completed_rounds_and_patience():
     assert t.completed_rounds(530, 53) == 10
-    assert t.completed_rounds(560, 53) == 11
+    assert t.completed_rounds(560, 53) == 10  # a partial round is not a round
+    assert t.completed_rounds(583, 53) == 11
     evaluations = _evals([0.0] * 7 + [1.0, 0.5, 0.4])
-    assert t.completed_rounds(530, 53) == 10
     assert t.no_improvement_streak(evaluations) == 2
     assert not t.should_early_stop(10, evaluations, 3, 10)
     evaluations = evaluations + _evals([0.2])
     assert t.no_improvement_streak(evaluations) == 3
     assert t.should_early_stop(11, evaluations, 3, 10)
+
+
+def test_min_rounds_default_is_ten():
+    assert t.DEFAULT_MIN_ROUNDS == 10
+
+
+def test_round_cap_allows_exactly_max_rounds():
+    assert not t.round_cap_reached(14, 15)
+    assert t.round_cap_reached(15, 15)
+    assert not t.round_cap_reached(99, 0)  # 0 disables the cap
+    assert t.round_cap_reached(1, 1)
+
+
+def test_resume_position_keeps_a_partial_round():
+    partial = t.resume_position(28, 53)
+    assert partial["resume_episode"] == 28
+    assert partial["rounds_completed"] == 0
+    assert partial["round_start"] == 0
+    assert partial["partial_round"] is True
+
+    boundary = t.resume_position(53, 53)
+    assert boundary["resume_episode"] == 53
+    assert boundary["rounds_completed"] == 1
+    assert boundary["round_start"] == 53
+    assert boundary["partial_round"] is False
+
+    assert t.resume_position(0, 53)["rounds_completed"] == 0
+
+
+def test_resume_rule_checks_refuse_any_difference_or_missing_key():
+    saved = {"early_stop_patience": 3, "min_rounds": 10, "max_rounds": 15}
+    assert all(t.resume_rule_checks(saved, 3, 10, 15).values())
+    assert not t.resume_rule_checks(saved, 4, 10, 15)["early_stop_patience"]
+    assert not t.resume_rule_checks(saved, 3, 5, 15)["min_rounds"]
+    assert not t.resume_rule_checks(saved, 3, 10, 0)["max_rounds"]
+    assert not any(t.resume_rule_checks({}, 3, 10, 15).values())
+
+
+def test_restore_best_prefers_the_manifest_over_history(tmp_path: Path):
+    saved = {"value": 5.0, "round": 3, "checkpoint": "ckpt/best"}
+    restored = t.restore_best(saved, [{"mean_fleet_delta": 9.0, "round": 4}],
+                              tmp_path)
+    assert restored == {"value": 5.0, "round": 3,
+                        "checkpoint": "ckpt/best", "source": "manifest"}
+
+
+def test_restore_best_rebuilds_from_history_when_absent(tmp_path: Path):
+    (tmp_path / "round_002.json").write_text(
+        '{"checkpoint": "ckpt/r2"}', encoding="utf-8")
+    restored = t.restore_best(
+        None, [{"mean_fleet_delta": 1.0, "round": 1},
+               {"mean_fleet_delta": 2.0, "round": 2}], tmp_path)
+    assert restored == {"value": 2.0, "round": 2,
+                        "checkpoint": "ckpt/r2", "source": "evaluations"}
+
+
+def test_restore_best_without_evidence_is_the_sentinel(tmp_path: Path):
+    restored = t.restore_best(None, [], tmp_path)
+    assert restored["round"] == -1
+    assert restored["value"] == float("-inf")
+    assert restored["source"] == "none"

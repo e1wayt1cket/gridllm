@@ -1,0 +1,61 @@
+{
+  "written_at": "2026-11-12T12:18:23+08:00",
+  "label": "NON_FORMAL_DIAGNOSTIC",
+  "subject": "Provenance addendum for the Phase 0-5 quote-map saturation audit",
+  "historical_files_modified": false,
+  "script_hash_discrepancy": {
+    "path": "src/diagnose_quote_map_saturation.py",
+    "recorded_in_input_hashes": "187a46ceabf6adc1b09ed919759d736cc1e023b0b75f694f955073681a45c148",
+    "actual_sha256": "12ae6f3259999a8de2130c2ea4b954a9df24d52178d56978b250b6230ccb743e",
+    "input_hashes_written_at": "2026-11-12T01:00:09+0800",
+    "script_mtime": "2026-11-12T01:11:12+08:00",
+    "output_hashes_written_at": "2026-11-12T01:11:25+0800",
+    "evidence": "All content files listed in output_hashes.json hash-match the files on disk. The script mtime lies after input_hashes.json and before output_hashes.json.",
+    "inference": "The current script produced the final Phase 5 artifacts; the recorded input hash is stale, not the outputs. The candidate math is independently re-verified by quote_map_candidates.run_tests in Phase 6.",
+    "impact_on_phase6": "None on Phase 6 inputs: Phase 6 reads the frozen probe-pair list and re-reads all market inputs directly. It does not execute the diagnostic script."
+  },
+  "nested_self_hash_note": {
+    "audit_manifest_json_actual_sha256": "53e716ec5850990c1f5af514fd9247b1d39b53c582e6d2abaef8668caff85882",
+    "audit_manifest_records_itself_as": "2ec5251ce51be915b6b24b4b402ceb4c79ee33577dae6fbbf72ed8f12dbdb3b5",
+    "output_hashes_json_actual_sha256": "3431ac83959945e556a374794ca48aa9cb0d7f5589862f3d7ea53083e80decf1",
+    "audit_manifest_records_output_hashes_as": "24101f31e5423ca9803fe0b2a2a64386269de8cccafef3400128a049312d053a",
+    "input_hashes_json_actual_sha256": "695edce9c4c6a6cd11302cb0f20672af130b03f33381f9976533db0a7ae2b6f9",
+    "note": "A manifest cannot contain its own final hash. These two entries are pre-final-write values; output_hashes.json entries for the content files are accurate."
+  },
+  "checkpoint_provenance": {
+    "result": "All 16 actor files in the four audit copies hash-match their original run directories and output_hashes.json.",
+    "actor_sha256": {
+      "seed11_final": {
+        "ESS9": "4385a8ba3b0b78d2089ed56754a99aeefc3c99f5878f127b0458d2800a1a8047",
+        "ESS14": "afbbe586d206d6acb780bf4cd976536882a522d54d2c9b737aeeb9678a24b969",
+        "ESS17": "f2f3a0c1611e3f952fab9ce64a3e573005d20b1fff5af45ae1b549ca6804aa37",
+        "ESS27": "33620a2da5313610da84d9d18a6a81185dd84cbe72d12211e227f8292176ba1a"
+      },
+      "seed11_best": {
+        "ESS9": "137aa912dae6e9b48d882e50f7cc7fcf8761947072585c2721a0ba64170aa3ef",
+        "ESS14": "302bdf67519810d7b20048fc3efe880ea7046a14928d9a9c49508e94df8db84f",
+        "ESS17": "f3cc58098a3d9d7bad773cd920072a27565bb2ad853beff02e4c0fe3751cc6e8",
+        "ESS27": "9242b9e43f1336d59108eba9141a2155ce7f023c7c21de49aaabc1d262f370f7"
+      },
+      "seed23_final": {
+        "ESS9": "2194f4d0729568f2a67a90358a7c6a449ec656c202e7473c576e7b7be8dd07a8",
+        "ESS14": "12dadaab6a0e408e8fffca26457d3301184851c6d3ff5ccfd2e2057e5ed991b9",
+        "ESS17": "d36ecad2902aaf8128b8ae927969299c5c52868575bdd943b1089688f731ddcf",
+        "ESS27": "2bab815d71e8c3996ffaf5245d1ba63f4d8778478c849d08f149430a3a469906"
+      },
+      "seed23_best": {
+        "ESS9": "18ea5551ceac6cac0825738187267c13837709f20c8712ad5f2de64fb8e1ca58",
+        "ESS14": "e9f9dd51401bb3ca675b1ecba7f972981d636110eed99e7fe80b0e86a9806e77",
+        "ESS17": "731a9904220fafec3e5dd1000535b03626fd90b4ad6c8b6f1c3d1d36113c07ce",
+        "ESS27": "5d3993590b04b9f37436672a7b9a277e1500222c47bd1dba12f8836704898b48"
+      }
+    }
+  },
+  "terminal_accounting": {
+    "terminal_soc_target": 0.5,
+    "initial_soc": 0.5,
+    "terminal_inventory_value_term": false,
+    "source": "src/participant_payoff.py PayoffBreakdown docstring; data/processed/v2_cy_jn_2025/terminal_soc_config.json",
+    "status": "CONFIRMED"
+  }
+}

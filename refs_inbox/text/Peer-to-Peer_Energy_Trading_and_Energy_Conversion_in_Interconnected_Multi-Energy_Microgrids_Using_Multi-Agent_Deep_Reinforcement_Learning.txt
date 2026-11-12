@@ -1,0 +1,1137 @@
+=== page 1 ===
+IEEETRANSACTIONSONSMARTGRID,VOL.13,NO.1,JANUARY2022 715
+Peer-to-Peer Energy Trading and Energy Conversion
+in Interconnected Multi-Energy Microgrids Using
+Multi-Agent Deep Reinforcement Learning
+Tianyi Chen , Student Member, IEEE, Shengrong Bu , Member, IEEE, Xue Liu , Fellow, IEEE,
+Jikun Kang, F. Richard Yu, Fellow, IEEE, and Zhu Han , Fellow, IEEE
+Abstract—A key aspect of multi-energy microgrids (MEMGs) technologies, local active loads and energy storage systems
+is the capability to efficiently convert and store energy in order (ESSs). The recent energy coupling technologies, such as
+toreducethecostsandenvironmentalimpact.Peer-to-peer(P2P)
+hydrogen fuel cells (FCs), water electrolyser (WE) and elec-
+energy trading is a novel paradigm for decentralised energy
+tric heat pumps (HPs), can be integrated by multiple energy
+market designs. In this paper, we investigate the external P2P
+energy trading problem andinternal energy conversion problem carries together to benefit the energy systems economically
+within interconnected residential, commercial and industrial and environmentally [1]. Multiple MEMGs can be networked
+MEMGs.Thesetwoproblemsarecomplexdecision-makingprob- furthertoimprovetheefficiencyandreliabilityofthedistribu-
+lems with enormous high-dimensional data and uncertainty, so
+tion network. However, besides the primary challenges posed
+a multi-agent deep reinforcement learning approach combin-
+bytheintermittentnatureofDERs,thereisanadditionaldiffi-
+ing the multi-agent actor-critic algorithm with the twin delayed
+deep deterministic policy gradient algorithm is proposed. The culty in the stability and operational safety for the network of
+proposed approach can handle the high-dimensional continuous multiple MEMGs because the deployment including the size
+action space and aligns with the nature of P2P energy trading and type of DERs varies by location. It is also not realistic to
+with multiple MEMGs. Simulation results based on three real-
+directly control or operate those DERs by a central authority
+worldMGdatasetsshowthattheproposedapproachsignificantly
+since they may belong to different owners. Peer-to-peer (P2P)
+reduceseachMG’saveragehourlyoperationcost.Theimpactof
+carbon tax pricing is also considered. energy trading has emerged as a novel paradigm for decen-
+tralised energy market designs. P2P energy trading allows the
+Index Terms—Multi-energy microgrids, P2P energy trading,
+end-usersorMGstojointhetradingwithoutacentralauthority
+energy conversion, multi-agent deep reinforcement learning.
+unit [2] and offers an opportunity to produce and sell energy
+at the edge of the network. Correctly modelling and quan-
+tifying the P2P energy trading as well as understanding the
+I. INTRODUCTION
+flexibility of MEMGs are complicated tasks. It involves not
+MICROGRIDS (MG) are used to address the chal-
+only temporal, multi-vector interactions on different networks
+lenges arising from having a high share of distributed
+(e.g., electricity, heat and gas) in response to uncertain energy
+energy resources (DERs) within a local region in modern
+generation and demand, but also includes potential conflicting
+energy systems. At the distribution network level, a multi-
+trading and operating policies of MGs.
+energymicrogrid(MEMG)consistsofDERs,energycoupling
+The literature on the P2P energy trading can be classified
+into five techniques based on the approaches adopted: game
+Manuscript received February 21, 2021; revised July 28, 2021; accepted
+theory, auction theory, constrained optimisation, blockchain
+October 5, 2021. Date of publication November 1, 2021; date of cur-
+rent version December 23, 2021. This work was supported in part by and deep reinforcement learning (DRL). In [3]–[11], game
+Brock University; in part by the University of Glasgow Principal’s Early theory is used to address the P2P energy trading problems
+Career Mobility Fund; in part by NSF under Grant CNS-2128368 and
+in the electricity sector. Some of this work [4], [8], [10], [11]
+Grant CNS-2107216; in part by Toyota; and in part by Amazon. Paper no.
+TSG-00283-2021.(Correspondingauthor:ShengrongBu.) considerstradingamongmultipleMGs,while[3], [5]–[7], [9]
+TianyiCheniswiththeJamesWattSchoolofEngineering,Universityof considers trading between prosumers. In [12]–[16], game-
+Glasgow,GlasgowG128QQ,U.K.(e-mail:t.chen.1@research.gla.ac.uk).
+theoretic approaches are used to solve the P2P energy trad-
+Shengrong Bu is with the Department of Engineering, Brock University,
+Catharines,ONL2S3A1,Canada(e-mail:sbu@brocku.ca). ing in a multi-energy setting. However, only in [16] did
+XueLiuandJikunKangarewiththeSchoolofComputerScience,McGill the authors model the P2P energy trading among multiple
+University,Montreal,QCH3A0G4,Canada.
+MEMGs. In [6], [17]–[21], auction-theoretic approaches are
+F.RichardYuiswiththeSchoolofInformationTechnologyandDepartment
+ofSystemsandComputerEngineering,CarletonUniversity,Ottawa,ONK1S used to address the P2P trading problems between prosumers
+5B6,Canada. in the electricity sector. In [22], the authors proposed an auc-
+ZhuHaniswiththeDepartmentofElectricalandComputerEngineering,
+tion mechanism for energy trading in a multi-energy district.
+University of Houston, Houston, TX 77004 USA, and also with the
+Department of Computer Science and Engineering, Kyung Hee University, In[23]–[27],constrainedoptimisationisappliedtoP2Penergy
+Seoul446-701,SouthKorea. trading under different market and system constraints in the
+Color versions of one or more figures in this article are available at
+electricity sector. In [28]–[30], blockchain is used to enable
+https://doi.org/10.1109/TSG.2021.3124465.
+DigitalObjectIdentifier10.1109/TSG.2021.3124465 secured and decentralised energy trading in the electricity
+1949-3053(cid:2)c 2021IEEE.Personaluseispermitted,butrepublication/redistributionrequiresIEEEpermission.
+Seehttps://www.ieee.org/publications/rights/index.htmlformoreinformation.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 2 ===
+716 IEEETRANSACTIONSONSMARTGRID,VOL.13,NO.1,JANUARY2022
+Fig.1. TheframeworkofP2PenergytradingamongmultipleMulti-energyMGs.RES,COMandINDstandforresidential,commercialandindustrial.
+sector. The game-theoretic and auction-theoretic models are established for interconnected residential, commercial
+mainly solved by traditional constrained optimisation meth- and industrialMEMGs.A two-stage problem consisting
+ods such as mixed-integer linear programming (MILP) [31] of P2P energy trading and energy conversion process
+andalternatingdirectionmethodofmultipliers(ADMM)[32]. is formulated as a partially observable Markov decision
+Those methods are useful for a lot of complex tasks con- process (POMDP).
+sidering multiple factors and constraints. However, the MILP 2) A MADRL approach MATD3 is proposed to optimise
+methodassumeslinearrelationshipsamongfactors[31],while P2P energy trading and energy conversion policies of
+ADMM assumes that the problems are regularised and con- MEMGs in real-time. The proposed method combines
+vex [32], which are unrealistic in many cases. MADRL framework in [38] with twin delayed deep
+DRL, combined with deep neural networks (DNNs) and deterministic policy gradient algorithm (TD3) [39] fur-
+reinforcementlearning(RL)techniques,canbepowerfultools ther to improve the performance of the MA actor-critic
+foraddressingtheP2Penergytradingissuesinthenetworkof algorithm. The original MADRL framework has been
+multiple MEMGs using the trial-and-error mechanism with- modified particularly for our P2P energy trading and
+out any extensive feature engineering. In [33], [34], deep energy conversion problem and also for stabilizing the
+Q-learning is used in their corresponding electricity trading learning process. To our best knowledge, this is the first
+problems. In [35], a convolutional neural network (CNN) is paper using multi-agent DRL models for P2P energy
+used to predict the MG utility while helping the Q-learning trading. Our proposed MATD3 approach can be used
+algorithm choose the optimal policy for the MG to trade elec- to choose the optimal actions within continuous action
+tricity. Deep Q-learning has two major pitfalls: it cannot do spaceandenablesalltheMEMGstolearntheirpolicies
+well when the environment has a colossal number of actions simultaneously to achieve the best goal individually.
+in continuous action space [36]; it tends to overestimate the The remainder of the paper is organised as follows.
+Q-value [37]. Section II formulates the problem of P2P energy trading and
+PreviousworkonP2Penergytradingmainlyfocusesonthe energy conversion for interconnected residential, commercial
+electricity sector. Some work has been done in a multi-energy and industrial MEMGs. Section III proposes the MATD3
+setting but does not consider both external P2P energy trad- method. Section IV presents a case study to evaluate the
+ingandinternalenergyconversionprocess.Theliteraturealso effectiveness of the proposed model. Section V draws the
+lacks modelling of different types of MEMGs participating in conclusion.
+theP2Penergytrading.ConsideringthevarietiesofMGssuch
+as residential, commercial and industrial is essential for P2P
+II. SYSTEMMODEL
+energy trading and energy conversion within a local commu-
+nity since the energy generation patterns and energy coupling A. System Overview
+technologies of different kinds of MGs complement others’ Fig. 1 shows the P2P energy trading paradigm among N
+demand. Also, the existing work on P2P energy trading only MEMGslocatedinresidential,commercialandindustrialareas
+uses single-agent DRL algorithms. within a local community. These MEMGs can not only trade
+To address the above issues, a new P2P energy trading electricity with the main power grid and buy natural gas as
+and energy conversion scheme and a multi-agent (MA) DRL fuel from the external networks but also trade electricity and
+approach are proposed for multiple interconnected MEMGs. heat among themselves. We assume there are heat networks
+The main contributions of this paper are as follows. built within local areas so that the MGs are more willing to
+1) To the best of our knowledge, this is the first work tradeheatinsteadofgassources.EachMGincludesrenewable
+to consider P2P energy trading, energy conversion and generators, a multi-energy system (MES) and electricity and
+multi-vector energies together in a holistic way. A new heat load. The energy flow of the residential, commercial and
+P2P energy trading and energy conversion scheme is Industrial MEMGs is illustrated in Fig. 2.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 3 ===
+CHENetal.:PEER-TO-PEERENERGYTRADINGANDENERGYCONVERSION 717
+hydrogen generated by a water electrolyzer can be stored in a
+hydrogen tank indefinitely until needed. Other energy storage
+systems, such as batteries, lose energy over time, and have
+to be recharged periodically [45]. The cost of electrolyzers is
+continually declining [46], and the efficiency of electrolyzers
+is improving [47].
+2) Commercial MEMG: For commercial MG, the primary
+heat load is for space heating. Therefore, the heat pump, con-
+vertingelectricityintoheat,isabetterchoiceforspaceheating
+thanthegasboiler,whichisonlyastandbyresource.TheMG
+has solar panels installed on the their buildings and a natural
+gas supply as well. In addition, the MG has a thermal storage
+system to store excess thermal energy for later use.
+3) Industrial MEMG: A combined heat and power (CHP)
+generator provides electrical and thermal energy simultane-
+ously to meet electricity and heat demand, which is used to
+improve energy efficiency. There are also wind turbines on-
+sitetoprovideadditionalelectricitygeneration.Moreover,this
+MG is equipped with electrical and thermal storage systems.
+B. POMDP & System Objective
+The P2P energy trading and energy conversion problem is
+formulated as a POMDP to minimise the operation cost of
+each MEMG. A POMDP consists of a set of states, a set of
+observations, a set of actions, a set of reward functions and a
+set of state transition functions.
+1) SystemStatesandMGObservations: Thesystemstates,
+st = {st,...,st }, describe the configurations of all MGs at
+1 N
+time t. The system state of MG i at time t is defined as
+st =[Gt,Dt ,Dt ,Et,ρt ],whereGt istherenewablegen-
+i i e,i h,i i P2P,e i
+eration of MG i between time t and time t+1, Dt and Dt
+e,i h,i
+represents the electricity and heat demand of MG i between
+timetandtimet+1,Et includeselectricalstorageenergylevel
+i
+Fig. 2. (a) The energy-flow-diagram of the residential MEMG, (b) The Et ,levelofhydrogenstoredinthetankEt andthermalstor-
+energy-flow-diagramofthecommercialMEMG,(c)Theenergy-flow-diagram ag e e ,i energylevelEt attimet,andρt h is 2 , t i heP2Pelectricity
+oftheindustrialMEMG. th,i P2P,e
+price at time t. The natural gas price is not considered in the
+system state, since it is fixed within a month. Since the MGs
+1) Residential MEMG: Solar panels are installed at the can not obtain the true generation and demand at the begin-
+residential houses, and the electrical storage system can store ning of each time slot, they need to forecast their generation
+any excess electricity. Solar power can be used to produce and demand. Random Gaussian noise is added into the true
+hydrogen with the help of a water electrolyser. Hydrogen can states to represent the estimated generation and demand (i.e.,
+be converted to electricity and heat using a fuel cell [40] or the observation values), which can effectively represent the
+generate heat using a boiler. Natural gas is a standby fuel to uncertainty of the differences between actual states and esti-
+cover the necessary heat demand. mations [48]. The observation of MG i at time t is defined as
+Hydrogen fuel has great potential to be used in the resi- ot i =[G ˆt i ,D ˆt e,i ,D ˆt h,i ,E i t,ρ P t 2P,e ],wherethehatsymbolindicates
+dentialsector,becauseoftheversatilitytogenerateelectricity, that the variable is an estimation of the true system state.
+heat and serve as energy source for vehicles with low carbon 2) MG Actions: The system actions, at = {at,...,at },
+1 N
+emissions in the future, even though the residential usage of describe the actions of all MGs at time t. The actions of MG
+hydrogenisstillontheinitialstage.Corporateinvestment[41] i at time t is defined as at =[xt,yt], where xt are P2P energy
+i i i i
+and hydrogen infrastructure development [42] are likely to trading actions and yt are energy conversion actions. These
+i
+reduce hydrogen cost. Governments have invested in clean actions will be described in detail in Section II-C. Each MG
+andsafehydrogenheatingsystemsinresidentialbuilding[43]. will choose actions based on their observations.
+e.g., A project has been approved in Scotland to heat homes 3) Reward Functions: The system reward functions, rt =
+with100percentgreenhydrogen[44].Theseinvestmentscan {rt,...,rt }, describe the reward functions of all MGs at time
+1 N
+further accelerate residential usage of hydrogen. t.TherewardfunctionscanbeusedtocalculatetheMGs’rev-
+The water electrolyzers are used as a backup system to enue (cost is treated as negative revenue) after taking actions
+provide extra electricity and heat when necessary, because at and then evaluate the MGs to choose better policies. The
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 4 ===
+718 IEEETRANSACTIONSONSMARTGRID,VOL.13,NO.1,JANUARY2022
+reward function of MG i at time t is formulated as demand of local consumers are not met [11], which is shown
+in (7).
+r i t =r P t 2P,i −C e t co,i −C p t en,i −C t t h,i −C c t arbon,i , (1) C p t en,i =α e (cid:5) Dt e,i −L e t ,i (cid:6) , (6)
+which includes P2P energy trading profit r P t 2P,i , economic Ct =α (cid:5) Dt −Lt (cid:6) 2+α (cid:5) Dt −Lt (cid:6) , (7)
+cost Ct , electricity penalty Ct , discomfort cost Ct and th,i h h,i h,i h h,i h,i
+eco,i pen,i th,i
+environmental cost C c t arbon,i at time t. where L e t ,i is real electricity load supplied by MG i between
+The P2P energy trading profit is described as time t and time t+1 and α represents penalty coefficient;
+e
+Lt is the heat load of MG i between time t and time t+1
+(cid:2)N (cid:2) h,i
+r P t 2P,i = zt ij,u h w e h a i t ch se t n h s e iti c v o i n ty su c m oe e f r fi s c a i r e e nt a . c I tu n a t l h ly is p m ro o v d id el e , d th w e it r h en a e n w d a α b h le is ge th n e -
+j=1(cid:3) ,j(cid:3)=iu∈U
+(cid:4) erationcurtailmentisconsideredsinceelectricityconsumption
+× I( zij,u ≤0 ) ρ P − 2 , P t ,u −I( zij,u >0 ) ρ P + 2 , P t ,u , (2) and generation needs to be balanced. However, extra network
+charges of renewable generation curtailment are not consid-
+where U = {e,h} includes electricity (denoted e) and heat ered. Therefore the penalty only occurs when Dt >Lt . The
+e,i e,i
+(denoted h). For each u, the amount of P2P energy traded is
+penalty terms and the penalty coefficients have been designed
+zt , and ρ−,t and ρ+,t represent the selling and buying
+ij,u P2P,u P2P,u based on [54] to obtain good performance of the proposed
+price at time t, respectively.
+method [55].
+Theeconomiccostconsistsofwholesaleelectricitycostand
+The environmental cost is the economic penalty caused
+natural gas cost, which is expressed as
+by the CO emissions from the natural gas combustion and
+2
+(cid:3) (cid:4)
+electricity bought from the main grid [56], expressed as
+C e t co,i =z
++
+t ii,e
+zt
+I(
+ρ
+zii,e >
+,
+0 ) ρ g + r , id t ,e −I( zii,e ≤0 ) ρ g − r , id t ,e
+(3) C c t arbon,i =αCO2
+(cid:5)
+βgaszt ii,h +βezt ii,e
+(cid:6)
+, (8)
+ii,h gas
+where βgas and βe denote carbon intensity (CI) which are the
+where zt >0 represents buying electricity from the external
+ii,e emission rate of CO
+2
+related to the natural gas combustion
+network (i.e.,the maingrid) inthe wholesale market by MGi
+and the bought net electricity. The carbon tax price denoted
+attimet,zt
+ii,e
+≤0meansMGisellselectricityinthewholesale
+αCO2 converts the carbon emissions into economic penalty.
+market at time t and zt denotes the amount of natural gas
+ii,h 4) State Transition Functions: After executing the system
+bought by MG i from the external network at time t; ρ g + r , id t ,e , actions at, the system states st will transfer to st+1 based on
+ρ−,t andρ refertoasthebuyingandsellingpriceoffered the state transition functions. The transition functions of the
+grid,e gas
+by the main grid and natural gas price at time t, respectively. energy level of storage are shown in Section II-D2. However,
+In this paper, the relationship between P2P electricity prices thetransitionfunctionsoftherenewablegenerationandenergy
+and electricity prices of the main grid is limited as load are not available. We will use our proposed DRL algo-
+rithm to learn from the real-world datasets without knowing
+ρ g − r , id t ,e (cid:6)ρ P − 2 , P t ,e ≈ρ P + 2 , P t ,e (cid:6)ρ g + r , id t ,e . (4) the complete state transition functions of the system.
+5) System Problem: The system problem for MG i is to
+In the electricity wholesale market, the price that the MGs find optimal policy π(xt,yt|G ˆt,D ˆt ,D ˆt ,Et,ρt ) at time t
+buy from the main grid is usually higher than the price that i i i e,i h,i i P2P,e
+tomaximiseitsexpectedtotalrewards(sameasminimisingthe
+MGsselltothemaingrid,sincetherearetransactioncostsdue
+expected total operation cost) which summarises discounted
+totransmissionloss[49].Thehigher thetransaction costs,the
+future rewards over the time horizon T, formulated as
+larger the difference between the buying price and the selling (cid:7) (cid:8)
+price [49]. For the P2P trading market, the selling price is set (cid:2)T
+P1 : maxRt =E γτ rt+τ+1 , (9)
+to be the same as the buying price, since the transaction costs π iπ i
+arenegligiblewithinalocaldistributionnetwork[50].TheP2P τ=0
+electricitypriceissetbetweenthemaingridbuyingandselling where γ is the discount factor.
+prices to encourage P2P energy trading. We assume that the
+MGs decide an agreed P2P price for all of the MGs, and then C. Two-Stage System Process
+negotiate the amount of electricity traded among themselves.
+The MEMGs’ operation process contains two stages: P2P
+Thismethodhasbeenusedin[35],[51]–[53].Thisassumption
+energy trading and energy conversion stages. We assume the
+is made because the combined dynamics of energy trading,
+external P2P energy trading take place in an hour-ahead P2P
+energyconversionandmulti-vectorenergiesareconsideredas
+energy market, in which each MG can buy or sell the desired
+a whole. The P2P electricity price is set as
+energy for the next hour. After the real energy trading deals
+ρt =α (ρ+,t −ρ−,t )+ρ−,t , (5) have been made, the process moves to the internal energy
+P2P,e P2P grid,e grid,e grid,e
+conversion stage.
+where α ∈(0,1) is the price coefficient. 1) P2P Energy Trading Stage: Before the trading begins,
+P2P
+The electricity penalty happens when the electricity load MG i uses its observations ot and its policy to choose trading
+i
+supply is short between time t and time t+1 [54], which is actions to seek for possible deals. The trading actions of MG
+shown in (6). The discomfort cost occurs when the thermal i at time t is denoted as x
+i
+t = [x
+i
+t
+j
+] 1≤j(cid:3)=i≤N = [x
+i
+t
+1
+,x
+i
+t
+2
+,...x
+i
+t
+N
+],
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 5 ===
+CHENetal.:PEER-TO-PEERENERGYTRADINGANDENERGYCONVERSION 719
+where xt = [xt ,xt ] are the intended amounts of energy cell;PWE,t,QWE,t andηWE denoteelectricityinflow,hydrogen
+ij ij,e ij,h e h2
+trading(includingelectricityandheat)betweenMGiandMG outflow and conversion coefficient of the water electrolyser
+j at time t. If xt >0, which means MG i wants to buy energy at time t. Equations (14)-(15) refer to the convert functions
+ij
+fromMGj;ifxt <0,whichmeansMGiwantstosellenergy of the gas boiler with hydrogen or natural gas input, where
+to MG j. MGs
+i
+o
+j
+ften have conflicting trading intentions, e.g.,
+QGB,t, QGB,t
+and
+QGB,t
+denote hydrogen inflow, natural gas
+xt ×xt > 0. Therefore, trading negotiations have been made in h fl 2 ow an n d g heat outfl h ow of the gas boiler at time t; ηGB and
+re ij sultin ji g in real deals of energy trading zt i = [zt ij ] 1≤j(cid:3)=i≤N = η n G g B represent the hydrogen and natural gas conversion h c 2 oeffi-
+[zt ,zt ,...zt ], where zt >0 means MG i buys energy from cient of the gas boiler. The energy conversion process of heat
+i1 i2 iN ij
+MG j; zt < 0 means MG i sells energy to MG j. MGs only pump is denoted in (16), where PHP,t, QHP,t and ηHP repre-
+ij e h
+haveadealwhenoneofthemwantstosellenergyandanother sent electricity inflow, heat outflow and conversion coefficient
+wantstobuyenergy.Notethattheactualenergytradingmight of the heat pump at time t. The convert functions of CHP are
+not be the same as the intention, and therefore, MGs need to denotedin(17)-(18),whereQCHP,t,PCHP,t andQCHP,t denote
+ng e h
+trade energy with external networks to realise their intended natural gas inflow, electricity outflow and heat outflow of the
+trading actions. The amount of energy traded with external CHP at time t; ηCHP and ηCHP represent electricity and heat
+e h
+networks at time t are denoted as zt. The actual amount of conversion coefficient of the CHP.
+ii
+P2P energy trading of MG i are shown as 2) Energy Storage Systems Constraints: The dynamic
+⎧ ⎪⎪⎨ (cid:13) (cid:13) (cid:13) x x i t t j(cid:13) (cid:13) (cid:13) min (cid:3)(cid:13) (cid:13) (cid:13)x i t j (cid:13) (cid:13) (cid:13), (cid:13) (cid:13) (cid:13)x j t i (cid:13) (cid:13) (cid:13) (cid:4) , x i t j x j t i <0,∀i(cid:3)=j, e c n o e n r s g tr y ai l n e t v s e , l s o h f ow th n e a s s to f r o a l g lo e (cid:15) w s s y , stems depends on th (cid:16) eir inherent
+zt
+ij
+=
+⎪⎪⎩ 0 (cid:14) ,
+ij
+N j(cid:10)=1,j(cid:10)(cid:3)=i x i t j(cid:10) − (cid:14) N j(cid:10)=1,j(cid:10)(cid:3)=i zt ij(cid:10) , ∀ x i t i j x = j t i ≥ j. 0,∀i(cid:3)=j, E e t+1 =η e ESE e t +PE e S,t I(Pe >0) η e E , S ch − I η (P e E e , S ≤ di 0 s ) (cid:9)t, (19)
+(10) PESmin ≤ PES,t ≤PESmax, (20)
+e e e
+2) Energy Conversion Stage: The complexity of an MES 0 ≤ E e t+1 ≤B e , (cid:15) (cid:16) (21)
+i a s ch d i u e e ve to d t b h y e m fle a x n i a b g il i i n t g y t o h f e e e x n c e h r a g n y gi c n o g nv d e if r f t e e r r e s n s t u e c n h er a g s y fu v e e l ct c o e r l s l , , E t t h +1 =η t T h SE t t h +QT h S,t I(Qh >0) η t T h S ,in − I η (Q T h S ≤0) (cid:9)t, (22)
+th,out
+heat pump and CHP. The MG needs to consider all available QTSmin ≤ QTS,t ≤QTSmax, (23)
+information, including the energy trading results. For residen- h h h
+tial MG i, the conversion actions yt consist of inflow vector 0 ≤ E t t h +1 ≤B th , (cid:15) (cid:16) (24)
+o Q
+F
+f
+i
+F
+h g 2
+C t
+.
+h ,
+2
+t e
+(
+a
+a
+w n
+).
+a d t
+F
+e i
+o
+r n
+r
+fl e
+c
+l o
+o
+e w c
+m
+tr
+m
+h o y l
+e
+y d
+r
+s
+c
+r e o
+ia
+r g
+l
+e P
+M
+n W e
+G
+o E f ,t
+i
+,
+,
+th
+t
+i
+h
+n e
+e
+fl b o i
+c
+o w
+o
+i
+n
+le
+v
+v r
+e
+e
+r
+c Q
+s
+t
+i
+o
+h
+G
+o
+r
+2
+B
+n
+, o t
+a
+, f
+c
+a t
+t
+h
+i
+s
+o
+e
+n
+sh f
+y
+u o
+t
+e w
+i
+l
+s
+n c
+t
+e
+h
+i l n
+e
+l E h t+ 2 1 =η h H 2 TE h t 2 +Q h H 2 T,t I (cid:5) Qh2 >0 (cid:6)η h H 2 T ,in − I η (cid:5) Q
+h
+H h
+2
+T 2
+,o
+≤
+u
+0
+t
+(cid:6) (cid:9)
+(
+t
+2
+,
+5)
+i
+F in o fl r ow ind v u e s c tr to ia r l o M f G the i, he th a e t p c u o m nv p er P si e H o P n ,t a a c s tio sh n ow yt i n is in th F e ig. in 2 fl ( o b w ). QH h2 Tmi 0 n ≤ ≤ E Q t H h + 2 T 1 ( ≤ t)≤ B Q . H h2 Tmax, ( ( 2 2 7 6 ) )
+vector of the CHP QCHP,t, as shown in Fig. 2(c). h2 h2
+ng
+Equations(19)-(21)showthecharacteristicsoftheelectrical
+storage system. Equation (19) explains the transition function
+D. Physical Constraints
+ofenergylevelofelectricalstorage,wherePES,tisthecharging
+1) Energy Converters Constraints: Energy convert func- ordischargingpowerofelectricalstorage;η e ES,ηES andηES
+tions are used to show the energy conversion mapping from e e,ch e,dis
+represents the self decay rate, charging coefficient and dis-
+inflow energy to outflow energy through the energy convert-
+charging coefficient of electrical storage. Equation (20) shows
+ers [56]. The convert functions are defined as follows,
+the limits the electrical power when charging or discharging
+PFC,t =ηFC×QFC,t,
+(11)
+theelectricalstorageand(21)isthecapacitylimitation,where
+e e h2
+B is the capacity of electrical storage. Equations (22)-(24)
+QFC,t =ηFC×QFC,t,
+(12)
+e
+h h h2 indicatethelimitsofthethermalstoragesystem.Equation(22)
+QWE,t =ηWE×PWE,t, (13) shows the transition function of energy level of thermal stor-
+Q Q h h G G 2 B B , , t t = = η η h G G 2 B B × × Q Q e h G G 2 B B , , t t , , ( ( 1 1 4 5 ) ) i a s n t g o fl e r o , a w w ge h ; c e o r η e e t T f h Q S fi , c T h i S η e , t T n t h S t , i i s n a t n h a d e nd i o n u fl η t o t T fl h S w o ,o w u o t r c r o o e u p e t f r fl fi e o s c e w ie n n t h t e th a o t e f p t s o h e w e l r f e m r d a o e l f ca s th t y o e r r r a m a g t a e e l . ,
+h ng ng
+QHP,t =ηHP×PHP,t,
+(16)
+Equation (23) limits the inflow and outflow heat of the ther-
+h e mal storage system and the energy level of thermal storage is
+PC e HP,t =η e CHP×QC ng HP,t, (17) boundedby(24),whereB th isthecapacityofthermalstorage.
+QCHP,t =ηCHP×QCHP,t. (18) Similarly, the transition function of energy level of hydrogen
+h h ng tankisformulatedin(25),whereQHT,t
+istheinfloworoutflow
+Equations(11)-(13)denotetheconvertfunctionsoffuelcell hydrogen of hydrogen tank; ηHT, h η 2 HT and ηHT represent
+a P n F d C,t w a a n te d r Q el F e C ct , r t o d ly e s n e o r te in hy th d e ro r g e e s n ide in n fl ti o a w l , M e G le s c , tr w ic h it e y re ou Q t F h fl 2 C o , w t, t o h f e hy se d l r f og d e e n ca t y an r k a . te T , h i e nfl h o y w dro c g o e e n h f 2 fi g c a i s en fl h t 2 o ,i w a n nd lim o i u t t a fl t h i o 2 o , w n ou a t c n o d ef h fi y c d ie ro n - t
+e h
+and heat outflow of the fuel cell at time t; ηFC and ηFC repre- gen tank capacity limitation are described in (26)-(27), where
+e h
+sent the electricity and heat conversion coefficient of the fuel B isthecapacityofhydrogentank.Ifthepowerofanenergy
+h2
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 6 ===
+720 IEEETRANSACTIONSONSMARTGRID,VOL.13,NO.1,JANUARY2022
+storagesystemisgreaterthan0,itmeanschargingthestorage where (cid:3) (cid:4)
+or the energy is flowing into the storage. If an energy stor- yt =rt+γ min Qθ(cid:10) st+1,a˜t+1 , (37)
+age system’s power is less than 0, it means discharging the (cid:3) j∈{(cid:4)1,2} j
+storage. a˜t+1 =π φ(cid:10) st+1 +(cid:12)˜,(cid:12)˜ ∼clip(N(0,σ˜),−c,c). (38)
+3) EnergyBalanceConstraints: Fortheenergynetworksof
+Thecriticwillchoosetheminimumtargetvaluebetweenthe
+anMEMGworkingcorrectly,theMGmustbalancetheenergy
+two target Q-networks as in (37), where
+a˜t+1
+is the clipped
+generation and consumption between time t and time t+1.
+target action. The minimum operation results in low-variance
+Theenergybalanceconstraintsforresidential,commercialand
+value estimations and makes the algorithm more stable. To
+industrial MEMGs are formulated as follows,
+address the high variance problem, TD3 updates the policy
+zt e,i +Gt i +PF e, C i ,t(cid:9)t=PE e, S i ,t(cid:9)t+PW e,i E,t(cid:9)t+Dt e,i , (28) networks once every several Q-value updates. By sufficiently
+zt +QGB,t(cid:9)t=Dt , (29) delaying the policy updates, TD3 allows the Q-network to
+h,i h,i h,i
+produce lower Q-values, and hence less chance of a mistake
+QW h2 E ,i ,t(cid:9)t=Q h H 2 T ,i ,t(cid:9)t+QF h2 C ,i ,t(cid:9)t+Q h G 2 B ,i ,t(cid:9)t, (30) being exploited. TD3 algorithm also adds target policy noise
+zt e,i +Gt i =PE e, S i ,t(cid:9)t+P e H , P i ,t(cid:9)t+Dt e,i , (31) a c s lip s p h e o d w G n a i u n ss ( i 3 a 8 n ) n w oi h s e e n a f n o d rm c in is g th th e e e t d a g rg e et v , al w ue h . er T e hi (cid:12)˜ s i t s ar t g h e e t
+zt h,i +Q h H , P i ,t(cid:9)t+Q h G , B i ,t(cid:9)t=Q h T , S i ,t(cid:9)t+Dt h,i , (32) policy regularisation technique will smooth but keep close to
+zt e,i +Gt i +PC e, H i P,t(cid:9)t=PE e, S i ,t(cid:9)t+Dt e,i , (33) the original target action, which helps the algorithm remain
+zt +QCHP,t(cid:9)t+QGB,t(cid:9)t=QTS,t(cid:9)t+Dt . (34) stable and converge fast in the stochastic domain.
+h,i h,i h,i h,i h,i
+Equations(28)-(30)indicatethatresidentialMGimustbal- B. Multi-Agent Twin Delayed Deep Deterministic Policy
+ance the electricity, heat and hydrogen energy, respectively. Gradient Approach
+TheelectricityandheatnetworksofcommercialMGiarecon- As our P2P energy trading and energy conversion model
+strained in (31)-(32). Equations (33)-(34) describe the energy is in an MA environment (each MG is an agent), a
+balance equations of industrial MG i with electricity and heat naive approach is to directly apply TD3 algorithm to learn
+distribution networks. each agent’s policy independently. However, the environ-
+ment is no longer static from the view of each agent
+III. PROPOSEDMULTI-AGENTDEEPREINFORCEMENT since the agents are learning their own policy independently.
+LEARNINGBASEDAPPROACH P(st+1|st,at,π
+1
+,...,π
+N
+)(cid:3)=P(st+1|st,at,π
+1
+(cid:10),...,π
+N
+(cid:10)) for any
+π (cid:3)= π(cid:10) , which violates the Markov assumption. Therefore,
+A MATD3 approach is proposed to solve the P2P energy
+this naive approach has difficulty in learning good policies.
+trading and energy conversion problem formulated in (9).
+Instead, we adopted the concept of centralised training with
+TD3 is a model-free, off-policy actor-critic algorithm which
+decentralised execution in [38], where the training of critic
+uses DNNs to learn policies in high-dimensional, continuous
+take consideration of the actions and observations of all the
+state-action spaces. The MATD3 approach adopts the form of
+agents in the environment but the actor of each agent choose
+centralised critics to ease training and decentralised actors to
+actions only based on its own observations. The centralised
+ensure all MEMGs are operating independently.
+Q-value function of MG i, Qθ (ot,...,ot ,at,...,at ), takes
+i 1 N 1 N
+observations and actions of all MGs as inputs instead of
+A. Twin Delayed Deep Deterministic Policy Gradient
+only its own. The critics are learned by their rewards,
+Algorithm
+where the reward functions can be different from each other,
+TD3 was proposed to solve the overestimation and high
+allowing both competitive and collaborative multi-agent set-
+variance problems lied in deep Q-learning [57] and deep
+tings. The main reason for using a centralised critic is
+deterministic policy gradient (DDPG) [36] algorithms [39].
+that the environment is stationary if all the actions of the
+To solve the overestimation problem, TD3 adopts the idea agentsareknown,whereP(st+1|st,at,...,at ,π ,...,π )=
+of double Q-learning [58]. In TD3, the critic consists of P(st+1|st,at,...,at ,π(cid:10),...,π(cid:10)) e 1 ven for N π 1 (cid:3)= π(cid:10) . N The
+two Q-networks (Qθ
+1
+and Qθ
+2
+) and their target networks
+actor works
+1
+in a de
+N
+cent
+1
+ralised w
+N
+ay, to ensure that only local
+(Qθ(cid:10) and Qθ(cid:10)), and the actor is formed by a deterministic
+information is used when executing policies.
+poli 1 cy netwo 2 rk π φ and its target network π φ(cid:10). The target The centralised Q-value function is updated as
+networks are time-delayed copies of their Q-networks, which (cid:17)(cid:5) (cid:5) (cid:6) (cid:6) (cid:18)
+greatly improve stability in learning [39]. To update the L(θ i )=E ot,at,rt,ot+1 Qθ i(cid:3) ot 1 ,...,ot N ,at 1 ,...,at N −yt i 2 (cid:4)
+T vi D a 3 (3 n 5 e ) t , w w or h k e s r , e th p e π Q is n t e h t e wo s r t k at s e in dis c t r r i i t b i u c ti m on in , im π is a e nd the R lo a s re s yt i =r i t+ (cid:3) γ j∈ m { (cid:4)1 i , n 2} Qθ i (cid:10) j ot 1 +1,.. (cid:3) .,o (cid:3) t N +1,a˜t 1 + (cid:4) 1,...,a˜ (cid:4) t N +1
+t d h i e str t i a b r u g t e io t n va o lu f e. th T e h p e o d li e c t y erm an in d is r ti e c wa p r o d lic f y un n c e ti t o w n o , rk an i d n a y c t to is r a˜t i +1 =π φ i (cid:10) ot i +1 +(cid:12)˜ i ,(cid:12)˜ i ∼clip N 0,σ˜ i 2 ,−c i ,c i . (39)
+is updated using sampled policy gradient which is shown The gradient of the policy network can then be written as
+(cid:21)
+in (36), i.e., (cid:5) (cid:6)
+L ∇ ( φ θ J )= ≈ E E s s t t ∼ ∼ p p π π , (cid:19) a ∇ t∼ a π Q ,r θ t∼ (s R , (cid:17) a (cid:5) ) Q | s θ = (cid:5) s s t, t a , = a π t (cid:6) φ( − st) ∇ yt φ (cid:6) 2 π (cid:18) φ , (s)| s=st (cid:20) , ( ( 3 3 5 6 ) ) ∇ φ i J ≈E ot,at ∇ (cid:13) (cid:13) (cid:13) a o i i = Q o θ t i i ,a o i = t 1 π , φ . i . ( . ot i , ) o ∇ t N φ , i π at 1 φ , i ( . o . i . ) (cid:13) (cid:13) (cid:13) , o a i = t N ot i (cid:22) . (40)
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 7 ===
+CHENetal.:PEER-TO-PEERENERGYTRADINGANDENERGYCONVERSION 721
+Fig.3. InformationflowchartoftheMADRLagenttrainingandexecutionprocess.NNstandsforneuralnetwork.
+In the implementation, mini-batches are used to train the Algorithm 1: MATD3-Based P2P Energy Trading and
+networks rather than a single transition of data. Energy Conversion in Interconnected MEMGs
+1 Initialize γ,τ,θ i1 ,θ i2 ,φ i and replay buffer D
+C. Implementation of the Proposed Method 2 for episode = 1 to M do
+3 Initialize random process N for action exploration
+Theinformationflowofourproposedapproachisillustrated
+4 for t = 1 to T do
+e t b i i n n a o s e n e F r s g d ig y o . o t i t n r 3 a a . t d o t i F t i i n m o g a r e n a d e t c a . t c i i T t o h s h n e s M po a x G l c i t i t c o a y i r n , d π o it f φ e i n . M fi e r A G s rg tl y y i ra w c n r o e d i c n l o l e v m i e t v h r e s e n s i n o o n i i c s ts h e a o c o o s t a b i s o m e s n e p s P rv l 2 e a y P d - t i 5 6 c a F C n o o h d n r o v o e ρ e s a r P t e c s 2 i h P o P , n 2 M e P a G t c o e t n i i f o , e o n r f r g o s m y r y e o t i c tr t i a w a s d . t r i . n G t ˆ . g t i t , a h (cid:23) D c e t t e i c , o i u , n r (cid:23) D s re t h x n , i t i t , a p a n o n d l d ic e y o n b e π r s g e φ y r i ve E i t
+from a Gaussian distribution is added to the actor to increase 7 P2P energy trade with other MGs, and get the real
+exploration. During the P2P energy trading stage, MG i will energy trading deals zt via (10)
+i
+negotiate with other MGs and get real energy trading deals 8 Convert energy based on zt i and yt i , and get reward r i t
+e zt i n . er A g f y te c r on th v a e t r , si y o t i n a s n ta d ge z . t i M ar G e u i s w ed ill to the o n pe r r e a c te eiv M e G the i r i e n wa th rd e 9 a S n to d re ne ( w ot, o a b t s , e r r t v , a o t (cid:2) io t) ns of o a t i + ll 1 MGs in D
+rt and observations of next states ot+1. Finally, the transition 10 ot ←o (cid:2)t
+o i f observations, actions, rewards an i d next observations of all 11 for MG i = 1 to N do
+M o {o t t G + = s 1, { ( o o .. t 1 t, . , a , . t o . , . t r + , t 1 , o } o t N . (cid:2) } t F , ) o a w r t i = l t l h b e { e a c t 1 s e , to n . r t . r e . a d , li a i s n t N ed t } h , e t r r t r a e i = n p i l n a {r y g 1 t , b , e u . a . ff c . e h , r r D N M t } , G , w o h (cid:2) w t e i = r l e l 1 1 2 3 ( t s U h o a p e m k d , l p a a o l t k s e e s , a c r v k r r i i , a t a i o n c ( (cid:2) d 3 k p o ) 9 a m ) f r r a o m m m e in te D i- r b s a θ tc i1 h a o n f d si θ z i2 e m by minimising
+1 N
+samplearandommini-batchofsizem(ok,ak,rk,o (cid:2)k)fromD. 14 Update actor parameter φ i every two critic updates
+The parameters of the critic θ will be updated by minimis- via (40)
+i 15 end
+ing the sample loss via (39), and the actor will be updated 16 Update target network parameters for each MG i via
+using sampled policy gradient according to (40). The target (41)-(43)
+networks of MG i will then be updated using the following 17 end
+equations 18 end
+θ(cid:10) ←τθ +(1−τ)θ(cid:10) , (41)
+i1 i1 i1
+θ(cid:10) ←τθ +(1−τ)θ(cid:10) , (42)
+i2 i2 i2 problem and for stabilising the learning process. The mod-
+φ i (cid:10) ←τφ i +(1−τ)φ i (cid:10), (43) ifications of the original MADRL framework include as
+follows.
+where τ (cid:6) 1 is the target update parameter. Thus, the target
+1) TD3 Agent Customisation: In the original MADRL
+values change slowly which greatly improves the stability of
+framework, the activation function of the output layer in the
+learning. Each episode contains T time steps, and the training
+actor networks is a hyperbolic tangent or sigmoid function.
+process repeats M times to ensure the algorithm converges.
+In the proposed MATD3 method, for each MG, the activation
+The proposed MATD3 algorithm is shown in Algorithm 1.
+functionoftheoutputlayerintheactornetworksiscustomized
+to provide the requisite output shape of the actor in terms of
+D. Modifications to the Original MADRL Framework
+energy trading and energy conversion actions, since the range
+The original MADRL framework has been modified par- ofvaluesfortheenergytradingactionsandenergyconversion
+ticularly for the P2P energy trading and energy conversion actions can be very different.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 8 ===
+722 IEEETRANSACTIONSONSMARTGRID,VOL.13,NO.1,JANUARY2022
+TABLEI
+EFFICIENCIESANDCAPACITIESOFENERGYCONVERTERS
+Fig. 4. The neural network architecture of (target) actor and (target) critic
+foreachagent.
+TABLEII
+2) State/Observation Normalization: For each MG, the
+COMPUTATIONALPERFORMANCEOFTHEDRLMETHODS
+components of the observation vector have different magni-
+tudes.Normalizingtheobservationscanpreventbiasandspeed
+up the training process [59].
+3) Reward Scaling: Reward values obtained from the
+reward function cannot be used directly by the agent, since
+thelearningprocessmightnotbestableduetothewiderange
+of reward values [60]. Therefore, the reward is sampled from
+therewardfunctionstocalculatethedistributionofthereward,
+and then the z-score of the new reward (i.e., the standardized
+reward) can be calculated based on the distribution. This scal- B. Performance Evaluation
+ing of the reward and setting of a lower bound of the z-score To demonstrate the effectiveness of our proposed scheme
+make our learning process stable. and MATD3 algorithm, the following methods are compared.
+4) Network Architecture: The neural network architecture 1) The Rule-Based Method: The MGs do not use any
+of(target)actorand(target)criticforeachagentarepresented energy converters, and they only trade energy with external
+in Fig. 4. The fully connected (FC) layers use the Rectified networks. The rule-based operating policy calculates the dif-
+Linear Unit (ReLU) or the customised function as activa- ference between the estimated energy demand and generation
+tion functions. Compared to the original MADRL framework, for the trading time slot, and then sells the surplus electricity
+a hidden layer has been added to the observations before or buy the needed energy.
+concatenating with the actions. 2) SATD3-SEP: The SATD3-SEP method has the same
+configuration as rule-based one, except that it uses three inde-
+IV. NUMERICALSIMULATION pendent TD3 agents to find the trading actions of each MG
+with external networks. Therefore, the agents only use their
+A. Case Study Setup
+own observations, actions, rewards and next observations to
+TheproposedMATD3approachissimulatedina3-MEMG
+train their critic networks.
+model including a residential MEMG, a commercial MEMG
+3) SATD3: The SATD3 method will use our system model
+and an industrial MEMG. Three real-world datasets contain-
+for P2P energy trading and energy conversion. However, the
+ing renewable generation and energy demand data at 1-hour
+agents for the three MEMGs are independent TD3 agents.
+resolution are used to train our model, where MG 1 uses
+4) MATD3: This is our proposed energy trading and con-
+data [61] from residential households located in Mueller,
+version scheme, and our proposed MATD3 method.
+Austin, Texas; MG 2 uses data [62] from a commercial data
+TheaveragehourlyoperationcostsofeachMGinatypical
+warehouse located in Mueller, Austin, Texas; and MG 3 uses
+winter day using each method are illustrated in Fig. 5. The
+data [63] from a power plant at trial site Aachen/Cologne,
+industrialMGhasthehighestoperationcostduetoitshighest
+Germany.1 The parameters of energy converters are given in
+demand.ThefigureshowsthattheproposedMATD3approach
+Table I. The electricity price offered by the main grid fol-
+can reduce the operation cost and outperform other methods.
+lows the hourly locational marginal pricing from ISO New
+TheMATD3approachachievesaveragehourlycostsof4.119,
+EnglandInc.[64]andthenaturalgaspricesfollowthemonthly
+6.566 and 9.230 U.S. dollars in the residential MG, commer-
+Natural Gas Industrial Price from U.S. Energy Information
+cial MG and industrial MG, respectively. In relative terms,
+Administration [65]. Also, the carbon tax price αCO2 is set
+MATD3reducesthecosts18.2%,16.5%and18.1%compared
+to 0.0316 $/kg, while the carbon intensities of natural gas
+to those of SATD3, SATD3-SEP and rule-based methods for
+and grid electricity are βgas = 0.245 kg/kWh and βe =
+theresidentialMG;27.8%,20%and24.8%comparedtothose
+0.683 kg/kWh, respectively [66].
+of SATD3, SATD3-SEP and rule-based methods for the com-
+mercialMG;and23.1%,13.1%and20.3%comparedtothose
+1We cannot find any industrial MG dataset in the same location as the
+ofSATD3,SATD3-SEPandrule-basedmethodsfortheindus-
+previous two, however, in our setting we assume these three MG are in the
+samelocalarea. trial MG. SATD3 did not perform well and failed to converge
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 9 ===
+CHENetal.:PEER-TO-PEERENERGYTRADINGANDENERGYCONVERSION 723
+made at each time slot. The same data was used as in
+Section IV-B.
+The first two columns in Fig. 6 show how the electric-
+ity demand and heat demand for each MEMG was met
+usingrenewablegeneration,energystorage,energytradingand
+energyconversion.Fig.6(a),6(e)and6(i)revealthattheMGs
+tend to buy more electricity (labelled in red as ET) when the
+electricity price is low or the renewable generation is insuf-
+ficient. The residential MG uses WE to transform purchased
+surplus electricity to hydrogen stored in the hydrogen tank,
+e.g., Fig. 6(a) in hour 22. Later, when needed, FC is used
+to transform hydrogen to electricity and heat. As shown in
+Fig. 6(f), HP provides a significant amount of heat for the
+commercialMGandotherMGs.FortheindustrialMGshown
+inFig.6(i)and6(j),CHPisusedtoprovideelectricityandheat
+when wind electricity is insufficient, or the electricity price is
+high.
+The last two columns in Fig. 6 show the amount of energy
+traded among three MGs and external networks. P2P energy
+trading accounts for a considerable proportion of the heat
+traded.However, themajorityofelectricitytradingiswiththe
+mainpowergrid,asallthreeMGshaveinsufficientrenewable
+generation to meet their own demand and energy conversion.
+Fig. 5. Average hourly costs of three MGs in a local community for the
+Thereisnoelectricitysoldbacktothegridinthiscase,which
+examinedmethods.Curvesaresmootheduniformlyforvisualclarity.
+shows our proposed approach makes appropriate decisions.
+The last column in Fig. 6 shows the amount of heat that each
+within 5000 episodes, because directly applying the algorithm
+MEMG trade with others. The commercial MG provides sig-
+into an environment with three interacting MGs violates the
+nificant heat energy to other MGs via P2P energy trading,
+Markov assumption. The SATD3-SEP method reduced com-
+whichexplainswhythecommercialMGconvertsmuchpower
+mercial and industrial MGs’ costs compared to the rule-based
+into heat using HP even when its heat demand is relatively
+method. However, SATD3-SEP performs comparably to the
+low.TheseresultsalsoshowthatMGsfulfiltheirheatdemand
+rule-based method for the residential MG. These results are
+using P2P heat trading, and only the residential MG needs to
+duetothefactthattheresidentialMGonlyhaselectricalstor-
+buyextranaturalgas(Fig.6(d)labelledinorangeasGB)from
+age, while the commercial and industrial MG have electrical
+the external network.
+storage and thermal storage.
+These results demonstrate that the proposed MATD3
+The computational performance of the compared DRL
+method can utilise energy conversion to flexibly convert and
+methods is illustrated in Table II in terms of training and
+store the energy when needed. It also allows the community
+execution. The average CPU time per episode is the high-
+to consume heat energy locally with P2P energy trading, and
+est in MATD3 since the method involves interactions among
+reduce the surplus electricity sent back to the main grid.
+all three MGs, and each agent trains its critic using the
+informationfromalloftheMGs.ThetotalCPUtimerequired
+to reach convergence is shortest in SATD3-SEP because of D. Effect of Carbon Tax Price on Costs and CO Emissions
+2
+the independent agents, longer in MATD3 because of the
+Theimpactofthecarbontaxpriceonthetheaveragehourly
+multi-agent setting, and longest in SATD3 (since it fails to
+costs and CO emissions for each MEMG using our proposed
+2
+reachconvergence).Forexecution,theCPUtimeofeachDRL
+MATD3methodisshowninFig.7.Whenthecarbontaxprice
+method is similar and in the order of milliseconds since the
+increases, the average hourly costs of each MG increase due
+policies are directly inferred from the observations by the
+totheincreaseoftheenvironmentalcost.Thecarbontaxprice
+trained actor networks.
+impact is less on the residential MG, because the amount of
+energy trading with the external network is smaller compared
+to the commercial and industrial MGs.
+C. Impact of Energy Conversion and P2P Energy Trading
+The CO emissions from the commercial MG are sta-
+2
+Fig. 6 shows the proportion of each MGs’ electricity and ble when the carbon tax price is lower than 0.02 $/kg,
+heat demand that is met in each hour time slot by renew- decreasesignificantlywhenthecarbontaxincreasesfrom0.02
+ablegeneration,energystorage,energytrading(includingP2P to 0.04 $/kg, and stay unchanged when the price increases
+energy trading and trading with the external network), and beyond 0.04 $/kg. The reason is that the commercial MG
+energyconversionusingourproposedMATD3approach.This converts significant amount of electricity purchased from the
+figure also shows how our proposed method was able to main grid to heat and trades the heat with other MGs, since
+reduce the average hourly operation cost of each MEMG by the P2P energy trading profit is higher than the environmen-
+revealing the energy trading and energy conversion decisions tal cost when carbon tax price is lower than 0.02 $/kg. When
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 10 ===
+724 IEEETRANSACTIONSONSMARTGRID,VOL.13,NO.1,JANUARY2022
+Fig. 6. (a)-(d) show how the electricity demand is met, how the heat demand is met, the amount of electricity traded with each source, and the amount
+ofheattradedwitheachsourcerespectivelyfortheresidentialMEMG.(e)-(h)showthecorrespondingresultsforthecommercialMEMG,and(i)-(l)show
+themfortheindustrialMEMG.EDandHDstandforelectricitydemandandheatdemand.PV,ESandHSstandforsolargeneration,electricalstorageand
+thermalstorage.ETandPGmeanenergytradingandelectricitytradingwiththemaingrid.
+andremainunchangedabovethecarbontaxpriceof0.02$/kg.
+The residential MG produces less CO emissions as the car-
+2
+bon tax price increases from 0 to 0.02 $/kg, and then more
+CO untilthecarbontaxpricereaches0.04$/kg,andthesame
+2
+amountofCO abovethat.ThisisbecausetheresidentialMG
+2
+usesmoreenvironmentallyfriendlyapproachasthecarbontax
+price increases at first. However, when the carbon tax price is
+higher than 0.02 $/kg, it has to use an increasing amount of
+natural gas to meet its heat demand because the commercial
+MGbeginstoreducesellingheattootherMGs.Oncethecar-
+bontaxpriceishigherthan0.04$/kg,thedemandismetfully
+by the natural gas in residential MG.
+E. Scalability of the Proposed Approach
+Fig.7. AveragehourlycostsandCO2emissionsatvaryingcarbontaxprices. Theproposedapproachcanbescaledupforalongerperiod
+thanaday.Iftheproposedapproachisscaleduptoamonthor
+the carbon tax price is above 0.02 $/kg, the amount of the
+shorter, the time horizon in the system problem shown in (9)
+heat traded with other MGs is reduced, and the CO emis-
+2 needstobechangedfromadaytothenewperiod.Thismethod
+sions are reduced until no more heat trading takes place. The
+only needs to train the agents once and the results can be
+figureshows thatthereisasharpdropinCO emissionsfrom
+2 reused. If the extended period is longer, e.g., up to one year,
+the industrial MG when the carbon tax price increases from
+the agents have to be trained periodically using the newest
+0 to 0.02 $/kg, and the CO emissions remain unchanged
+2 collected data and old data. The computational costs of this
+when the price increases beyond 0.02 $/kg. As the carbon
+method are higher than the first method.
+tax price increases, the industrial MG uses the CHP to meet
+a higher proportion of its own electricity demand rather than
+buyingelectricityfromthemaingrid,andalloftheelectricity
+V. CONCLUSION
+demand was met by the CHP when the carbon tax price is An external P2P energy trading and internal energy
+0.02 $/kg. Therefore, the CO emissions are reduced at first, conversion problem was investigated for the interconnected
+2
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 11 ===
+CHENetal.:PEER-TO-PEERENERGYTRADINGANDENERGYCONVERSION 725
+residential, commercial and industrial MEMGs in a local [14] C. Wang, W. Wei, J. Wang, L. Wu, and Y. Liang, “Equilibrium of
+community. The problem was formulated as a POMDP, interdependent gas and electricity markets with marginal price based
+bilateral energy trading,” IEEE Trans. Power Syst., vol. 33, no. 5,
+and a multi-agent deep reinforcement learning approach was
+pp.4854–4867,Sep.2018.
+proposed to address it. The proposed approach aligns with [15] P.Jiangetal.,“Atwo-stagegamemodelforcombinedheatandpower
+the nature of P2P energy trading, and can also handle a tradingmarket,”IEEETrans.PowerSyst.,vol.34,no.1,pp.506–517,
+Jan.2019.
+high-dimensionalcontinuousactionspaceandalleviateoveres-
+[16] D. Xu et al., “Peer-to-peer multienergy and communication resource
+timation and high variance problems. The case study on three
+trading for interconnected microgrids,” IEEE Trans. Ind. Informat.,
+real-world datasets showed that the proposed method signifi- vol.17,no.4,pp.2522–2533,Apr.2021.
+cantlyreducedallMGs’operationcosts.Thesimulationresults [17] R.Li,W.Wei,S.Mei,Q.Hu,andQ.Wu,“Participationofanenergy
+hub in electricity and heat distribution markets: An MPEC approach,”
+also demonstrated that the MATD3 method can utilise energy
+IEEETrans.SmartGrid,vol.10,no.4,pp.3641–3653,Jul.2019.
+conversion to flexibly convert and store the energy and allows [18] J.Guerrero,A.C.Chapman,andG.Verbicˇ,“DecentralizedP2Penergy
+MGstoconsumeheatenergylocallywithP2Penergytrading. trading under network constraints in a low-voltage network,” IEEE
+Trans.SmartGrid,vol.10,no.5,pp.5163–5173,Sep.2019.
+The simulation results also showed the impact of carbon tax
+[19] T. Morstyn, A. Teytelboym, and M. D. McCulloch, “Bilateral contract
+price on the operation cost and CO 2 emissions. networks for peer-to-peer energy trading,” IEEE Trans. Smart Grid,
+To the best of our knowledge, this work is the first to vol.10,no.2,pp.2026–2035,Mar.2019.
+consider the combined dynamics of energy trading, energy [20] T. Morstyn, A. Teytelboym, C. Hepburn, and M. D. McCulloch,
+“Integrating P2P energy trading with probabilistic distribution loca-
+conversion and multi-vector energies (electricity, heat and
+tional marginal pricing,” IEEE Trans. Smart Grid, vol. 11, no. 4,
+natural gas) as a whole. More options can be used to match pp.3095–3106,Jul.2020.
+supplywithdemand,makingthesystemmoreflexibleoverall. [21] Z. Li and T. Ma, “Peer-to-peer electricity trading in grid-connected
+residentialcommunitieswithhouseholddistributedphotovoltaic,”Appl.
+Increased flexibility provides alternatives to adding addi-
+Energy,vol.278,pp.1–13,Nov.2020.
+tional costly infrastructure to meet demand and supports the [22] F.Zeng,Z.Bie,S.Liu,C.Yan,andG.Li,“Tradingmodelcombining
+inclusion of a higher share of variable renewable energy electricity, heating, and cooling under multi-energy demand response,”
+J.Mod.PowerSyst.CleanEnergy,vol.8,no.1,pp.133–141,Jan.2020.
+sources.
+[23] A. Lüth, J. M. Zepter, P. C. del Granado, and R. Egging, “Local
+electricity market designs for peer-to-peer trading: The role of battery
+flexibility,”Appl.Energy,vol.229,pp.1233–1243,Nov.2018.
+REFERENCES [24] T. Morstyn and M. D. McCulloch, “Multiclass energy management
+forpeer-to-peerenergytradingdrivenbyprosumerpreferences,”IEEE
+[1] P.Mancarella,“MES(multi-energysystems):Anoverviewofconcepts Trans.PowerSyst.,vol.34,no.5,pp.4005–4014,Sep.2019.
+andevaluationmodels,”Energy,vol.65,pp.1–17,Feb.2014. [25] T.Baroche,P.Pinson,R.L.G.Latimier,andH.B.Ahmed,“Exogenous
+[2] W. Tushar, C. Yuen, H. Mohsenian-Rad, T. Saha, H. V. Poor, and cost allocation in peer-to-peer electricity markets,” IEEE Trans. Power
+K.L.Wood, “Transforming energy networks via peer-to-peer energy Syst.,vol.34,no.4,pp.2553–2564,Jul.2019.
+trading: The potential of game-theoretic approaches,” IEEE Signal [26] M. Khorasany, Y. Mishra, and G. Ledwich, “A decentralized bilateral
+Process.Mag.,vol.35,no.4,pp.90–111,Jul.2018. energytradingsystemforpeer-to-peerelectricitymarkets,”IEEETrans.
+[3] Y.Wang,W.Saad,Z.Han,H.V.Poor,andT.Bas¸ar,“Agame-theoretic Ind.Electron.,vol.67,no.6,pp.4646–4657,Jun.2020.
+approachtoenergytradinginthesmartgrid,”IEEETrans.SmartGrid, [27] Z.Guo,P.Pinson,S.Chen,Q.Yang,andZ.Yang,“Chance-constrained
+vol.5,no.3,pp.1439–1450,May2014. peer-to-peer joint energy and reserve market considering renewable
+[4] C.Zhang,J.Wu,Y.Zhou,M.Cheng,andC.Long,“Peer-to-peerenergy generation uncertainty,” IEEE Trans. Smart Grid, vol. 12, no. 1,
+tradinginamicrogrid,”Appl.Energy,vol.220,pp.1–12,Jun.2018. pp.798–809,Jan.2021.
+[5] G.ElRahi,S.R.Etesami,W.Saad,N.B.Mandayam,andH.V.Poor, [28] J. Kang, R. Yu, X. Huang, S. Maharjan, Y. Zhang, and E. Hossain,
+“Managing price uncertainty in prosumer-centric energy trading: A “Enablinglocalizedpeer-to-peerelectricitytradingamongplug-inhybrid
+prospect-theoreticstackelberggameapproach,”IEEETrans.SmartGrid, electric vehicles using consortium blockchains,” IEEE Trans. Ind.
+vol.10,no.1,pp.702–713,Jan.2019. Informat.,vol.13,no.6,pp.3154–3164,Dec.2017.
+[6] W. Tushar et al., “Grid influenced peer-to-peer energy trading,” IEEE [29] L.Thomas,Y.Zhou,C.Long,J.Wu,andN.Jenkins,“Ageneralform
+Trans.SmartGrid,vol.11,no.2,pp.1407–1418,Mar.2020. of smart contract for decentralized energy systems management,” Nat.
+[7] K.Zhang,S.Troitzsch,S.Hanif,andT.Hamacher,“Coordinatedmarket Energy,vol.4,no.2,pp.140–149,Jan.2019.
+designforpeer-to-peerenergytradeandancillaryservicesindistribution [30] M. T. Devine and P. Cuffe, “Blockchain electricity trading under
+grids,”IEEETrans.SmartGrid,vol.11,no.4,pp.2929–2941,Jul.2020. demurrage,” IEEE Trans. Smart Grid, vol. 10, no. 2, pp.2323–2325,
+[8] M.Yan,M.Shahidehpour,A.Paaso,L.Zhang,A.Alabdulwahab,and Mar.2019.
+A. Abusorrah, “Distribution network-constrained optimization of peer- [31] C.A.FloudasandX.Lin,“Mixedintegerlinearprogramminginprocess
+to-peertransactiveenergytradingamongmulti-microgrids,”IEEETrans. scheduling: Modeling, algorithms, and applications,” Ann. Oper. Res.,
+SmartGrid,vol.12,no.2,pp.1033–1047,Mar.2021. vol.139,no.1,pp.131–162,Oct.2005.
+[9] W.Zhong,S.Xie,K.Xie,Q.Yang,andL.Xie,“CooperativeP2Penergy [32] S. Boyd, N. Parikh, E. Chu, B. Peleato, and J. Eckstein, Distributed
+trading in active distribution networks: An MILP-based nash bargain- Optimization and Statistical Learning via the Alternating Direction
+ingsolution,”IEEETrans.SmartGrid,vol.12,no.2,pp.1264–1276, MethodofMultipliers,vol.3.Hanover,MA,USA:NowPubl.,2010.
+Mar.2021. [33] T. Chen and S. Bu, “Realistic peer-to-peer energy trading model for
+[10] K. Anoh, S. Maharjan, A. Ikpehai, Y. Zhang, and B. Adebisi, microgrids using deep reinforcement learning,” in Proc. IEEE PES
+“Energy peer-to-peer trading in virtual microgrids in smart grids: A Innov.SmartGridTechnol.Europe(ISGT-Europe),Bucharest,Romania,
+game-theoretic approach,” IEEE Trans. Smart Grid, vol. 11, no. 2, 2019,pp.1–5.
+pp.1264–1275,Mar.2020. [34] T. Chen and W. Su, “Indirect customer-to-customer energy trading
+[11] S. Cui, Y. W. Wang, Y. Shi, and J. W. Xiao, “A new and fair peer- with reinforcement learning,” IEEE Trans. Smart Grid, vol. 10, no. 4,
+to-peer energy sharing framework for energy buildings,” IEEE Trans. pp.4338–4348,Jul.2019.
+SmartGrid,vol.11,no.5,pp.3817–3826,Sep.2020. [35] X. Lu, X. Xiao, L. Xiao, C. Dai, M. Peng, and H. V. Poor,
+[12] Y. Chen, W. Wei, F. Liu, and S. Mei, “A multi-lateral trading model “Reinforcementlearning-basedmicrogridenergytradingwithareduced
+for coupled gas-heat-power energy networks,” Appl. Energy, vol.200, power plant schedule,” IEEE Internet Things J., vol. 6, no. 6,
+pp.180–191,Aug.2017. pp.10728–10737,Dec.2019.
+[13] Y.Chen,W.Wei,F.Liu,E.E.Sauma,andS.Mei,“Energytradingand [36] T.P.Lillicrapetal.,“Continuouscontrolwithdeepreinforcementlearn-
+marketequilibriuminintegratedheat-powerdistributionsystems,”IEEE ing,”inProc.4thInt.Conf.Learn.Represent.(ICLR),SanJuan,Puerto
+Trans.SmartGrid,vol.10,no.4,pp.4080–4094,Jul.2019. Rico,2016,pp.1–14.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 12 ===
+726 IEEETRANSACTIONSONSMARTGRID,VOL.13,NO.1,JANUARY2022
+[37] S.ThrunandA.Schwartz,“Issuesinusingfunctionapproximationfor [63] “Smart Energy Data: Aachen/Cologne Virtual Power Plant.”
+reinforcement learning,” in Proc. 4th Connectionist Models Summer, RWTH Aachen University. 2014. [Online]. Available:
+Hillsdale,NJ,USA,1993,pp.255–263. https://data.lab.fiware.org/organization/rwth-aachen-university
+[38] R.Lowe,Y.Wu,A.Tamar,J.Harb,P.Abbeel,andI.Mordatch,“Multi- [64] “Electricity Price.” ISO New England. 2018. [Online]. Available:
+agent actor-critic for mixed cooperative-competitive environments,” in https://www.iso-ne.com/
+Proc. Adv. Neural Inf. Process. Syst. (NIPS), Long Beach, CA, USA, [65] “United States Natural Gas Industrial Price.” U.S. Energy
+2017,pp.6379–6390. Information Administration. 2018. [Online]. Available:
+[39] S.Fujimoto,H.V.Hoof,andD.Meger,“Addressingfunctionapprox- https://www.eia.gov/dnav/ng/hist/n3035us3m.htm
+imation error in actor-critic methods,” in Proc. 35th Int. Conf. Mach. [66] “U.S. Energy-Related Carbon Dioxide Emissions.” U.S.
+Learn.(ICML),Stockholm,Sweden,2018,pp.2587–2601. Energy Information Administration. 2018. [Online]. Available:
+[40] R.KhurmiandR.Sedha,MaterialsScience,5thed.NewDelhi,India: https://www.eia.gov/environment/emissions/carbon/
+S.ChandCompany,2014. [67] H. R. Ellamla, I. Staffell, P. Bujlo, B. G. Pollet, and S. Pasupathi,
+[41] G. Glenk and S. Reichelstein, “Economics of converting renewable “Currentstatusoffuelcellbasedcombinedheatandpowersystemsfor
+powertohydrogen,”Nat.Energy,vol.4,no.3,pp.216–222,2019. residentialsector,”J.PowerSources,vol.293,pp.312–328,Oct.2015.
+[42] R.Dixon,J.Li,andM.Wang,“Progressinhydrogenenergyinfrastruc-
+ture development—Addressing technical and institutional barriers,” in
+CompendiumofHydrogenEnergy.Waltham,MA,USA:Elsevier,2016,
+pp.323–343.
+[43] “£166 Million Cash Injection for Green Technology and
+60,000 U.K. Jobs.” GOV.U.K. 2021. [Online]. Available: TianyiChen(StudentMember,IEEE)receivedthe
+https://www.gov.uk/government/news/166-million-cash-injection- M.Sc. degree from the University of Southampton,
+for-green-technology-and-60000-uk-jobs Southampton, U.K., in 2017. He is currently
+[44] “OfgemApprovesSGNHydrogenHomesProjectinScotland.”Energy pursuing the Ph.D. degree with the University
+Digital. 2020. [Online]. Available: https://energydigital.com/oil-and- of Glasgow, U.K. His current research interests
+gas/ofgem-approves-sgn-hydrogen-homes-project-scotland include the P2P energy trading, multienergy
+[45] A. Züttel, “Hydrogen storage methods,” Naturwissenschaften, vol. 91, system, machine learning optimization, and deep
+no.4,pp.157–172,Mar.2004. reinforcementlearningapplication.
+[46] S. M. Saba, M. Müller, M. Robinius, and D. Stolten, “The investment
+costs of electrolysis—A comparison of cost studies from the past 30
+years,”Int.J.HydrogenEnergy,vol.43,no.3,pp.1209–1223,2018.
+[47] M. Schalenbach, G. Tjarks, M. Carmo, W. Lueke, M. Mueller, and
+D.Stolten,“Acidicoralkaline?Towardsanewperspectiveontheeffi-
+Shengrong Bu (Member, IEEE) received the B.E.
+ciency of water electrolysis,” J. Electrochem. Soc., vol.163, no. 11,
+degree in mechanical engineering and automation
+Aug.2016,Art.no.F3197.
+from the Huazhong University of Science and
+[48] M. L. Stein, Interpolation of Spatial Data: Some Theory for Kriging.
+Technology,China,theMastersbyResearchdegree
+NewYork,NY,USA:Springer,2012.
+in electrical engineering from the University of
+[49] H.Demsetz,“Thecostoftransacting,”Quart.J.Econ.,vol.82,no.1,
+Wollongong, Australia, and the Ph.D. degree in
+pp.33–53,Feb.1968.
+electrical and computer engineering from Carleton
+[50] W.Tushar,T.K.Saha,C.Yuen,D.Smith,andH.V.Poor,“Peer-to-peer
+University,Canada,in2012.
+tradinginelectricitynetworks:Anoverview,”IEEETrans.SmartGrid,
+From2012to2014,sheheldaresearchposition
+vol.11,no.4,pp.3185–3200,Jul.2020.
+with Huawei Technologies Canada Inc., Ottawa, as
+[51] Y. Wu, X. Tan, L. Qian, D. H. K. Tsang, W.-Z. Song, and L. Yu,
+an NSERC Industrial R&D Fellow. From 2014 to
+“Optimalpricingandenergyschedulingforhybridenergytradingmar-
+2021, she was a Lecturer (Assistant Professor) with the James Watt School
+ket in future smart grid,” IEEE Trans Ind. Informat., vol. 11, no. 6,
+of Engineering, University of Glasgow, U.K. She is currently an Associate
+pp.1585–1596,Dec.2015.
+ProfessorwithBrockUniversity,Canada.Herresearchinterestsincludemulti-
+[52] M. R. Alam, M. St-Hilaire, and T. Kunz, “Peer-to-peer energy trad-
+vector energy microgrids, smart grids, future wireless networks, wireless
+ing among smart homes,” Appl. Energy, vol.238, pp.1434–1443,
+network security, big data analytics, deep reinforcement learning, and game
+Mar.2019.
+theory.ShewasarecipientofthreebestpaperawardsatIEEEinternational
+[53] W. Tushar et al., “Energy storage sharing in smart grid: A modi-
+conferences.Highlightsofherprofessionalactivitiesincludedutiesasapeer
+fied auction-based approach,” IEEE Trans. Smart Grid, vol. 7, no. 3,
+reviewer for EPSRC and Carnegie Trust, an Associate Editor for Wireless
+pp.1462–1475,May2016.
+Networks(Springer)andaTopicEditorforEnergies, theTPCCo-Chairfor
+[54] S.Sharma,A.Verma,Y.Xu,andB.K.Panigrahi,“Robustlycoordinated
+six international workshops or conference symposiums, and duties as the
+bi-level energy management of a multi-energy building under multiple
+N2WomenMentoringCo-Chair.
+uncertainties,” IEEE Trans. Sustain. Energy, vol. 12, no. 1, pp.3–13,
+Jan.2021.
+[55] H.Li,Z.Wan,andH.He,“ConstrainedEVchargingschedulingbased
+onsafedeepreinforcementlearning,”IEEETrans.SmartGrid,vol.11,
+no.3,pp.2427–2439,May2020.
+[56] Y.Jiang,C.Wan,C.Chen,M.Shahidehpour,andY.Song,“Ahybrid Xue Liu (Fellow, IEEE) received the Ph.D. degree
+stochastic-intervaloperationstrategyformulti-energymicrogrids,”IEEE (withmultipleHons.)fromtheUniversityofIllinois
+Trans.SmartGrid,vol.11,no.1,pp.440–456,Jan.2020. atUrbana–Champaign.
+[57] V. Mnih et al., “Human-level control through deep reinforcement HeisaProfessorandaWilliamDawsonScholar
+learning,”Nature,vol.518,no.7540,pp.529–33,Feb.2015. withMcGillUniversity.HeisalsoaVPR&D,the
+[58] H.V.Hasselt,“DoubleQ-learning,”inProc.Adv.NeuralInf.Process. ChiefScientist,andtheCo-DirectorofSamsungAI
+Syst.(NIPS),2010,pp.2613–2621. CenterMontreal.HehasalsoworkedastheSamuel
+[59] G.E.HintonandR.R.Salakhutdinov,“Reducingthedimensionalityof R. Thompson Chaired Associate Professor with
+data with neural networks,” Science, vol.313, no.5786, pp.504–507, the University of Nebraska–Lincoln, as a Visiting
+Jul.2006. ScientistwithHPLabs,PaloAlto,CA,USA,andthe
+[60] Y. Duan, X. Chen, R. Houthooft, J. Schulman, and P. Abbeel, ChiefScientistwithTinderInc.Hiscurrentresearch
+“Benchmarkingdeepreinforcementlearningforcontinuouscontrol,”in interests include AI and machine learning, computers and communications
+Proc.33thInt.Conf.Mach.Learn.(ICML),NewYork,NY,USA,2016, systems, 5G/6G technologies, CPS and Internet-of-Things. He has pub-
+pp.1329–1338. lishedover300highlycitedjournalandconferencepapers.Hehasreceived
+[61] “Dataport.” Pecan Street. 2018. [Online]. Available: many awards and recognitions, including the Mitacs Award for Exceptional
+https://www.pecanstreet.org/dataport/ Leadership—Professor, the Outstanding Young Canadian Computer Science
+[62] Office of EnergyEfficiency & Renewable Energy, 2011, “Commercial ResearcherPrizes,theTomlinsonScientistAward,andseveralIEEEorACM
+and Residential Hourly Load Profiles for all TMY3 Locations in the BestPaperAwards.HeisaFellowoftheCanadianAcademyofEngineering
+UnitedStates,”[Online].Available:https://openei.org/datasets/dataset/ andanACMDistinguishedMember.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 13 ===
+CHENetal.:PEER-TO-PEERENERGYTRADINGANDENERGYCONVERSION 727
+Jikun Kang received the B.Sc. degree from the Zhu Han (Fellow, IEEE) received the B.S. degree
+Kunming University of Science and Technology, in electronic engineering from Tsinghua University
+Kunming, China, in 2014, and the M.A.Sc. degree in1997,andtheM.S.andPh.D.degreesinelectrical
+from Northeastern University, Shenyang, China, in and computer engineering from the University
+2017. He is currently pursuing the Ph.D. degree of Maryland, College Park, in 1999 and 2003,
+with McGill University, Montreal, Canada. His respectively.
+research interests include reinforcement learning, From2000to2002,hewasanR&DEngineerof
+meta-reinforcement learning, and applied machine JDSU,Germantown,MD,USA.From2003to2006,
+learning. hewasaResearchAssociatewiththeUniversityof
+Maryland.From2006to2008,hewasanAssistant
+Professor with Boise State University, Boise, ID,
+USA. He is currently a John and Rebecca Moores Professor with the
+ElectricalandComputerEngineeringDepartmentandtheComputerScience
+F. Richard Yu (Fellow, IEEE) received the Ph.D. Department,UniversityofHouston,Houston,TX,USA.Hisresearchinterests
+degreeinelectricalengineeringfromtheUniversity include wireless resource allocation and management, wireless communica-
+ofBritishColumbiain2003. tionsandnetworking,gametheory,bigdataanalysis,security,andsmartgrid.
+From2002to2006,hewaswithEricsson,Lund, He received an NSF Career Award in 2010, the Fred W. Ellersick Prize of
+Sweden, and a start-up in CA, USA. He joined theIEEECommunicationSocietyin2011,theEURASIPBestPaperAward
+Carleton University in 2007, where he is currently fortheJournalonAdvancesinSignalProcessingin2015,IEEELeonardG.
+a Professor. His research interests include con- AbrahamPrizeinthefieldofCommunicationsSystems(bestpaperawardin
+nected/autonomousvehicles,security,artificialintel- IEEEJOURNALONSELECTEDAREASINCOMMUNICATIONS)in2016,and
+ligence, blockchain, and wireless cyber–physical severalbestpaperawardsinIEEEconferences.Heisalsothewinnerof2021
+systems.HereceivedtheIEEETCGCCBestJournal IEEEKiyoTomiyasuAward,foroutstandingearlytomid-careercontributions
+Paper Award in 2019, the Distinguished Service totechnologiesholdingthepromiseofinnovativeapplications,withthefol-
+Awards in 2019 and 2016, the Outstanding Leadership Award in 2013, lowingcitation:“forcontributionstogametheoryanddistributedmanagement
+Carleton Research Achievement Awards in 2012 and 2021, the Ontario ofautonomouscommunicationnetworks.”HewasanIEEECommunications
+Early Researcher Award (formerly, Premiers Research Excellence Award) SocietyDistinguishedLecturerfrom2015to2018,andhasbeenaFellowof
+in 2011, the Excellent Contribution Award at IEEE/IFIP TrustCom’10, the AAAS since 2019, and ACM Distinguished Member since 2019. He is 1%
+LeadershipOpportunityFundAwardfromCanadaFoundationofInnovation highlycitedresearchersince2017accordingtoWebofScience.
+in 2009 and the Best Paper Awards at IEEE ICNC’18, VTC’17 Spring,
+ICC’14,Globecom’12,IEEE/IFIPTrustCom’09andInternationalConference
+on Networking’05. He serves on the editorial boards of several jour-
+nals, including the Co-Editor-in-Chief for Ad Hoc & Sensor Wireless
+Networks,theLeadSeriesEditorforIEEETRANSACTIONSONVEHICULAR
+TECHNOLOGY, IEEE COMMUNICATIONS SURVEYS & TUTORIALS, and
+IEEETRANSACTIONSONGREENCOMMUNICATIONSANDNETWORKING.
+He has served as the Technical Program Committee Co-Chair of numerous
+conferences. He has been named in the Clarivate Analytics list of “Highly
+CitedResearchers”in2019and2020.HeisanIEEEDistinguishedLecturer
+ofVehicularTechnologySociety(VTS)andCommunicationSociety.Heisan
+ElectedMemberoftheBoardofGovernorsoftheIEEEVTSandEditor-in-
+ChiefforIEEEVTSMobileWorldnewsletter.HeisaregisteredProfessional
+Engineer in the province of Ontario, Canada, and a Fellow of Canadian
+Academy of Engineering, Engineering Institute of Canada, and Institution
+ofEngineeringandTechnology.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:17:12 UTC from IEEE Xplore. Restrictions apply.

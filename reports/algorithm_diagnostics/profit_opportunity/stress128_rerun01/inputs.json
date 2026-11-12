@@ -1,0 +1,58 @@
+{
+  "argv": [
+    "src/diagnose_profit_opportunity.py",
+    "--request-id",
+    "stress128_rerun01",
+    "--days",
+    "1",
+    "--workers",
+    "2"
+  ],
+  "b1_verification": "PASS",
+  "created_at": "2026-11-10T14:47:42.523090+00:00",
+  "files": {
+    "data\\processed\\v2_cy_jn_2025\\b1_terminal_neutral_block_payoffs.json": "87cb7e9ddc2493b40479b2354ec4fcb266508c730582bb999b03c74f91483fed",
+    "data\\processed\\v2_cy_jn_2025\\b1_terminal_neutral_manifest.json": "79a823e5e72c51f82bfb6128b4a31ae80ec1bb344846608b8b137c80f35f0011",
+    "data\\processed\\v2_cy_jn_2025\\b1_terminal_neutral_results.csv": "886ec54e6d553af3c5181bda6351ddef805437946c92a35c823a9a2300be50aa",
+    "data\\processed\\v2_cy_jn_2025\\common_split.json": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335",
+    "data\\processed\\v2_cy_jn_2025\\near\\load_price_pairing.csv": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363",
+    "runs\\FORMAL_7834d0aa_seed11\\run_manifest.json": "e01ce54871428dc40bb97251f1797e209b8c62e055007b5cdc19c0046c40cd8a"
+  },
+  "git": {
+    "dirty": true,
+    "revision": "63b008d725e391d98b55f9d563b0d712cd710793"
+  },
+  "n_batches": 4,
+  "n_days": 1,
+  "n_runs": 128,
+  "params": {
+    "charge_points": [
+      0.0,
+      40.0,
+      80.0,
+      150.0
+    ],
+    "days": [
+      "2022-07-23|2025-07-13"
+    ],
+    "discharge_points": [
+      0.0,
+      40.0,
+      80.0,
+      120.0,
+      160.0,
+      200.0,
+      250.0,
+      300.0
+    ],
+    "near_zero_cny": 1.0,
+    "terminal_soc": 0.5,
+    "units": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ]
+  },
+  "request_id": "stress128_rerun01"
+}

@@ -1,0 +1,60 @@
+{
+  "batches": {
+    "ESS14__2022-07-23__2025-07-13": {
+      "completed_at": "2026-11-10T14:53:23.526713+00:00",
+      "csv": "ESS14__2022-07-23__2025-07-13.csv",
+      "csv_sha256": "3dc99eb67ab3ef20fc7efe203a9edfbc559ccec4b14535d36493e74a585d9ec3",
+      "load_date": "2022-07-23",
+      "n_rows": 32,
+      "npz": "ESS14__2022-07-23__2025-07-13.npz",
+      "npz_sha256": "14c3fb64ecb4657a9108d2476f984c0fd747b834b3b86d4391dfd0e8ca9a727a",
+      "pair_id": "2022-07-23|2025-07-13",
+      "price_date": "2025-07-13",
+      "runtime_s": 166.0,
+      "status": "complete",
+      "unit": "ESS14"
+    },
+    "ESS17__2022-07-23__2025-07-13": {
+      "completed_at": "2026-11-10T14:56:16.717156+00:00",
+      "csv": "ESS17__2022-07-23__2025-07-13.csv",
+      "csv_sha256": "9c712cbd6208b1b6c7bde07c06ffa81d2416d1f236a9ade69351bf0fd4ac7480",
+      "load_date": "2022-07-23",
+      "n_rows": 32,
+      "npz": "ESS17__2022-07-23__2025-07-13.npz",
+      "npz_sha256": "45319297679a8b57f9de1b1f398510c246639cca3c5f701c06eb2865d9bdedc3",
+      "pair_id": "2022-07-23|2025-07-13",
+      "price_date": "2025-07-13",
+      "runtime_s": 173.2,
+      "status": "complete",
+      "unit": "ESS17"
+    },
+    "ESS27__2022-07-23__2025-07-13": {
+      "completed_at": "2026-11-10T14:59:07.955675+00:00",
+      "csv": "ESS27__2022-07-23__2025-07-13.csv",
+      "csv_sha256": "8bcc221e11a965fdcb26e27691640ca12fcb52f201b809d0a9372cd4d8636d3c",
+      "load_date": "2022-07-23",
+      "n_rows": 32,
+      "npz": "ESS27__2022-07-23__2025-07-13.npz",
+      "npz_sha256": "944697ce062b573cc3e03a38033a2b05cec82893b0ef266ecdf0ca4a963a2520",
+      "pair_id": "2022-07-23|2025-07-13",
+      "price_date": "2025-07-13",
+      "runtime_s": 171.2,
+      "status": "complete",
+      "unit": "ESS27"
+    },
+    "ESS9__2022-07-23__2025-07-13": {
+      "completed_at": "2026-11-10T14:50:37.485322+00:00",
+      "csv": "ESS9__2022-07-23__2025-07-13.csv",
+      "csv_sha256": "26c02e549fc6f2cef6101eba9fcb727ccb8725c462cedb41a279f9d5868e7a72",
+      "load_date": "2022-07-23",
+      "n_rows": 32,
+      "npz": "ESS9__2022-07-23__2025-07-13.npz",
+      "npz_sha256": "8e6c64173adef7b58703022fb94bc88b986c867b61cc817df4628b962899cdbb",
+      "pair_id": "2022-07-23|2025-07-13",
+      "price_date": "2025-07-13",
+      "runtime_s": 174.8,
+      "status": "complete",
+      "unit": "ESS9"
+    }
+  }
+}

@@ -1,0 +1,1396 @@
+=== page 1 ===
+AppliedEnergy352(2023)121987
+ContentslistsavailableatScienceDirect
+AppliedEnergy
+journalhomepage:www.elsevier.com/locate/apenergy
+Decentralizedfrequencyregulationserviceprovisionforvirtualpower
+plants:Abestresponsepotentialgameapproach
+XiaotianSuna,b,HaipengXiea,∗,DaweiQiub,YunpengXiaoa,ZhaohongBiea,GoranStrbacb
+aSchoolofElectricalEngineering,Xi’anJiaotongUniversity,Xi’an,710049,Shaanxi,China
+bDepartmentofElectricalandElectronicEngineering,ImperialCollegeLondon,London,SW72AZ,UK
+A R T I C L E I N F O A B S T R A C T
+Keywords: Thehigh-renewable-penetratedpowersystemfrequentlyrequiresfrequencyregulationservices.Byaggregating
+Bestresponsepotentialgame heterogeneousdemand-sideflexibleresources,thevirtualpowerplants(VPP)areabletoquicklyrespondtothe
+Demand-sideresources frequencyregulationsignal,enablingthempromisingfrequencyregulationserviceproviders.However,dueto
+Individualrationality thedifferenceinownership,itisunlikelythattheself-interesteddemand-sideresourcesarewillingtofollowthe
+Frequencyregulation
+VPP-orienteddispatchresults.Tobridgethisgap,thispaperproposesadecentralizedgame-basedmechanism
+Virtualpowerplant
+for the frequency regulation service provision inside the VPP. Firstly, the supply function-based bidding
+modelsofaggregateddemand-sideresources,namely,demand-sideflexibleresourcesandrenewabledistributed
+generations,areestablished.Then,anon-cooperativegeneralizedNashgameforfrequencyregulationservice
+provisionisformulated.Theexistence,uniqueness,andcompetitiveefficiencylossofthegameareanalyzed
+bydesigninganequivalentbestresponsepotentialgameoftheoriginalgame.Additionally,adecentralized
+look-aheadreal-timemarketclearingmechanismforfrequencyregulationserviceprovisioninsidetheVPPis
+proposedbasedondualdecompositionalgorithm.Finally,theeffectivenessandcomputationefficiencyofthe
+proposedmethodarevalidatedinthecasestudies.Meanwhile,itisshownthatthecompetitionefficiencyloss
+canbeeffectivelyreducedfromaround80%to6%whenincreasingthedemand-sideresourcepopulationfrom
+20to2000aswellasbalancingthedemand-sideresourcecomposition.
+1. Introduction of demand-side resources in providing frequency regulation service
+has been widely investigated, including user-side battery storage [5],
+Towards the carbon neutral commitment by mid-21st-century, the plug-in electric vehicles [6], refrigerators [7], building HVAC sys-
+renewable energy penetration in the power systems is expected a tems [8], and energy hubs [9]. The capability to provide frequency
+sustained growth. The stochastic nature of renewable generations ex- regulationservicebyasinglecategoryofdemand-sideresourcesiswell-
+acerbates the power balancing challenges, hence leading to increased tested,however,thepotentialcomplementaryeffectofheterogeneous
+demand for the frequency regulation services [1]. The conventional demand-sideresourcesisstillanopenquestion.
+approach to address this challenge is to increase the spinning re- Moreover, the augmentation of renewable generation through the
+serve[2],however,thismethodwouldresultinanegativeimpacton
+integration of energy storage at the demand side, commonly referred
+the operation economy of the power systems [3]. Therefore, utilizing
+toastherenewable–storagehybridsystem,issteadilygarneringpromi-
+demand-side resources to provide frequency regulation service seems
+nence. This ascent in popularity can be attributed to its heightened
+veryappealingforindependentsystemoperators.
+controllability and lowered operation cost [10]. The significant en-
+Due to the increasing need for frequency regulation service, the
+hancement in dynamic and transient performance of a wind energy
+independent system operators embrace demand-side participation in
+conversionsystembyintegratingenergystoragesystemsistestedand
+thesecondaryfrequencyregulation.Bothexperimentalandtheoretical
+verified in [11]. Meanwhile, dual side benefits are observed. In [12],
+studies have been conducted. A real-life system-wide experiment in
+itisdiscoveredthatthedegradationcostofenergystorageisreduced
+the Nordic grid has validated the practical possibility of demand-
+by 91.72% compared to the standalone battery energy system. The
+side resources in providing frequency regulation services for a large
+profitabilityofrenewable–storagehybridsystemsinparticipationinthe
+power system [4]. In addition, the potential of different categories
+∗ Correspondingauthor.
+E-mailaddresses: xtsun@stu.xjtu.edu.cn(X.Sun),haipengxie@xjtu.edu.cn(H.Xie),d.qiu15@imperial.ac.uk(D.Qiu),ypxiao@xjtu.edu.cn(Y.Xiao),
+zhbie@mail.xjtu.edu.cn(Z.Bie),g.strbac@imperial.ac.uk(G.Strbac).
+https://doi.org/10.1016/j.apenergy.2023.121987
+Received16June2023;Receivedinrevisedform25August2023;Accepted17September2023
+Availableonline27September2023
+0306-2619/©2023ElsevierLtd.Allrightsreserved.
+
+=== page 2 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+energy storage systems, the prospect of integrating hydrogen energy
+Nomenclature
+storagesystemswithrenewablegenerationsisinvestigatedin[14,15]
+by deterministic and stochastic model predictive control strategies,
+Abbreviations respectively. The control strategies proposed in the aforementioned
+literatureareeffective,nevertheless,single-agentparticipationcannot
+VPP VirtualPowerPlant
+bringconsiderablesupporttogridoperators.
+EV ElectricVehicle
+Thelimitedresponsecapacityexhibitedbyindividualentitiescould
+IFD IndustrialFlexibleDemand
+probably manifest as a bottleneck of demand-side resources to be-
+TCL ThermostaticallyControlledLoad
+comeimpeccablefrequencyregulationserviceproviders.Anillustrative
+RDG RenewableDistributedGeneration instance of this is exemplified by a real-life experiment at Nordic
+grid [4], wherein a substantial collective of over 200 appliances ne-
+SetsandIndices
+cessitated simultaneous centralized control to effectuate a marginal
+ Setofdemand-sideflexibleresources frequency deviation. Given the sparse allocation and substantial pro-
+ Setofrenewabledistributedgenerations liferation of frequency regulation-capable demand-side resources, the
+𝐸𝑉 SetofEVs gridoperatorsshouldinevitablyconfrontthecomputationcomplexity
+𝐼𝐹𝐷 SetofIFDs andcoordinationdifficultyifthedemand-sideresourcesoptfordirect
+𝑇𝐶𝐿 SetofTCLs andindependentfrequencyregulationserviceparticipation.Therefore,
+𝐸𝑉 AvailablecontrolperiodofEVs aggregatingthedemand-sideresources,thevirtualpowerplant(VPP)
+has a comparable response capacity as conventional generators, and
+𝐼𝐹𝐷 AvailablecontrolperiodofIFDs
+hence makes itself a promising frequency regulation service provider
+𝑇𝐶𝐿 AvailablecontrolperiodofTCLs
+whilereducingtheburdenonthesystemoperator[16].
+𝐴 Look-aheadwindow
+Extensive studies investigate the participation of VPPs in the fre-
+𝑖 Indexofdemand-sideresources quencyregulationservice.Noteworthyamongtheseeffortsistherobust
+𝑡 Indexoftimeinterval model predictive control-based optimal operation strategy proposed
+in [17]. A 30% increment in the net revenue is showcased in VPP’s
+Parameters
+participationinfrequencyregulationservicecomparedwithmereen-
+𝐷̄ Fastresponsecapacity ergyarbitrageintheday-aheadenergymarket.Amulti-horizonrolling
+𝐷 Regulationservicerequiredtoprovide optimization approach is adopted in [18] for VPP’s optimal trading
+𝑡
+𝐺 Frequencyregulationsignal strategy considering both day-ahead energy and real-time frequency
+𝑡
+𝑏̄ Biddingcapofdemand-sideresources regulation markets. Congruent target is dealt by the deep learning-
+𝑈𝐸𝑉 ScheduledEVpowerconsumption basedapproachin[19].ThefastresponseabilityofVPPsalsokindles
+a drive towards collaborative synergy with other pertinent entities,
+𝑈𝐼𝐹𝐷 ScheduledIFDpowerconsumption
+i.e.,windfarmsandsharedenergystoragesystems.TheVPP-windfarm
+𝑈𝑇𝐶𝐿 ScheduledTCLpowerconsumption
+joint bidding model is proposed in [20], specifically focusing on the
+𝐸𝐸𝑉 ScheduledEVenergylevel
+participationinfrequencycontrolancillaryserviceofthenationalelec-
+𝐸𝐼𝐹𝐷 ScheduledTCLenergylevel tricitymarketinAustralia.Notably,inthiscontext,boththeVPPand
+𝐸𝑇𝐶𝐿 ScheduledIFDenergylevel windfarmarerecognizedasrationalself-interestindividuals,thereby,
+𝑅/𝐶/𝜂 Resistance/Capacitance/Power to heat co- stability of the coalition is ensured by asymmetric Nash bargaining-
+efficientofTCL basedrevenueallocationmechanism.Moreover,cooperatedoperation
+𝑎/𝑏/𝑐 Second/First/Zeroth-order parameters of andrevenueallocationofVPPandsharedenergystoragesystemsare
+generalizedflexibilitymodel investigated in [21], wherein the cooperative revenue is allocated by
+𝜖 Real-time deviation of renewable animprovedShapleyvalue-basedmechanism.TheVPPhasbeenwidely
+distributedgenerations recognizedasarationalself-interestentityinthefrequencyregulation
+market,whereastheself-intereststrategicbehaviorofdemand-sidere-
+Variables sources,whichareconsolidatedbyVPP’saggregation,hasnotreceived
+commensurateattentionwithinextantliterature.
+𝑝 Frequencyregulationserviceprice
+Since FERC Order 745 [22] and 755 [23] specified the financial
+𝑏 Supplyfunctionbiddingstrategy
+compensationtofrequencyregulationserviceproviders,theindividual
+𝑢 Deviationfromscheduledpowerconsump-
+rationality of demand-side resources aggregated by the VPP during
+tion
+their participation in the frequency regulation service has been the
+𝑢𝐸𝑉 Deviation from scheduled EV power con-
+elephant in the room. The prevailed holistic VPP model [24] that
+sumption
+overlookstheintricatedimensionofindividualrationalityofdemand-
+𝑢𝐼𝐹𝐷 Deviation from scheduled IFD power con- side resources is incongruous with the present landscape. Practically,
+sumption the demand-side resources are varied in ownership [25]. Therefore,
+𝑢𝑇𝐶𝐿 Deviation from scheduled TCL power con- it is unlikely that all the aggregated individuals are willing to follow
+sumption the VPP-oriented dispatch strategy if it deviates from the individual
+𝑒 Deviationfromscheduledenergylevel optimal of demand-side resources. A peer-to-peer trading mechanism
+𝑒𝐸𝑉 DeviationfromscheduledEVenergylevel proposed in [26] addresses the self-interest behavior of demand-side
+𝑒𝐼𝐹𝐷 DeviationfromscheduledIFDenergylevel resources,however,itmaybringadditionalsupervisionburdentothe
+𝑒𝑇𝐶𝐿 DeviationfromscheduledTCLenergylevel VPPoperator.Anotherpathwaytodealwiththisproblemisthegame
+theory. Cooperative game-based methods have been applied to the
+risk-based profit allocation [27] among distributed energy resources,
+revenueallocationbetweenplantsideanddemandside[28],andprofit
+deregulatedelectricitymarketisstudiedin[13].Animprovedfeedback allocationamongresourcesconsideringuncertainties[29].Despitethe
+controlstrategyonenergystorageisproposedtoadapttothemarket conceptualmeritsoftheex-postrevenueallocationmethods,theirreal-
+environment and the bi-directional power transfer. Despite battery ization presents formidable difficulties. The attainment of benchmark
+2
+
+=== page 3 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+non-cooperative individual incomes, as well as achieving unanimous
+consentforthechosenallocationmechanismarealmostimpossible.In
+lightofthesecomplexities,thenon-cooperativeoperationmodelforag-
+gregateddemand-sideindividualsemergesasamorepracticalpathway
+forVPPoperators.Withinthisparadigm,theadoptionofanindividual-
+motivated mechanism becomes a promising proposition, achieving a
+well balance between the intricacies of practical implementation and
+accommodation of the rational self-interest behaviors of demand-side
+resources.
+Moreover, privacy preservation is an essential requirement in the
+real-life management of VPPs. The previously mentioned operation
+models adopt the centralized mode, which is strongly against the
+privacypreservationpolicyofindividualentities.Inthesemodels,the
+individualoperationstatusandrequirementsaresharedwiththeVPP Fig.1. Bidding-basedfrequencyregulationserviceclearingmechanism.
+operator,whichmaycausesevererisksinprivacydisclosure.
+To bridge the gaps, this paper aims to propose a self-motivated
+frequency regulation service provision mechanism that obeys the pri- gridoperatorsarecallingfordemand-sideparticipationbesidesconven-
+vacy preservation policy for VPP operators. The self-interest behavior tionalAGCunits.Hence,VPPswithfastresponseabilityarepromising
+ofdemand-sideresourcesismodeledasanon-cooperativegame.Based frequencyregulationserviceproviders.
+on the best response equivalent mapping, the potential game of the As an adjustment that needs to be done frequently, the frequency
+demand-sideresourcesisdesigned.Theexistence,uniqueness,aswell regulationserviceisassignedtoandimplementedbythefrequencyreg-
+asthecompetitiveefficiencylossoftheoriginalnon-cooperativegame ulationserviceproviderineachdispatchinterval.Asimplebuteffective
+isanalyticallyproved.Then,thefrequencyregulationserviceprovision approachhasbeenwidelyimplemented,viz,todistributethefrequency
+mechanism is designed and customized into a decentralized struc- regulationresponsibilityamongtheregulationservice-capablemarket
+turetoseamlesslyintegratewithintheVPPaggregatingheterogeneous participants proportionally to their full response capacities [31]. For
+demand-side resources. In the proposed mechanism, the demand-side example, the RegD signal in the frequency regulation market of PJM
+resources bid to provide frequency regulation service for best indi- isanormalizedscalarwithintherangebetween−1and1thatequals
+vidual revenue, while the VPP operator calculates the service price, the ratio of regulation service required with respect to the total fast
+andthendeterminestherealizationofindividualfrequencyregulation responsecapacity.Thus,thedesireddirectionandamountoffrequency
+provisioning.Themajorcontributionsofthispaperare: regulation service distributed to each service provider can be scaled.
+Following[31],thefrequencyregulationserviceprovidedbyamarket
+• Modelingthereal-timeadjustmentofheterogeneousdemand-side participantcanbecalculatedas:
+flexibleresourcesinageneralizedflexibilitymodel,andpropos-
+ing an extended supply function bidding method incorporating 𝐷 𝑡 =𝐺 𝑡 𝐷̄, (1)
+negative contributions in real-time frequency regulation service
+where 𝐷 and 𝐷̄ denote the regulation service that is required to
+provision. 𝑡
+provide and the fast response capacity of a market participant, re-
+• Presenting theoretical proofs on the existence and uniqueness
+spectively, and 𝐺 is the frequency regulation signal imparted by the
+of the non-cooperative generalized Nash equilibrium in the fre- 𝑡
+market operator. It should be noticed that there are various practical
+quency regulation service provision inside the VPP, as well as
+approaches for the frequency regulation job distribution, however,
+indicating the efficiency loss in the competitive behaviors and
+which is out of the scope of this paper. Herein, we focus on the
+itsrelationshipwiththepopulationofaggregatedresourcesinan
+decentralizedprovisionof𝐷.
+intuitivefashion. 𝑡
+• Designing a rolling look-ahead frequency regulation provision
+mechanism for the VPP operator. The decentralized structure, 2.2. Bidding-basedregulationserviceprovisioninVPP
+privacy preservation property, and communication disturbance-
+resilientabilitypromptitsapplicationinreal-lifeVPPs. Here we investigate a regulation service-capable VPP that aggre-
+gatesdemand-sideflexibleresources,i.e.,electricvehicles(EVs),indus-
+Thesequelofthepaperisorganizedasfollows.Section2introduces trialflexibledemands(IFDs),thermostaticallycontrolledloads(TCLs),
+the frequency regulation responsibility of the VPP, and presents the aswellasrenewabledistributedgenerations(RDGs),i.e.,rooftopPVs.
+extendedsupplyfunctionbiddingapproach.InSection3,themodelof Asupplyfunctionbidding-basedfrequencyregulationserviceclearing
+heterogeneous demand-side resources and renewable distributed gen- mechanismisproposedanddemonstratedinFig.1.
+erations are proposed, then, the non-cooperative game is formulated. The basic mechanism can be briefly divided into a three-step pro-
+Equilibriumanalysesincludingexistence,uniqueness,andcompetitive cedure:
+efficiencylossarepresentedinSection4.Thedecentralizedfrequency
+regulationserviceprovisionmechanismisproposedinSection5.Case • Firstly, given the required frequency regulation service amount
+studies and conclusions are arranged in Section 6 and Section 7, 𝐷 𝑡 , the VPP operator requests each demand-side resource to
+respectively. submit its bidding strategy 𝑏 𝑖,𝑡 , which is a parameterized scalar
+representingtheprice-incentivizedfrequencyregulationcontribu-
+2. FrequencyregulationserviceoftheVPP tion[32],i.e.,
+𝑢 =𝑏 𝑝, (2)
+𝑖,𝑡 𝑖,𝑡 𝑡
+2.1. Frequencyregulationmarket
+where𝑢 denotesthereal-timedeviationtothescheduledpower
+𝑖,𝑡
+Small in scale yet great in significance, the frequency regulation consumption 𝑈 𝑖,𝑡 to participate in the frequency regulation ser-
+market plays a vital role in the real-time balancing of the power vice. Note that (2) establishes an affine relationship between
+system with the increasing penetration of the volatile renewable gen- individual contribution and clearing price, however, it does not
+erations [1]. Considering the increased regulation requirement [30], mean that the price is a prior knowledge to the individuals. A
+3
+
+=== page 4 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+bidding cap is imposed to restrict the individual share in the
+frequencyregulationserviceprovision,i.e.,
+−𝑏̄≤𝑏 ≤𝑏̄, (3)
+𝑖,𝑡
+where 𝑏̄ is a positive value determined by the VPP operator
+representingthebiddingcap.
+Fig.2. Illustrationoftypicalavailablecontrolperiodsofheterogeneousdemand-side
+flexibleresources.TheavailablecontrolperiodsofEVs,IFDs,andTCLsarerepresented
+Remark 1. The bidding parameter 𝑏 in this paper distinguishes
+𝑖,𝑡 byblue,green,andredblocks,respectively.Whiteblocksdenoteunavailablecontrol
+from the conventional supply function bidding as it allows for both periods.
+positiveandnegativevalues.Positivevalued𝑏 indicatesawillingness
+𝑖,𝑡
+of individual resource 𝑖 to follow the frequency regulation signal 𝐺.
+𝑡
+Instead, a negative 𝑏 𝑖,𝑡 shows the resistance to follow the regulation satisfactionlossforreal-timedeviationfromthepreferredpowercon-
+signal. For example, if 𝐺 𝑡 ≥ 0, a positive 𝑏 𝑖,𝑡 means that individual sumptionprofile.Thesatisfactionlosscanbeformulatedasaquadratic
+r a es n o e u g r a c t e iv 𝑖 e i 𝑏 s 𝑖,𝑡 w i i n ll d in ic g at t e o s in th c a re t a t s h e e th re e so r u ea rc l- e tim is e w c i o ll n in su g m to pti d o e n c , re w a h se er t e h a e s func B t y io s n ub [3 st 5 it ] u , t i i . n e g ., ( 𝑐 4  ) ( a 𝑢 n 𝑖,𝑡 d ) ( = 5) 𝛼 𝑖 i , n 𝑡 𝑢 t 2 𝑖 o ,𝑡 + (6 𝛽 ), 𝑖,𝑡 w 𝑢 𝑖 e ,𝑡 + ob 𝛾 t 𝑖 a ,𝑡 i . n
+real-timeconsumption,whichisagainsttheregulationsignal.
+• I la n te t s he th n e ex fr t e s q t u e e p n , c t y he re V g P u P lat o io p n er s a e to rv r ic c e lea p r r s ic t e h b e y m ∑ ar 𝑖∈ k  et ∪ an 𝑢 d 𝑖,𝑡 c = al 𝐷 cu 𝑡 - , ( ( 𝑓 ( 𝒃 𝑏 𝑖 ,𝒃 𝐷 −𝑖 ) = ) 𝑡 ∑ ∈ 2  ∑ 𝑖∈ 𝐷 ∪ 𝑡  𝑏 𝑏 𝐷 𝑖,𝑡 ∑ 𝑖∈ 𝑏  𝑖,𝑡 ∪ 𝐷  𝑡 𝑏 ) 𝑖,𝑡 (7)
+yielding 𝐷 − 𝛼 𝑖,𝑡 ∑ 𝑖∈ 𝑖,𝑡 ∪ 𝑡 𝑏 𝑖,𝑡 +𝛽 𝑖,𝑡∑ 𝑖∈ 𝑖,𝑡 ∪ 𝑡 𝑏 𝑖,𝑡 +𝛾 𝑖,𝑡 .
+𝑝 𝑡 = ∑ 𝑖∈∪ 𝑡 𝑏 𝑖,𝑡 , (4) 3.1.2. Generalizedformulationcoveringheterogeneousdemand-sideflexible
+where 𝑝 represents the clearing price of frequency regulation resources
+𝑡
+service determined by the required frequency regulation service Wetakeelectricvehicles(EVs),industrialflexibledemands(IFDs),
+ofVPPandindividualbiddingstrategies.Toavoidambiguitieson and thermostatically controlled loads (TCLs) as representatives of the
+our research target and focus on non-trivial cases, we made the heterogeneous demand-side flexible resources. Denote the set of EVs,
+followingassumptiontoensurethecorrectnessof(4). IFDs, and TCLs by 𝐸𝑉, 𝐼𝐹𝐷, and 𝑇𝐶𝐿, respectively, where  =
+𝐸𝑉 ∪𝐼𝐹𝐷∪𝑇𝐶𝐿. The available control periods of heterogeneous
+Assumption1. Thesumofindividualbiddingstrategiesispositive, demand-side flexible resources, which are denoted by 𝐸𝑉, 𝐼𝐹𝐷,
+i.e., ∑ 𝑖∈∪𝑏
+𝑖,𝑡
+>0. and 𝑇𝐶𝐿, are diverse, as shown in Fig. 2. Note that 𝑡𝑖𝑛𝑖 and 𝑡𝑡𝑒𝑟
+are in representation of the initial and terminal time of the available
+It is imperative to highlight that Assumption 1 is mild, render-
+controlperiod,respectively.Themodelsofheterogeneousdemand-side
+ing it applicable across regulation service-capable VPPs with rational
+resourcesforavailablepowerconsumptionadjustmentarederivedfrom
+demand-side individuals. This suitability arises from the enhanced
+basic power consumption models presented in [35]. The derivation
+profitability by providing frequency regulation service, as opposed to
+processisshowninA.
+mereparticipationintheday-aheadenergymarket[33].Moreover,if
+EVs are always regarded as frequency regulation providers [31].
+trivial cases happen, for example, ∑ 𝑖∈∪𝑏
+𝑖,𝑡
+≤ 0, indicating that the
+Denote the power consumption and energy level settled in the for-
+majorityofindividualsrefusetoprovidefrequencyregulationservice, ward market by 𝑈𝐸𝑉 and 𝐸𝐸𝑉, respectively. The real-time power
+theVPPcannotberegardedasafrequencyregulationserviceprovider 𝑖,𝑡 𝑖,𝑡
+adjustmenttoprovidefrequencyregulationserviceshouldconsiderSoC
+bythegridoperator.
+dynamics,SoCboundaries
+[ 𝐸𝐸𝑉,𝐸̄𝐸𝑉]
+,powerconsumptionconstraints
+• Lastly,individualserviceprovisionresultisobtainedbycombin- [ 𝑈𝐸 𝑖 𝑉,𝑈̄ 𝑖 𝐸𝑉] ,andzerodeviatio 𝑖 nin 𝑖 terminalSoC.Hence,theadmissible
+ing(2)and(4): controlregionofEV’sreal-timepoweradjustmentcanbemodeledas
+𝑢 𝑖,𝑡 =𝑏 𝑖,𝑡 𝑝 𝑡 = ∑ 𝑖∈ 𝑏  𝑖,𝑡 ∪ 𝐷  𝑡 𝑏 𝑖,𝑡 , (5)  𝑖 𝐸𝑉= ⎧ ⎪ ⎨ ⎪ 𝑢𝐸 𝑖,𝑡 𝑉 | | | | | 𝑒̇𝐸 𝑖,𝑡 𝑉 𝑒 𝑈 𝐸 = 𝐸 𝑖 𝑉 𝑢 𝑉 𝐸 𝑖, = 𝑡 ≤ 𝑉, 0 𝑈 𝐸 , 𝑖 𝑒 𝐸 𝐸 𝑖 ,𝑡 𝐸 𝑉 𝑉 𝑉 ≤ + 𝐸 = 𝑢 𝑖 𝐸 , 𝐸 𝑖 𝑡 , 0 𝑉 𝑡 𝑉 , + 𝑡 ≤ ∈ 𝑒𝐸 𝑖, 𝑈 𝑡  ̄ 𝑉 𝑖 𝐸 ≤ 𝐸 𝑉 𝐸 𝑉 ̄ , . 𝑖 𝐸𝑉, ⎫ ⎪ ⎬ ⎪ , (8)
+whichisthenbroadcastedtothedemand-sideresources. ⎩ 𝑖,𝑡𝑖𝑛𝑖 𝑖,𝑡𝑡𝑒𝑟 ⎭
+where 𝑢𝐸𝑉 and 𝑒𝐸𝑉 represents the deviation from the prefixed 𝑈𝐸𝑉
+3. Problemstatement 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡
+and𝐸𝐸𝑉.Thelowerpowerconsumptionboundary𝑈𝐸𝑉 canbeeither
+𝑖,𝑡 𝑖,𝑡
+negativeornon-negativeaccordingtotheuser’spreference.Notethat
+3.1. Demand-sideflexibleresources’problem
+hereweignorethecharging/dischargingloss[31].
+SeveralIFDs,i.e.,steelmakingindustryandaluminumproduction
+3.1.1. Frequencyregulationrevenueofdemand-sideflexibleresources
+industry,arereportedtobeabletoprovidefastresponseinfrequency
+Given the fact that the prices in the frequency regulation market
+regulation markets [36]. IFDs can exploit their flexibilities so as to
+are much higher than prices in the energy market [34], demand-side
+change the instantaneous power consumption profile by 𝑢𝐼𝐹𝐷 to pro-
+flexibleresourcesarewillingtoadjusttheirpowerconsumptionprofile 𝑖,𝑡
+videfrequencyregulationservice.TheadmissiblecontrolregionofIFD
+in real-time operation to provide frequency regulation services. Con-
+𝑖forreal-timedeviationisformulatedas
+sideringthatthepreferredpowerconsumptionofdemand-sideflexible
+r e r a e e n n s s e d o o r u u g 𝒃 r r y c c e e m = s 𝑖 a h ( r i 𝒃 n k a e s ) p t b , ro e h e v e n i r d e i s i n n e g tt w l f , e e r d w e f q o e i u n c h e u t n a s h v c o e y e n f r o t e h r g w e u a l r a r e t d v io e m n n . u ar e I k n o e tr f t o s d , d e u i m . c e i a . n , n g t d h - 𝒃 e s 𝑖 id d = e a ( y f 𝑏 - l a e 𝑖,𝑡 x h ) i e 𝑡 b ∈ a l  d e  𝑖 𝐼𝐹𝐷= ⎧ ⎪ ⎨ ⎪ ⎩ 𝑢𝐼 𝑖,𝑡 𝐹𝐷 | | | | | 𝑒̇ 0 𝐼 𝑖,𝑡 𝐹 ≤ 𝐷 𝑈 𝑖 = 𝐼 ,𝑡 𝐹 𝑢 𝑒 𝐷 𝐼 𝑖 𝐼 𝑖 , , + 𝑡 𝐹 𝑡 𝐹 𝑡𝑒 𝐷 𝐷 𝑢 𝑟 , 𝐼 𝑖, 0 𝑡 = 𝐹 ≤ 𝐷 0 𝐸 ≤ , 𝑖 𝐼 𝑈 𝑡 , ̄ 𝑡 𝐹 ∈ 𝑖 𝐼 𝐷 𝐹 +  𝐷 𝑒 𝐼 , 𝐼 𝑖 𝐹 𝑒 ,𝑡 𝐹 𝐼 𝑖 𝐷 , 𝐷 𝑡 𝐹 𝑖 . 𝑛 ≤ 𝐷 𝑖 𝐸̄ = 𝑖 𝐼𝐹 0 𝐷 , ,⎫ ⎪ ⎬ ⎪ ⎭ , (9)
+−𝑖 𝑗 𝑗∈∪∖{𝑖}
+where𝑢𝐼𝐹𝐷 and𝑒𝐼𝐹𝐷 denotesthedeviationfromthescheduledpower
+( ) ∑ ( ) 𝑖,𝑡 𝑖,𝑡
+𝑓 𝒃 𝑖 ,𝒃 −𝑖 = 𝑝 𝑡 𝑢 𝑖,𝑡 −𝑐 𝑢 𝑖,𝑡 , (6) consumption𝑈 𝑖 𝐼 ,𝑡 𝐹𝐷 and𝐸 𝑖 𝐼 ,𝑡 𝐹𝐷,respectively.
+𝑡∈ Inverter-basedTCLscanservethefrequencyregulationinreal-time
+wherethefirsttermrepresentstheperformance-relatedincomeforpro- operation[37].Denotetheinstantaneouspowerconsumptiondeviation
+viding frequency regulation service, and the second term denotes the from the original profile 𝑈𝑇𝐶𝐿 by 𝑢𝑇𝐶𝐿, and represent the deviation
+𝑖,𝑡 𝑖,𝑡
+4
+
+=== page 5 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+Table1 3.3. Competitiongameformulation
+Parameterssummaryofthegeneralizedflexibilitymodel.
+Types EV IFD TCL TheresourcesaggregatedintheVPPareoftenownedbydifferent
+𝑎 𝑖 0 0 1∕𝑅 𝑖 𝐶 𝑖 stakeholders,andthuscannotbedispatchedtowardstheVPP’sgroup
+𝑏 𝑖 1 1 −𝜂 𝑖∕𝐶 𝑖 optimum.Baseonthisfact,amildassumptionismadeonthebidding
+𝐸 𝐸𝐸𝑉−𝐸𝐸𝑉 −𝐸𝐼𝐹𝐷 𝐸𝑇𝐶𝐿−𝐸𝑇𝐶𝐿 strategyselectionforindividualresourcesinthefrequencyregulation
+𝑖,𝑡 𝑖 𝑖,𝑡 𝑖,𝑡 𝑖 𝑖,𝑡
+𝐸̄
+𝑖,𝑡
+𝐸̄
+𝑖
+𝐸𝑉−𝐸
+𝑖
+𝐸
+,𝑡
+𝑉 𝐸̄
+𝑖
+𝐼𝐹𝐷−𝐸
+𝑖
+𝐼
+,𝑡
+𝐹𝐷 𝐸̄
+𝑖
+𝑇𝐶𝐿−𝐸
+𝑖
+𝑇
+,𝑡
+𝐶𝐿 provision.
+𝑈 𝑈𝐸𝑉−𝑈𝐸𝑉 −𝑈𝐼𝐹𝐷 −𝑈𝑇𝐶𝐿
+𝑖,𝑡 𝑖 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 Assumption 2. Each individual resource 𝑖 ∈  ∪  is a rational
+𝑈̄
+𝑖,𝑡
+𝑈̄
+𝑖
+𝐸𝑉−𝑈
+𝑖
+𝐸
+,𝑡
+𝑉 𝑈̄
+𝑖
+𝐼𝐹𝐷−𝑈
+𝑖
+𝐼
+,𝑡
+𝐹𝐷 𝑈̄
+𝑖
+𝑇𝐶𝐿−𝑈
+𝑖
+𝑇
+,𝑡
+𝐶𝐿
+self-interestparticipantinprovidingfrequencyregulationservice,i.e.,
+𝒃
+𝑖
+=argmax𝑓 ( 𝒃
+𝑖
+,𝒃
+−𝑖
+) ,∀𝑖∈, (14)
+from the planned temperature 𝐸𝑇𝐶𝐿 by 𝑒𝑇𝐶𝐿. By incorporating ther- and
+m po a w l e d r y c n o a n m s i u c m s, p a ti c o c n ep r t a a n b g le e [ te 0 m ,𝑈̄ p 𝑇 e 𝐶 r 𝑖, a 𝐿 𝑡 t ] u , r t e he ra a n 𝑖 d , g 𝑡 m e i [ s 𝐸 si 𝑇 𝑖 b 𝐶 le 𝐿, c 𝐸 o ̄ n 𝑖 𝑇 t 𝐶 r 𝐿 ol ] , re a g v i a o i n lab fo le r 𝒃 𝑖 =argmax𝑓 ( 𝒃 𝑖 ,𝒃 −𝑖 ) ,∀𝑖∈. (15)
+𝑖
+TCL𝑖inprovidingfrequencyregulationserviceisformedas Therefore, a noncooperative competition game  is formulated.
+1
+ 𝑖 𝑇𝐶𝐿= ⎧ ⎪ ⎨ 𝑢𝑇 𝑖,𝑡 𝐶𝐿 | | | | 𝐸 𝑒̇ 𝑇 𝑖 𝑇 𝑖,𝑡 𝐶 𝐶 𝐿 𝐿 ≤ = 𝐸 − 𝑖 𝑇 𝑅 ,𝑡 𝐶 𝑖 1 𝐶 𝐿 𝑖 𝑒 + 𝑇 𝑖,𝑡 𝐶 𝑒𝑇 𝑖 𝐿 ,𝑡 𝐶 − 𝐿 𝐶 ≤ 𝜂𝑖 𝑖 𝑢 𝐸̄ 𝑇 𝑖, 𝑖 𝑇 𝑡 𝐶 𝐶 𝐿 𝐿 , , 𝑒 𝑒 𝑇 𝑖, 𝑇 𝑖 𝑡 𝐶 , 𝑖 𝑡 𝑛 𝐶 𝑡 𝐿 𝑖 𝑒 𝐿 𝑟 = = 0 0 , , ⎫ ⎪ ⎬ , (10) The 1 g . a P m la e y c e o rs n : si T s h ts e th se e t fo  ll ∪ ow  ing of e a le l m l i e n n d t i s v : idual resources in the VPP,
+⎪ | 0≤𝑈𝑇𝐶𝐿+𝑢𝑇𝐶𝐿≤𝑈̄𝑇𝐶𝐿,𝑡∈𝑇𝐶𝐿. ⎪ including demand-side flexible resources, as well as renewable
+⎩ 𝑖,𝑡 𝑖,𝑡 𝑖 ⎭
+distributedgenerations;
+where a first-order thermal dynamic relationship is considered, 𝑅
+𝑖
+2. Strategy sets and strategy space: The strategy of each individual
+and 𝐶 represent the thermal resistance and capacitance of TCL 𝑖,
+𝑖
+respectively.Thepowertoheatcoefficient𝜂 takesapositivevaluefor resourceisthebiddingstrategy𝒃 𝑖 ,whichshouldbewithinthe
+coolingdevicesandnegativevalueforheati 𝑖 ngdevices. strategy set  𝑖 = { 𝒃 𝑖|(4),(10) } for all demand-side flexible
+Basedontheaforementionedadmissiblecontrolregionformulations resources𝑖∈,and 𝑖 = { 𝒃 𝑖|(4) } forallrenewabledistributed
+(8)–(10),astorage-likegeneralizedflexibilitymodelforheterogeneous generations𝑖∈.Thestrategyspaceisdenotedby ( 𝑖 ) 𝑖∈∪ ;
+demand-sideflexibleresourcestoofferfrequencyregulationservicesis 3. Payoffs:Hereweuserevenuefunctions(7)and(13)forthepay-
+proposedas offsofdemand-sideflexibleresourcesandrenewabledistributed
+{ | 𝑒̇ =−𝑎𝑒 +𝑏𝑢 ,𝐸 ≤𝑒 ≤𝐸̄ , } generations,respectively.
+ 𝑖 = 𝑢 𝑖,𝑡 | | | | 𝑈 𝑖,𝑡 𝑖 ≤ ,𝑡 𝑢 𝑖,𝑡 ≤ 𝑖 𝑈̄ 𝑖, 𝑖 𝑡 ,𝑡 ,𝑒 𝑖, 𝑖 𝑡𝑖𝑛𝑖 𝑖,𝑡 =0 𝑖 , ,𝑡 𝑒 𝑖,𝑡𝑡𝑒𝑟 𝑖, = 𝑡 0,𝑡 𝑖 ∈ ,𝑡  𝑖 . , (11) Accordingto(7)and(13),thestrategyofeachplayerisdependent
+onotherplayer’sstrategies,whichturns aintoageneralizedNash
+where the details of the parameters in the generalized model are 1
+game.Following[38],wedefinethegeneralizedNashequilibriumfor
+summarizedinTable1.Theproposedgeneralizedflexibilitymodel(11)
+thesolutionof .
+iscompatibletovarioustypesofdemand-sideresources.Herewetake 1
+EVs,IFDs,andTCLsasrepresentativesoftheheterogeneityamongthe
+Definition 1 (Generalized Nash Equilibrium [38]).: A pure strategy
+demand-sideflexibleresources. profile including all individual resources inside VPP 𝒃∗ = ( 𝒃∗)
+𝑖 𝑖∈∪
+3.2. Renewabledistributedgenerations’problem isageneralizedNashequilibriumifandonlyif
+Theoutputofrenewabledistributedgenerationsishighlyvolatile,
+𝒃∗
+𝑖
+=arg
+
+max𝑓 ( 𝒃
+𝑖
+,𝒃∗
+−𝑖
+) ,∀𝑖∈, (16)
+𝑖
+and the prediction of generation is not accurate until in the ultra-
+and
+short term. Thus, the real-time deviation of renewable distributed
+g
+is
+en
+to
+era
+se
+ti
+e
+o
+k
+ns
+th
+s
+e
+ho
+h
+u
+e
+l
+l
+d
+p
+b
+f
+e
+ro
+p
+m
+rop
+th
+e
+e
+rly
+he
+h
+t
+a
+e
+n
+ro
+d
+g
+le
+e
+d
+n
+.
+eo
+O
+u
+n
+s
+e
+d
+o
+e
+f
+m
+th
+a
+e
+nd
+p
+-
+o
+si
+s
+d
+si
+e
+bl
+f
+e
+le
+s
+x
+o
+i
+l
+b
+u
+le
+tio
+r
+n
+e
+s
+-
+𝒃∗
+𝑖
+=arg
+
+m
+𝑖
+ax𝑓 ( 𝒃
+𝑖
+,𝒃∗
+−𝑖
+) ,∀𝑖∈, (17)
+sourcesinsidetheVPP[10].Therenewabledistributedgenerationscan holdsimultaneously.
+participateinthedecentralizedfrequencyregulationserviceprovision
+process, and by strategically bidding, they can compensate for the The generalized Nash equilibrium represents a stable situation in
+real-time deviation. For example, a renewable distributed generation whichcouplingconstraintsbetweendemand-sideflexibleresourcesand
+can purchase frequency regulation service for generation shortage, or renewabledistributedgenerationsaresatisfied,andnoindividualhas
+sell the excess generation to distributed generations. The unbalanced incentive to change its strategy unilaterally. Though being desirable,
+deviationwillbepenalizedbytheoperatoroftheVPP.Therefore,the the generalized Nash equilibrium of  1 is complicated to be analyzed
+revenue(orminuscost)ofrenewabledistributedgeneration𝑖is due to the intricacies of the coupling constraints which indicates the
+( ) ∑ ( ) interactions between individuals. We will delineate the equilibrium
+𝑓 𝒃
+𝑖
+,𝒃
+−𝑖
+= 𝑝
+𝑡
+𝑢
+𝑖,𝑡
+−𝑐 𝑢
+𝑖,𝑡
+, (12)
+analysisinthenextsection.
+𝑡∈
+where the first term represents the income/purchasing cost in the
+4. Equilibriumanalysis
+regulationserviceprovisionprocess,andthesecondtermdenotesthe
+penaltyonunbalancedreal-timegenerationdeviation.Thepenaltycan
+4.1. Fixed-pointproperty
+bedeterminedbytheabsolutedifferencebetweenreal-timedeviation
+( )
+𝜖 𝜑 𝑖, ( 𝑡 𝜖 an − d 𝑢 pu ) r 2 c , h w as h e e d re fr 𝜑 eq d u e e n n o c t y es r t e h g e u p la r t e i d o e n fin se e r d vi p c e e na 𝑢 l 𝑖 t ,𝑡 y , c i o .e e . f , fi 𝑐 c  ien 𝑢 t 𝑖, [ 𝑡 10] = . Definition 1 establishes a fixed-point relationship among the indi-
+𝑖,𝑡 𝑖,𝑡 vidual resources. In this section, analyses of the fixed-point property
+Notably,𝑢 ∈ =R.
+𝑖,𝑡 𝑖 in theoptimal biddingstrategy ofdemand-side flexibleresourcesand
+Taking (4)–(5) into (12), the revenue of renewable distributed
+renewable distributed generations are conducted separately. For the
+generation𝑖turnsinto
+sake of clarity and simplicity in the following analysis, we predefine
+𝑓 ( 𝒃 𝑖 ,𝒃 −𝑖 ) = 𝑡 ∑ ∈ ∑ 𝑖∈ 𝐷 ∪ 𝑡 𝑏 𝑖,𝑡 ∑ 𝑏 𝑖∈ 𝑖,𝑡  𝐷 𝑏 𝑡 𝑖,𝑡 −𝜑 ( 𝜖 𝑖,𝑡 −∑ 𝑏 𝑖∈ 𝑖,𝑡  𝐷 𝑏 𝑡 𝑖,𝑡 )2 . (13) 𝐵 th − e 𝑖,𝑡 a = gg ∑ re 𝑗 g ∈ a  t ∪ i  on ∖{𝑖 o } f 𝑏 𝑖, b 𝑡 . ids of all individuals except resource 𝑖 itself as
+5
+
+=== page 6 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+4.1.1. Optimalityconditionofdemand-sideflexibleresources where
+the S i u n b d s iv ti i t d u u ti a n l g re 𝐵 v 𝑖 e ,𝑡 n i u n e to(7),thebiddingstrategy𝑏 𝑖,𝑡 shouldmaximize 𝜙̂  ( 𝑢 𝑖,𝑡 ) =− 𝑢 2 𝑖,𝑡 ( 𝛼 𝑖,𝑡 𝑢 𝑖,𝑡 −𝛼 𝑖,𝑡 𝐷 𝑡 +𝛽 𝑖,𝑡 )
+(25)
+𝑏 m 𝑖,𝑡∈ a  x 𝑖 𝑓 ( 𝒃 𝑖 ,𝑩∗ −𝑖 ) = 𝑡 ∑ ∈ ( 𝑏 𝑖,𝑡 𝐷 + 𝑡 2 𝐵 𝑏 𝑖 − ∗ ,𝑡 𝑖,𝑡 )2 − ( 𝑏 𝛼 𝑖 𝑖 ,𝑡 ,𝑡 𝑏 + 𝑖,𝑡 𝐵 2 − 𝐷 ∗ 𝑖, 𝑡 𝑡 2 )2 (18) and + 𝐷 4 𝑡 ( 𝛼 𝑖,𝑡 𝐷 𝑡 +𝛽 𝑖,𝑡 ) log ( 𝐷 𝑡 −2𝑢 𝑖,𝑡 ) ,
+− 𝛽 𝑖,𝑡𝑏 𝑖,𝑡 𝑏 + 𝑖,𝑡 𝐷 𝐵 𝑡 − ∗ 𝑖,𝑡 −𝛾 𝑖,𝑡 . 𝜙̂  + ( 𝐷 𝑢 𝑖, 𝑡 𝑡 ) ( 𝜑 = 𝐷 − 𝑢 − 2 𝑖,𝑡 2𝜑 ( 𝜑 𝜖 𝑢 𝑖 ) ,𝑡 l − og 𝜑 ( 𝐷 𝐷 𝑡 − − 2 2 𝜑 𝑢 𝜖 𝑖, ) 𝑡 ) . (26)
+To maximize 𝑓, the bidding strategy 𝑏 𝑖,𝑡 is required to fulfill the 4 𝑡 𝑖,𝑡 𝑡 𝑖,𝑡
+optimalitycondition,i.e.,
+( )( )
+⎛ ⎜ ⎜ ⎜
+⎝
+1−2𝛼 𝑖, 𝐵 𝑡 𝑏 − ∗ ∗ 𝑖, 𝑖 𝑡 ,𝑡 + 𝐵 𝑏∗ 𝑖 − ∗ ,𝑡 𝑖,𝑡 −𝑏∗ 𝑖,𝑡 − 𝛽 𝑖,𝑡 𝐷 𝐵 𝑡 − ∗ 𝑖,𝑡 ⎞ ⎟ ⎟ ⎟
+⎠
+( 𝑏 𝑖,𝑡 −𝑏∗ 𝑖,𝑡 ) ≥0, (19) P ( ro
+𝑖
+A ) o
+𝑖
+c f
+∈
+. c
+
+o
+∪
+S r
+
+d ee i
+i
+n
+s
+A g
+a
+p t
+o
+p o
+n
+e (
+e
+n 5
+-
+d
+t
+)
+o
+i , x
+-
+t
+o
+h B
+n
+e .
+e
+m
+m
+□ a
+a
+p
+p
+p
+p
+in
+in
+g
+g
+b
+,
+e
+it
+tw
+is
+e
+s
+e
+tr
+n
+a
+s
+ig
+tr
+h
+a
+t
+t
+f
+e
+o
+g
+r
+y
+wa
+sp
+rd
+ac
+t
+e
+ha
+(
+t
+
+𝛷
+𝑖 ) (𝑖∈
+𝒃
+
+𝑖 ,
+∪
+𝑩
+
+−
+t
+𝑖
+o )
+wherethepriormultiplierisderivedfrom𝜕𝑓 ( 𝒃
+𝑖
+,𝑩∗
+−𝑖
+) ∕𝜕𝑏∗
+𝑖,𝑡
+. =
+it
+𝛷
+is
+̂(
+p
+𝒖
+r
+(
+o
+𝒃
+v
+)
+e
+)
+d
+es
+t
+t
+h
+a
+a
+b
+t
+li
+
+she
+i
+s
+s
+t
+t
+h
+h
+e
+e
+b
+b
+e
+e
+s
+s
+t
+tr
+r
+e
+e
+s
+s
+p
+p
+o
+o
+n
+n
+s
+s
+e
+e
+p
+p
+o
+o
+t
+t
+e
+e
+n
+n
+t
+t
+i
+i
+a
+a
+l
+l
+g
+fu
+a
+n
+m
+c
+e
+ti
+.
+onof 1 .Thus,
+1
+4.1.2. Optimalityconditionofrenewabledistributedgenerations
+4.3. Equilibriumuniquenessandcompetitiveefficiencyloss
+Byapplyingthesamesubstitution,thebiddingstrategy𝑏 thatcan
+𝑖,𝑡
+maximizetheindividualrevenueofrenewabledistributedgeneration𝑖
+4.3.1. Uniqueequilibriuminfrequencyregulationserviceprovision
+istheoptimalsolutionof
+max𝑓 ( 𝒃 𝑖 ,𝑩∗ −𝑖 ) =
+𝑡
+∑
+∈
+(
+𝑏
+𝐷
++
+𝑡 2
+𝐵
+𝑏 𝑖
+∗
+,𝑡 )2 − (
+𝑏
+𝜑𝐷
++
+𝑡 2
+𝐵
+𝑏
+∗
+𝑖,𝑡 2 )2 L  e
+1
+m ha m s a a 2 u . ni T qu h e e e c q o u m i p li e b t r i i t u io m n . gameinfrequencyregulationserviceprovision
+𝑖,𝑡 −𝑖,𝑡 𝑖,𝑡 −𝑖,𝑡 (20)
++ 2𝜑𝜖 𝑖,𝑡 𝐷 𝑡 𝑏 𝑖,𝑡 −𝜑𝜖 2, Proof (Existence). According to Lemma 1,  1 belongs to the class
+𝑏 +𝐵∗ 𝑖,𝑡 of best response potential game. Therefore, the global maximum of
+𝑖,𝑡 −𝑖,𝑡
+𝛷 corresponds to an equilibrium point of  . Hence, at least one
+whoseoptimalityconditioniswrittenas 1
+equilibriumpointexists.
+⎛ ⎜ ( 1−2𝜑𝑏∗ 𝑖,𝑡 )( 𝐵 − ∗ 𝑖,𝑡 −𝑏∗ 𝑖,𝑡 ) + 2𝜑𝜖 𝑖,𝑡 𝐵 − ∗ 𝑖,𝑡 ⎞ ⎟ ( 𝑏 −𝑏∗ ) ≥0. (21) stric (U tly niq c u on en ca e v ss e ) o 𝜙̂ n  t ( h 𝑢 e 𝑖,𝑡 ) fe a a n si d bil 𝜙 i ̂ t  y ( r 𝑢 e 𝑖, g 𝑡 ) io d n ef  in 𝑖 . ed Th in ere ( f 2 o 5 r ) e, an th d e ( b 2 e 6 s ) t a r r e e -
+⎜ ⎜ ⎝ 𝐵 − ∗ 𝑖,𝑡 +𝑏∗ 𝑖,𝑡 𝐷 𝑡 ⎟ ⎟ ⎠ 𝑖,𝑡 𝑖,𝑡 s a p n o d ns 𝜙̂ e  p ( 𝑢 o 𝑖 t ,𝑡 e ) n , ti h a a l s fu a n u c n ti i o q n ue 𝛷̂ g ( l 𝒖 o ) b , al w m hi a c x h im is um a . s T u h m is m i a n t d io ic n at o e f s t 𝜙̂ h  at ( 𝑢 t 𝑖 h ,𝑡 e )
+( )
+uniqueness of global maximum of 𝛷 𝒃,𝑩 , and corresponds to the
+4.2. Bestresponsepotentialgamedesign 𝑖 −𝑖
+uniquenessof ’sequilibrium. □
+1
+TodirectlyanalyzethegeneralizedNashequilibriumof istheo-
+1 4.3.2. Efficiencylossinthecompetition
+reticallyhard.Conventionalapproachestoinvestigatetheequilibrium
+Lemma2indicatesacorrespondencebetweentheglobalmaximum
+of the non-cooperative game include KKT-based and diagonalization- between𝛷̂(𝒖)andtheequilibriumof .Basedonthischaracteristic,
+basedmethods.However,bothmethodsfocusonprovidinganumerical 1
+we investigate the efficiency loss in the competitive frequency reg-
+solution to the equilibrium rather than investigating the analytical
+ulation service provision by comparing the centralized optimization
+propertiesofthegeneralizedNashequilibrium.Totheoreticallyanalyze problemof𝛷̂(𝒖)andthesocialwelfaremaximizationproblem.
+theexistence,uniqueness,andrelatedpropertiesoftheequilibriumof
+The social welfare maximization problem in frequency regulation
+ ,weseekthehelpofthebestresponsepotentialgame.
+1 serviceprovision𝐏 canbeformulatedas
+𝑆𝑊
+Herein, we present the definition of the best response potential
+∑∑ ( ) ∑∑ ( )
+game. 𝐏 𝑆𝑊 ∶m 𝑢∈ a  x − 𝑖∈𝑡∈ 𝑐 𝑢 𝑖,𝑡 − 𝑖∈𝑡∈ 𝑐 𝑢 𝑖,𝑡 , (27)
+Definition 2 (Best Response Potential Game [39]).: A strategic game subjectto
+i  f 1 th = er ⟨ e  ex ∪ is  ts , a ( fu 𝑖 ) n 𝑖∈ c  ti ∪ o  n , 𝛷 ( 𝑓 ∶   ,𝑓 →  )⟩ R i t s ha a t best response potential game ∑ 𝑢 𝑖,𝑡 + ∑ 𝑢 𝑖,𝑡 =𝐷 𝑡 [ 𝜆 𝑡 ] ,∀𝑡∈, (28)
+𝑖∈ 𝑖∈
+( ) ( )
+argmax𝑓 𝒃 −𝑖 ,𝑩 𝑖 =argmax𝛷 𝒃 𝑖 ,𝑩 −𝑖 , (22) where𝜆 𝑡 isthedualmultiplierassociatedwithconstraint(28).
+𝒃𝑖∈ 𝑖 𝒃𝑖∈ 𝑖 Basedon Lemma2,thecentralizedoptimizationproblemof𝛷̂(𝒖)
+holds∀𝑖∈,∀𝑩 −𝑖 ∈ −𝑖 ,and ispresentedas
+ar 𝒃 g 𝑖∈ m  a 𝑖 x𝑓 ( 𝒃 𝑖 ,𝑩 −𝑖 ) =ar 𝒃 g 𝑖∈ m  a 𝑖 x𝛷 ( 𝒃 𝑖 ,𝑩 𝑖 ) , (23) 𝐏 𝐶𝐸 ∶m 𝑢∈ a  x 𝑖 ∑ ∈𝑡 ∑ ∈ 𝜙̂  ( 𝑢 𝑖,𝑡 ) + 𝑖 ∑ ∈𝑡 ∑ ∈ 𝜙̂  ( 𝑢 𝑖,𝑡 ) , (29)
+setsup∀𝑖∈,∀𝑩 −𝑖 ∈ −𝑖 . whichisalsoconstrainedby(28).
+Under identical constraint sets, the sole difference demarcating
+Then, we design the best response potential function. Considering
+optimization problems 𝐏 and 𝐏 resides within their respective
+that the optimality condition w.r.t 𝑏 is complicated, we choose to 𝑆𝑊 𝐶𝐸
+𝑖,𝑡 objectivefunctions(27)and(29).Consequently,thecompetitiveequi-
+d ( esi ) gn the w be .r s . t t r s e tr s a p t o e n g s y e 𝑢 po . tential function in another strategy space librium of  1 , which is equivalent to the optimal solution of 𝐏 𝐶𝐸
+𝑖 𝑖∈∪ 𝑖,𝑡 inevitably veers away from the social optimal solutions characterized
+by𝐏 .Thisdivergenceencapsulatesanessentialaspect:theefficiency
+𝑆𝑊
+Lemma1. Thebestresponsepotentialfunctionw.r.t𝑢 𝑖,𝑡 is of demand-side participation is impaired by the intrinsic competition
+𝛷̂(𝒖)= ∑∑ 𝜙̂  ( 𝑢 𝑖,𝑡 ) + ∑∑ 𝜙̂  ( 𝑢 𝑖,𝑡 ) , (24) a m m a o gn n i g tu t d h e e o d f e e m ff a ic n i d e - n s c id y e lo r s e s so in ur p c r e o s v . id In ing lig f h re t q o u f en t c h y is r , e s g c u r l u a t t i i n o i n zi s n e g rv t i h c e e
+𝑖∈𝑡∈ 𝑖∈𝑡∈
+6
+
+=== page 7 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+is critical to the VPP operators. Considering that quantifying the ef-
+ficiency loss is theoretically difficult and out of the scope, we try to
+provide insights on the extent of the competitive efficiency loss by
+analyzingthestructuraldifferencesbetweentheobjectivefunctionsof
+𝐏 and𝐏 .
+𝑆𝑊 𝐶𝐸
+Thepresenceofanalogoussymmetricalstructureswithin(27)and
+(29)affordsavantagepointforsystematicanalysis.Notably,theshared
+structuralsymmetryoftheobjectivefunctionsof𝐏 and𝐏 enables
+𝑆𝑊 𝐶𝐸
+a decomposition to constituent elements corresponding to individual
+resources.Moreover,thedifferencescorrespondingtoeachindividual
+also share an analogous structure. In view of this, a demand-side
+flexible resource 𝑖 ∈  stands as a demonstration chosen to elu-
+cidate the structural differences between (27) and (29). Subtracting
+−𝑐 ( 𝑢 𝑖,𝑡 ) from𝜙̂  ( 𝑢 𝑖,𝑡 ) ,weobtainthedifferencebetween(27)and(29)
+correspondingtodemand-sideflexibleresource𝑖∈as
+Fig.3. Illustrationofthelook-aheadfrequencyregulationserviceprovisioninsidethe
+𝛥 𝑖,𝑡 =𝜙̂  ( 𝑢 𝑖,𝑡 ) +𝑐 ( 𝑢 𝑖,𝑡 ) =𝛼 𝑖,𝑡 𝐷 𝑡 𝑢 𝑖,𝑡 + V ca P n P. b O e n r l e y ga t r h d e ed up a c s om ad in v g iso in ry ter r v es a u l l i t s s s f e o t r tl f e u d t , u t r h e e se c t l t e l a e r m in e g nt r s e . sultsoflook-aheadintervals
+( )
+𝛼 𝑖,𝑡 𝐷 𝑡 2 ( ) (30)
++𝛽 𝐷 log 𝐷 −2𝑢 .
+2 𝑖,𝑡 𝑡 𝑡 𝑖,𝑡
+serviceprovision.Themarketsettlementintervalissetasfiveminutes,
+Introduce an auxiliary variable 𝜇 to represent the proportion of
+𝑖,𝑡 inordertoconformwiththefive-minutesettlementrulesofISOs[40,
+[ 𝑢 𝑖,𝑡 takin ] g up in 𝐷 𝑡 , i.e., 𝑢 𝑖,𝑡 = 𝜇 𝑖,𝑡 𝐷 𝑡 . The permissible range of 𝜇 𝑖,𝑡 is 41].Forthesakeofclarity,𝐴 isadoptedtorepresentthelook-ahead
+𝑈
+𝑖,𝑡
+,𝑈̄
+𝑖,𝑡
+.Substituting𝑢
+𝑖,𝑡
+withthenewlyintroducedvariable𝜇
+𝑖,𝑡
+,𝛥
+𝑖,𝑡 horizon. The clearing and set
+𝑡
+tlement of the look-ahead framework is
+canbeequivalentlytransformedinto demonstratedinFig.3.
+( )
+𝛥 𝑖,𝑡 =𝛼 𝑖,𝑡 𝐷 𝑡 2𝜇 𝑖,𝑡 + 𝛼 𝑖,𝑡 2 𝐷 𝑡 2 +𝛽 𝑖,𝑡 𝐷 𝑡 ( log ( 𝐷 𝑡 ) +log ( 1−2𝜇 𝑖,𝑡 )) (31) Remark3. Therollinglook-aheadframeworkcanreducethecompu-
+tation complexity as well as deal with the uncertainties of frequency
+( )
+=𝐴 𝑖,𝑡 𝜇 𝑖,𝑡 +𝐵 𝑖,𝑡 log 1−2𝜇 𝑖,𝑡 +𝐶 𝑖,𝑡 , regulation signal 𝐺 𝑡 and real-time generation output of renewable
+where 𝐴 =𝛼 𝐷2, 𝐵 = ( 𝛼 𝐷2∕2+𝛽 𝐷 ) log ( 1−2𝜇 ) , and𝐶 = distributedgenerations.
+𝑖,𝑡 𝑖,𝑡 𝑡 𝑖,𝑡 𝑖,𝑡 𝑡 𝑖,𝑡 𝑡 𝑖,𝑡 𝑖,𝑡
+( 𝛼 𝐷2∕2+𝛽 𝐷 ) log ( 𝐷 ) arefixedparameters.Consideringthetime-
+𝑖,𝑡 𝑡 𝑖,𝑡 𝑡 𝑡
+5.2. Decentralizedmechanismdesign
+variant property of 𝐴 , 𝐵 , and 𝐶 , the only method to reduce the
+𝑖,𝑡 𝑖,𝑡 𝑖,𝑡
+value of 𝛥 is reducing the permissible range of 𝜇 . In other words,
+𝑖,𝑡 𝑖,𝑡
+Withintherollinglook-aheadframework,adecentralizedfrequency
+the smaller maximum proportion of 𝑢 taking up in 𝐷, the smaller
+𝑖,𝑡 𝑡
+regulationserviceprovisionmechanismisdesignedinthissection.
+differencetherewillbeintheobjectivefunctionof𝐏 and𝐏 ,and
+𝑆𝑊 𝐶𝐸
+henceleadstoasmallerdifferenceinoptimizationdirectionof𝐏 and
+𝑆𝑊
+5.2.1. Marketinitializationstage
+𝐏 .Therefore,basedonthisobservation,anintuitiveandqualitative
+𝐶𝐸
+After receiving the frequency regulation service responsibility 𝐷,
+remarkonthecompetitiveefficiencylossisproposed. 𝑡
+the VPP operator set iteration number 𝑧 = 0, and broadcasts this
+informationtotheaggregatedindividualresources.
+Remark2. Assumethatthecapacityofeachindividualresourceison
+thesamelevelofmagnitude,thecompetitiveefficiencylossof will
+1
+decreaseasthepopulationofindividualresources| ∪ |increases. 5.2.2. Informationexchangestage
+Atthisstage,demand-sideflexibleresourcesthatarewillingtoad-
+Byaggregatingalargerpopulationofdemand-sideresourceswhose justthescheduledpowerconsumptionplans,anddistributedrenewable
+capacityarewithinthesamelevelofmagnitude,thepermissiblerange generationsthatintendtoprovideexcesspowerorcompensateforreal-
+of𝜇 𝑖,𝑡 naturallydecreases.Forexample,themagnitudeof𝜇 𝑖,𝑡 is10−1for time generation mismatch, are required to submit their bids 𝑏( 𝑖, 𝑧 𝑡 ) to
+aVPPwith10demand-sideresources,whereasthismagnitudeshrinks theVPPoperator.TheVPPoperatorfirstcollectallthebidsfromthe
+to10−2 ifthepopulationis100.Thiswillevidentlyleadtoareduced individual resources, then updates and broadcasts the virtual market
+competitiveefficiencylossinthelatterVPPcomparedwiththeformer clearingpriceas
+one.Notably, Remark2willbevalidatednumericallyinthecasestudy. [ ( )]
+𝑝(𝑧+1)= 𝑝(𝑧)+𝜚(𝑧) 𝐷 −𝑝(𝑧) ∑ 𝑏(𝑧) ,∀𝑡∈𝐴, (32)
+𝑡 𝑡 𝑡 𝑡 𝑖,𝑡 𝑡
+5. Decentralizedbidding-basedmechanismdesign 𝑖∈∪ +
+where𝜚(𝑧)isthestepsizeofVPPforpriceupdating,and[⋅] denotesan
+Basedonthecentralizedoptimizationproblem𝐏 thatdepictsthe +
+𝐶𝐸 operationthatprojectsontothepositivehalf-space.Notably,𝜚(𝑧)anbe
+uniqueequilibriumoffrequencyregulationserviceprovisioninsidethe
+afixedstepsizeoradiminishingseries.Asuitable𝜚(𝑧) willaccelerate
+VPP,wedesignaprivatepreserving,parallelcomputing,andbidding-
+the market clearing process. The choice of 𝜚(𝑧) is out of the scope of
+enabledsolutionalgorithmbasedondualdecomposition.Itshouldbe
+thispaper,fordetailedinformation,pleasereferto[42].
+noted that the proposed algorithm can be interpreted as an iterative
+regulation service provision mechanism executed by the VPP opera-
+5.2.3. Biddingstrategyupdatestage
+tor. The detailed implementation of the proposed mechanism will be
+The individual resources react to the virtual market clearing price
+delineatedinthesequelofthissection. 𝑝(𝑧+1) by changing their previous bids. The renewed bidding strategy
+𝑡
+is calculated in an individual rational fashion. In the first step, the
+5.1. Rollinglook-aheadreal-timeframework
+individual resources calculate the amount of power adjustment by
+solving
+Consideringthatthefrequencyregulationsignalishighlystochastic,
+t r o oll e in n g ha l n o c o e k- t a h h e ea p d ar f t r i a c m ip e a w tio o n rk o f f or in d d e iv c i e d n u tr a a l li r z e e s d ou f r r c e e q s u , e w nc e y e r s e t g a u bl l i a s t h ion a 𝒖( 𝑖 𝑧+1)=a 𝑢 r 𝑖 g ,𝑡∈ m  a 𝑖 x 𝑡∈ ∑ 
+𝑡
+𝐴 ( 𝑝( 𝑡 𝑧+1)𝑢 𝑖,𝑡 −𝜙̂  ( 𝑢 𝑖,𝑡 )) ,∀𝑖∈, (33)
+7
+
+=== page 8 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+and Table2
+𝒖 𝑖 (𝑧+1)=a 𝑢 r 𝑖 g ,𝑡∈ m  a 𝑖 x 𝑡∈ ∑ 
+𝑡
+𝐴 ( 𝑝( 𝑡 𝑧+1)𝑢 𝑖,𝑡 −𝜙̂  ( 𝑢 𝑖,𝑡 )) ,∀𝑖∈. (34) Inf T E
+I
+o
+F
+V y r
+D
+p m s
+s
+e ation 𝑎 0
+0
+oftheh 𝑏 1
+1
+eterogene 𝑐 0
+0
+ousdem 𝑢 −
+0
+a 𝑖 n 5 d-sid 𝑢 5
+4
+e ̄ 𝑖
+.2
+flexib 𝐸 2
+0
+le . 𝑖 5 resou 𝐸 2
+1
+̄ r 0
+2
+𝑖 c
+a
+es. 1
+0
+𝐸̃ 0 𝑖 a 𝐸 2
+1
+̂ 0
+2
+𝑖
+a
+Giventhebestresponse𝒖(𝑧+1),eachindividualresourceupdatesthe TCLs 0.25 −1.25 9.25 0 5.6 23 27 25a 25
+𝑖
+biddingstrategyinthesecondstepaccordingtotheinverseformof(5) a TheactualparametersfollowGaussiandistribution,herewepresentthemean
+as value.
+𝑢(𝑧+1)
+𝑏(𝑧+1)= 𝑖,𝑡 . (35)
+𝑖,𝑡 𝑝(𝑧+1)
+𝑡
+5.2.4. Marketclearingcheckstage
+Theconvergenceofthealgorithmisthefulfillmentofthecoupling
+constraint(28),whoserelaxedformforreallifeimplementationis
+| | | | | 𝐷 𝑡 −𝑝 𝑡 (𝑧+1) 𝑖∈ ∑ ∪ 𝑏( 𝑖, 𝑧 𝑡 +1) | | | | | ≤𝜀, (36)
+where 𝜀 is a control error predefined by VPP operator. If the market
+clearingcondition(36)issatisfied,themarketiscleared,andtheVPP
+operator broadcasts the market clearing results, otherwise the VPP
+operatorupdatetheiterationcount𝑧←𝑧+1,andupdatethevirtual
+marketclearingprice.
+Lemma 3. The proposed decentralized bidding-based market mechanism
+iscommunicationinterruptionresilient.
+Proof. According to Lemma 1 and Lemma 2,  is a potential
+1
+gamewithuniqueequilibrium,whichindicatesthatthebestresponse
+dynamicsofplayerswillleadtotheequilibriumpointregardlessofthe
+initial state. A communication interruption will interrupt the current
+iteration.However,aftertherestoration,theiterationfromanewinitial Fig.4. Demand-sideresourceinformationinsidetheVPP.(a)Populationdistribution
+stateisstarted,andwillstillconvergetotheuniqueequilibrium. □ on initial state of charge (𝐸̃ 𝑖) among EVs. (b) Population distribution on required
+workload (𝐸̂ 𝑖) among IFDs. (c) Population distribution on initial indoor temperature
+Remark4. Theproposedmarketmechanismforfrequencyregulation
+(𝐸̃ 𝑖)amongTCLs.(d)Real-timegenerationmismatch(𝜖 𝑖,𝑡)of10typesofRDGs.
+serviceprovisionisprivacypreserving.Theindividualoperationinfor-
+mationofanindividualresource,i.e.,willnotbedivulgedtoothers
+𝑖
+6.2. Equilibriuminfrequencyregulationprovision
+ortheVPPoperator.
+6.2.1. Individualstrategicparticipation
+6. Casestudy
+The generalized Nash equilibrium in the frequency regulation ser-
+vice provision inside the VPP is presented in Fig. 5. The scheduled
+To validate the efficiency and effectiveness of the proposed fre-
+dispatch arrangement in the day-ahead energy market of EVs, IFDs,
+quency regulation service provision mechanism inside the VPP, case
+and TCLs are presented in Fig. 5(a), (b), and (c), respectively. Con-
+studies on VPP containing different populations of demand-side re-
+versely, Fig. 5(d), (e), and (f) distinctly portray the realized dispatch
+sources are conducted in this section. The simulation and calculation
+results with the strategic involvements in the frequency regulation
+are implemented via Python 3.7.11 calling GUROBI 9.5.1 solver on a
+service.Aninitialobservationofparamountsignificanceistheinvari-
+PCwithIntelCorei7-9700CPU@3.00GHzand16.0GBRAM.
+ablecharacteristicofterminalstatesofthedemand-sideresourceswith
+strategic frequency regulation service participation, compared with
+6.1. Systeminformation theday-aheadarrangements.Thisconsistencyshowsthatparticipation
+in frequency regulation service exerts no influence over fundamental
+The parameters of the heterogeneous demand-side resources are operationrequisitesofdemand-sideflexibleresources.Thisobservation
+presented in Table 2. The proposed generalized flexibility model can actsasapremiseofdemand-sideparticipationinfrequencyregulation
+beformulatedbasedontheparameterspresentedinTable2.Detailed service.
+informationofdemand-sideflexibleresourcescanbefoundin[43,44]. WithregardtotheEVs,theday-aheadschedulearrangementestab-
+Thefrequencyregulationsignalismodifiedfromtheregulationmove- lished a ‘‘fast charging’’ pattern. All 10 types of EVs plan to consume
+ment data on Aug. 1st, 2022, in NYISO [45]. Moreover, in order to maximum power to reach the fully charged state as soon as possible,
+simulatetheheterogeneityinsidethesamecategoryofdemand-sidere- thus opportunities to participate in frequency regulation are over-
+sources,thedifferentoperationconditionsaretakenintoconsideration. looked.Withstrategicparticipationinfrequencyregulationservice,EVs
+TheinitialstateofchargeofEVs,therequiredworkloadofIFDs,andthe share an inter-group similarity in the charging process. From 22:30
+initialindoortemperatureofTCLsaremodeledasGaussiandistribution to24:00,nearlyalltypesofEVstrackthefrequencyregulationsignal
+into 10 sub-classes as shown in Fig. 4(a), (b), and (c), respectively. toprovidefrequencyregulationservices.Thedetailedreal-timepower
+Ten categories of real-time mismatch data of distributed renewable consumptionofEVs(𝑢𝐸𝑉)ispresentedinthesubplotinFig.5(d).
+𝑖,𝑡
+generationsaremodifiedfrom[46],asshowninFig.4(d).Upto800 Contrary to the strategic behavior of EVs, IFDs are used to the
+demand-side resources are considered in the VPP. The population of ‘‘averageconsumption’’modeintheday-aheadmarket,viz,averaging
+EVs,IFDs,TCLs,andRDGsareallsetas200. the workload to the working hours. The strategic participation in the
+8
+
+=== page 9 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+Fig.6. FrequencyregulationservicepricesinsidetheVPP.
+Fig.5. Equilibriuminfrequencyregulationserviceprovision.(a)EVSoCsarrangedin
+day-aheadenergymarket;(b)IFDaccumulatedworkloadarrangedinday-aheadenergy
+market;(c)TCLtemperaturearrangedinday-aheadenergymarket;(d)EVSoCwhen
+providingfrequencyregulationservice;(e)IFDaccumulatedworkloadwhenproviding
+frequencyregulationservice;(f)TCLtemperaturewhenprovidingfrequencyregulation
+service.
+frequency regulation service emerges an inter-group difference style.
+AsshowninthesubplotinFig.5(e),10typesofIFDspresent2major
+Fig.7. Individualprofitbyparticipatinginthefrequencyregulationservice.
+frequencyregulationserviceparticipationstrategies.Thefirstresponds
+to all frequency regulation signals, while the latter chooses to not
+participate in some of the regulation requirements. This phenomenon
+the 120th dispatch interval. Minimal price occurs at midnight, the
+originatesfromthedifferenceintotalworkloadrequirements.Certain
+6th interval, i.e., 00:30. The price reaches 95.22 $/MW. This general
+types of IFDs with high workload requirements should stick to their
+trendconformswiththegridfrequencyregulationservicerequirement.
+originalproductionplanatsomeintervalswhenthefrequencyregula-
+Generally, the periods with lower regulation requirements will bring
+tionservicerequirementsarerelativelylow,inordertocompletetheir
+lessbalancingburdenonthedemand-sideflexibleresources,andthus
+fundamentaloperationrequirements.
+willresultinrelativelylowerregulationserviceprices.
+Without the incentive of providing frequency regulation service,
+TCLssharethe‘‘temperaturetracking’’tendencyasshowninFig.5(c).
+Strategicparticipationinfrequencyregulationservicewillleadtotwo 6.2.3. Individualrationalityinfollowingthebiddingrule
+distinct periods, which are marked in Fig. 5(f). The boundary lies Herein,twocomparativecasesaredesignedtonumericallyvalidate
+around09:30.Thedrivingfactorofthisdistinctboundarymaybethe the advantages in following the proposed bidding rule (33)–(35) in
+differenceinthepriceoffrequencyregulationservice.Thecoincidence the market clearing stage. The individual profits are different as they
+of the boundary of TCLs’ behavior and the margin of price periods choose different bidding strategies. The individual profit results are
+(showninFig.6)canprovethisintuitiveguess.Inthelowpriceperiod, showninFig.7.Thepriorityoftheproposedgame-basedmechanism
+thebehaviorsofdifferentTCLtypesaredifferent,whileallTCLstend overtheVPP-orienteddispatchisobvious.EVsingroups9and10have
+totrackthefrequencyregulationsignalinthehighpriceperiod,aiming a strong incentive to unilaterally misreport the individual operation
+toobtainahigherrevenuebyprovidingfrequencyregulationservice. parameters to achieve more profits. For example, it can misreport
+larger penalty parameters(𝛼 , 𝛽 , and 𝛾 ) for a more promising rev-
+𝑖,𝑡 𝑖,𝑡 𝑖,𝑡
+6.2.2. Priceoffrequencyregulationservice enue in the VPP-oriented dispatch mechanism. However, as defined
+The clearing price of the frequency regulation service provision in Definition 1, any unilateral strategy change in the proposed game-
+process inside the VPP is presented in Fig. 6. The average frequency basedmechanismcanonlyleadtoincomeloss.Therefore,allrational
+regulationservicepriceforaltogether288dispatchintervalsis119.63 individualswillfollowthebroadcastedbiddingupdaterulein(33)–(35)
+$/MW, which is higher than prices in energy markets. Thus, this tomaximizetheirprofits.
+validates our assumption that flexible resources can achieve more
+profitsinthefrequencyregulationmarketscomparedwithemploying 6.3. Iterativebiddingprocess
+peak–valleyarbitragebehaviorinthepureenergymarkets.
+Similartothefrequencyregulationsignal,theservicepriceishighly One of the critical concerns of the iterative bidding process in
+volatile.Unlikeday-aheadpricesorothermorestableprices,itishard market clearing is the computation efficiency requirement, especially
+tofindaninherentpatternoftheclearingpriceoffrequencyregulation in real-time market operations. In this section, we test the computa-
+service.Thepriceoffrequencyregulationserviceiscloselyrelatedto tion efficiency of the proposed frequency regulation service provision
+the frequency regulation requirement of the grid, i.e., the regulation process in the VPP. The iterations and computation time required to
+signal.ItisclearthattwopriceperiodsareobservedonAug.1st,2022. findanappropriatemarketclearingconditionfordifferentpopulation
+The low-price period extends from 00:00 to 08:00, while the high- cases are presented in Table 3. The computation efficiency results
+price period starts from approximately 09:30, and ends at 23:00. The validatethereal-lifepracticalityoftheproposedmechanism.Withthe
+highestpriceofthedayreaches177.94$/MW,whichoccursat10:00, increase of the demand-side population in the VPP, the computation
+9
+
+=== page 10 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+Table4
+Table3
+Competitiveefficiencyresults.
+Computationefficiencyresults.
+Iter.Count TotalTime Casea Resourcepopulation PoAb
+Cases TimeperIter.
+2%gap 0.2%gap 2%gap 0.2%gap Total EVs IFDs TCLs RDGs
+20-LA10a 27 33 17.02s 21.19s 0.64s
+20-B 20 5 5 5 5 1.694
+40-LA10 29 34 18.48s 21.77s 0.64s
+20-I 20 / / / / 1.877
+80-LA10 29 36 19.16s 23.76s 0.66s
+200-LA10 37 45 24.00s 29.23s 0.65s 40-B 40 10 10 10 10 1.44
+400-LA5 37 44 18.89s 22.44s 0.51s 40-I 40 / / / / 1.662
+400-LA10 41 47 26.83s 31.02s 0.66s 80-B 80 20 20 20 20 1.237
+800-LA5 45 50 23.39s 26.21s 0.52s 80-I 80 / / / / 1.535
+800-LA10 53 62 35.97s 42.78s 0.69s 200-B 200 40 40 40 40 1.199
+2000-LA10 69 77 47.54s 53.13s 0.69s 200-I 200 / / / / 1.376
+a 20-LA10denotesacasewithapopulationof20demand-sideresourcesandalook- 400-B 400 100 100 100 100 1.164
+aheadwindowat10dispatchintervals.Notethatthepredictionerrorisneglected 400-I 400 / / / / 1.33
+here.
+800-B 800 200 200 200 200 1.127
+800-I 800 / / / / 1.249
+2000-B 2000 500 500 500 500 1.035
+time increases mildly. For an 800-population case with a 10-interval 2000-I 2000 / / / / 1.186
+look-aheadwindow,thetotalcomputationtimeforeachsettlementis a Casenumbermarkedby‘‘B’’isaresource-balancedcase,whilemarker‘‘I’’indicates
+only35.97sifthemismatchtoleranceissetas2%.Thiscomputation the resource-imbalanced cases in whichthe population of each resource israndomly
+timeisacceptablefora5-minutereal-timemarket.Fromthecompari- generated.
+b PoAsforimbalancedcasesarethemeanvalue.FordetailedPoAdistribution,goto
+sonbetweencase400-LA5andcase400-LA10,aswellascase800-LA5
+Fig.8.
+andcase800-LA10,itisintuitivethatthereisatrade-offbetweenthe
+lengthofthelook-aheadwindowandtheoperationoptimality.Alonger
+look-aheadwindowwillbringanear-omniscientoptimaloperationof
+straightforward that the PoAs of both balanced and imbalanced cases
+VPP,andthesideeffectisaheaviercomputationburden.
+are decreasing when the population of demand-side resources in the
+The scalability of the proposed decentralized frequency regula-
+VPPincreases.It further validatesour guessin Remark 2. Moreover,
+tion service mechanism is analyzed via large population VPP cases.
+balanced cases always have better competition efficiency than imbal-
+The VPP with 2000 demand-side resources and a 10-interval look-
+anced cases. Exceptions only happen in 20-population cases, because
+ahead window is tested. Such a large population is rare in real-life
+thefrequencyresponsepotentialofEVs,IFDs,andTCLsareinherently
+VPPs. The total computation time of this case is less than 55 s to
+different. This difference will decrease as the total population grows.
+achieve less than a 0.2% gap. Moreover, from another perspective,
+Therefore, this result could probably instruct the VPP operators to
+withthegrowthinthepopulationofdemand-sideresources,thetotal
+activelyaggregateorchoosethedemand-sideresources.
+computation time increases slowly. Considering that the computation
+time of the centralized VPP-oriented dispatch method will increase
+exponentially as the population of demand-side resources grows, the 7. Conclusions
+applicabilityoftheproposeddecentralizedfrequencyregulationservice
+provision method clearly outperforms the state-of-the-art centralized This paper targets at the frequency regulation service provision
+VPP-orienteddispatchmethod.Thisalsovalidatesthescalabilityofthe insidetheVPPbyheterogeneousdemand-sideresources,includingEVs,
+proposedmechanism. IFDs,TCLsandRDGs.Todealwiththenon-cooperativecharacteristic
+of the demand-side resources with various ownerships, an extended
+6.4. Competitionefficiencyloss supplyfunctionbiddingapproachisproposed.Then,thebestresponse
+potential game-based frequency regulation service provision mecha-
+Thissectionvalidatesourinitialintuitiveguess(Remark2)onthe nism is proposed to find the generalized Nash equilibrium, whose
+competitiveefficiencylossinthefrequencyregulationserviceprovision existence and uniqueness are proved. Thereby, a sub-gradient-based
+process. We adopt the well-known metric, price of anarchy (PoA), to dualdecompositionalgorithm-baseddecentralizedmarketmechanism
+quantifytheefficiencyofgeneralizedNashequilibriuminthefrequency is proposed and validated. Our proposed mechanism shows fast com-
+regulationserviceprovisionprocess.ThePoAisdefinedas putation speed, strict privacy preservation, and convenient real-life
+∑ 𝑖∈ ∑ 𝑖∈ 𝑐 ( 𝑢† 𝑖,𝑡 ) + ∑ 𝑖∈ ∑ 𝑖∈ 𝑐 ( 𝑢† 𝑖,𝑡 ) i f m or p m le u m la e te n d ta n ti o o n n -c p o r o o p p e e r r a ti t e iv s. e M ga o m re e ov is er e , v t a h l e ua c t o e m d p b e y ti P ti o v A e . e A ffi c c r i i e t n ic c a y l o re f s t u h l e t
+PoA= ( ) ( ), (37)
+∑ 𝑖∈ ∑ 𝑖∈ 𝑐 𝑢∗ 𝑖,𝑡 + ∑ 𝑖∈ ∑ 𝑖∈ 𝑐 𝑢∗ 𝑖,𝑡 i r s es t o h u a r t ce th c e om co p m os p it u i t o a n tio is n b e a f l f a ic n i c e e n d cy an i d s h th ig e h d e e r m w a h n e d n -si t d h e e p d o e p m u a la n t d io -s n id i e s
+where𝑢∗ and𝑢† aretheoptimalsolutionsoftheoptimizationproblems large.However,ourpaperhaslimitations.Forexample,itrequiresthe
+𝑖,𝑡 𝑖,𝑡
+𝐏 and𝐏 ,respectively.ItisobviousthattheclosenessofPoAand demand-sideindividualstobepricesensitivetorespondtothepriceof
+𝑆𝑊 𝐶𝐸
+1indicateshighercompetitiveefficiency.ThelowerboundofPoAis1, frequency regulation service. Also, the communication infrastructures
+whichindicatesnoefficiencyloss. shouldbecompatibletothetwo-waycommunicationschemetosupport
+We design a series of cases with different populations of demand- theiterativebiddingprocess.
+sideresourcesinsidetheVPP,whosedetailsarepresentedinTable4. Basedontheresultsshowninthecompetitiveefficiencyanalysis,we
+For cases with specific total populations, cases with balanced and realizedthattheresourcecompositionoftheVPPisacriticalproblem.
+imbalanced demand-side resources are designed. Notably, 20 random Asuitablecompositionwillincreasethemarketparticipationabilityof
+resourcedistributionscenariosforeachimbalancedcasearegenerated. theVPP,whileanimbalancedcompositionmayhavenegativeeffects.
+ThemeanvalueofPoAsinimbalancedcasesandthePoAsofbalanced Therefore,ourfutureresearchwillfocusontheoptimalcontract-based
+cases are presented in Table 4. The detailed distribution of PoAs of aggregationofthedemand-sideresources,andthequantificationofits
+the randomly generated imbalanced cases is shown in Fig. 8. It is correspondingPoAboundary.
+10
+
+=== page 11 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+Fig.8. PoAdistributionforbalancedandimbalancedcases.
+CRediTauthorshipcontributionstatement AppendixB. ProofofLemma1
+Xiaotian Sun: Writing – original draft, Methodology, Conceptu-
+alization. Haipeng Xie: Validation, Resources. Dawei Qiu: Valida- Proof. Theprooffortheequivalenceof(21)andtheoptimalitycon-
+tion, Methodology, Investigation. Yunpeng Xiao: Visualization, Val- ditionof(26)issimilarwiththatof(19)andtheoptimalitycondition
+idation. Zhaohong Bie: Supervision, Project administration, Investi- of(25),hencewetakeproofforthelatterstatementasanexample.
+gation.GoranStrbac:Validation,Supervision,Projectadministration, Simplemathematicstransformationturns(19)into
+Investigation.
+Declarationofcompetinginterest ⎛ ⎜ ⎜ ⎜ 𝐵 − ∗ 𝑖, 𝐷 𝑡 + 𝑡 𝑏∗ 𝑖,𝑡 −( 1−2𝛼 𝑖,𝑡 𝑏 𝛽 ∗ 𝑖 𝑖 , , 𝑡 𝑡 ) 𝐵 ( − ∗ 𝐵 𝑖,𝑡 − ∗ 𝑖,𝑡 −𝑏∗ 𝑖,𝑡 ) ⎞ ⎟ ⎟ ⎟ ( 𝑏 𝑖,𝑡 −𝑏∗ 𝑖,𝑡 ) ≥0. (B.1)
+⎝ ⎠
+The authors declare that they have no known competing finan- Substituting𝑝∗= 𝐷𝑡 and𝑢∗ = 𝐷𝑡𝑏∗ 𝑖,𝑡 into(B.1),wehave
+𝑡 𝐵∗ +𝑏∗ 𝑖,𝑡 𝐵∗ +𝑏∗
+cial interests or personal relationships that could have appeared to −𝑖,𝑡 𝑖,𝑡 −𝑖,𝑡 𝑖,𝑡
+influencetheworkreportedinthispaper. ( ( 𝑢∗ ) ( ) ) ( )
+𝑝∗− 1+ 𝑖,𝑡 2𝛼 𝑢∗ +𝛽 𝑢 −𝑢∗ ≥0. (B.2)
+𝑡 𝐷 −2𝑢∗ 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡
+𝑡 𝑖,𝑡
+Dataavailability
+Itshouldbenotedthat,thelatterterminthefirstbracketof(B.2)
+( )
+is exactly d𝜙 𝑢∗ ∕d𝑢 . Therefore, the first bracket of (36) is the
+Datawillbemadeavailableonrequest. 𝑖,𝑡 𝑖,𝑡
+derivative of the Lagrangian function of 𝐏 , when setting the dual
+𝐶𝐸
+multiplier of constraint (28) as 𝜆∗ = 𝑝∗. Given the equivalence of
+𝑡 𝑡
+Acknowledgments optimalityconditionsof(19)and(25),itisprovedthat𝛷̂(𝒖)isabest
+responsepotentialfunctionof w.r.t.strategyspace () . □
+1 𝑖 𝑖∈∪
+This work was supported by Natural Science Basic Research Pro-
+gram of Shaanxi (Program No. 2022GXLH-01-01), and Fundamental References
+ResearchFundsfortheCentralUniversities,China(xzy022022045).
+[1] BrooksAE,LesieutreBC.AreviewoffrequencyregulationmarketsinthreeU.S.
+ISO/RTOs. Electr J 2019;32(10):106668. http://dx.doi.org/10.1016/j.tej.2019.
+AppendixA. Derivationofgeneralizedflexibilitymodel
+106668.
+[2] Sun B, Dai W, Zhang D, Goh HH, Zhao J, Shi B, et al. An effective
+Thederivationprocessofthegeneralizedflexibilitymodelforreal- spinningreserveallocationmethodconsideringoperationalreliabilitywithmulti-
+uncertainties. IEEE Trans Power Syst 2023;1–13. http://dx.doi.org/10.1109/
+time power adjustment is presented below. Here we take the model
+TPWRS.2023.3262240.
+of TCLs as an example. The operation constraints of TCLs can be [3] Liu X, Li Y, Lin X, Guo J, Shi Y, Shen Y. Dynamic bidding strategy for a
+formulatedas demand response aggregator in the frequency regulation market. Appl Energy
+( ) 2022;314:118998.http://dx.doi.org/10.1016/j.apenergy.2022.118998.
+𝑇𝐶𝐿 𝑥𝑇𝐶𝐿,𝑦𝑇𝐶𝐿 [4] Douglass PJ, Garcia-Valle R, Nyeng P, Østergaard J, Togeby M. Smart de-
+𝑖 𝑖,𝑡 𝑖,𝑡
+( ) mand for frequency regulation: Experimental results. IEEE Trans Smart Grid
+⎧ 𝑦̇𝑇𝐶𝐿=− 1 𝑦𝑇𝐶𝐿−𝐸𝑟 − 𝜂𝑖𝑥𝑇𝐶𝐿, ⎫ 2013;4(3):1713–20.http://dx.doi.org/10.1109/TSG.2013.2259510.
+= ⎪ ⎨ 𝑥𝑇 𝑖,𝑡 𝐶𝐿 | | | | 𝐸𝑇 𝑖 𝑖 𝐶 ,𝑡 𝐿≤𝑦𝑇 𝑖,𝑡 𝐶 𝑅 𝐿 𝑖𝐶 ≤ 𝑖 𝐸̄ 𝑖 𝑖 𝑇 ,𝑡 𝐶𝐿,0≤ 𝑖, 𝑥 𝑡 𝑇 𝑖,𝑡 𝐶𝐿 𝐶 ≤ 𝑖 𝑈 𝑖 ̄ ,𝑡 𝑖 𝑇𝐶𝐿, ⎪ ⎬ , (A.1) [5] M sto o r h a a g m e e p d ar A t , ic R ip ig a o ti - n M g a i r n ian en i e R r , g D y e a b n u d ss r c e h s e e r r e ve V, m P a i r n ke L t . s S w ta i c t k h ed an re o v p e t n im ue a s l f f o r r eq e u n e e n rg c y y
+⎪
+⎩
+| 𝑥𝑇
+𝑖,𝑡
+𝐶
+𝑖𝑛
+𝐿
+𝑖
+=𝐸̃
+𝑖
+𝑇𝐶𝐿,𝑥𝑇
+𝑖,𝑡
+𝐶
+𝑡𝑒
+𝐿
+𝑟
+=𝐸̂
+𝑖
+𝑇𝐶𝐿,𝑡∈𝑇𝐶𝐿. ⎪
+⎭ regulationmodeling.ApplEnergy2023;350:121721.http://dx.doi.org/10.1016/
+j.apenergy.2023.121721.
+where𝑥𝑇
+𝑖,𝑡
+𝐶𝐿and𝑦𝑇
+𝑖,𝑡
+𝐶𝐿denotethepowerconsumptionandtemperature
+[6] Pavić I, Pandžić H, Capuder T. Electric vehicle aggregator as an auto-
+ofTCL𝑖attimeinterval𝑡,respectively. matic reserves provider under uncertain balancing energy procurement. IEEE
+( ) ( )
+Intheday-aheadoperation, 𝑥𝑇𝐶𝐿,𝑦𝑇𝐶𝐿 = 𝑈𝑇𝐶𝐿,𝐸𝑇𝐶𝐿 .Inthe TransPowerSyst2022;38(1):396–410.http://dx.doi.org/10.1109/TPWRS.2022.
+𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 3160195.
+real-time power adjustment to provide frequency regulation service,
+( ) ( ) [7] OshnoeiA,KheradmandiM,BlaabjergF,HatziargyriouND,MuyeenSM,Anvari-
+𝑥𝑇𝐶𝐿,𝑦𝑇𝐶𝐿 = 𝑈𝑇𝐶𝐿+𝑢𝑇𝐶𝐿,𝐸𝑇𝐶𝐿+𝑒𝑇𝐶𝐿 . Subtracting the first MoghaddamA.Coordinatedcontrolschemeforprovisionoffrequencyregulation
+𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡
+( ) ( ) ( ) service by virtual power plants. Appl Energy 2022;325:119734. http://dx.doi.
+line of 𝑥𝑇𝐶𝐿,𝑦𝑇𝐶𝐿 = 𝑈𝑇𝐶𝐿,𝐸𝑇𝐶𝐿 from that of 𝑥𝑇𝐶𝐿,𝑦𝑇𝐶𝐿 =
+𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 org/10.1016/j.apenergy.2022.119734.
+( )
+𝑈𝑇𝐶𝐿+𝑢𝑇𝐶𝐿,𝐸𝑇𝐶𝐿+𝑒𝑇𝐶𝐿 ,theadmissiblecontrolregionofTCLsfor [8] Wang H, Ding Z, Tang R, Chen Y, Fan C, Wang J. A machine learning-
+𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 𝑖,𝑡 basedcontrolstrategyforimprovedperformanceofHVACsystemsinproviding
+real-timepoweradjustment(10)canbeobtained.Similarmethodscan
+large capacity of frequency regulation service. Appl Energy 2022;326:119962.
+beappliedtoobtaintheadmissibleregionforEVsandIFDs. http://dx.doi.org/10.1016/j.apenergy.2022.119962.
+11
+
+=== page 12 ===
+X.Sunetal. AppliedEnergy352(2023)121987
+[9] BahramiS,AminifarF.Exploitingthepotentialofenergyhubsinpowersystems [27] Dabbagh SR, Sheikh-El-Eslami MK. Risk-based profit allocation to DERs inte-
+regulationservices.IEEETransSmartGrid2018;10(5):5600–8.http://dx.doi.org/ gratedwithavirtualpowerplantusingcooperativegametheory.ElectrPower
+10.1109/TSG.2018.2888550. SystRes2015;121:368–78.http://dx.doi.org/10.1016/j.epsr.2014.11.025.
+[10] HeG,ChenQ,KangC,XiaQ,PoollaK.Cooperationofwindpowerandbattery [28] WangY,GaoW,QianF,LiY.Evaluationofeconomicbenefitsofvirtualpower
+storage to provide frequency regulation in power markets. IEEE Trans Power plantbetweendemandandplantsidesbasedoncooperativegametheory.Energy
+Syst2016;32(5):3559–68.http://dx.doi.org/10.1109/TPWRS.2016.2644642. ConversManage2021;238:114180.http://dx.doi.org/10.1016/j.enconman.2021.
+[11] SattarA,Al-DurraA,CaruanaC,DebouzaM,MuyeenSM.Testingtheperfor- 114180.
+manceofbatteryenergystorageinawindenergyconversionsystem.IEEETrans [29] Rahmani-Dabbagh S, Sheikh-El-Eslami MK. A profit sharing scheme for dis-
+IndAppl2020;56(3):3196–206.http://dx.doi.org/10.1109/TIA.2020.2979792. tributed energy resources integrated into a virtual power plant. Appl Energy
+[12] MerabetA,Al-DurraA,El-SaadanyEF.Energymanagementsystemforoptimal 2016;184:313–28.http://dx.doi.org/10.1016/j.apenergy.2016.10.022.
+cost and storage utilization of renewable hybrid energy microgrid. Energy [30] Shi Q, Li F, Hu Q, Wang Z. Dynamic demand control for system frequency
+ConversManage2022;252:115116.http://dx.doi.org/10.1016/j.enconman.2021. regulation: Concept review, algorithm comparison, and future vision. Electr
+115116. PowerSystRes2018;154:75–87.http://dx.doi.org/10.1016/j.epsr.2017.07.021.
+[13] MerabetA,Al-DurraA,El-SaadanyEF.Improvedfeedbackcontrolandoptimal [31] Wu C, Mohsenian-Rad H, Huang J. Vehicle-to-aggregator interaction game.
+managementforbatterystoragesysteminmicrogridoperatinginbi-directional IEEETransSmartGrid2011;3(1):434–42.http://dx.doi.org/10.1109/TSG.2011.
+gridpowertransfer.IEEETransSustainEnergy2022;13(4):2106–18.http://dx. 2166414.
+doi.org/10.1109/TSTE.2022.3184165. [32] Johari R, Tsitsiklis JN. Parameterized supply function bidding: Equilibrium
+[14] AbdelghanyMB,MarianiV,LiuzzaD,NataleOR,GlielmoL.Aunifiedcontrol andefficiency.OperRes2011.URLhttps://pubsonline.informs.org/doi/10.1287/
+platformandarchitecturefortheintegrationofwind-hydrogensystemsintothe opre.1110.0980.
+grid. IEEE Trans Autom Sci Eng 2023;1–16. http://dx.doi.org/10.1109/TASE. [33] Leemon A. Frequency regulation and battery throughput. 2023, URL
+2023.3292029. https://www.gridcog.com/blog/frequency-regulation-and-battery-throughput.
+[15] Abdelghany MB, Al-Durra A, Zeineldin H, Gao F. Integrating scenario-based [Online;accessed15Aug2023].
+stochastic-modelpredictivecontrolandloadforecastingforenergymanagement [34] NewberyJ.ComparingcontingencyfrequencycontrolmarketsinAustraliaand
+ofgrid-connectedhybridenergystoragesystems.IntJHydrogenEnergy2023. theUK.2023,URLhttps://gridcog.com/blog/comparing-contingency-frequency-
+[16] LiuJ,YuSS,HuH,TrinhH.Acombinatorialauctionenergytradingapproachfor control-markets-in-australia-and-the-uk.[Online;accessed22May2023].
+VPPsconsistingofinterconnectedmicrogridsindemand-sideancillaryservices [35] Sun X, Xie H, Xiao Y, Bie Z. Incentive compatible pricing for enhancing the
+market. Electr Power Syst Res 2023;224:109694. http://dx.doi.org/10.1016/j. controllabilityofprice-baseddemandresponse.IEEETransSmartGrid2023;1.
+epsr.2023.109694. http://dx.doi.org/10.1109/TSG.2023.3279415.
+[17] Bolzoni A, Parisio A, Todd R, Forsyth AJ. Optimal virtual power plant [36] Industrial demand response for frequency balancing and voltage control -
+management for multiple grid support services. IEEE Trans Energy Convers ENTSO-E.2023,URLhttps://www.entsoe.eu/Technopedia/techsheets/industrial-
+2020;36(2):1479–90.http://dx.doi.org/10.1109/TEC.2020.3044421. demand-response-for-frequency-balancing-and-voltage-control. [Online;
+[18] Naughton J, Wang H, Cantoni M, Mancarella P. Co-optimizing virtual power accessed22May2023].
+plant services under uncertainty: A robust scheduling and receding horizon [37] LedvaGS,VrettosE,MastelloneS,AnderssonG,MathieuJL.Managingcommu-
+dispatch approach. IEEE Trans Power Syst 2021;36(5):3960–72. http://dx.doi. nication delays and model error in demand response for frequency regulation.
+org/10.1109/TPWRS.2021.3062582. IEEETransPowerSyst2017;33(2):1299–308.http://dx.doi.org/10.1109/TPWRS.
+[19] Sadeghi S, Jahangir H, Vatandoust B, Golkar MA, Ahmadian A, Elkamel A. 2017.2725834.
+Optimal bidding strategy of a virtual power plant in day-ahead energy and [38] HarkerPT.GeneralizedNashgamesandquasi-variationalinequalities.European
+frequencyregulationmarkets:Adeeplearning-basedapproach.IntJElectrPower JOperRes1991;54(1):81–94.http://dx.doi.org/10.1016/0377-2217(91)90325-
+EnergySyst2021;127:106646.http://dx.doi.org/10.1016/j.ijepes.2020.106646. P.
+[20] ChenW,QiuJ,ZhaoJ,ChaiQ,DongZY.Bargaininggame-basedprofitallocation [39] VoorneveldM.Best-responsepotentialgames.EconomLett2000;66(3):289–95.
+ofvirtualpowerplantinfrequencyregulationmarketconsideringbatterycycle http://dx.doi.org/10.1016/S0165-1765(99)00196-2.
+life.IEEETransSmartGrid2021;12(4):2913–28.http://dx.doi.org/10.1109/TSG. [40] Australian Energy Market Operator (AEMO). Five-minute settlement: High
+2021.3053000. level design. 2017, URL https://www.aemc.gov.au/sites/default/files/content/
+[21] Zhang T, Qiu W, Zhang Z, Lin Z, Ding Y, Wang Y, et al. Optimal bidding b862be5a-4460-4b72-a90b-8f73117f301c/5MS-HLD-Final-4-Sep.pdf. [Online;
+strategy and profit allocation method for shared energy storage-assisted VPP accessed22May2023].
+in joint energy and regulation markets. Appl Energy 2023;329:120158. http: [41] Midcontinent Independent System Operator (MISO). Post operating processor
+//dx.doi.org/10.1016/j.apenergy.2022.120158. 5 minute calculation guide. 2021, URL https://cdn.misoenergy.org/POP%
+[22] Federal Energy Regulatory Commission (FERC). FERC order 745: Demand re- 20Guide%20Changes%20-%20MRD%20FERC%20205%20filing%20Docket%
+sponsecompensationinorganizedwholesaleenergymarkets.2011,URLhttps: 20No.%20ER21-239-000490698.pdf.[Online;accessed22May2023].
+//www.ferc.gov/sites/default/files/2020-06/Order-745.pdf.[Online;accessed22 [42] SrikanthaP,KundurD.Distributedoptimizationofdispatchinsustainablegener-
+May2023]. ationsystemsviadualdecomposition.IEEETransSmartGrid2014;6(5):2501–9.
+[23] FERCorder755:Frequencyregulationcompensationintheorganizedwholesale http://dx.doi.org/10.1109/TSG.2014.2360586.
+power markets. 2011, URL https://www.ferc.gov/sites/default/files/2020-06/ [43] Zhang Y, Sun J, Wu C. Vehicle-to-grid coordination via mean field game.
+OrderNo.755-A.pdf.[Online;accessed22May2023]. IEEE Control Syst Lett 2021;6:2084–9. http://dx.doi.org/10.1109/LCSYS.2021.
+[24] FengC,WangY,KongP-Y,GaoH,ChenS,ChenQ.Provisionofcontingency 3139266.
+frequencyservicesforvirtualpowerplantswithaggregatedmodels.IEEETrans [44] Hao H, Sanandaji BM, Poolla K, Vincent TL. Aggregate flexibility of thermo-
+SmartGrid2022;1.http://dx.doi.org/10.1109/TSG.2022.3229273. statically controlled loads. IEEE Trans Power Syst 2014;30(1):189–98. http:
+[25] O’Shaughnessy E, Shah M, Parra D, Ardani K. The demand-side resource //dx.doi.org/10.1109/TPWRS.2014.2328865.
+opportunity for deep grid decarbonization. Joule 2022;6(5):972–83. http://dx. [45] New York Independent System Operator (NYISO). Regulation movement data.
+doi.org/10.1016/j.joule.2022.04.010. 2023,URLhttps://www.nyiso.com/regulation-movement-data.[Online;accessed
+[26] LuZ,BaiL,WangJ,WeiJ,XiaoY,ChenY.Peer-to-peerjointelectricityand 22May2023].
+carbontradingbasedoncarbon-awaredistributionlocationalmarginalpricing. [46] ENTSO-E. ENTSO-E transparency plantform. 2022, URL https://transparency.
+IEEE Trans Power Syst 2022;38(1):835–52. http://dx.doi.org/10.1109/TPWRS. entsoe.eu/dashboard/show.[Online;accessed22May2023].
+2022.3167780.
+12

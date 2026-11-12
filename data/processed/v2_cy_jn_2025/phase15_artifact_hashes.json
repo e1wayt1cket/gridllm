@@ -1,0 +1,56 @@
+{
+  "checkpoint_index": "4289f13717ad6f89b0f8a8a34390b03035b58e1c485e9f5cdde3c9a426a12a4a",
+  "run_manifest": "579d848e627b928e7c77e6971bc57b86b5fedf0b90e96dcc716c61a67114035f",
+  "validation_audit": "bfca361e3aec440884179e9bdf1fabfe5b8f486d00e0260fa586859c3ca784e8",
+  "training_config": {
+    "experiment_id": "EXPLORATORY_NEAR_B_C2_GATE_seed11_v2",
+    "reward_mode": "B_C2",
+    "gamma": 0.99,
+    "fixed_scale": 1000.0,
+    "gate_temperature": 1.0,
+    "price_noise_std": 0.5,
+    "target_policy_noise": 0.2,
+    "target_noise_clip": 0.5,
+    "lr": 0.0003,
+    "tau": 0.005,
+    "policy_delay": 2,
+    "batch_size": 128,
+    "buffer_capacity": 100000,
+    "start_steps": 0
+  },
+  "data_hashes": {
+    "pairing": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363",
+    "bus_loads": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078",
+    "price_curves": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1",
+    "common_split": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335"
+  },
+  "phase15_data": {
+    "critic_long_horizon_cp10_control_2022-07-23_2022-08-14.csv": "163fd753f5f55ecf842876a63e1e35d6b87f065ecc2204ef981bc2329db78e9a",
+    "critic_long_horizon_cp10_winter_2022-12-13.csv": "4699a42c48a4a6d715128c4fa96e85f6ca79bfa4fa6ef20f7b9bfe8ed512d573",
+    "critic_long_horizon_cp10_winter_2022-12-30.csv": "aba4896b19fdff878dd3d655a92db402be51f38da7ce701ffbcfdd9452516fbd",
+    "critic_long_horizon_cp10_winter_2022-12-31.csv": "203aec4c572dcba2d4a8c4eb832455739146bec1759137673f2c418d566845b5",
+    "critic_long_horizon_cp2_control_2022-07-23_2022-08-14.csv": "cf188bb6899fa68266150687878881bb0be4024ee327328a66e5c864275fc40d",
+    "critic_long_horizon_cp2_winter_2022-12-13.csv": "849c4ccd69ff18879c7d3f1dfc9115087d5d082f355a6e4caf3e386a20f14a5d",
+    "critic_long_horizon_cp2_winter_2022-12-30.csv": "8a6dcf69e1042a3e551a17870f85f4039337c268424784615f110f8949ee8234",
+    "critic_long_horizon_cp2_winter_2022-12-31.csv": "9d4f8ce87af49898e26eda3d45244a7ed7cadcdd4e18ee818686a2dc2902eea6",
+    "critic_long_horizon_states_cp10_control_2022-07-23_2022-08-14.json": "1bedf0311d2e36d3702ecdbdf2a573850d0e8214535d6e10c9f4aa7946a64248",
+    "critic_long_horizon_states_cp10_winter_2022-12-13.json": "598b8672ab6ffbfc1f1fbc17f8392ac5e0b45d7e71aaba1683998b0b3eebc2cb",
+    "critic_long_horizon_states_cp10_winter_2022-12-30.json": "308eaf473239dfdae26271154f8d8006b81d996b4dda12cbfc32b4298e3c17f1",
+    "critic_long_horizon_states_cp10_winter_2022-12-31.json": "2e91db9c1b02da3ebdfff13b5d1db0c5c5a8b53460ba134015c1a20fee8f5eab",
+    "critic_long_horizon_states_cp2_control_2022-07-23_2022-08-14.json": "e347c27fdf53dd013ae04d0a00e211ed67273387df44f39850a0949ef30aadbc",
+    "critic_long_horizon_states_cp2_winter_2022-12-13.json": "34d6b1ee1f477ccdc033e8081d26c3f304fa4a1a260fb0d72e2ba65bac09b56a",
+    "critic_long_horizon_states_cp2_winter_2022-12-30.json": "f3ff2ef9beba4ba7f088b7a95d09fb3543057c33e32d185babbea257b02f7348",
+    "critic_long_horizon_states_cp2_winter_2022-12-31.json": "6d0f046b252832423571fd13dce4f176ee6e98514abcb12faf085b06d3df4410",
+    "winter_block_reconstruction.csv": "dc14238714e6e4e84190326322f491a3f41c2e71c7b9c231e3a82a56c635492d",
+    "critic_gate_action_grid.csv": "6a8574c4bb61f7b01209345786f7ed92182790b51ceac38379546c21e81259cf",
+    "gate_trajectory_by_round.json": "74c5374f6f8c42dd302593be32742b8a39fa160a4cd37e0c862306e5dbca8e86",
+    "st_gate_gradient_by_round.json": "5fc8e4b0d9ffac1156e6b5db8830f6b00ea9477e22bcf0a11eb24e974f2f417f"
+  },
+  "reports": {
+    "critic_long_horizon_calibration.md": "eff14929ee27983cd42a906f5ee2880f1aae8df53a3148ce1bbeb5b05c5ee52c",
+    "critic_training_target_audit.md": "e45b71c81269c6ae62e458f51714517931f6cbb62ff0cf1adbc1d50faf73a599",
+    "gate_quote_branch_joint_audit.md": "4be2292b63e32cc9e32887f077e07672d5b99845e02190ce89a1029e9c49b44d",
+    "next_gate_critic_design_decision.md": "7739e683b2dfa2c9daab13ad44b4e4c6dd859095c38a473e19d4c1cf7329d3c7",
+    "winter_loss_block_reconstruction.md": "35fb7b9f552c98d59027e1dedf4144778d040d5279b7d8aa0c44fa3bf8659126"
+  }
+}

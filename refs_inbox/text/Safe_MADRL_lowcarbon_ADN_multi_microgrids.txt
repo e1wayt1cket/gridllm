@@ -1,0 +1,2489 @@
+Safe multi-agent deep reinforcement learning for decentralized low-carbon
+operation in active distribution networks and multi-microgrids
+Tong Ye a,b, Yuping Huang a,b,c,d,*, Weijia Yang b,c,d,
+Guotian Cai a,b,c,d, Yuyao Yang e, Feng Pan e
+a School of Energy Science and Engineering, University of Science and Technology of China, Hefei, 230026, China
+b Guangzhou Institute of Energy Conversion, Chinese Academy of Sciences, Guangzhou, 510640, China
+c CAS Key Laboratory of Renewable Energy, Guangzhou, 510640, China
+d Guangdong Provincial Key Laboratory of Renewable Energy, Guangzhou, 510640, China
+e Metrology Center of Guangdong Power Grid Co., Ltd, Qingyuan, 511545, China
+H I G H L I G H T S
+• A spatiotemporal carbon intensity equalization method fairly allocates carbon emissions between power networks and microgrids.
+• A multi-layer interaction mechanism is developed for carbon allocation and electricity pricing.
+• A low-carbon economic non-cooperative operational strategy is provided for multi-entity networks.
+• An Enhanced Action Projection MATD3 algorithm ensures secure real-time non-convex low-carbon optimization.
+A R T I C L E I N F O
+Keywords:
+Active distribution network
+Carbon emission allocation
+Low-carbon economic operation
+Multi-microgrid operation
+Safe multi-agent deep reinforcement learning
+A B S T R A C T
+Due to fundamental differences in operational entities between distribution networks and microgrids, the
+equitable allocation of carbon responsibilities remains challenging. Furthermore, achieving real-time, efficient,
+and secure low-carbon economic dispatch in decentralized multi-entities continues to face obstacles. Therefore,
+we propose a co-optimization framework for Active Distribution Networks (ADNs) and multi-Microgrids (MMGs)
+to improve operational efficiency and reduce carbon emissions through adaptive coordination and decision-
+making. To facilitate decentralized low-carbon decision-making, we introduce the Spatiotemporal Carbon In-
+tensity Equalization Method (STCIEM). This method ensures privacy and fairness by processing local data and
+equitably distributing carbon responsibilities. Additionally, we propose a non-cooperative optimization strategy
+that enables entities to optimize their operations independently while considering both economic and envi-
+ronmental interests. To address the challenges of real-time decision-making and the non-convex nature of low-
+carbon optimization inherent in traditional approaches, we have developed the Enhanced Action Projection
+Multi-Agent Twin Delayed Deep Deterministic Policy Gradient (EAP-MATD3) algorithm. This algorithm en-
+hances the actor’s objective to address the actor-critic mismatch problem, thereby outperforming conventional
+safe multi-agent deep reinforcement learning methods by generating optimized actions that adhere to physical
+system constraints. Experiments conducted on the modified IEEE 33-bus network and IEEE 123-bus network
+demonstrate the superiority of our approach in effectively balancing economic and environmental objectives
+within complex energy systems.
+* Corresponding author at: School of Energy Science and Engineering, University of Science and Technology of China, Hefei 230026, China.
+E-mail address: huangyp@ms.giec.ac.cn (Y. Huang).
+Contents lists available at ScienceDirect
+Applied Energy
+journal homepage: www.elsevier.com/locate/apenergy
+https://doi.org/10.1016/j.apenergy.2025.125609
+Received 25 October 2024; Received in revised form 9 January 2025; Accepted 22 February 2025
+Applied Energy 387 (2025) 125609 
+Available online 4 March 2025 
+0306-2619/© 2025 Elsevier Ltd. All rights are reserved, including those for text and data mining, AI training, and similar technologies. 
+
+1. Introduction
+1.1. Background and motivation
+The global shift toward renewable energy is fundamentally trans-
+forming modern power systems, driving a transition toward decentral-
+ized energy management that significantly enhances adaptability and
+sustainability. High shares of renewable energy generation are expected
+to dominate future power systems, leading to fundamental changes in
+system characteristics and increased demands for system flexibility [1].
+In this evolving context, Active Distribution Networks (ADNs) and
+Multi-Microgrids (MMGs) have emerged as crucial components for
+effectively managing distributed energy resources (DERs) [2]. ADNs act
+as intermediaries between the upper power grid (UPG) and end con-
+sumers, optimizing energy flows and integrating renewable energy,
+while MMGs are deployed within local clusters to manage DERs, thus
+enhancing reliability and supporting local energy needs.
+The integration of ADNs and MMGs enhances load management
+flexibility, optimizes energy usage, and supports carbon emissions
+reduction, making them essential for achieving both economic efficiency
+and environmental sustainability [3]. However, these benefits also
+introduce significant challenges: 1) Due to fundamental differences in
+operational entities between ADNs and MMGs, achieving equitable
+allocation of carbon responsibilities across these entities remains com-
+plex. 2) The requirement for real-time, efficient, and secure low-carbon
+economic dispatch in a multi-agent decentralized environment presents
+technical obstacles that limit system flexibility and sustainability.
+1.2. Previous research and gaps
+With the widespread adoption of DERs and MMGs in modern energy
+systems, extensive research has emerged aimed at optimizing economic
+efficiency, system flexibility, and environmental sustainability. How-
+ever, despite significant advancements in various aspects, numerous
+challenges and research gaps remain unresolved. The following sections
+review the current state of research in ADN-MMGs system operations,
+carbon intensity calculation and application, and Multi-Agent Deep
+Reinforcement Learning (MADRL), highlighting areas that require
+further investigation.
+ADN&MMGs operation: Recently, the ADN-MMGs system has
+garnered considerable interest from the research community. Most
+studies have primarily focused on improving the economic operational
+efficiency and enhancing system flexibility [4]. Collaboration between
+the ADN and MMGs is considered essential for optimizing the use of
+distributed energy resources (DERs) under varying supply and demand
+conditions [5,6]. Beyond external market interactions, ADNs also facil-
+itate internal transactions among MGs, guiding users to adjust their
+energy consumption through dynamic pricing mechanisms [7]. To
+further enhance flexibility and operational security within these sys-
+tems, local energy trading frameworks for ADN-MMGs have been
+established [8–10].
+While these methods contribute to economic efficiency, they often
+overlook the complex interdependencies between different stake-
+holders, leading to potential inefficiencies and inequities in resource
+allocation [7]. Centralized implementations struggle to reflect the
+Nomenclature
+Indices and Sets
+m ∈M
+Index and set of Microgrids (MGs)
+K
+Set of battery energy storage system (BESS)
+G
+Set of micro-gas turbine
+PV
+Set of photovoltaic (PV) power plant
+i,j ∈I
+Index and set of nodes
+t ∈T
+Index and set of time steps
+Variable
+λEM
+External market price
+λIM
+Internal market price
+eUPG
+Carbon intensity of upper power grid (UPG)
+eADN
+Carbon intensity of active distribution network (ADN)
+eMG
+Carbon intensity of MG
+eG
+Carbon intensity for micro-gas turbine
+pUPG
+Active power between UPG and ADN
+qUPG
+Reactive power between UPG and ADN
+ptrans
+Active power transactions between ADN and MG
+qtrans
+Reactive power transactions between ADN and MG
+pG
+Active power from micro gas turbine
+qG
+Reactive power from micro gas turbine
+pPV
+Active power output from PV inverters
+ploss
+Active power loss of MG
+EK
+Actual energy of BESS
+SOCK
+Actual state of charge of BESS
+pch
+Charging active power for BESS
+pdis
+Discharging active power for BESS
+xl
+Variation in demand response load
+vi
+Square of node voltage
+δm
+Demand response load proportion
+n ∈N
+Index and set of Agents
+pl
+i
+Active load at nodes
+ql
+i
+Reactive load at nodes
+pi
+Node active power
+qi
+Node reactive power
+pij,t
+Branche active power
+qij,t
+Branche reactive power
+Parameters
+Δλ
+ADN retail price adjustment range
+λK
+Cost of BESS operation
+λC
+Cost of carbon trading
+λG
+Cost of micro gas turbine
+PG,max
+Maximum active power for micro gas turbine
+PG,min
+Minimum active power for micro gas turbine
+Smax
+ij
+Maximum line capacity
+rij
+Branch resistance
+xij
+Branch reactance
+Imax
+ij
+Maximum branch current
+Imin
+ij
+Minimum branch current
+ECap
+Maximum capacity of BESS
+ηch,ηdis
+BESS charging and discharging efficiency
+Pch,max
+Maximum charging active power limits of BESS
+Pch,min
+Minimum charging active power limits of BESS
+Pdis,max
+Maximum discharging active power limits of BESS
+Pdis,min
+Minimum discharging active power limits of BESS
+Vmax
+i
+Maximum node voltage
+Vmin
+i
+Minimum node voltage
+ΔpG
+Change in micro-gas turbine power output between
+consecutive time steps
+RG
+Ramp limit for micro-gas turbine
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+2 
+
+differing interests and autonomous characteristics of MGs and ADNs,
+failing to capture the decentralized and autonomous nature of these
+systems [11]. Moreover, current approaches often simplify the hetero-
+geneous characteristics of interconnected MGs and their network con-
+straints by treating them as homogeneous entities and employ some
+relaxation methods. This simplification neglects the diversity in MG
+configurations, DER types, user behaviors, as well as the physical and
+operational constraints of the network [12,13]. Consequently, these
+models may lead to solutions that are less feasible or optimal in real-
+world conditions, potentially compromising system reliability and
+efficiency.
+Furthermore, as ADNs and MMGs play a pivotal role in integrating
+renewable energy sources, the consideration of carbon emissions has
+become increasingly important in their operational frameworks. This
+necessitates the incorporation of carbon intensity metrics into the
+decision-making processes of ADNs and MMGs to ensure not only eco-
+nomic and operational efficiency but also environmental sustainability.
+Carbon intensity calculation & application: While optimizing ADN
+and MMGs operations is crucial for economic efficiency and system
+flexibility, it is equally important to consider the environmental impacts
+of these operations, specifically regarding carbon emissions. Reducing
+indirect carbon emissions in power systems is essential for achieving
+decarbonization goals. The carbon emission flow (CEF) model [14] has
+gained significant traction for calculating carbon intensity across power
+grid nodes due to its compatibility with power flow characteristics [15].
+CEF has been applied in resource dispatch for ADNs [16–18], integrating
+it with DERs scheduling and demand-side management. Additionally,
+data-driven CEF models [19] have incorporated demand response to
+dynamically adjust user behavior in line with carbon intensity levels.
+Despite its effectiveness, the CEF model faces several challenges,
+particularly regarding privacy and spatial equity within distribution
+networks. In transmission networks, the centralized CEF model is
+effective due to grid operators’ control over generators and transmission
+lines, ensuring access to comprehensive data [20]. However, in distri-
+bution networks, privacy issues arise because grid operators often lack
+authority to access data beyond the Point of Common Coupling (PCC)
+[21], the boundary between ADNs and MGs. This lack of access could
+compromise the privacy of MG users, making centralized CEF models
+impractical for deployment at the distribution level.
+Spatial disparities complicate the issue further. Unlike transmission
+grids, which ensure spatially balanced carbon emissions due to their
+broad coverage, thus diluting the impact of proximity to specific power
+sources, distribution networks like ADNs and MGs introduce more
+complexity. Variations in user behavior and proximity to low-carbon
+energy sources lead to uneven carbon intensities, undermining the
+equitable distribution of low-carbon benefits. MGs located closer to
+clean power sources can naturally reduce carbon intensity with less
+effort, disadvantaging those further away.
+This discrepancy can weaken incentives for carbon reduction. Thus,
+integrating carbon intensity calculations into ADN and MG operations
+presents unique challenges that must be addressed to balance economic
+efficiency, system flexibility, and environmental sustainability.
+Safe multi agent deep reinforcement learning: The integration of
+carbon intensity calculations presents novel challenges, especially
+within decentralized environments. The incorporation of carbon metrics
+introduces additional variables and nonconvex characteristics, while
+issues related to data privacy and fairness in carbon allocation become
+increasingly significant. Addressing these challenges necessitates the
+development of advanced decision-making frameworks that can operate
+securely and efficiently within such complex systems. MADRL holds
+great potential for solving nonconvex, high-dimensional problems
+involving multiple stakeholders, owing to its advanced capability to
+autonomously derive complex policies from environmental interactions
+[22]. This capability makes MADRL a natural fit for the evolving smart
+grid landscape, where dynamic, real-time decision-making is key to
+managing distributed energy resources effectively.
+However, conventional reward-driven MADRL algorithms often
+overlook the stringent operational constraints present in such environ-
+ments, and most data-driven approaches lack explicit mechanisms to
+ensure action safety [23], which restricts their effectiveness to mostly
+unconstrained or lightly constrained problems [24]. In highly regulated
+settings like power systems, ignoring these constraints can result in
+serious issues, such as unsafe charging or discharging of batteries, ulti-
+mately threatening system reliability [25]. These limitations hinder the
+full adoption of DRL in industrial settings where maintaining safety and
+operational reliability is paramount.
+Existing studies have explored various strategies to address above
+challenges. The simple approach is to directly penalize constraint vio-
+lations within the reward function [26,27]. However, this method does
+not strictly seek solutions within the feasible domain, and it fails to
+ensure the prevention of unsafe actions during both offline training and
+actual execution. Furthermore, researchers have integrated optimiza-
+tion schemes into reinforcement learning to enhance safety and
+compliance. For instance, supervised learning has been employed to pre-
+classify actions and incorporate physical security constraints, mini-
+mizing the risk of constraint violations [28]. The interior point method
+has also been used to guide policy updates, imposing heavy penalties for
+any violations [29]. Another approach involves modifying the policy
+update strategy to occur only when constraints are met, using tech-
+niques like trust region policy optimization to handle situations where
+no feasible solution exists [30]. While these methods help in reducing
+violations, they also introduce increased model complexity and
+computational costs, and safety concerns still persist.
+To better address constraint violations, some studies have introduced
+physics-shielded constraint layers in power systems, applied to various
+areas like EV Charging Safety [31], PV, Battery Energy Storage Systems
+control [32,33], smart transformers Volt-Var control [34] and various
+energy hub components control [35]. These physics-shielded layers use
+historical states as secure references to filter unsafe actions and ensure
+compliance with critical system constraints. Additionally, techniques
+such as action Euclidean distance penalties have been incorporated to
+guide agents toward safer decision-making [36]. These safety layers
+ensure feasible actions by guiding agents toward safe operational
+boundaries during execution.
+However, most hard constraint layers do not directly guide the
+training of agent policies. Instead, they apply nearest-point projection to
+ensure action feasibility and train the critic using these projected ac-
+tions, while leaving the actor’s update mechanism unchanged [37]. This
+approach causes policy gradients to be derived from the actor’s original,
+potentially infeasible actions, whereas the critic is trained on feasible,
+modified
+actions,
+resulting
+in
+an
+actor-critic
+mismatch
+[38].
+Table 1
+Comparison for the Safe MADRL application in power systems.
+Type
+Complexity
+Evaluation
+Safety
+Guarantee
+Reward penalty-
+based
+[26,27]
+Simple
+Unable to strictly confine
+actions within the feasible
+domain
+No
+Optimization-
+based
+[28]–[30]
+Complex
+High model complexity and
+computational costs.
+Partial
+Physics shielded
+based [31]–
+[36]
+Moderate
+Only correct actions during
+execution, leading to potential
+Actor-Critic mismatches.
+100 %
+Proposed Method
+Moderate
+Addresses inconsistencies in
+safety constraints between
+training and execution phases;
+provides a unified safety
+feedback mechanism.
+100 %
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+3 
+
+Consequently, trained agents become overly reliant on the physical se-
+curity layer and may still generate unsafe actions. This discrepancy
+between the actor’s policy and the critic’s evaluations diminishes
+learning efficiency and restricts adaptability in dynamic environments,
+thereby undermining policy robustness. The comparison of various
+methods for Safe Multi-Agent Deep Reinforcement Learning applica-
+tions in power systems shown in Table 1.
+Based on the existing research, there are still research gaps that need
+to be studied.
+1) Current research often oversimplifies the diverse characteristics of
+interconnected MGs and ADNs, treating them as homogeneous en-
+tities [5,6], and also neglect MGs’ network constraints [12,13]. This
+approach fails to capture differences in DER types, load character-
+istics, and operational constraints. Consequently, existing models
+may produce suboptimal or infeasible solutions when applied to real-
+world environments. There is a need for more detailed and adaptable
+modeling approaches that account for network topological hetero-
+geneity to improve practical applicability and system reliability.
+2) Centralized carbon intensity calculation models like the CEF require
+comprehensive access to power flow data [14,16–18], which is
+impractical in decentralized MG environments due to privacy con-
+cerns. Moreover, existing approaches do not adequately address
+fairness in carbon responsibility allocation. Differences in proximity
+to clean energy sources can create disparities in carbon intensity,
+leading to inequities and disincentives for carbon reduction. This gap
+highlights the necessity for a distributed carbon calculation frame-
+work that ensures privacy while equitably managing carbon alloca-
+tion among ADNs and MGs.
+3) While MADRL holds significant potential for addressing non-convex
+decentralized low-carbon economic dispatch problems, current
+methods face several challenges. Some approaches incorporate
+safety measures during training to reduce violations [28–30], but
+they often lead to increased model complexity, higher computational
+costs, and persistent safety concerns. Additionally, other methods
+lack integrated operational constraints into real safety policy during
+training [23–25] which can lead to inconsistencies between learned
+policies and real-world executions, known as the actor-critic
+mismatch [37,38]. This mismatch diminishes learning efficiency
+and policy robustness. Therefore, there is a need for a safe learning
+mechanism that avoid actor-critic mismatch and adherence to
+physical constraints, making MADRL suitable for deployment in
+power systems.
+1.3. Research contributions
+The contributions of this study are specifically summarized as
+follows:
+• A
+distributed
+Spatial-Temporal
+Carbon
+Intensity
+Equalization
+Method (STCIEM) is proposed to equitably allocate carbon emission
+responsibilities between ADNs and MMGs while preserving user
+privacy. This directly addresses the need for fair and privacy-
+preserving carbon allocation in decentralized environments.
+• An optimization approach for low-carbon economic non-cooperative
+operations between ADNs and MMGs is proposed, accounting for
+diverse
+system
+configurations
+and
+network
+constraints.
+This
+approach addresses the oversimplification and impracticality of
+interconnected MGs and ADNs in existing models.
+• An Enhanced Action Projection MATD3 algorithm is formulated to
+effectively manage the non-convex low-carbon economic optimiza-
+tion problem in real-time, avoiding the actor-critic mismatch and
+improving the performance of safety algorithms. This addresses the
+shortcomings
+of current methods that lack integrated safety
+enforcement in agent policies.
+The remainder of this study is organized as follows: Section 2 dis-
+cusses the STCIEM and model-based optimization for ADN-MMGs op-
+erations. Section 3 reformulates the ADN-MMGs low-carbon economic
+optimization model into partially observable Markov games (POMGs).
+Section 4 introduce the MADRL algorithm with an integrated safety
+mechanism. Section 5 validates the method’s effectiveness through a
+case study. Section 6 concludes the study and propose future directions.
+2. Problem formulation
+2.1. Framework overview
+In this section, we present an overall low-carbon economic operation
+framework, as shown in Fig. 1. This framework establishes a multi-level,
+interactive energy and carbon emission management network among
+the upper power grid (UPG), ADN, and each heterogeneous MG. The
+ADN accesses the UPG’s wholesale electricity price and real-time carbon
+intensity. It integrates this information with power flow data from each
+heterogeneous MG to determine carbon intensity. Subsequently, it
+broadcasts retail prices within the interior market among MMGs to
+maximize self-utility. Given that the ADN lacks sufficient market power
+to influence wholesale electricity market prices, it functions solely as a
+price taker. Additionally, Since the locations of MGs within an ADN are
+fixed, resulting in nearly identical market values, we assume that all
+end-users MG receive uniform retail price and carbon intensity infor-
+mation simultaneously. Based on their characteristics and demands, the
+MGs trade energy and optimize allocations. They adjust their internal
+generation facilities and flexible loads to respond to dynamic price
+changes and reduce their carbon emissions.
+2.2. Spatiotemporal carbon intensity equalization method
+2.2.1. Assumptions of the method
+In
+the
+Spatiotemporal
+Carbon
+Intensity
+Equalization
+Method
+(STCIEM), several key assumptions are made to facilitate the analysis
+and optimization of carbon intensity at the regional level: 1) Each entity
+within the system is assigned to specific regions, enabling decentralized
+analysis and optimization of carbon intensity and power flow at the
+regional level. 2) Since the locations of MGs within an ADN are fixed,
+carbon reduction responsibilities are evenly distributed. It is assumed
+that carbon intensity is uniform across all users within the same ADN,
+ensuring a fair allocation of carbon reductions. 3) The distribution
+network is modeled using a radial topology, reflecting the most common
+configuration in real-world power systems.
+2.2.2. Distributed carbon intensity calculation
+Unlike the centralized CEF model, the STCIEM requires only periodic
+updates from the PCC, which transmits transactive energy and carbon
+intensity data based on power consumption measured at each interval.
+In this approach, each stakeholder independently calculates its carbon
+intensity using local operational parameters and broadcasts the results
+through the PCC communication channels. By applying a uniform
+weighted-average carbon intensity across all nodes in an ADN, STCIEM
+effectively resolves fairness and consistency issues inherent in the CEF
+model. Each MG calculates its carbon intensity based on local opera-
+tional parameters, and the ADN aggregates the results periodically. This
+decentralized approach eliminates the necessity for global real-time data
+synchronization,
+thereby
+enhancing
+operational
+efficiency
+and
+improving data accessibility.
+The dynamic carbon intensity of the ADN and individual MGs at any
+given time period is calculated as Eqs. (1)–(2).
+eADN
+t
+=
+eUPG
+t
+pUPG
+j,t
++ ∑
+m∈M(Im −1)eMG
+m,t ptrans
+m,t
+pUPG
+j,t
++ ∑
+m∈M(Im −1)ptrans
+m,t
+, ∀j ∈IADN, m ∈M
+(1)
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+4 
+
+eMG
+m,t =
+eADN
+t
+ptrans
+m,t Im + eG∑
+j∈ImpG
+j,t
+ptrans
+m,t Im + ∑
+j∈Im
+(
+pG
+j,t + pdis
+j,t + pPV
+j,t
+), ∀m ∈M
+(2)
+where eADN
+t
+and eMG
+m,t represent the dynamic carbon intensity of the ADN
+and individual MGs at any given time period, respectively. The indicator
+function Im is defined such that Im = 1 when ADN delivers power
+(ptrans
+m,t
+≥0) to mth MG, and Im = 0 when mth MG delivers power to the
+ADN (ptrans
+m,t
+< 0).
+In STCIEM, carbon intensity is calculated through a decentralized
+and distributed approach, where each MG and the ADN independently
+compute and aggregate their respective carbon intensities. The process
+follows a hierarchical sequence. Initially, MGs that sell electricity
+externally calculate their carbon intensity based solely on their own
+operational data, as they are not influenced by the distribution network.
+These MGs then transmit their carbon intensity results to the distribu-
+tion network. Once all externally selling MGs have reported their carbon
+intensities, the ADN calculates its own carbon intensity, incorporating
+carbon intensity and power flow data from the UPG, and subsequently
+broadcasts the results. Finally, MGs that purchase power from the ADN
+calculate their carbon intensity using the ADN carbon intensity and their
+own operational parameters.
+This completes one full cycle of carbon intensity calculation for all
+entities, with the decentralized approach eliminating the need for global
+real-time data synchronization, thereby improving operational effi-
+ciency and data accessibility. The pseudo-code in Algorithm 1 outlines
+the process for calculating the dynamic carbon intensity of both the ADN
+and MGs.
+Fig. 1. Schematic diagram with multiple heterogeneous networks.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+5 
+
+Algorithm 1: Calculation Process of STCIEM
+Input: 
+-
+: Set of discrete time intervals
+-
+: Set of MGs
+-
+,
+: Power transactions for MG 
+at time 
+Output: Dynamic Carbon Intensity for 
+and 
+,
+1. For
+= 1:
+do
+2. Aggregate MGs’ power transaction data 
+,
+and UPG 
+carbon and power transaction data 
+,
+,
+ for each time
+interval
+.
+3.    For
+= 1:
+do
+4.       
+If
+,
+≥0
+5.         
+Calculate 
+,
+via (2)
+6.       
+Else
+7.        
+Add 
+to 
+’
+8.   
+End For
+9.   
+Calculate 
+via (1)
+10.  
+For
+’ = 1:
+’ do
+11.       
+’,
+can be calculated via (2)
+12.   End For
+13. End
+2.3. Optimization model of ADN operator
+This section introduces the mathematical model for the proposed
+heterogeneous networked entities low-carbon economic operation
+problem. The ADN decides the internal market retail price λIM
+t
+by solving
+optimization problem Eqs.(3)–(11).
+The Eq.(3) aims to maximize the ADN overall utility. The first term
+represents economic performance by considering the difference between
+the internal market price λIM
+t
+and the external market price λEM
+t
+, multi-
+plied by the net power transmitted from all MGs minus the power loss in
+the ADN. The second term addresses the carbon intensity management
+by normalizing the carbon intensity ratio, which reflects the cleanliness
+of the distribution network, against the network’s economic interests.
+Inspired by [3], we employ a normalization approach using weighted
+factor α and (1 −α), along with a base profit value profitbase.
+The difficulty in solving Eq.(3) lies in the fact that the sum of MMG
+transactive energy ∑
+m∈Mptrans
+m,t
+varies with the internal market price λIM
+t ,
+which makes the problem non-convex and impossible to solve directly.
+2.3.1. Internal Transactive energy Price
+The proposed internal market price λIM
+t
+in ADN contains information
+of the UPG wholesale price, active energy trading, power stability and
+carbon intensity management as outlined in Eq.(3). Price restrictions
+specified in Eq.(4) should be observed during ADN power transactions.
+⃒⃒λEM
+t
+−λIM
+t
+⃒⃒≤Δλ
+(4)
+2.3.2. Network constraints
+Since the ADN-MMGs system with high resistance to reactance ra-
+tios, an AC power flow model is necessary.
+pi,t = vi,t
+∑
+N
+j=1
+vj,t
+(
+Gijcosδij,t + Bijsinδij,t
+)
+(5)
+qi,t = vi,t
+∑
+N
+j=1
+vj,t
+(
+Gijsinδij,t −Bijcosδij,t
+)
+(6)
+pi,t = pUPG
+i,t
++ pPV
+i,t + pGT
+i,t + pBESS
+i,t
++ ptrans
+i,t
+−pl
+i,t −xl
+i,t
+(7)
+qi,t = qUPG
+i,t
++ qGT
+i,t + qtrans
+i,t
+−ql
+i,t
+(8)
+̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅
+(
+pij,t
+)2
++
+(
+qij,t
+)2
+√
+≤Smax
+ij
+(9)
+Vmin
+i
+≤vi,t ≤Vmax
+i
+(10)
+Imin
+ij
+≤iij,t ≤Imax
+ij
+(11)
+Where Eqs.(5)–(8) are network power flow constraints, δij,t is voltage
+angle difference between bus i and bus j, Gij is conductance and Bij is
+susceptance of the line between bus i and bus j, if ptrans
+i,t
+≥0, the power
+flows to the MGs, which is considered as load for the ADN and as gen-
+eration for the MG. Eq.(9) denotes the line capacity constraints, Eq.(10)
+is the node voltage magnitude constraints, and Eq.(11) denotes the
+branch current magnitude constraints.
+2.4. Optimization model of networked MGs operator
+The MGs decides the internal operation variables, such as the micro-
+gas turbine output pG
+i,t, battery energy storage system (BESS) charging
+and discharging power pch
+i,t, pdis
+i,t and bus load variation xl
+i,t at time t by
+solving optimization problem. For each heterogeneous MG operator, the
+primary objective is to minimize operating costs and carbon emissions
+given the retail price and ADN carbon intensity.
+The above model should satisfy the network constraints Eqs.(5)–(11)
+and Eqs.(13)–(21). Eq.(12) contains two terms that represents the
+operating cost and carbon emission cost of the MG m during the
+scheduling period T. The first term is the operating cost of a MG, such as
+transactive energy Ptrans
+m,t
+between ADN and MGs. The micro-gas turbine
+with constraints specified in Eqs.(13)–(15).Additionally, it includes the
+degradation cost of the BESS for MG users, quantified by the change in
+max
+∑
+T
+t=1
+(
+α
+(∑
+m∈M
+(
+λIM
+t
+−λEM
+t
+)
+ptrans
+m,t −λEM
+t ploss
+ADN,t
+)/
+profitbase + (1 −α)
+(
+1 −eADN
+t
+/
+eUPG
+t
+)
+)
+(3)
+min
+∑
+T
+t=1
+(
+λIM
+t ptrans
+m,t +
+∑
+i∈Im
+(
+λGpG
+i,t + λK|EK
+i,t −EK
+i,t−1| + λCeMG
+m,t
+(
+pch
+i,t + pl
+i,t + xl
+i,t + ploss
+m,t
+) ) )
+, ∀m ∈M
+(12)
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+6 
+
+sequential battery states during charging or discharging, with con-
+straints detailed in Eqs.(19)–(21). And the carbon emission cost for MG,
+which is participated in a demand response, detailed in Eqs.(16)–(18).
+The difficulty in solving Eq.(12) stem from the variability of MG
+transactive energy ptrans
+m,t ,with the internal market price λIM
+t . Additionally,
+the carbon intensity eMG
+m,t , as determined by Eq.(2), is affected by the
+product of two decision variables, xl
+i,t and pch
+i,t which makes the problem
+non-convex and impossible to solve directly.
+2.4.1. Operation constraints of Micro-gas turbine
+The micro-gas turbine needs to fulfill the following constraints.
+PG,min ≤pG
+i,t ≤PG,max, ∀i ∈Im, m ∈M
+(13)
+ΔpG
+i,t = pG
+i,t −pG
+i,t−1, ∀i ∈Im, m ∈M
+(14)
+⃒⃒⃒ΔpG
+i,t
+⃒⃒⃒≤RG, ∀i ∈Im, m ∈M
+(15)
+where Eq.(13) represents the output constraint of the micro-gas turbine,
+and Eqs.(14)–(15) are the ramp rate constraints for the micro-gas
+turbine.
+2.4.2. Operation constraints of the demand response (DR)
+The DR in this work is considered under the assumption of a constant
+total daily load, where xl
+i,t is the load regulation of the mth MG at time t.
+Positive values indicate an increase in load, while negative values
+indicate a decrease in load. pl
+i,t denotes the original loads at bus i of mth
+MG.
+∑
+T
+t=1
+∑
+i∈Im
+xl
+i,t = 0, ∀i ∈Im, m ∈M
+(16)
+∑
+i∈Im
+(
+pl
+i,t + xl
+i,t
+)
+≥0, ∀i ∈Im, m ∈M
+(17)
+∣xl
+i,t∣≤δmpl
+i,t, ∀i ∈Im, m ∈M
+(18)
+where Eq.(16) represents the condition where the all-day demand
+response maintains a constant original total daily load, Eq.(17) repre-
+sents the case where the total load after participating in DR cannot be
+less than 0, and Eq.(18) is the constraint on the amount of load change
+during DR.
+2.4.3. BESS constraints
+The BESS needs to fulfill the following constraints Eqs.(19)–(21).
+EK
+i,t+1 = EK
+i,t + ηchpch
+i,t + 1
+/
+ηdispdis
+i,t , ∀i ∈Im, m ∈M
+(19)
+0 ≤EK
+i,t ≤ECap, ∀i ∈Im, m ∈M
+(20)
+⎧
+⎨
+⎩
+Pch,min
+t
+≤∣pch
+i,t∣≤Pch,max
+t
+, ∀i ∈Im, m ∈M
+Pdis,min
+t
+≤∣pdis
+i,t ∣≤Pdis,max
+t
+, ∀i ∈Im, m ∈M
+(21)
+where constraint Eq.(19) represents the actual power change charging
+and discharging process, Eq.(20) represents the available power con-
+straints and Eq.(21) represents charging and discharging power
+constraints.
+3. Partially observable Markov games reformulation
+The mathematical model presented in Section 2 faces two key chal-
+lenges that hinder a direct solution. Firstly, the potential strategies for
+each entity, including the ADN’s price-setting and the MG’s energy
+output setting, depend on the decisions of others within the internal
+market. This interdependence results in a dynamic system, precluding
+separate and independent optimization. Even if the ADN’s strategy is
+determined, the optimization problems for lower-level MMGs remain
+interconnected. Secondly, objective functions for both ADN and MMG
+involve rendering the problem non-convex (as discussed in Section 2).
+Therefore, traditional optimization methods cannot address this issue
+directly. To overcome this, we use a model-free multi-agent deep rein-
+forcement learning algorithm, enabling different groups to make inform
+decisions online, adapt to real-time data, and swiftly formulate opera-
+tional strategies in evolving environments.
+3.1. Partially observable Markov games
+In practice applications, information access constraints and privacy
+concerns often limit agents to partial state information instead of global
+observations, as assumed in standard Markov games. Therefore, this
+work models the low-carbon economic ADN-MMG energy scheduling
+problem as a Partially Observable Markov Games (POMGs).
+Definition 1.
+A POMGs offers a robust mathematical framework for
+solving decision-making problems in multi-agent systems with limited
+information. In POMGs, the system is represented as a stochastic pro-
+cess. An agents’ actions at specific intervals collectively determine the
+subsequent state via a transition probability function, which relies on
+the current state and selected actions. Each agent has limited access to
+observations of the global state, mirroring real-world information access
+constraints.
+Define a tuple of POMGs containing n agents as:
+{
+n, St,
+{
+An,t
+}N
+n=1, Γ,
+{
+On,t
+}N
+n=1,
+{
+Rn,t
+}N
+n=1, γ
+}
+where n is the number of agents in the game. The
+state space St represents the global state of the environment at time step
+t.
+{
+An,t
+}N
+n=1: For each agent n, there is an action space An,t, which con-
+tains all possible actions the agent can choose at time step t. The joint
+action of all agents is represented as at =
+(
+a1,t, a2,t, …, aN,t
+)
+. State
+transition function Γ : S × A1 × ⋯× AN→P(S) defines the probability
+distribution over the next state St+1, given the current state St and the
+joint actions at of all agents. Here, P(S) denotes the probability distri-
+bution of all possible states.
+{
+On,t
+}N
+n=1: For each agent n, there is an
+observation space On,t, which defines the set of observations available to
+the agent at time step t. Due to the partially observable nature of the
+environment, each agent receives a distinct observation on,t that pro-
+vides partial information about the state St.
+{
+Rn,t
+}N
+n=1: The reward
+function Rn,t : St × at→ℝis defined for each agent n. The reward rn,t =
+Rn,t(St, at) represents the immediate reward received by agent n based
+on the global state St and the joint actions at. γ: The discount factor γ ∈
+[0, 1] determines the importance of future rewards. A discount factor
+closes to 0 makes the agents prioritize immediate rewards, while a dis-
+count factor closes to 1 emphasizes long-term rewards. Given the
+decentralized nature of the agents, each agent n observes a different set
+of observations during the execution period and selects actions accord-
+ing to its strategy. Each agent’s objective is to maximize its expected
+cumulative reward over time, which is defined as: E
+[∑T
+t=0γtrn,t
+]
+.
+3.2. POMGs for flexible low-carbon operation
+3.2.1. Observation
+Each ADN and heterogeneous MG agent’s observation at time step t is
+represented by a high-dimensional vector, as expressed in Eq.(22).
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+7 
+
+on,t =
+⎧
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎩
+(∑
+m∈Mptrans
+m,t ,pUPG
+t
+,λEM
+t ,eADN
+t
+,eUPG
+t
+)
+∈On,t,∀n∈NADN
+(
+ptrans
+m,t ,
+∑
+i∈Impl
+i,t,SOCK
+i,t,λIM
+t ,eADN
+t
+,eMG
+n,t
+)
+∈On,t,∀i∈Im, n∈Nm, m∈M
+(22)
+where on,t denotes the observation vector, comprising information
+restricted to the respective PCC level. This includes two key components:
+internal variables, reflecting the internal states of each entity, and PCC-
+level data, representing exchanged information at the PCC.
+For the ADN, the internal variables include the UPG power trans-
+action pUPG
+t
+, carbon intensity eUPG
+t
+and external energy market price λEM
+t
+,
+the
+PCC-level data consists of aggregated ADN meter readings
+∑
+m∈Mptrans
+m,t
+and ADN carbon intensity eADN
+t
+. For each MG, the internal
+variables are power losses ∑
+i∈Impl
+i,t, the BESS state of charge SOCK
+i,t, and
+MG carbon intensity eMG
+n,t . The PCC-level data includes the meter read-
+ings ptrans
+m,t , interior market price λIM
+t , and ADN carbon intensity eADN
+t
+.
+3.2.2. Action
+Each agent n performs a multi-dimensional vectorized action an,t at
+each time step t where λIM
+t ,pGT
+t ,pBESS
+t
+,xDR
+t
+∈[ −1, 1].
+an,t =
+⎧
+⎨
+⎩
+[
+λIM
+t
+]
+∈An,t, ∀n ∈NADN
+[
+pch
+n,t, pdis
+n,t, pGT
+n,t , xDR
+n,t
+]
+∈An,t, ∀n ∈Nm, m ∈M
+(23)
+3.2.3. State transitions
+The state transition process is influenced by control actions as well as
+the stochasticity in numerous state characteristics, such as light intensity
+affecting PV inverter power output, fluctuations in market prices, the
+carbon intensity of the UPG, and the dynamics of loads in each hetero-
+geneous MGs.
+3.2.4. Reward
+The reward function for each agent in the ADN-MMGs system at each
+time step t reflects objective function of the ADN and MMG models in Eq.(3)
+and Eq.(12).
+For each ADN Agent, it can calculate its corresponding electricity
+cost/revenue rtrans
+n,t
+and cleanliness rCarbon
+n,t
+respectively.
+rtrans
+n,t
+= α
+(∑
+m∈M
+(
+λIM
+t
+−λEM
+t
+)
+ptrans
+m,t −λEM
+t ploss
+ADN,t
+)/
+profitbase, ∀n ∈NADN
+(24)
+rCarbon
+n,t
+= (1 −α)
+(
+1 −eADN
+t
+/
+eUPG
+t
+)
+, ∀n ∈NADN
+(25)
+For each MG Agent, they are capable of calculate its corresponding
+electricity cost/revenue, BESS degeneration cost rBESS
+n,t , micro-gas turbine
+cost rG
+n,t and DR penalty rDR
+n,t , carbon emission cost rCarbon
+n,t
+and demand
+response penalty rDR
+n,t .
+rtrans
+n,t
+= λIM
+t ptrans
+m,t , ∀n ∈Nm, m ∈M
+(26)
+rBESS
+n,t
+= −λK∑
+i∈Im
+⃒⃒⃒EK
+i,t −EK
+i,t−1
+⃒⃒⃒, ∀n ∈Nm, m ∈M
+(27)
+rG
+n,t = −λG∑
+i∈Im
+pG
+i,t, ∀n ∈Nm, m ∈M
+(28)
+rCarbon
+n,t
+= −λCeMG
+m,t
+∑
+i∈Im
+(
+pch
+i,t + pl
+i,t + xl
+i,t + ploss
+m,t
+)
+, ∀n ∈Nm, m ∈M
+(29)
+Notably, the DR penalty is designed as a multi-time scale term,
+specifically designed to reflect the penalty incurred for failing to meet
+DR commitments in Eqs.(16)–(18). As shown in Eq.(30), this penalty is
+only applied at the final time step (t = T) for each MG. The design
+ensures that agents are incentivized to meet their DR targets throughout
+the operational horizon, while the penalty is deferred to the end to avoid
+intermediate disruptions and allow the agents to optimize their strate-
+gies holistically.
+rDR
+n,t =
+⎧
+⎪
+⎪
+⎨
+⎪
+⎪
+⎩
+0, ∀n ∈Nm, m ∈M, t ∕= T
+−M
+∑
+T
+t=1
+∑
+i∈Im
+xl
+i,t, ∀n ∈Nm, m ∈M, t = T
+(30)
+Thus, the overall reward function rn,t for each ADN and MG agent n at
+time step t is described as (31), the coefficients k1 and k2 are scaling
+factors designed to normalize the reward magnitudes between ADN and
+MGs
+agents,
+ensuring
+balanced
+and
+stable
+learning
+in
+MADRL
+frameworks.
+rn,t =
+⎧
+⎪
+⎨
+⎪
+⎩
+k1
+(
+rtrans
+n,t
++ rCarbon
+n,t
+)
+, ∀n ∈NADN
+k2
+(
+rtrans
+n,t
++ rCarbon
+n,t
++ rBESS
+n,t
++ rG
+n,t + rDR
+n,t
+)
+, ∀n ∈Nm, m ∈M
+(31)
+4. Algorithm for formulated POMGs
+To address the POMGs presented in Section 3, we introduce the EAP-
+MATD3 algorithm. This advanced algorithm, rooted in a model-free
+Actor-Critic framework, excels at learning decision strategies within
+high-dimensional continuous action-state spaces by leveraging deep
+learning techniques. The MATD3 algorithm uniquely employs a
+Centralized Training and Decentralized Execution (CTDE) mechanism,
+which preserves each participant’s autonomy while significantly
+enhancing system-wide synergy by optimizing overall performance.
+4.1. CTDE architecture
+Building on TD3 [39] and MADDPG [40], the MATD3 algorithm
+extends the TD3 framework to multi-agent environments [41]. This
+CTDE framework introduces global optimization strategies through
+centralized offline training, allowing agents to learn optimal policies by
+synthesizing the state and action information of all agents. Importantly,
+this centralized training safeguards privacy by using offline historical or
+aggregated data that does not reveal sensitive or individual real-time
+information. During online execution, each agent operates indepen-
+dently based on local observations, effectively navigating uncertainties
+and dynamic environmental changes while ensuring autonomy, privacy,
+and flexibility. This decentralized execution guarantees that agents do
+not share sensitive information in real-time, thereby protecting privacy
+while maintaining system optimization.
+4.2. DRL with action projection
+4.2.1. Mathematical interpretation of action projection
+The mathematical interpretation of Action Projection with DRL in-
+volves solving a quadratic programming problem [23,28,29,34]. We
+define a set C containing X constraint functions, where each ci(s, a) ≤0
+corresponds to a physical constraint at state s. The set C encapsulates all
+the system’s physical constraints in (32). In the safe action process by
+Eq.(33), the agent’s original action is projected onto the feasible action
+space A′(s) determined by the set C as defined by Eq. (34), yielding a
+projected action a’ that satisfies the physical constraints. This projection
+minimizes the Euclidean distance between a’ and the original action a,
+ensuring strict adherence to system constraints in Eq.(35).
+C = {c1(s, a) , c2(s, a) , …, cM(s, a) }
+(32)
+aʹ = Pr(a|Aʹ(s) )
+(33)
+Aʹ(s) = {aʹ|ci(s, aʹ) ≤0 , i = 1, 2, …, X}
+(34)
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+8 
+
+aʹ = minaʹ
+⃦⃦aʹ −πφ(s)s=st
+⃦⃦
+2, s.t.ci(s, aʹ) ≤0, ∀i
+(35)
+4.2.2. The issue of original action projection
+In MADRL, it is crucial for agents to generate actions that are both
+efficient and compliant with predefined safety constraints. Traditional
+methods often penalize deviations from safe actions using Euclidean
+distance within the reward function. However, this simplistic approach
+can lead to violations of physical constraints during training. Alterna-
+tively, some methods project actions generated by the Actor directly
+onto a safe action aʹ, subsequently training the Critic using aʹ.
+This practice lacks a robust theoretical foundation because the Critic
+evaluate the projected safe action aʹ instead of the Actor’s original
+output [38]. This discrepancy causes inaccurate Q-value estimates from
+the Critic, hampering the Actor’s capacity to learn an effective policy
+[37]. Reliance on external action projection to satisfy safety constraints
+creates a feedback loop, optimizing the Actor based on distorted eval-
+uations, which reduces overall learning effectiveness, resulting in an
+Actor-Critic mismatch [38].
+4.3. Architecture of enhanced action projection MATD3 algorithm
+To address the issue detailed in Section 4.2.2, we propose the
+Enhanced Action Projection (EAP) mechanism, implemented in two
+stages. Stage 1, detailed in Section 4.3.1, ensures that actions generated
+by the Actor network adhere to predefined safety constraints. Stage 2,
+detailed in Section 4.3.2, prevents actor-critic mismatch, maintaining
+safe bounds while optimizing the policy.
+The training architecture for the proposed algorithm in solving
+POMGs is shown in Fig. 2(a), while the execution architecture is pre-
+sented in Fig. 2(b).
+4.3.1. EAP stage 1: Physical constraints action projection safety mechanism
+It is crucial to ensure that actions generated by the Actor network fall
+within feasible and safe boundaries during both offline training and
+online execution. Stage 1 implements the action projection technique,
+incorporating DER constraints to ensure all actions remain within
+permissible and safe limits.
+(1) Output constraints for micro-gas turbines
+The turbine’s power output in each period must remain within a safe
+and efficient operating range, not exceeding specified bounds to ensure
+safe operation with Eqs.(13)–(15). The upper and lower output con-
+straints for each micro-gas turbine are accordingly defined to maintain
+operational integrity by Eq. (36).
+pG
+g,t+1 =
+⎧
+⎪
+⎨
+⎪
+⎩
+min
+(
+pG
+i,t + RG, min
+(
+pG
+i,t+1PG,max)
+, ∀i ∈Im, m ∈M
+max
+(
+pG
+i,t −RG, max
+(
+pG
+i,t+1PG,min)
+, ∀i ∈Im, m ∈M
+(36)
+(2) BESS charge/discharge constraints
+During charging and discharging, each agent assesses its actions
+through EAP mechanism based on the current SOC. If an action exceeds
+the boundaries, the safety module adjusts it using a projected value. The
+BESS’s charging and discharging power is dynamically regulated
+through Eqs.(19)-(21) to ensure that the SOC remains within a safe
+range.
+Fig. 2. Offline Training (a) and Online Execution (b) architecture of EAP-MATD3 in solving POMGs.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+9 
+
+⎧
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎩
+pch
+i,t = min pch
+i,t
+⃒⃒pch
+i,t
+⃒⃒
+⎛
+⎝pch
+i,t
+(
+ECap −EK
+i,t−1
+)
+ηchΔt
+⎞
+⎠, ∀i ∈Im, m ∈M
+pdis
+i,t = max pdis
+i,t
+⃒⃒pdis
+i,t
+⃒⃒
+⎛
+⎝pdis
+i,t
+(
+ηdisEK
+i,t−1
+)
+Δt
+⎞
+⎠, ∀i ∈Im, m ∈M
+(37)
+During offline training, Stage 1 functions as a physically-assisted
+training layer, guiding the network to learn safer actions by providing
+high-quality, safety-constrained training data that integrates with EAP
+Stage 2. This approach ensures that the model is trained on safe actions
+from the outset. During execution, this safety layer remains active as
+shown in Fig. 2(b), as we do not fully trust the actions generated by the
+black-box model, thereby guaranteeing that only safe actions are
+executed.
+4.3.2. EAP stage 2: Actor-critic alignment with action projection in MATD3
+In Stage 2, we utilize MATD3 algorithm, where each agent includes
+an Actor network, a Critic network, and their respective target networks.
+The Actor generates actions by optimizing policy parameters to maxi-
+mize cumulative rewards while ensuring safety.
+Building on the safety layer from Stage 1, we directly incorporate the
+Euclidian distance into the Actor’s objective function, rather than
+embedding it within the reward function, as shown in Eq.(38). This
+strategy involves adding a term λ⋅Esn,t∼pπn
+[
+‖ an,t −aʹ
+n,t‖2
+2
+]
+to the Actor’s
+loss function. Here, an,t represents the original action generated by the
+Actor based on the current state, and aʹ
+n,t denotes the action after pro-
+jection through the safety layer. This ensures that while the Actor op-
+timizes its policy to maximize cumulative rewards, it simultaneously
+generates actions that closely approximate safe actions.
+This process resembles supervised learning, where the projected safe
+actions aʹ
+n,t act as a form of supervision to guide the Actor’s action
+generation. While the Actor explores optimal policy, the proximity be-
+tween its original actions and the projected safe actions prevents po-
+tential unsafe exploration, aligning the Actor’s policy with the safety
+constraints.
+This mechanism ensures that the Critic estimates Q-values based on
+the projected safe actions aʹ
+n,t, while the Actor’s actual actions align with
+these projections. This alignment prevents misjudgments from the Critic
+and mitigates potential learning biases. The gradient of the Actor’s
+objective relative to its parameters πφn is estimated using the deter-
+ministic policy gradient method Eq.(39). This gradient has two com-
+ponents: the first aligns the Actor’s actions with the Critic’s evaluations
+to maximize expected returns, the second enforces safety by penalizing
+deviations from the projected safe actions.
+Contrary to the single Critic design employed in DDPG, TD3 integrates
+two independent Critic networks, denoted as Qθn,1 and Qθn,2, along with
+their corresponding target networks Qθʹ
+n,1 and Qθʹ
+n,2 in Eq.(41). This dual-
+Critic setup mitigates overestimation bias by selecting the minimum
+value estimate during training, thereby enhancing evaluation stability
+by Eq.(40), where the target value yn,t is computed as Eq.(42). The future
+action ̃an
+t+1 is generated by the target Actor network with added noise
+for exploration Eqs.(43)–(45) to ensure actions remain within safe
+bounds. To stabilize training further, MATD3 employs soft updates for
+the target networks. The parameters of the target networks θʹ
+n,j and φnʹ
+are updated gradually to slowly track the main networks Eq.(48), where
+τ is a small positive constant (τ≪1) that controls the update rate,
+ensuring that the target networks evolve smoothly alongside the main
+networks.
+By integrating EAP Stage1 and Stage 2, the MATD3 algorithm en-
+sures consistency between the Actor and Critic networks. The Critic
+evaluates projected actions aʹ, the Actor’s original actions a inherently
+approximate these projections. This alignment allows the Critic’s Q-
+value estimates to accurately reflect the Actor’s action quality, guiding
+the Actor to generate actions that satisfy safety constraints and optimize
+policy performance. The pseudo-code of the overall EAP-MATD3 algo-
+rithm is presented in Algorithm 2.
+Jn(φ) = Esn,i∼pπn ,an,i∼πn
+[
+Rn,0
+]
++ λ⋅Esn,t∼pπn
+[
+‖ an,t −a’
+n,t‖2
+2
+]
+(38)
+L (θn) = E(sn,t,an,t,rn,t,sn,t+1,dn,t)∼B
+[(
+Qθn
+(
+sn,t, a’
+n,t
+)
+−yn,t
+)2 ]
+(40)
+∇θL (θn) =
+(
+Qθn
+(
+sn,t, a’
+n,t
+)
+−yn,t
+)
+⋅∇θnQθn
+(
+sn,t, a’
+n,t
+)
+(41)
+yn
+t = rn
+t + γ min
+j∈{1,2}Qθ’
+nj
+(
+sn
+t+1,̃a
+’
+n,t+1
+)
+(42)
+̃an
+t+1 = πφ’
+n
+(
+sn,t+1
+)
++̃ϵn
+(43)
+ϵn ∼clip(N (0, σn) , −cn, cn)
+(44)
+̃a
+’
+n,t+1 = min
+˜a
+’
+n,t+1
+⃦⃦⃦̃a
+’
+n,t+1 −πφ(s)
+⃦⃦⃦
+s=st2
+(45)
+θn,i←θn,i −αθn,i∇θn,iL
+(
+θn,i
+)
+(46)
+φn←φn −βφn∇φnJ(φn)
+(47)
+⎧
+⎪
+⎪
+⎨
+⎪
+⎪
+⎩
+θ’
+n,1←τθn,1 + (1 −τ)θ’
+n,1
+θ’
+n,2←τθn,2 + (1 −τ)θ’
+n,2
+φ’
+n←τφn + (1 −τ)φ’
+n
+(48)
+Algorithm 2: Enhanced Action Projection MATD3 for low-carbon economic operation
+1.
+Initialize two Critic Networks for each agent n 
+,
+and Actor Network 
+and 
+corresponding Target Networks for each agent 
+←
+,
+←
+, initialize Replay 
+Buffer D
+2.
+For
+= 0 to
+do
+3.
+For ADN & MGs agents do
+4.
+Select actions 
+~
+(
+) +
+5.
+Calculate the projected actions 
+with (36)-(37)
+6.
+If
+over the 
+or under the 
+7.
+Execute actions 
+, and observe , ,
+8.
+End if
+9.
+Store Transition 
+,
+,
+,
+,
+,
+,
+, ,
+,
+in D
+10.
+Sample a random mini-batch of 
+( ,
+, , ,
+) from D
+11.
+Training Critic Network with(40)-(45)
+12.
+If
+= 0 then
+13.
+Update policy 
+with gradient via (38)-(39), (47)
+14.
+End if
+15.
+End For
+16.
+End For
+∇φnJn(φn) ≈Esn,t∼pπn
+[
+∇anQθn
+(
+sn , an,t
+)⃒⃒⃒
+sn=sn,t,an=πφn(sn,t)∇φnπφn
+(
+sn,t
+)]
++ λ⋅Esn,t∼pπn
+[
+2
+(
+an,t −aʹ
+n,t
+)
+⋅∇φnan,t
+]
+(39)
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+10 
+
+5. Case studies
+In this section, the proposed algorithm is validated using a modified
+IEEE 33-bus network and modified IEEE 123-bus network provided in
+[42], to address the flexible low-carbon operation problem among ADN-
+MMG, the DER configuration is as depicted in Fig. 3 and Fig. 14. The
+algorithm’s effectiveness is demonstrated through experiments in a
+complex energy network environment featuring various DERs and
+flexible load demands. To enhance the robustness of the model to future
+stochastic environments, Gaussian random noise is introduced to the
+loads, the active power of the PV generation, the prices, and the carbon
+intensity of the ADN during the training process, considering that the
+training data is based on historical information. The simulations were
+implemented on a computer equipped with AMD EPYC 9554 CPU, 128
+GB of RAM, and NVIDIA GeForce RTX 4090 GPU using a Python/
+Gymnasium [43] embedded Pandapower [44] to stimulate a realistic
+power flow environment.
+5.1. Case settings
+In this work, we explored the integration of MGs with diverse
+network architectures and distinct energy consumption profiles into the
+ADN. Specifically, in Fig. 3, MG 1 and MG 4 are industrial MGs, each
+equipped with three distinct energy-generating units and supporting
+substantial load demands. In contrast, MG 2 serves a residential sector,
+featuring three types of energy sources tailored for smaller, household-
+level loads. Meanwhile, MG 3 operates as a commercial MG, harnessing
+two energy-supplying devices to manage moderate-scale demands
+typical of commercial environments. To thoroughly evaluate the per-
+formance of our training model, we divided each day into 24 one-hour
+decision intervals (T = 24). During the testing phase, we conducted
+multiple experiments over several days to replicate diverse real-world
+conditions and employed different random seeds to ensure the reli-
+ability of our results. This extensive approach allowed us to closely
+examine the model’s flexibility and dependability, yielding reliable
+average performance metrics.
+The settings of the DERs parameters are shown in Table 2. For the
+ADN, the adjustment ranges of the internal market price are set to [−0.2,
+0.2] ($/kWh), respectively. In the MMG, the active output adjustment
+ranges for the energy storage and the micro-gas turbine are [−300,300]
+kW and [−50, 50] kW. Demand response quantities are set to [−0.2, 0.2]
+times the real-time loads. The operation parameters are referenced in
+[30,45]. The settings of the proposed algorithm are shown in Table 3.
+5.2. Algorithm analysis
+This section validates the proposed method through a comparative
+analysis of various algorithms, focusing on the economic benefits of
+ADN with heterogeneous MMG topologies, and assessing carbon
+reduction effects along with internal interactions. Fig. 4 presents the
+total rewards of ADNs and MMGs across various algorithms during
+offline training. Different safety mechanisms are evaluated within the
+MATD3 framework to tackle the low-carbon economy challenge in ADN-
+MMG systems. MATD3 was chosen as the baseline because of its proven
+effectiveness, offering a reliable standard for the comparing safety
+mechanisms. Consistent use of MATD3 ensure that any observed per-
+formance variations are solely due to the safety mechanisms, allowing
+for precise evaluation. Since the core objective of this work is to enhance
+safety in low-carbon economic dispatch, we exclusively compare other
+safe reinforcement learning methods using MATD3 as the base algo-
+rithm, ensuring a fair and rigorous evaluation.
+We present the results of the proposed non-cooperative EAP-MATD3,
+partially cooperative EAP-MATD3 (where all MG agents share an
+average reward), AP-MATD3 (Action Projection MATD3 [31–35]) and
+APED-MATD3 (Action Projection MATD3 with Euclidean Distance
+Penalty [36].
+5.2.1. Offline training
+Fig. 4 presents the performance of the proposed EAP-MATD3 algo-
+rithm compared to two baseline algorithms, AP-MATD3 [31–35] and
+APED-MATD3 [36], in both overall ADN and MG scenarios. EAP-MATD3
+consistently outperforms the baseline algorithms, achieving higher
+Fig. 3. Modified IEEE 33 bus test networks.
+Table 2
+Settings of the DERs Parameters.
+Parameter
+Value
+Parameter
+Value
+λG
+500 ($/MWh)
+RG
+0.05 (MW)
+eGT
+0.8 (t/MWh)
+ηch,ηdis
+0.95
+λES
+150 ($/MWh)
+λC
+100 ($/t)
+Table 3
+Settings of the Proposed Algorithm.
+Hyper Parameter
+Status or
+Value
+Hyper Parameter
+Status or
+Value
+Total Training
+Episode
+3 × 105
+Steps/Episode
+24
+Learning Rate (Actor)
+4 × 10−4
+τ
+0.01
+Learning Rate (Critic)
+4 × 10−4
+Gamma
+0.96
+Hidden Layer
+Dimension
+(Actor and Critic)
+50 and 250
+Buffer Size
+1 × 105
+Dynamic Batch Size
+✓
+Layer Normalization
+✓
+Orthogonal
+Initialization
+✓
+Dynamic penalty
+coefficient
+✓
+Network
+Structure
+Actor
+Linear Layer➔Layer Normalization➔GeLU ➔Linear Layer ➔
+GeLU ➔Linear Layer➔Tanh
+Critic
+Linear Layer➔Layer Normalization ➔GeLU ➔Linear
+Layer➔GeLU ➔Linear Layer
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+11 
+
+average
+rewards
+and
+demonstrating
+greater
+stability throughout
+training episodes. EAP-MATD3 exhibits a smooth and steady reward
+increase, in contrast to the larger fluctuations observed with APED-
+MATD3 and AP-MATD3, particularly during critical training phases.
+This volatility suggests that the APED-MATD3 and AP-MATD3 struggle
+to maintain consistent performance under non-cooperative conditions.
+AP-MATD3 and APED-MATD3 perform poorly performance during
+training,
+confirming
+the
+previously
+discussed
+network
+training
+mismatch issue. Although APED-MATD3 introduces a Euclidean dis-
+tance penalty, it results in suboptimal outcomes due to blind updating of
+the agent’s Actor network parameters.
+Due to the inherent task constraints, fully cooperative mechanisms
+(e.g., global rewards or information sharing) are impractical, necessi-
+tating a non-cooperative approach. In non-cooperative multi-agent
+systems, agents optimize their rewards independently, which often leads
+to suboptimal Nash equilibria rather than Pareto-optimal solutions [38].
+Our findings indicate that the non-cooperative EAP-MATD3 yields a
+total reward closely aligning with the partially cooperative EAP-
+MATD3, suggesting that this approach effectively approximates an
+optimal state even without explicit cooperation. Hence, we conclude
+that the non-cooperative EAP-MATD3 achieves Pareto Improvement,
+representing the best feasible solution under the given constraints and
+dynamic environment.
+The results presented in Fig. 5 indicate that the proposed non-
+cooperative EAP-MATD3 (blue line) achieves a total reward for ADN
+closely matching that of the partially cooperative EAP-MATD3 (red
+line). This similarity demonstrates that the non-cooperative approach
+can capture most of the potential benefits that cooperation would pro-
+vide, suggesting near-optimal performance. Given the task constraints
+that
+make
+cooperative
+mechanisms
+impractical,
+the
+comparable
+Fig. 4. Total rewards of ADN and MMG with different algorithms during offline training.
+Fig. 5. Rewards of ADN with different algorithms during offline training.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+12 
+
+performance of the non-cooperative strategy underscores its feasibility
+and efficiency, suggesting it as a Pareto Improvement solution.
+Fig. 6 presents the rewards of four different MGs under various al-
+gorithms. The proposed EAP-MATD3 consistently outperforms baseline
+algorithms across all MGs, demonstrating higher rewards and stability
+throughout the training process. The comparison shows that while AP-
+MATD3 and APED-MATD3 exhibit notable fluctuations and lower re-
+wards, the proposed method maintains robustness and adaptability to
+varying environments. This consistent performance further supports the
+Pareto Improvement of the non-cooperative EAP-MATD3, even without
+explicit cooperation, proving its effectiveness for heterogeneous MG
+scenarios.
+Furthermore, under the policy guidance of EAP-MATD3, the SOC of
+the BESS and the output of the micro-gas turbines remain within safe
+operational ranges throughout the day, ensuring stable DER operation.
+As shown in Fig. 7 and Fig. 8, all Gas turbines operate within the spec-
+ified upper and lower output limits, and the SOC of each BESS remains
+well-controlled, avoiding overcharging or undercharging conditions.
+This demonstrates the effectiveness of our method in managing the
+dynamic energy requirements of the system while maintaining opera-
+tional safety.
+5.2.2. Heterogeneous network carbon intensity distribution during online
+execution
+Fig. 9 illustrates a comparison of the STCIEM and the CEF model
+applied to the ADN-MMG carbon intensity calculations during a given
+dispatch cycle. The left side depicts the STCIEM model, whereas the
+right side shows the CEF model. These heatmaps visually represent
+carbon intensity variations across different nodes over a 24-h period. In
+the Proposed STCIEM model (left), carbon intensity is more evenly
+Fig. 6. Rewards of heterogeneous MGs with different algorithms during offline training.
+Fig. 7. Gas turbine safety operation during online execution.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+13 
+
+distributed across nodes, reflecting the model’s ability to balance carbon
+intensity through localized calculations at both the ADN and MG levels.
+Nodes 2 to 7 represent the calculated ADN carbon intensity, whereas
+nodes 8 to 33 correspond to MG carbon intensity. This balanced
+approach results from the distributed nature of the STCIEM framework,
+where each MG autonomously calculates its carbon intensity based on
+local power transactions. The absence of abrupt spikes and dips in car-
+bon intensity demonstrates the model’s effectiveness in ensuring fair-
+ness and consistency across the network.
+Conversely, the CEF model (right) displays more pronounced fluc-
+tuations in carbon intensity, particularly at nodes representing MGs
+(nodes 8 to 33). The CEF model’s centralized nature, which relies on
+real-time data from the entire network, introduces potential privacy
+risks for users and inconsistencies in areas with limited data access. As
+evident from the heatmap, certain time periods and nodes experience
+significant fluctuations in carbon intensity, suggesting challenges for the
+CEF model in maintaining operational efficiency and fairness, particu-
+larly in decentralized systems.
+Fig. 10 compares the total carbon emissions across different grids
+Fig. 8. BESS safety operation during online execution.
+Fig. 9. Comprehension of STCIEM (left) and CEF (right) of ADN-MMG carbon intensity calculation during online execution.
+Fig. 10. Comprehension of STCIEM (left) and CEF (right) of ADN-MMG carbon
+emission during online execution.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+14 
+
+(ADN, MG1-MG4) using the STCIEM and CEF models over a 24-h period.
+Notably, the total emissions remain identical for both models, validating
+the accuracy of the STCIEM approach. However, the STCIEM model
+results in lower emissions within the microgrids (MGs), particularly in
+MG2, where the difference is most significant. This reduction is due to
+the spatiotemporal method, which ensures that all MGs share the same
+ADN carbon intensity, effectively granting users their fair share of car-
+bon rights from the ADN.
+In detailed, after the spatiotemporal method, all MGs share a same
+ADN carbon intensity, user get their equal carbon right it was always
+meant to be from the ADN, which highlights the STCIEM model’s su-
+perior ability to manage emissions at a localized level. MG1-MG4 share
+the same ADN carbon intensity to address fairness concerns while
+safeguarding privacy by relying only on PCC exchange data.
+The comparison in Fig. 10 clearly highlights the advantages of the
+STCIEM model, especially in heterogeneous and distributed network
+environments such as ADN-MMGs. Integrate with Fig. 13’s energy
+transaction, we can observe that for the main seller MG (e.g., MG 2),
+using the STCIEM model results in an 8.43 % reduction in carbon
+emissions. Conversely, for the main buyer MG (e.g., MG 3), STCIEM
+leads to a 0.3 % increase in carbon emissions. This difference is attrib-
+uted to the equalized carbon intensity across ADN nodes, which elimi-
+nates the discrepancies in carbon emissions. Furthermore, we observe
+that carbon emissions in the ADN differ between the CEF and STCIEM
+methods. This discrepancy arises from spatial variations in load within
+the ADN, under the CEF method, loads closer to cleaner nodes directly
+benefit from lower carbon emissions, depriving the region of the clean
+benefits that should be shared. The decentralized calculation of carbon
+intensity ensures a more consistent distribution across nodes and time
+periods, making STCIEM a more practical solution for real-world
+implementations where data synchronization and accessibility may be
+challenging.
+5.2.3. Low carbon economy regulation strategies for ADN in online
+execution
+This section discusses the regulation strategies for achieving a low-
+carbon economy in ADN, focusing on their online execution and real-
+time implementation.
+Fig. 11 illustrates the ADN’s optimal scheduling strategy, high-
+lighting significant temporal variability in transaction pricing. During
+the periods from 0:00–6:00, 10:00–11:00, and 18:00–24:00, ADN sets
+retail prices above the wholesale rates to maximize revenue, which
+encourages MGs to purchase electricity when their internal generation is
+either
+insufficient
+or
+comparatively
+costly.
+Conversely,
+during
+8:00–11:00 and 13:00–14:00, ADN lowers transaction prices to incen-
+tivize MGs to sell their excess energy back to the grid. This strategic
+pricing allows ADN to accumulate lower-cost, cleaner energy for use
+during subsequent high-demand and high-carbon intensity periods.
+Such dynamic pricing strategies demonstrate the flexibility of ADN in
+managing internal energy exchanges to maximize economic benefits.
+Fig. 12 shows internal market transactions and carbon intensity
+variations among ADN-MMG during online execution. ADN’s carbon
+intensity fluctuates throughout the day, peaking during periods of
+increased reliance on UPG, especially in the evening, while UPG’s car-
+bon intensity remains relatively stable. EAP-MATD3 helps ADN adjust
+pricing and trading volumes to minimize reliance on carbon-intensive
+energy sources. As illustrated in Fig. 11 and Fig. 12, price, carbon in-
+tensity, and transaction variations demonstrate EAP-MATD3’s ability to
+optimize scheduling under dynamic conditions, effectively balancing
+economic and environmental objectives.
+5.2.4. Low carbon economy regulation strategy of MMGs during online
+execution
+This section discusses the regulation strategies for achieving a low-
+carbon economy in MMGs, focusing on their online execution and
+real-time implementation.
+Fig. 13 details the operational status of the four heterogeneous MGs,
+including their generation resource allocation, load regulation, and
+fluctuations in ADN retail price and carbon intensity. The figure presents
+the output (þ) and load demand (−) of each type of generation equip-
+ment in different periods.
+During
+lower
+load
+and
+electricity
+price
+periods
+(0:00–6:00,
+8:00–9:00, and 20:00–24:00), the MG purchases electricity from the
+ADN because the purchase price is lower than the operating cost of the
+gas turbine, resulting in decreased gas turbine power generation,
+increased BESS, and higher demand response loads. Conversely, during
+higher load and price periods (9:00–10:00 and 13:00–20:00), the MG
+reduces the purchased power, increases gas turbine power generation,
+discharges energy storage, and reduces demand response loads.
+Notably, during periods with abundant PV resources (6:00–16:00),
+the MG agent strategy varies based on energy trading prices. When the
+internal market price is high (6:00–10:00, 13:00–20:00), the strategy is
+economically focused, selling electricity externally for revenue through
+BESS discharge and DR load reduction. However, when the internal
+market price is low (7:00–8:00, 10:00–12:00), the strategy shifts to a
+low-carbon focus. During low carbon intensity hours, the MG agent in-
+creases the load through DR and BESS charging, while during high
+carbon intensity hours. Especially in the residential MG 2 and
+Fig. 11. Internal market transactions and energy price among ADN-MMG during online execution.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+15 
+
+community MG 3, the load is relatively low, so during 6:00–18:00 MG
+selling power to ADN, we can find that BESS and DR increase the total
+load during low-carbon period for later higher carbon emission and
+retail price. The stored BESS energy during low carbon intensity hours is
+released during high carbon intensity hours, effectively reducing the
+carbon intensity during peak periods.
+5.2.5. ADN-MMG low-carbon economic strategy comparison analysis
+To comprehensively evaluate the ADN-MMG low-carbon economic
+operation strategy, the performance of different algorithms including
+AP-MATD3, APED-MATD3, and the proposed EAP-MATD3, against two
+benchmarks: the Pareto Improvement benchmark (partially cooperative
+EAP-MATD3) and Bi-Level Particle Swarm Optimization (with Ideal
+Fig. 12. Internal market transactions and carbon intensity among ADN-MMG during online execution.
+Fig. 13. Energy management of MMGs guided by ADN retail price and carbon intensity during online execution.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+16 
+
+Information) as a model-based benchmark.
+Table 4 demonstrates that the proposed EAP-MATD3 algorithm
+achieves significant reductions in both total carbon emissions and
+operational costs compared to AP-MATD3 and APED-MATD3. Specif-
+ically, EAP-MATD3 reduces total carbon emissions by 5.2 % from 28.75
+tons (AP-MATD3) and by 2.1 % from 27.85 tons (APED-MATD3) to
+27.26 tons. In terms of operational costs, EAP-MATD3 incurs a 3.4 %
+reduction from $2606.76 (AP-MATD3) and a 2.3 % reduction from
+$2577.38 (APED-MATD3), totaling $2517.26. These findings indicate
+that EAP-MATD3 effectively balances carbon emission reduction with
+operational cost optimization, making it a more efficient and sustainable
+choice.
+Although ADN benefits under EAP-MATD3 slightly decrease to
+$439.82 compared to $497.72 for AP-MATD3 and $463.11 for APED-
+MATD3, the metric representing distribution network cleanliness
+1/T∑
+t∈TeADN
+t
+/eUPG
+t
+remains consistent with the Pareto Improvement
+benchmark at 0.84. This suggests that EAP-MATD3 maintains a high
+level of network cleanliness while achieving greater sustainability and
+economic efficiency. Additionally, we used a Bi-Level Particle Swarm
+Optimization as a model-based benchmark. While a 24-h ahead dispatch
+is necessary for balancing supply and demand, no solution within 24 h
+outperformed the reinforcement learning approach.
+To further validate the effectiveness of the proposed ADN-MMG low-
+carbon economic operation strategy, we conducted a comparative
+analysis across three distinct scenarios. Case 1 implements a purely
+economic strategy without incorporating low-carbon considerations,
+Case 2 adopts a low-carbon strategy without economic gains, and Case 3
+(Proposed) integrates both economic and low-carbon objectives. The
+results, summarized in Table 5, demonstrate the advantages of the
+proposed strategy. In Case 1, which targets maximum economic gains,
+the total carbon emissions from MGs are 6.29 % higher than in the
+proposed method, and the average carbon intensity is 2.30 % greater.
+Although ADN benefits increase by 16.46 %, MGs incur a 3.99 % rise in
+operational costs due to ADN pricing strategies that prioritize profit over
+carbon reduction, forcing MGs to act as price takers.
+Case 2 emphasizes a low-carbon strategy, achieving a substantial
+35.12 % reduction in MGs’ total carbon emissions and a 1.15 % decrease
+in average carbon intensity compared to the proposed strategy. How-
+ever, this approach results in a significant 119.29 % increase in MGs’
+operational costs and causes the ADN to incur a financial loss of
+$473.10. This scenario highlights the trade-off between environmental
+benefits and economic viability, where prioritizing carbon reduction
+leads to adverse financial outcomes for the ADN.
+In contrast, Case 3 (Proposed) successfully balances both economic
+and environmental objectives. The proposed strategy results in a slight
+increase in MGs’ operational costs compared to Case 1 but achieves a
+meaningful reduction in carbon emissions. Importantly, ADN benefits
+remain positive at $439.82, demonstrating the strategy’s ability to
+maintain profitability while promoting sustainability. When considering
+Table 4
+Comparison Results for the Algorithms.
+Metric
+AP-MATD3
+[31–35]
+APED-MATD3
+[36]
+EAP-MATD3
+(Partially Cooperative)
+Bi-Level Particle Swarm Optimization
+(with Ideal Information)
+EAP-MATD3 (Proposed)
+MGs Total Carbon Emission (t)
+28.75
+27.85
+26.97
+29.35
+27.26
+MGs Operation Cost ($)
+2606.76
+2577.38
+2488.76
+3238.55
+2517.26
+1/T
+∑
+t∈TeADN
+t
+/eUPG
+t
+0.86
+0.85
+0.84
+0.86
+0.84
+ADN Benefits ($)
+497.72
+463.11
+412.60
+390.65
+439.82
+Table 5
+Comparison Results for Three Cases.
+Metric
+Case 1
+Case 2
+Case 3 (Proposed)
+MGs Total Carbon Emission (t)
+29.07
+17.75
+27.26
+MGs Operation Cost ($)
+2422.80
+5520.92
+2517.26
+1/T
+∑
+t∈TeADN
+t
+/eUPG
+t
+0.89
+0.82
+0.84
+ADN Benefits ($)
+512.20
+−473.10
+439.82
+Fig. 14. Modified IEEE 123-bus test networks.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+17 
+
+the cost of carbon emissions, the proposed approach offers a favorable
+overall outcome, significantly lowering the adjusted MG costs compared
+to the other cases.
+5.2.6. Case study on IEEE 123 bus test systems
+To further validate the robustness and generalizability of the pro-
+posed EAP-MATD3 algorithm, we conducted an extensive case study
+using the IEEE 123-bus test system [42], shown in Fig. 14. This case
+study is renowned for its complexity and realistic representation of real-
+world power distribution scenarios, making it an ideal platform to assess
+the robustness and generalizability of our method across varying
+network topologies and DER configurations.
+The settings of the DERs parameters are shown in Table 2. For the
+ADN, the adjustment ranges of the internal market price are set to [−0.2,
+0.2] ($/kWh), respectively. In the MMG, the active output adjustment
+ranges for the energy storage and the micro-gas turbine are [−200,200]
+kW and [−50, 50] kW. Demand response quantities are set to [−0.2, 0.2]
+times the real-time loads.
+The consistent performance across varying DER penetration levels
+and network topologies underscores the generalizability of the EAP-
+MATD3 algorithm. The integration of EAP mechanisms facilitated
+seamless
+adaptation
+to
+different
+operational
+scenarios
+without
+Fig. 15. Total rewards of ADN and MMG with different algorithms during offline training.
+Fig. 16. Rewards of ADN with different algorithms during offline training.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+18 
+
+significant retraining or parameter adjustments. The algorithm exhibi-
+ted stable convergence rates across all tested scenarios, indicating reli-
+able and efficient training performance.
+Fig. 15 illustrates the performance comparison between the proposed
+EAP-MATD3 algorithm, partially cooperative EAP-MATD3 and two
+baseline algorithms, AP-MATD3 [31–35] and APED-MATD3 [36], in
+both overall ADN and MG scenarios within the IEEE 123-bus system. The
+results demonstrate that the EAP-MATD3 algorithm significantly out-
+performs the baseline methods in the IEEE 123-bus test scenarios,
+highlighting its superior efficiency and adaptability in addressing more
+complex system challenges.
+Fig. 16 presents the offline training reward curve for the ADN.
+Compared to Fig. 5 implement in IEEE 33-bus System, the results show a
+marked improvement, indicating that the proposed EAP-MATD3 algo-
+rithm exhibits notable advantages in scalability and generalizability
+when applied to larger-scale systems with a greater number of distrib-
+uted energy resources. The reward curve is not only smoother but also
+consistently achieves higher rewards, further validating the effective-
+ness of the proposed method in such complex environments.
+Fig. 17 presents the offline training reward curve for the different
+MGs, showcasing the learning performance and optimization capabil-
+ities of the proposed EAP-MATD3 algorithm across MMGs. Notably, the
+EAP-MATD3 algorithm demonstrates a stable and consistent learning
+process, with smooth reward curves that converge to higher values
+compared to the baseline methods. This indicates its robustness in
+handling the dynamic and stochastic nature of MG operations, such as
+fluctuating energy demands, intermittent renewable energy generation
+and dynamic interior market price from ADN. Additionally, the perfor-
+mance across different MGs underscores the algorithm’s adaptability to
+varying configurations and operational conditions, further validating its
+generalizability for diverse smart grid applications.
+6. Conclusion
+To address the challenges arising from fundamental differences in
+operational entities between distribution networks and microgrids, we
+present a novel collaborative optimization framework designed to
+harmonize the low-carbon economic operational needs of heteroge-
+neous network entities. The framework incorporates the STCIEM, which
+ensures equitable and privacy-preserving carbon emission calculations,
+enabling a fair distribution of carbon responsibilities between ADN and
+MMG.
+Additionally, we introduce the EAP-MATD3 algorithm, which in-
+corporates an action correction mechanism to facilitate secure real-time
+decision-making in non-convex scenarios. This enhancement resolves
+the actor-critic mismatch issue commonly found in conventional nearest
+point projection safe MADRL methods.
+Experimental results based on a modified IEEE 33-bus network
+validate the superiority of our proposed methods. Specifically, the EAP-
+MATD3 algorithm outperforms existing algorithms by achieving a 5.2 %
+reduction in total carbon emissions and a 3.4 % decrease in operational
+costs compared to AP-MATD3. Furthermore, it achieves a 2.1 % reduc-
+tion in carbon emissions and a 2.3 % decrease in operational costs
+compared to APED-MATD3. While the benefits to ADNs experience a
+slight decrease, the distribution network cleanliness metric remains
+consistent with the Preto Improvement at 0.84. This demonstrates that
+EAP-MATD3 maintains high network cleanliness while achieving sub-
+stantial sustainability and economic efficiency. And experimental results
+based on a modified IEEE123-bus network validate the robustness and
+generalizability of proposed EAP-MATD3 methods.
+Future work should prioritize improving the scalability of the pro-
+posed methods to handle larger and more complex network topologies,
+including urban energy grids and industrial manufacturing networks. By
+doing so, we can ensure their effective application in diverse practical
+energy scenarios, such as integrating renewable energy sources,
+Fig. 17. Rewards of heterogeneous MGs with different algorithms during offline training.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+19 
+
+managing decentralized energy resources, and optimizing energy dis-
+tribution in metropolitan areas.
+CRediT authorship contribution statement
+Tong Ye: Writing – original draft, Visualization, Validation, Super-
+vision, Software, Resources, Methodology, Formal analysis, Data cura-
+tion, Conceptualization. Yuping Huang: Writing – review & editing,
+Supervision, Project administration, Funding acquisition, Conceptuali-
+zation. Weijia Yang: Writing – review & editing, Writing – original
+draft, Visualization, Supervision, Software, Investigation, Conceptuali-
+zation. Guotian Cai: Project administration, Funding acquisition,
+Conceptualization. Yuyao Yang: Project administration, Methodology,
+Funding acquisition, Conceptualization. Feng Pan: Project administra-
+tion, Funding acquisition, Conceptualization.
+Declaration of competing interest
+The authors declare that they have no known competing financial
+interests or personal relationships that could have appeared to influence
+the work reported in this paper.
+Acknowledgement
+This work is supported by the National Key Research and Develop-
+ment Program of China (2022YFB3304503, 2022YFF0606600), Na-
+tional Natural Science Foundation of China (52407152) and the Energy
+Bureau of Guangdong Development and Reform Commission Project
+(1689833186433, 1688533517621).
+Data availability
+Data will be made available on request.
+References
+[1] Wang S, Sheng W, Shang Y, Liu K. Distribution network voltage control considering
+virtual power plants cooperative optimization with transactive energy. Appl.
+Energy 2024;371.
+[2] Ibrahim NN, Jamian JJ, Md Rasid M. Optimal multi-objective sizing of renewable
+energy sources and battery energy storage systems for formation of a multi-
+microgrid system considering diverse load patterns. Energy 2024;304.
+[3] Yuan Z-P, Li P, Li Z-L, Xia J. Data-driven risk-adjusted robust energy Management
+for Microgrids Integrating Demand Response Aggregator and Renewable Energies.
+IEEE Trans Smart Grid. 2023;14:365–77.
+[4] Kiani H, Hesami K, Azarhooshang A, Pirouzi S, Safaee S. Adaptive robust operation
+of the active distribution network including renewable and flexible sources.
+Sustainable Energy: Grids and Networks; 2021. p. 26.
+[5] Du Y, Li F. Intelligent multi-microgrid energy management based on deep neural
+network and model-free Reinforcement learning. IEEE Trans Smart Grid. 2020;11:
+1066–76.
+[6] Ceja-Espinosa C, Pirnia M, Ca˜nizares CA. An affine arithmetic-based energy
+management system for cooperative multi-microgrid networks. IEEE Trans Smart
+Grid. 2024;15:1317–29.
+[7] Liu X, Li S, Zhu J. Optimal coordination for multiple network-constrained VPPs via
+multi-agent deep Reinforcement learning. IEEE Trans Smart Grid. 2023;14:
+3016–31.
+[8] Yan M, Shahidehpour M, Paaso A, Zhang L, Alabdulwahab A, Abusorrah A.
+Distribution network-constrained optimization of peer-to-peer Transactive energy
+trading among multi-microgrids. IEEE Trans Smart Grid. 2021;12:1033–47.
+[9] Wu Y, Zhao T, Yan H, Liu M, Liu N. Hierarchical hybrid multi-agent deep
+Reinforcement learning for peer-to-peer energy trading among multiple
+heterogeneous microgrids. IEEE Trans Smart Grid. 2023;14:4649–65.
+[10] Pinto RS, Unsihuay-Vila C. A data-driven distributionally robust expansion
+planning model for ADNs with multi-microgrids considering energy trading
+strategy based on game theory. Sustainable Energy: Grids and Networks; 2024.
+p. 39.
+[11] Chen X, Zhai J, Jiang Y, Ni C, Wang S, Nimmegeers P. Decentralized coordination
+between active distribution network and multi-microgrids through a fast
+decentralized adjustable robust operation framework. Sustainable Energy: Grids
+and Networks; 2023. p. 34.
+[12] Chen T, Bu S, Liu X, Kang J, Yu FR, Han Z. Peer-to-peer energy trading and energy
+conversion in interconnected multi-energy microgrids using multi-agent deep
+Reinforcement learning. IEEE Trans Smart Grid. 2022;13:715–27.
+[13] Monfaredi F, Shayeghi H, Siano P. Multi-agent deep reinforcement learning-based
+optimal energy management for grid-connected multiple energy carrier
+microgrids. Int. J. Electr. Power Energy Syst. 2023;153.
+[14] Kang C, Zhou T, Chen Q, Wang J, Sun Y, Xia Q, et al. Carbon emission flow from
+generation to demand: a network-based model. IEEE Trans Smart Grid. 2015;6:
+2386–94.
+[15] Lu Z, Bai L, Wang J, Wei J, Xiao Y, Chen Y. Peer-to-peer joint electricity and carbon
+trading based on carbon-aware distribution locational marginal pricing. IEEE Trans
+Power Syst 2023;38:835–52.
+[16] Wan T, Tao Y, Qiu J, Lai S. Distributed energy and carbon emission right trading in
+local energy systems considering the emission obligation on demand side. IEEE
+Syst. J. 2023;1-10.
+[17] Zhang M, Xu Y, Yi Z. Two-stage carbon-oriented scheduling of an active
+distribution network with thermostatically controlled load aggregators. IEEE Trans
+Sustainable Energy 2024:1–13.
+[18] Liang Z, Mu L. Multi-agent low-carbon optimal dispatch of regional integrated
+energy system based on mixed game theory. Energy 2024;295.
+[19] Wang Y, Qiu J, Tao Y. Optimal power scheduling using data-driven carbon
+emission flow modelling for carbon intensity control. IEEE Trans Power Syst 2022;
+37:2894–905.
+[20] Ling C, Yang Q, Wang Q, Bartocci P, Jiang L, Xu Z, et al. A comprehensive
+consumption-based carbon accounting framework for power system towards low-
+carbon transition. Renew. Sust. Energ. Rev. 2024;206.
+[21] Zhang Q, Dehghanpour K, Wang Z, Huang Q. A learning-based power management
+method for networked microgrids under incomplete information. IEEE Trans Smart
+Grid 2020;11:1193–204.
+[22] She B, Li F, Cui H, Zhang J, Bo R. Fusion of microgrid control with model-free
+Reinforcement learning: review and vision. IEEE Trans Smart Grid. 2023;14:
+3232–45.
+[23] Gao Y, Yu N. Model-augmented safe reinforcement learning for volt-VAR control in
+power distribution networks. Appl. Energy 2022;313.
+[24] Hu Z, Chan KW, Zhu Z, Wei X, Zheng W, Bu S. Techno–economic modeling and safe
+operational optimization of multi-network constrained integrated community
+energy systems. Adv. Appl Energy 2024:15.
+[25] Li H, He H. Learning to operate distribution networks with safe deep
+Reinforcement learning. IEEE Trans Smart Grid. 2022;13:1860–72.
+[26] Zhang Y, Mei Z, Wu X, Jiang H, Zhang J, Gao W. Two-step diffusion policy deep
+Reinforcement learning method for low-carbon multi-energy microgrid energy
+management. IEEE Trans Smart Grid. 2024;15:4576–88.
+[27] Cao D, Zhao J, Hu W, Yu N, Ding F, Huang Q, et al. Deep Reinforcement learning
+enabled physical-model-free two-timescale voltage control method for active
+distribution systems. IEEE Trans Smart Grid. 2022;13:149–65.
+[28] Wang Y, Qiu D, Sun M, Strbac G. Gao Z. Secure Energy Management of Multi-
+Energy Microgrid: A physical-informed safe reinforcement learning approach.
+Applied Energy; 2023. p. 335.
+[29] Ye Y, Wang H, Chen P, Tang Y, Strbac G. Safe Deep Reinforcement Learning for
+Microgrid Energy Management in Distribution Networks With Leveraged
+Spatial–Temporal Perception. IEEE Trans Smart Grid. 2023;14:3759–75.
+[30] Zhang J, Sang L, Xu Y, Sun H. Networked multiagent-based safe Reinforcement
+learning for low-carbon demand Management in Distribution Networks. IEEE Trans
+Sustainable Energy. 2024;1-16.
+[31] Zhang J, Guan Y, Che L, Shahidehpour M. EV charging command fast allocation
+approach based on deep Reinforcement learning with safety modules. IEEE Trans
+Smart Grid. 2024;15:757–69.
+[32] Chen P, Liu S, Wang X, Kamwa I. Physics-shielded multi-agent deep Reinforcement
+learning for safe active voltage control with photovoltaic/battery energy storage
+systems. IEEE Trans Smart Grid 2023;14:2656–67.
+[33] Xu J, Gao H, Wang R, Liu J. Real-time operation optimization in active distribution
+networks based on multi-agent deep reinforcement learning. Journal of modern
+power systems and clean. Energy 2023:1–13.
+[34] Kou P, Liang D, Wang C, Wu Z, Gao L. Safe deep reinforcement learning-based
+constrained optimal control scheme for active distribution networks. Appl. Energy
+2020;264.
+[35] Qiu D, Dong Z, Zhang X, Wang Y, Strbac G. Safe reinforcement learning for real-
+time automatic control in a smart energy-hub. Appl. Energy 2022;309.
+[36] Guo G, Zhang M, Gong Y, Xu Q. Safe multi-agent deep reinforcement learning for
+real-time decentralized control of inverter based renewable energy resources
+considering communication delay. Appl. Energy 2023;349.
+[37] Kasaura K, Miura S, Kozuno T, Yonetani R, Hoshino K, Hosoe Y. Benchmarking
+actor-critic deep Reinforcement learning algorithms for robotics control with
+action constraints. IEEE Robotics Automation Lett 2023;8:4449–56.
+[38] Bhatia A, Varakantham P, Kumar A. Resource constrained deep reinforcement
+learning. 2018. p. arXiv:1812.00600.
+[39] Fujimoto S, Hoof H, Meger D. Addressing function approximation error in actor-
+critic methods. International Conference on Machine Learning: PMLR; 2018.
+p. 1587–96.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+20 
+
+[40] Lillicrap TP, Hunt JJ, Pritzel A, Heess N, Erez T, Tassa Y, et al. Continuous control
+with deep reinforcement learning. arXiv preprint arXiv:150902971. 2015.
+[41] Ackermann J, Gabler V, Osa T, Sugiyama M. Reducing Overestimation Bias in
+Multi-Agent Domains Using Double Centralized Critics. 2019. p. arXiv:
+1910.01465.
+[42] IEEE Test Systems, Electrical and Computer Engineering Department, Illinois
+Institute of Technology. [dataset]. 2025. Available: http://motor.ece.iit.edu/data/
+[Accessed: Feb. 26, 2025].
+[43] Towers M, Kwiatkowski A, Terry J, Balis JU, De Cola G, Deleu T, et al. Gymnasium:
+A Standard Interface for Reinforcement Learning Environments. 2024. p. arXiv:
+2407.17032.
+[44] Thurner L, Scheidler A, Schafer F, Menke J-H, Dollichon J, Meier F, et al.
+Pandapower—an open-source Python tool for convenient modeling, analysis, and
+optimization of electric power systems. IEEE Trans Power Syst 2018;33:6510–21.
+[45] Weijia Y, Yuping H, Tianren Z, Daiqing Z. Mechanism and analytical methods for
+carbon emission-exergy flow distribution in heat-electricity integrated energy
+system. Appl. Energy 2023;352:121980.
+T. Ye et al.
+Applied Energy 387 (2025) 125609 
+21 

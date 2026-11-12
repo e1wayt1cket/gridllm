@@ -1,0 +1,72 @@
+{
+  "label": "NON_FORMAL_DIAGNOSTIC",
+  "experiment": "phase6d_profit_attribution",
+  "created_at": "2026-11-12T15:29:23+08:00",
+  "phase6_original_verdict": "PARTIAL",
+  "phase6d_analysis_status": "PARTIAL",
+  "source_dir": "reports\\phase6_frozen_policy_2026-11-12",
+  "output_dir": "reports\\phase6d_profit_attribution_2026-11-12",
+  "primary_units": [
+    "seed11_final_train",
+    "seed23_final_train",
+    "seed11_final_validation",
+    "seed23_final_validation"
+  ],
+  "auxiliary_units": [
+    "seed11_final_probe",
+    "seed23_final_probe",
+    "seed11_best_probe",
+    "seed23_best_probe"
+  ],
+  "no_new_clearing": true,
+  "no_training": true,
+  "no_formal_code_change": true,
+  "no_date_reselection": true,
+  "bootstrap": {
+    "n_resamples": 1000,
+    "seed": 20261112,
+    "cluster": "pair_id (date)",
+    "interval": "percentile"
+  },
+  "near_zero_thresholds_cny": [
+    0.01,
+    0.1,
+    1.0
+  ],
+  "near_zero_note": "descriptive descriptors, not admission criteria",
+  "percentiles": [
+    1,
+    5,
+    10,
+    25,
+    75,
+    90,
+    95,
+    99
+  ],
+  "classification_rule": {
+    "broad_based": "wide positive distribution, no dominant few dates",
+    "concentrated": "positive mean, CR5+ > 0.5, >25% dates within 0.01 CNY/day",
+    "mixed": "different signs across seeds, splits, ESS or legs",
+    "insufficient": "uncertainty or missing mechanism fields"
+  },
+  "recommendation": "ADDITIONAL_EVIDENCE_REQUIRED",
+  "recommendation_reason": "The gain is concentrated and cost-side. In every primary group the median is within 0.001 CNY/day of zero, the top 5 positive dates carry 52-100% of the positive total, and removing the top 3 positive dates turns both Validation means negative. The positive net comes from lower cycle cost as throughput falls, not from higher market revenue, and Seed 23 final / Validation keeps a 95% CI that includes zero. Day-level quote changes are visible, but the block-level quote-to-clearing chain was not persisted, so the mechanism cannot be verified at the block level. Design work on a new mapping may proceed only after the trace gap is closed by a separately approved run; the current candidate is not a production candidate.",
+  "quote_to_clearing_evidence": {
+    "comparable_ess_days": 960,
+    "changed_quote_ess_days": 960,
+    "block_level": "NOT_TESTED"
+  },
+  "not_tested": [
+    "block-level gate state agreement",
+    "block-level quote changes",
+    "block-level clearing response",
+    "first divergence block",
+    "per-block mediation"
+  ],
+  "excluded_splits": {
+    "test": "never read",
+    "holiday": "never read",
+    "h2_holdout": "never read"
+  }
+}

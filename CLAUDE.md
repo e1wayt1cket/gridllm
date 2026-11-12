@@ -2,7 +2,81 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CC engineering framework
+
+- Live formal manifest: `reports/v2_cy_jn_2025/formal_training_v4/`
+  (config hash `7834d0aa`, `protocol_version: 4`; see
+  `phase25_v4_freeze.md`). `formal_training_v3/` (`1b47e0ed`),
+  `formal_training_v2/` (`2148a577`) and `formal_training_ready/`
+  (`b21a97c1`, `SUPERSEDED_READ_ONLY`) are historical and never the default.
+- Frozen set: the 22 `source_sha256` entries and 7 pinned tests/audits in the
+  live code manifest, all four manifest directories, and every
+  `runs/FORMAL_<config>_seed<N>` / `snapshots/FORMAL_<config>_seed<N>` tree.
+  `.claude/hooks/protect_frozen.py` denies Edit/Write on them. Only the live
+  manifest's source pins are checked; the v2 pins are superseded.
+- Formal launch gate: `src/run_formal_training.py --check` must report
+  `all_pass: true`, `budget_contract_ok: true`, `status: GO_FORMAL_TRAINING`.
+  The budget invariants live in `src/training_contract.py`.
+- Rules: [training contract](.claude/rules/training_contract.md),
+  [data governance](.claude/rules/data_governance.md),
+  [model constraints](.claude/rules/model_constraints.md),
+  [reporting](.claude/rules/reporting.md).
+- Skills: `/training-preflight`, `/experiment-audit`.
+- Agents: `independent-reviewer`, `experiment-auditor` (both read-only:
+  `Read, Grep, Glob`).
+- PowerShell entrypoints: `scripts/preflight.ps1`, `launch_seed.ps1`,
+  `run_tests.ps1`, `audit_run.ps1`, `finalize_run.ps1`.
+- Never edit a frozen file to make a check pass. Create a new version
+  directory or request an explicit re-freeze.
+- Known open issues: `TECHNICAL_DEBT.md`. Phase record:
+  `reports/cc01/README.md`.
+
+@.claude/rules/training_contract.md
+@.claude/rules/data_governance.md
+@.claude/rules/model_constraints.md
+@.claude/rules/reporting.md
+
+## Project context: read this first
+
+`docs/project_context/` holds the research definition that the frozen protocol
+does not encode. Read them before proposing any change to the market model.
+
+| File | Read it when |
+| --- | --- |
+| `00_PROJECT_CHARTER.md` | Always. Research goal, claim boundaries, frozen storage parameters, the vocabulary that separates official rules from project assumptions. |
+| `01_RESEARCH_SCOPE.md` | Anything touching market scope, timing, or which price/load series is used. |
+| `09_CURRENT_STATE.md` | Before claiming what is done. Includes the G1-G7 gap table between the charter and the current design. |
+| `10_DECISION_LOG.md` | Before re-deciding anything. D-001 to D-009 are user-confirmed. |
+| `11_OPEN_ISSUES.md` | Before starting implementation. I-03 to I-05 are BLOCKER-level design conflicts. |
+
+Hard constraints that override convenience:
+
+- **Day-ahead only.** No real-time, no deviation settlement, no ancillary
+  services, no intraday re-bidding. A single day is one episode with 96 periods.
+- **Terminal SOC is not pinned to 0.5.** It is free and valued separately; the
+  current `terminal_soc.final` pin is a frozen v4 fact, not the research design.
+- **Never present a project assumption as a Jiangsu rule**, and never present an
+  internal cost parameter as a market quantity-price declaration.
+- **A local IEEE33 nodal LMP is not a Jiangsu provincial nodal price.**
+- **The actual day-ahead price must not leak into the D-1 bidding strategy.**
+
+Current phase: the Jiangsu day-ahead rule audit (M1) is complete and awaiting
+review at `reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/`.
+Its `M1_decision_report.md` lists nine open decisions (Q-D1 to Q-D8, Q-E1) that
+must be settled before any clearing-engine work. No M2 work is authorized.
+
 ## Development commands
+
+On Windows, prefer the wrappers below over raw environment-variable syntax.
+They set `PYTHONPATH=src` and propagate the Python exit code.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch_seed.ps1 -Seed 71
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_tests.ps1 -Level Full
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/audit_run.ps1 -RunDir runs/<run-id>
+```
+
 
 All modules live flat in `src/` and import each other by bare name, so scripts
 run with `src/` on `PYTHONPATH` (or from inside `src/`). `pytest.ini` sets

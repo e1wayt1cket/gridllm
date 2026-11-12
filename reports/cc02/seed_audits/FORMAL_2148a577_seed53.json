@@ -1,0 +1,132 @@
+{
+  "run_id": "FORMAL_2148a577_seed53",
+  "seed": 53,
+  "run_dir": "runs\\FORMAL_2148a577_seed53",
+  "status": "failed",
+  "rounds": 0,
+  "episodes": 28,
+  "block_steps": 672,
+  "updates": 545,
+  "minimum_rounds": 10,
+  "budget_episodes": [
+    530,
+    795
+  ],
+  "budget_block_steps": [
+    12720,
+    19080
+  ],
+  "best_round": null,
+  "best_value": null,
+  "checks": [
+    {
+      "check": "run_terminated_cleanly",
+      "verdict": "FAIL",
+      "detail": "status='failed' error='Traceback (most recent call last):\\n  File \"C:\\\\Projects\\\\00_WorkSpace\\\\01_Projects\\\\MakerB\\\\src\\\\train_da_gate.py\", line 771, '",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "min_rounds_recorded",
+      "verdict": "PASS",
+      "detail": "run manifest min_rounds=10",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "rounds_at_least_minimum",
+      "verdict": "FAIL",
+      "detail": "rounds=0 minimum=10",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "rounds_at_most_maximum",
+      "verdict": "PASS",
+      "detail": "rounds=0 maximum=15",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "episodes_in_budget",
+      "verdict": "FAIL",
+      "detail": "episodes=28 range=[530, 795]",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "block_steps_in_budget",
+      "verdict": "FAIL",
+      "detail": "block_steps=672 range=[12720, 19080]",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "early_stop_not_before_minimum",
+      "verdict": "PASS",
+      "detail": "early stop did not trigger",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "best_checkpoint_exists",
+      "verdict": "FAIL",
+      "detail": "best=None",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "final_checkpoint_exists",
+      "verdict": "FAIL",
+      "detail": "final=None",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "best_is_not_final",
+      "verdict": "FAIL",
+      "detail": "best=None final=None",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "artifact_hashes_match",
+      "verdict": "PASS",
+      "detail": "mismatched=[]",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "train_log_hash_matches",
+      "verdict": "PASS",
+      "detail": "train.log matches",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "test_not_evaluated",
+      "verdict": "PASS",
+      "detail": "test_evaluation=None",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "legacy_test_not_run",
+      "verdict": "PASS",
+      "detail": "legacy_seen_test_run=False",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "h2_not_read",
+      "verdict": "PASS",
+      "detail": "h2_holdout_read=False",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "no_voltage_or_line_violation",
+      "verdict": "PASS",
+      "detail": "voltage=None line=None",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "no_lmp_fallbacks",
+      "verdict": "PASS",
+      "detail": "lmp_fallbacks=None",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "terminal_soc_exact",
+      "verdict": "PASS",
+      "detail": "terminal_soc_max_err=None",
+      "evidence": "eval_history.json"
+    }
+  ],
+  "verdict": "NO_GO_RUN_FAILED"
+}

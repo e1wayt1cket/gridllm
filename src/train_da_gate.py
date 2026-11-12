@@ -82,6 +82,9 @@ def artifact_hashes(run_dir: Path) -> Dict[str, str]:
     return out
 
 
+DEFAULT_MIN_ROUNDS = 10
+
+
 def no_improvement_streak(evaluations: Sequence[dict]) -> int:
     """Consecutive evaluations after the best validation value."""
     if not evaluations:
@@ -102,8 +105,31 @@ def episode_budget(order_size: int, exposures: int,
 
 
 def completed_rounds(episodes: int, order_size: int) -> int:
-    """Rounds whose validation is complete; a partial round counts as next."""
-    return (int(episodes) + order_size - 1) // order_size
+    """Whole rounds finished; a partial round does not count."""
+    return int(episodes) // order_size
+
+
+def pair_index(episode: int, order_size: int) -> int:
+    """Position in the per-round order; a resumed partial round keeps its offset."""
+    return int(episode) % order_size
+
+
+def filter_evaluations(rows: Sequence[dict], rounds_completed: int) -> List[dict]:
+    """Drop evaluations a hard kill left behind the last checkpoint."""
+    return [r for r in rows
+            if int(r.get("round", 0)) <= int(rounds_completed)]
+
+
+def resume_position(episodes: int, order_size: int) -> dict:
+    """Exact restart point; the partial round's remaining days are kept."""
+    episodes = int(episodes)
+    rounds = completed_rounds(episodes, order_size)
+    return {
+        "resume_episode": episodes,
+        "rounds_completed": rounds,
+        "round_start": rounds * order_size,
+        "partial_round": bool(episodes % order_size),
+    }
 
 
 def should_early_stop(round_idx: int, evaluations: Sequence[dict],
@@ -116,6 +142,44 @@ def should_early_stop(round_idx: int, evaluations: Sequence[dict],
     if patience <= 0 or round_idx < max(int(min_rounds), 0):
         return False
     return no_improvement_streak(evaluations) >= patience
+
+
+def round_cap_reached(round_idx: int, max_rounds: int) -> bool:
+    """The cap counts rounds that ran, so `max_rounds` permits `max_rounds`."""
+    return max_rounds > 0 and round_idx >= max_rounds
+
+
+def resume_rule_checks(saved: dict, patience: int, min_rounds: int,
+                       max_rounds: int) -> dict:
+    """The stop rule must be identical; a missing key is a mismatch."""
+    return {
+        "early_stop_patience": saved.get("early_stop_patience") == patience,
+        "min_rounds": saved.get("min_rounds") == min_rounds,
+        "max_rounds": saved.get("max_rounds") == max_rounds,
+    }
+
+
+def restore_best(saved_best: dict, evaluations: Sequence[dict],
+                 snapshot_dir: Path) -> dict:
+    """Manifest best first, then history plus snapshots, then the sentinel."""
+    if saved_best and int(saved_best.get("round", -1)) >= 0:
+        return {"value": float(saved_best["value"]),
+                "round": int(saved_best["round"]),
+                "checkpoint": str(saved_best.get("checkpoint", "")),
+                "source": "manifest"}
+    if evaluations:
+        existing = max(evaluations,
+                       key=lambda r: r.get("mean_fleet_delta", -math.inf))
+        round_no = int(existing["round"])
+        snap = Path(snapshot_dir) / f"round_{round_no:03d}.json"
+        checkpoint = ""
+        if snap.exists():
+            checkpoint = json.loads(
+                snap.read_text(encoding="utf-8")).get("checkpoint", "")
+        return {"value": existing["mean_fleet_delta"], "round": round_no,
+                "checkpoint": checkpoint, "source": "evaluations"}
+    return {"value": float("-inf"), "round": -1, "checkpoint": "",
+            "source": "none"}
 
 
 def read_csv(path: Path) -> List[dict]:
@@ -419,9 +483,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--early-stop-patience", type=int, default=3,
                         help="stop after this many validation evaluations "
                              "without a new best; 0 disables")
-    parser.add_argument("--min-rounds", type=int, default=0,
+    parser.add_argument("--min-rounds", type=int, default=DEFAULT_MIN_ROUNDS,
                         help="completed validation rounds required before "
-                             "early stopping is allowed; default 0")
+                             "early stopping is allowed")
+    parser.add_argument("--max-rounds", type=int, default=0,
+                        help="hard cap on training rounds; 0 disables")
     parser.add_argument("--trace-blocks", action="store_true",
                         help="write block_decisions.jsonl (24 blocks x 4 ESS "
                              "per episode)")
@@ -432,7 +498,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="run this many rounds, save a resume checkpoint, "
                              "and stop")
     parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--buffer-capacity", type=int, default=100_000)
+    parser.add_argument("--buffer-capacity", type=int, default=6_000)
+    parser.add_argument("--fixed-scale", type=float, default=100.0)
+    parser.add_argument("--start-steps", type=int, default=480)
+    parser.add_argument("--anchor-weight", type=float, default=0.01)
+    parser.add_argument("--advantage-hinge-delta", type=float, default=0.10,
+                        help="W7 advantage-hinge noise floor on Q(a)-Q(truthful); "
+                             "0 disables the hinge")
+    parser.add_argument("--calibration-interval", type=int, default=8,
+                        help="W8: every Nth episode redraws quotes uniformly "
+                             "over the full leg box on open gates; 0 disables")
+    parser.add_argument("--hinge-twin-gap-weight", type=float, default=1.0,
+                        help="W9: hinge floor rises to k*|Q1-Q2| where the "
+                             "twin critics disagree; 0 restores the W7 "
+                             "constant floor")
     parser.add_argument("--uniform-fraction", type=float, default=0.5)
     parser.add_argument("--sampling-beta", type=float, default=0.5)
     parser.add_argument("--sampling-max-upweight", type=float, default=5.0)
@@ -561,6 +640,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     experiment = mod.DAExperimentConfig(
         run_id, "B_C2", batch_size=args.batch_size,
         buffer_capacity=args.buffer_capacity,
+        fixed_scale=args.fixed_scale,
+        start_steps=args.start_steps,
+        anchor_weight=args.anchor_weight,
+        advantage_hinge_delta=args.advantage_hinge_delta,
+        calibration_interval=args.calibration_interval,
+        hinge_twin_gap_weight=args.hinge_twin_gap_weight,
         uniform_fraction=args.uniform_fraction,
         sampling_beta=args.sampling_beta,
         sampling_max_upweight=args.sampling_max_upweight,
@@ -596,10 +681,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             "train_subset": saved.get("train_subset")
                 == [p["pair_id"] for p in train],
             "action_schema":
-                saved.get("action_schema") == "storage_quote_v3",
+                saved.get("action_schema") == experiment.action_schema,
             "quote_map": saved.get("quote_map") == "linear_core_v1",
             "source_sha256": saved.get("source_sha256") == source_hashes(),
         }
+        checks.update(resume_rule_checks(
+            saved, int(args.early_stop_patience), int(args.min_rounds),
+            int(args.max_rounds)))
         bad = [key for key, ok in checks.items() if not ok]
         if bad:
             raise RuntimeError(
@@ -610,16 +698,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise RuntimeError(
                 "resume refused: checkpoint predates the actor-loss v3 map "
                 "fix and cannot be continued under the corrected trainer")
-        # A partial round is not in the last checkpoint. Restart at the next
-        # full-round boundary; the discarded partial exposure is reported, not
-        # silently counted.
-        completed = completed_rounds(int(trainer.episodes), len(order)) * len(order)
+        # Restart on the exact episode: the order is fixed per round, so the
+        # partial round's remaining pairs are the ones not yet exposed.
+        completed = int(trainer.episodes)
+        position = resume_position(completed, len(order))
         resume_from = {
             "checkpoint_step": bundle["manifest"]["step"],
-            "episodes_in_checkpoint": int(trainer.episodes),
-            "resume_episode": completed,
-            "partial_round_discarded": bool(
-                int(trainer.episodes) % len(order)),
+            "episodes_in_checkpoint": completed,
+            "resume_episode": position["resume_episode"],
+            "rounds_completed": position["rounds_completed"],
+            "partial_round_resumed": position["partial_round"],
         }
         for path, key in ((run_dir / "episodes.csv", "episode"),
                           (run_dir / "gate_stats.jsonl", "episode"),
@@ -649,7 +737,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                                 encoding="utf-8")
         log(f"RESUME from checkpoint step {resume_from['checkpoint_step']} "
             f"at episode {completed}; partial-round="
-            f"{resume_from['partial_round_discarded']}")
+            f"{resume_from['partial_round_resumed']}")
     if args.resume and (run_dir / "run_manifest.json").exists():
         provenance = json.loads(
             (run_dir / "run_manifest.json").read_text(encoding="utf-8"))
@@ -666,6 +754,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             "status": "exploratory_development",
             "seed": args.seed,
             "experiment": experiment.as_dict(),
+            # TD-10: record the interpreter so a run is reproducible down to
+            # the Python build, not just the code hashes.
+            "interpreter": {"executable": sys.executable,
+                            "version": sys.version},
             "dataset": "JN-Base-NEAR train 53",
             "split": str(split_path),
             "split_name": args.split,
@@ -684,10 +776,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             "budget_episodes": budget,
             "early_stop_patience": int(args.early_stop_patience),
             "min_rounds": int(args.min_rounds),
+            "max_rounds": int(args.max_rounds),
             "data_hashes": hashes,
             "market_config_hash": market_hash,
             "b1_mechanism_hash": mechanism_hash,
-            "action_schema": "storage_quote_v3",
+            "action_schema": experiment.action_schema,
             "quote_map": "linear_core_v1",
             "sampler": {
                 "uniform_fraction": args.uniform_fraction,
@@ -730,49 +823,68 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.resume and (run_dir / "eval_history.json").exists():
         evaluations = json.loads(
             (run_dir / "eval_history.json").read_text(encoding="utf-8"))
-    best = {"value": float("-inf"), "round": -1, "checkpoint": ""}
-    if evaluations:
-        existing = max(evaluations,
-                       key=lambda r: r.get("mean_fleet_delta", -math.inf))
-        snap = snap_dir / f"round_{int(existing['round']):03d}.json"
-        checkpoint = ""
-        if snap.exists():
-            checkpoint = json.loads(
-                snap.read_text(encoding="utf-8")).get("checkpoint", "")
-        best = {"value": existing["mean_fleet_delta"],
-                "round": existing["round"], "checkpoint": checkpoint}
+        # A hard kill can leave evaluations written after the last checkpoint;
+        # keeping them would double-count a round against patience and best.
+        evaluations = filter_evaluations(
+            evaluations, resume_from["rounds_completed"])
+    best = restore_best(provenance.get("best"), evaluations, snap_dir)
     started = time.perf_counter()
     early_stop = {
         "patience": int(args.early_stop_patience),
         "min_rounds": int(args.min_rounds),
+        "max_rounds": int(args.max_rounds),
         "triggered": False,
+        "cap_reached": False,
         "round": None,
         "best_round": best["round"],
         "best_value": best["value"],
     }
+    consecutive_clearing_failures = 0
     try:
-        episode = (resume_from["resume_episode"] if resume_from else 0)
-        round_idx = episode // len(order)
+        position = (resume_position(resume_from["resume_episode"], len(order))
+                    if resume_from else resume_position(0, len(order)))
+        episode = position["resume_episode"]
+        round_idx = position["rounds_completed"]
         chunk_end = budget
+        if args.max_rounds > 0:
+            chunk_end = min(chunk_end, args.max_rounds * len(order))
         if args.pause_after_rounds > 0:
             chunk_end = min(
-                budget, episode + args.pause_after_rounds * len(order))
+                chunk_end, episode + args.pause_after_rounds * len(order))
         while episode < chunk_end:
             round_idx += 1
-            round_start = episode
+            # The round owns a fixed slice of `order`; a resumed partial round
+            # continues at its offset rather than restarting the slice.
+            round_start = (round_idx - 1) * len(order)
             while episode < chunk_end \
                     and episode - round_start < len(order):
-                pair = order[episode - round_start]
+                pair = order[pair_index(episode, len(order))]
                 pair_id = f"{pair['load_date']}|{pair['price_date']}"
                 row = full_by_pair[pair_id]
                 env = envmod.build_env_for_pair(
                     pair, differential_reward=False,
                     terminal_soc_target=0.5)
-                out = trainer.train_day(
-                    env, pair, b1_cache,
-                    config_hash_value=mechanism_hash,
-                    data_hash=mod.pair_data_hash(row),
-                    trace=args.trace_blocks)
+                try:
+                    out = trainer.train_day(
+                        env, pair, b1_cache,
+                        config_hash_value=mechanism_hash,
+                        data_hash=mod.pair_data_hash(row),
+                        trace=args.trace_blocks)
+                except mod.EpisodeClearingError as exc:
+                    # TD-02: the episode is atomic; skip the day instead of
+                    # aborting the seed. Three in a row means the data or the
+                    # mechanism is broken, not the day.
+                    consecutive_clearing_failures += 1
+                    log(f"episode {episode + 1} {pair_id}: {exc}; day "
+                        f"skipped ({consecutive_clearing_failures} "
+                        "consecutive)")
+                    if consecutive_clearing_failures >= 3:
+                        raise RuntimeError(
+                            "three consecutive clearing failures; training "
+                            "stops") from exc
+                    episode += 1
+                    continue
+                consecutive_clearing_failures = 0
                 episode += 1
                 b = out["b"]
                 explored = np.asarray(
@@ -797,7 +909,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "gate_distinct_modes": out["gate"]["distinct_modes"],
                     "gate_saturated_upper": out["gate"]["saturated_upper"],
                     "gate_saturated_lower": out["gate"]["saturated_lower"],
+                    "calibration": int(bool(out.get("calibration", False))),
                 }
+                for nm in trainer.agent_names:
+                    haf = (out.get("hinge_active_fraction") or {}).get(nm)
+                    row_out[f"hinge_active_{nm}"] = haf
+                    htg = (out.get("hinge_twin_gap") or {}).get(nm)
+                    row_out[f"hinge_twin_gap_{nm}"] = htg
                 for nm in trainer.agent_names:
                     row_out[f"delta_{nm}"] = float(b["delta"][nm])
                     row_out[f"G_policy_{nm}"] = float(
@@ -888,6 +1006,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"positive={val['positive_days']}/{len(val['days'])} "
                 f"v_cells={val['voltage_violation_cells']} "
                 f"line_cells={val['line_overload_cells']}")
+            if round_cap_reached(round_idx, int(args.max_rounds)):
+                early_stop.update({
+                    "cap_reached": True,
+                    "round": round_idx,
+                    "best_round": best["round"],
+                    "best_value": best["value"],
+                })
+                log(f"round cap reached at round {round_idx}")
+                break
             patience = int(args.early_stop_patience)
             if should_early_stop(round_idx, evaluations, patience,
                                  int(args.min_rounds)):
@@ -921,14 +1048,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "early_stop": early_stop,
                 "paused_checkpoint": str(ckpt),
             })
+            # TD-01: log line first, then the hashes.
+            log(f"paused at episode {episode}; next round "
+                f"{episode // len(order) + 1}; checkpoint {ckpt}")
             log_fh.flush()
             provenance["artifacts_sha256"] = artifact_hashes(run_dir)
             (run_dir / "run_manifest.json").write_text(
                 json.dumps(provenance, indent=2), encoding="utf-8")
             (snap_dir / "run_manifest.json").write_text(
                 json.dumps(provenance, indent=2), encoding="utf-8")
-            log(f"paused at episode {episode}; next round "
-                f"{episode // len(order) + 1}; checkpoint {ckpt}")
             return 0
 
         final = trainer.save(
@@ -963,14 +1091,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             "legacy_seen_test_run": False,
             "h2_holdout_read": False,
         })
+        # TD-01: the completion line goes to the log BEFORE the artifact
+        # hashes are taken, so the recorded train.log hash covers it.
+        log(f"completed: best round {best['round']} "
+            f"val={best['value']:.1f}; final={final}")
         log_fh.flush()
         provenance["artifacts_sha256"] = artifact_hashes(run_dir)
         (run_dir / "run_manifest.json").write_text(
             json.dumps(provenance, indent=2), encoding="utf-8")
         (snap_dir / "run_manifest.json").write_text(
             json.dumps(provenance, indent=2), encoding="utf-8")
-        log(f"completed: best round {best['round']} "
-            f"val={best['value']:.1f}; final={final}")
         return 0
     except Exception:
         err = traceback.format_exc()
@@ -990,6 +1120,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "total_steps": trainer.total_steps,
             "updates": trainer.updates,
             "buffer_len": len(trainer.buffer),
+            "best": best,
             "early_stop": early_stop,
         })
         log_fh.flush()

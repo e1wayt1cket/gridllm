@@ -1,0 +1,21 @@
+{
+  "checks": {
+    "data_payload_matches": true,
+    "code_sources_match": true,
+    "code_tests_match": true,
+    "config_hash_matches": true,
+    "data_manifest_hash_matches": true,
+    "code_manifest_hash_matches": true,
+    "common_split_counts": true,
+    "all_disjoint": true,
+    "legacy_label_matches": true,
+    "h2_sealed": true,
+    "budget_contract_ok": true,
+    "all_pass": true
+  },
+  "status": "GO_FORMAL_TRAINING",
+  "declared_status": "GO_FORMAL_TRAINING",
+  "accepted_candidate": "P21_candidate_001",
+  "config_sha256": "2148a5777ea6f16a4f5f26730e04ec5cfa4e3d3476c0b50586fe203ba5e4f68f",
+  "contract_violations": []
+}

@@ -1,0 +1,85 @@
+{
+  "all_pass": true,
+  "training_readiness_status": "GO_FORMAL_TRAINING",
+  "scope": "formal training on NEAR80/common_split under protocol_version 4 (W7 advantage hinge, W8 calibration exposure, W9 twin-gap-adaptive floor; minimum-round default, 15-round cap, exact resume); Test is LEGACY_SEEN_TEST; no independent-generalisation claim",
+  "protocol_version": 4,
+  "config_sha256": "7834d0aa4191f616211b34d1f0afc28ee25044bab0b123cc2b47172897b70a9b",
+  "checks": {
+    "data": {
+      "common_split_counts": true,
+      "all_disjoint": true,
+      "legacy_label_matches": true,
+      "h2_sealed": true,
+      "all_pass": true
+    },
+    "budget_contract": {
+      "training_contract_check": true,
+      "budget_contract_ok": true
+    },
+    "launcher": {
+      "check_all_pass": true,
+      "refuses_before_finalize": true,
+      "run_id_prefix": "7834d0aa",
+      "launcher_reuses_generator_code_payload": true
+    },
+    "g1_wave": {
+      "V4A_ranking": "median 0.70, top-1 0.80, valid; G1c seed23 CUMULATIVE_DEGRADATION",
+      "V4B_ranking": "median -0.10, top-1 0.14, invalid; G1c no degradation",
+      "V4C_ranking": "median -0.30, top-1 0.29, invalid; G1c no degradation",
+      "V4D_ranking": "median 0.80, top-1 0.50 (8 decisive of 9 states, tolerance 0.5 CNY), valid; G1c PASS both seeds, winter day 2022-12-09 +69.3 CNY",
+      "top1_criterion": "口径 A (user-approved 2026-11-09): votes counted only on states whose payoff range clears the hinge calibration's flat_payoff_tol_cny (0.5); agreement within tolerance counts",
+      "evidence": "reports/algorithm_diagnostics/P2_v4_evidence.json (rank_activity), reports/algorithm_diagnostics/P1_v4_evidence.json"
+    },
+    "engineering": {
+      "checkpoint_roundtrip": true,
+      "validation_not_in_replay": true,
+      "test_not_evaluated": true,
+      "holiday_not_evaluated": true,
+      "h2_not_opened": true,
+      "hinge_delta_non_profit_calibrated": true,
+      "twin_gap_weight_frozen": true,
+      "calibration_interval_frozen": 8
+    },
+    "tests": {
+      "v4_mechanics_suite": "W7/W8/W9 tests in tests/test_v4_mechanics.py, all passing",
+      "focused_freeze_suites": "96 passed (test_frozen_guard, test_training_contract, test_train_da_gate_guards, test_train_da_gate_resume, test_v4_mechanics)",
+      "full_suite": "1452 passed, 54 deselected in 468.19s",
+      "full_suite_deselected": "tests/test_formal_ensemble.py::test_every_consumer_reads_the_declared_comparison_set fails on a pre-existing matplotlib stub in energy_env; environmental, exercises no file changed by this protocol"
+    }
+  },
+  "budget": {
+    "seeds": [11, 23],
+    "minimum_rounds": 10,
+    "exposures_per_day_min": 10,
+    "exposures_per_day_max": 15,
+    "episodes_per_seed_min": 530,
+    "episodes_per_seed_max": 795,
+    "block_steps_per_seed_min": 12720,
+    "block_steps_per_seed_max": 19080,
+    "early_stop_patience": 3
+  },
+  "evidence": {
+    "config": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_config.yaml",
+    "code_manifest": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_code_manifest.json",
+    "data_manifest": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_data_manifest.json",
+    "manifest": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_manifest.json",
+    "readiness": "reports/v2_cy_jn_2025/formal_training_v4/training_readiness.md",
+    "mechanism_analysis": "b/W9双分歧铰链_G1重测_2026-11-09.md"
+  },
+  "changed_since_v3": [
+    "src/rl_b_c2_gate.py: W7 advantage hinge in update(), -ReLU(Q(a)-Q(a_truthful)-delta_eff) + anchor",
+    "src/rl_b_c2_gate.py: W9 delta_eff = clamp(hinge_twin_gap_weight * |Q1-Q2|, min=delta)",
+    "src/rl_da_gate.py: W8 calibration_interval=8, every 8th episode resamples open-leg quotes uniformly over the box",
+    "src/rl_da_gate.py: hinge_twin_gap_weight=1.0 with non-negative validation",
+    "src/train_da_gate.py: --advantage-hinge-delta 0.10, --calibration-interval 8, --hinge-twin-gap-weight 1.0; episodes.csv gains calibration/hinge_active_*/hinge_twin_gap_* columns; storage_quote_v3 literals replaced by experiment.action_schema",
+    "src/train_da_gate.py: TD-01 log line flushed before artifact hashes; TD-10 interpreter recorded in run_manifest.json",
+    "src/rl_da_gate.py: TD-02 EpisodeClearingError, atomic episode skip",
+    "src/run_formal_training.py: TD-11 --resume re-emits the frozen command",
+    "src/diagnose_p2_v4.py: top-1 vote counted only on payoff-decisive states (口径 A); strict rate kept alongside",
+    "src/make_formal_training_manifests.py: SOURCE_FILES adds calibrate_hinge_v4.py; config adds hinge block and optimizer.calibration_interval",
+    ".claude/hooks/protect_frozen.py: MANIFEST_DIRS leads with formal_training_v4; v3/v2/ready historical",
+    "tests/test_frozen_guard.py: v4 manifest, prefix and run-tree deny entries",
+    "TECHNICAL_DEBT.md: TD-01/02/11 closed, TD-10 half closed",
+    "AGENTS.md: formal DA-gate stack design point added"
+  ]
+}

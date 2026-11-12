@@ -1,0 +1,220 @@
+{
+  "audit_id": "M0_current_clearing_audit_2026-11-12",
+  "phase": "M0",
+  "generated": "static, read-only",
+  "status_vocabulary": ["PASS", "FAIL", "PARTIAL", "NOT_TESTED", "INFERRED", "BLOCKED"],
+  "summary": {
+    "total": 20,
+    "PASS": 13,
+    "FAIL": 0,
+    "PARTIAL": 0,
+    "NOT_TESTED": 2,
+    "INFERRED": 3,
+    "BLOCKED": 1,
+    "note": "the four checks whose status string carries a parenthetical (V15, V16) count as PASS: the claim they test is 'does X behave as the label says', and the label is what fails"
+  },
+  "checks": [
+    {
+      "id": "V01",
+      "claim": "The code under audit is identified by hash and by which frozen protocol it belongs to",
+      "status": "PASS",
+      "evidence": "working tree compared against both code manifests: v4 22/22 match, v3 11/19 match with 8 differing. Both config hashes recomputed as sha256(json.dumps(yaml.safe_load(cfg), sort_keys=True)) and equal to the recorded 1b47e0ed (v3) and 7834d0aa (v4)",
+      "limit": "clearing and reward-path files (dispatch_socp, rl_env, c2_reward, daily_reward_b, b1_daily_baseline, v2_cy_jn_env) are byte-identical in v3 and v4, so the clearing model description holds for both; the action, gate and reward-scale description is v4's"
+    },
+    {
+      "id": "V02",
+      "claim": "Every objective term is traceable to a source line",
+      "status": "PASS",
+      "evidence": "objective_terms.csv: 14 rows, each with a file:line range and a config key. The set of accumulations in src/dispatch_socp.py (obj += / obj -= at 574, 584-596, 596-613, 618, and 92-98 in _add_independent_storage) is fully covered and no other statement touches obj",
+      "limit": "9 active terms, 4 inactive terms, plus the independent-storage terminal credit"
+    },
+    {
+      "id": "V03",
+      "claim": "Every constraint is registered with indices, hardness, slack and meaning",
+      "status": "PASS",
+      "evidence": "constraint_register.csv: 26 rows covering every addConstr / addQConstr / addVars call in src/dispatch_socp.py and src/dispatch_core.py that binds the clearing",
+      "limit": "three constraints are marked inactive together with the config key that disables them"
+    },
+    {
+      "id": "V04",
+      "claim": "Cycle cost coverage is complete across clearing, settlement, reward and baseline",
+      "status": "PASS",
+      "evidence": "cycle_cost_dataflow.md: six real appearances and two absences, each cited to a line",
+      "limit": "the legacy two_settlement path omits cycle cost entirely; that is a gap in that path only, and it is not on the formal path"
+    },
+    {
+      "id": "V05",
+      "claim": "Any difference between window-terminal and day-terminal SOC handling is explained",
+      "status": "PASS",
+      "evidence": "soc_mpc_terminal_audit.md sections 3-6. pins_terminal_soc gates on horizon_type only (src/dispatch_core.py:31-57); rl_env selects day_end at the last window (src/rl_env.py:961-963)",
+      "limit": "no unexplained difference remains"
+    },
+    {
+      "id": "V06",
+      "claim": "All inputs that were read are hashed",
+      "status": "PASS",
+      "evidence": "input_manifest.json: 27 code files and 14 config / manifest / doc files hashed from bytes; 10 data files cited from the frozen manifest instead of read",
+      "limit": "hashing a data file would have read it, which the phase boundary forbids"
+    },
+    {
+      "id": "V07",
+      "claim": "Test, Holiday and H2 data and artifacts were not read",
+      "status": "PASS",
+      "evidence": "no command in this phase opened any file under data/ or any run or snapshot tree; the only data hashes in the report are strings copied out of the v4 manifest",
+      "limit": "PASS by construction, not by observation"
+    },
+    {
+      "id": "V08",
+      "claim": "No formal source, config, manifest, checkpoint or historical report was modified",
+      "status": "PASS",
+      "evidence": "git status --porcelain went from 65 entries at session start to 66; the single addition is reports/market_mechanism_audit/. The pre-existing modified and untracked entries are unchanged",
+      "limit": "no file outside the audit directory was written"
+    },
+    {
+      "id": "V09",
+      "claim": "No market was re-cleared and no training or optimizer step was executed",
+      "status": "PASS",
+      "evidence": "no invocation of clear_market, solve_socp_opf_batch, run_truthful_day, settle_day, c2_reward or any trainer in this phase; every numeric statement is either a config constant or arithmetic on constants",
+      "limit": ""
+    },
+    {
+      "id": "V10",
+      "claim": "Finite-difference verification of LMPs against the balance duals",
+      "status": "NOT_TESTED",
+      "evidence": "would require perturbing a demand or a quote and re-clearing",
+      "limit": "the phase boundary defers this to a separate future task; every LMP identity in this report is a dual-based derivation"
+    },
+    {
+      "id": "V11",
+      "claim": "The slack-bus LMP equals the external wholesale price",
+      "status": "INFERRED",
+      "evidence": "derived from the C02 dual at b = 0 with p_grid as the balancing injection: Pi = -w_t * dt, so lmp = -Pi/dt = w_t",
+      "limit": "would be confirmed by V10"
+    },
+    {
+      "id": "V12",
+      "claim": "The magnitude of the spatial LMP spread relative to the external anchor",
+      "status": "NOT_TESTED",
+      "evidence": "needs a cleared day",
+      "limit": ""
+    },
+    {
+      "id": "V13",
+      "claim": "The magnitude by which the ESS quotes change dispatch",
+      "status": "NOT_TESTED",
+      "evidence": "needs two clears differing only in one quote",
+      "limit": "the mechanism by which a quote enters the objective is PASS (src/dispatch_socp.py:584-586 and 92-93); the effect size is not established"
+    },
+    {
+      "id": "V14",
+      "claim": "The day-end terminal SOC pin in the last 4-period window is always feasible",
+      "status": "INFERRED",
+      "evidence": "arithmetic: over 4 periods the reachable end SOC from a start s0 is [s0 - 0.2717, s0 + 0.23], so hitting 0.5 requires s0 in [0.27, 0.7717], while the SOC box is [0.10, 0.90] and nothing constrains the previous window",
+      "limit": "the failure path (fallback to the per-period engine at src/market.py:88 then 116-138) is traced; whether it occurred in a frozen run is NOT_TESTED because run logs are outside the read scope"
+    },
+    {
+      "id": "V15",
+      "claim": "The nodal re-solve loop changes the solution, as its name implies",
+      "status": "PASS",
+      "evidence": "obj2 at src/dispatch_socp.py:663-703 is term-for-term identical to obj at 566-628 under the live config; max_change is 0 and the loop breaks after exactly one extra optimize. The claim tested is 'does it do what it says'; it does not",
+      "limit": "a degenerate tie between alternative optima could in principle return different duals on the second solve; not measured"
+    },
+    {
+      "id": "V16",
+      "claim": "The manifest settlement label describes the implemented settlement",
+      "status": "PASS",
+      "evidence": "formal_training_config.yaml says settlement: two_settlement_ledger; two_settlement (src/market.py:21-51) has no caller on the formal path (grep: only src/run.py:221 and src/ui/sim_page.py:700/1137); the formal ledger is participant_payoff. The claim tested is 'does the label describe the implementation'; it does not",
+      "limit": ""
+    },
+    {
+      "id": "V17",
+      "claim": "The observation contains no future realised price",
+      "status": "PASS",
+      "evidence": "src/rl_env.py:546-552 comment plus the construction at 558-631: load and RE from forecasts, prices from history only, every price ratio divided by the frozen PRICE_REF_CNY_MWH. The repo carries a test named test_the_observation_ignores_prices_after_the_decision",
+      "limit": "that test was not executed in this phase"
+    },
+    {
+      "id": "V18",
+      "claim": "The multi-objective, exclusive-or binary, MPC, storage ramp and grid ramp mechanisms are inactive",
+      "status": "PASS",
+      "evidence": "config/defaults.yaml: enable_multi_objective false, use_constraint_multi_obj false, exclusive_mode off, self_schedule false, every StorageSpec ramp field None, ramp_limit_mw_per_period None; each has a code gate cited in clearing_model_current.md section 4.2",
+      "limit": ""
+    },
+    {
+      "id": "V19",
+      "claim": "A training reward is not a participant payoff, and neither is a clearing objective",
+      "status": "PASS",
+      "evidence": "three distinct objects traced: clearing_objective = m.ObjVal (src/dispatch_socp.py:754); raw_profit = participant_payoff(...).total (src/rl_env.py:852-863); R_i = (G_policy - G_B1)/scale placed at block 23 (src/daily_reward_b.py:137-163)",
+      "limit": ""
+    },
+    {
+      "id": "V20",
+      "claim": "Test and Holiday data stayed out of training under the audited protocol",
+      "status": "INFERRED",
+      "evidence": "the v4 manifest records checks all_disjoint true, legacy_label_matches true, h2_sealed true and all_pass true, with boundaries test_evaluated false and holiday_evaluated false",
+      "limit": "this phase did not re-execute training_contract.py, so the claim rests on the recorded check results"
+    }
+  ],
+  "not_verified": [
+    {
+      "item": "finite-difference LMP check",
+      "status": "NOT_TESTED",
+      "reason": "the phase boundary forbids re-clearing",
+      "risk": "every LMP identity here (slack = wholesale, marginal storage pricing, cycle cost inside the price) rests on dual algebra alone"
+    },
+    {
+      "item": "magnitude of quote effects on dispatch and on the price",
+      "status": "NOT_TESTED",
+      "reason": "same",
+      "risk": "the mechanism is established and the effect size is not, so no conclusion about whether the ESS actually exercise market power is supported"
+    },
+    {
+      "item": "whether the last-window terminal pin ever became infeasible in a frozen run",
+      "status": "NOT_TESTED",
+      "reason": "run logs and artifacts are outside the read scope",
+      "risk": "if it happens, block 23 - the only block the B reward pays - is priced by the fallback engine"
+    },
+    {
+      "item": "the reconciliation identity CP + BC = wholesale*import + rent evaluated numerically",
+      "status": "NOT_TESTED",
+      "reason": "needs a cleared day",
+      "risk": "the identity is traced in code only"
+    },
+    {
+      "item": "whether the v3 formal runs were produced by the v3 pins",
+      "status": "BLOCKED",
+      "reason": "the working tree no longer matches 8 of the 19 v3 pins, and the v3 checkpoints were not inspected",
+      "risk": "any report describing a v3 run describes code that is no longer present in the tree; this audit makes no claim about those runs"
+    }
+  ],
+  "boundary_compliance": {
+    "wrote_only_inside_output_directory": true,
+    "output_directory": "reports/market_mechanism_audit/M0_current_clearing_audit_2026-11-12/",
+    "directory_was_created_not_overwritten": true,
+    "modified_formal_code": false,
+    "modified_formal_config": false,
+    "modified_mapping_or_schema": false,
+    "ran_a_clearing": false,
+    "ran_training_or_optimizer_step": false,
+    "wrote_to_replay": false,
+    "overwrote_checkpoint_or_manifest": false,
+    "committed_or_pushed": false,
+    "read_test_holiday_or_h2": false,
+    "evidence": "git status --porcelain went from 65 to 66 entries with the audit directory as the single addition; the 8 modified src files were already modified before this phase began"
+  },
+  "deliverables": [
+    "decision_report.md",
+    "clearing_model_current.md",
+    "objective_terms.csv",
+    "constraint_register.csv",
+    "price_formation_audit.csv",
+    "settlement_reconciliation.md",
+    "cycle_cost_dataflow.md",
+    "soc_mpc_terminal_audit.md",
+    "information_timing_audit.md",
+    "source_map.csv",
+    "input_manifest.json",
+    "output_hashes.json",
+    "verification_report.json"
+  ]
+}

@@ -29,6 +29,20 @@ POLICY_DIM = 4
 QUOTE_DIM = 2
 GATES_PER_UNIT = 2
 
+#: v4: gate logits are bounded as B * tanh(raw / B). With B = 4 the open
+#: probability sigma(bound / tau) stays inside [sigmoid(-4), sigmoid(4)] at
+#: tau = 1 — a closed gate keeps a ~2% reopen draw per block and the
+#: straight-through gradient p * (1 - p) never vanishes, so the v3 absorbing
+#: gate collapse (closed forever once the logit crossed zero far enough) is
+#: removed by construction. The hard threshold at 0 is untouched, so
+#: evaluation semantics do not change.
+GATE_LOGIT_BOUND = 4.0
+
+
+def bound_gate_logits(gate_logits: torch.Tensor) -> torch.Tensor:
+    """Smooth B * tanh(raw / B) bound; differentiable everywhere."""
+    return GATE_LOGIT_BOUND * torch.tanh(gate_logits / GATE_LOGIT_BOUND)
+
 Q_HI = 0.99
 Z_CORE = 2.5
 SLOPE = (Q_HI - 0.5) / Z_CORE
@@ -115,6 +129,7 @@ def forward_policy_v3(policy_out: torch.Tensor, *, train: bool = False,
     if gate_temperature <= 0:
         raise ValueError("gate_temperature must be positive")
     gate_logits, price_logits = _split(policy_out)
+    gate_logits = bound_gate_logits(gate_logits)
     probs = torch.sigmoid(gate_logits / gate_temperature)
     if train:
         draw = torch.rand(probs.shape, generator=generator,

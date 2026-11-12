@@ -1,0 +1,165 @@
+{
+  "phase": 18,
+  "checkpoints": {
+    "da_best": {
+      "root": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\DEV_DA_GATE_seed11_v2_best",
+      "step": 1272,
+      "schema": "matd3-checkpoint-v3"
+    },
+    "da_final": {
+      "root": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\DEV_DA_GATE_seed11_v2",
+      "step": 3816,
+      "schema": "matd3-checkpoint-v3"
+    },
+    "old_R2": {
+      "root": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2_audit_roots\\round_002",
+      "step": 2544
+    },
+    "old_R10": {
+      "root": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2_audit_roots\\round_010",
+      "step": 12720
+    }
+  },
+  "old_checkpoints": {
+    "2": {
+      "manifest": "ab023c13824c8c9f8920919b7fc676505277471900c3ae08bdf66d97956b63cd",
+      "manifest_matches": true,
+      "counters": "f9204d7b55a6e63e996fb3fa11c78e4b8a5fc34123f61305dd8c33eab39db24a",
+      "counters_matches": true
+    },
+    "10": {
+      "manifest": "4b258d33a11f8abb6662f159ab9b7323eb7dfa3985fe01ef1fc287bfd9b49f78",
+      "manifest_matches": true,
+      "counters": "4d14861720efff710ca451e5e0b57d97587ee25a4bd346a03285a6ab74bec63c",
+      "counters_matches": true
+    }
+  },
+  "run": {
+    "run_id": "DEV_DA_GATE_seed11_v2",
+    "seed": 11,
+    "train_days": [
+      "2022-07-22",
+      "2022-07-24",
+      "2022-07-25",
+      "2022-08-14",
+      "2022-08-17",
+      "2022-08-18",
+      "2022-08-23",
+      "2022-08-24",
+      "2022-08-26",
+      "2022-08-27",
+      "2022-08-28",
+      "2022-08-29",
+      "2022-08-30",
+      "2022-10-11",
+      "2022-10-12",
+      "2022-10-13",
+      "2022-10-14",
+      "2022-10-15",
+      "2022-10-17",
+      "2022-10-20",
+      "2022-10-21",
+      "2022-10-22",
+      "2022-10-23",
+      "2022-10-28",
+      "2022-10-30",
+      "2022-10-31",
+      "2022-11-01",
+      "2022-11-02",
+      "2022-11-04",
+      "2022-11-06",
+      "2022-11-07",
+      "2022-11-09",
+      "2022-11-10",
+      "2022-11-12",
+      "2022-11-13",
+      "2022-11-15",
+      "2022-11-16",
+      "2022-12-09",
+      "2022-12-10",
+      "2022-12-11",
+      "2022-12-14",
+      "2022-12-17",
+      "2022-12-18",
+      "2022-12-19",
+      "2022-12-20",
+      "2022-12-21",
+      "2022-12-22",
+      "2022-12-23",
+      "2022-12-24",
+      "2022-12-25",
+      "2022-12-26",
+      "2022-12-27",
+      "2022-12-29"
+    ],
+    "validation_days": [
+      "2022-07-23",
+      "2022-08-21",
+      "2022-08-25",
+      "2022-10-26",
+      "2022-10-27",
+      "2022-11-03",
+      "2022-11-05",
+      "2022-11-11",
+      "2022-12-13",
+      "2022-12-30",
+      "2022-12-31"
+    ],
+    "test_days": [
+      "2022-08-20",
+      "2022-08-22",
+      "2022-10-16",
+      "2022-10-29",
+      "2022-11-08",
+      "2022-11-14",
+      "2022-11-19",
+      "2022-12-12",
+      "2022-12-15",
+      "2022-12-16",
+      "2022-12-28"
+    ],
+    "data_hashes": {
+      "pairing": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363",
+      "bus_loads": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078",
+      "price_curves": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1",
+      "common_split": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335"
+    },
+    "market_config_hash": "5c6c93f16209203b61bfcc11436b110b80206fde5b2c2247a7ea29295b2c4162",
+    "b1_mechanism_hash": "835d1a3a298483c491e83287844e5864de7fbbe9878478c323c82c42f6879141",
+    "h2_holdout_read": false,
+    "legacy_seen_test_run": false,
+    "test_evaluation": null
+  },
+  "boundary": {
+    "training_started": false,
+    "checkpoint_modified": false,
+    "h2_holdout_read": false,
+    "legacy_seen_test_run": false,
+    "old_checkpoints_overwritten": false,
+    "commit_or_push": false
+  },
+  "scripts": {
+    "src/audit_daily_counterfactual.py": "ece221b29be77349d34902eb6157c10aa38d21226cbd4a15ba21376b79fb8421",
+    "src/audit_single_ess_grid.py": "e068a6715dec27509dcd13d5bc59bb64a7335bc3db25e2ce8b139dc463eae813",
+    "src/audit_phase18_analysis.py": "92de3260846a4374bcd674881aeaf591cd662878ab57a75fd26f5d598c2b1a12",
+    "src/make_phase18_manifest.py": "671d5015c294410d3f8af5a660ed79ce7d90b280ccfbfbcaafc9c677fb574067"
+  },
+  "reports": {
+    "daily_counterfactual_action_validation.md": "1049469f43d69cb7215e5440386608f204b6893778d6dd63d41d4491eab9b92d",
+    "single_ess_daily_quote_grid.md": "abe5075613244f2ac4903102385e1116d7988b904c9347d00babb3dd5efe7d1f",
+    "critic_vs_rollout_ground_truth.md": "5bd09e0632a9d61449d3688fd037c7d0c83234665d22066e2e04883e23287492",
+    "phase18_diagnostic_decision.md": "fd68f68b488996938a961f3e08fcabb85834d895fe8108dfe87dc12cf76fb9b6",
+    "training_readiness.md": "4eaeb4b7ab51dca5711caab1f47901f94368b0397bc42bfb9acf988e495168ba"
+  },
+  "data": {
+    "daily_counterfactual_action_validation.csv": "8dc22f05a46c5f2da879690b390771e9e2d53f91088eeb991c5a57a5aeffdccd",
+    "daily_counterfactual_action_validation.json": "66e3f16a927f86046f2afad86cdf18c58f5faafc5dd05bde9f7a17ed561f9b69",
+    "single_ess_quote_surface.csv": "2c3b1e814635484efc539eacc0651f600e0b465bce64debcd0fbff5a41a158ec",
+    "single_ess_quote_surface.json": "23c0b06007368e5bc0a9b64a8a0641eaf65d18a2e0ff01197b2a0d5ded34b5b3",
+    "single_ess_quote_surface_ESS14.csv": "556ae094b26dac6c86e1e64c3942e23876fba3ab8e6c58704642c7f91e876379",
+    "single_ess_quote_surface_ESS14.json": "2a4b7cd3e4312712296646efaffcc837af8680f704538b6192a5eb00c8c7a00c",
+    "single_ess_quote_surface_ESS27.csv": "895413385470a096159e7eb36d4ff8090122416eae6ace7f9e71046b42a8c102",
+    "single_ess_quote_surface_ESS27.json": "6ec8a3e560fe03382ee99f0806404f68bd4dcaa4cfbc0a90155698590e302a48",
+    "phase18_analysis.json": "e27ca5e82821e10c032461a2eea99f9fbcd0a3bfe8a812473a81f5417e31d347"
+  }
+}

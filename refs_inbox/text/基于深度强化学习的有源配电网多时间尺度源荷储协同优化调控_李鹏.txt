@@ -1,0 +1,951 @@
+=== page 1 ===
+2025年 3 月 电 工 技 术 学 报 Vol.40 No.5
+第40卷第5期 TRANSACTIONS OF CHINA ELECTROTECHNICAL SOCIETY Mar. 2025
+DOI: 10.19595/j.cnki.1000-6753.tces.240316
+基于深度强化学习的有源配电网多时间
+尺度源荷储协同优化调控
+李 鹏 1 钟瀚明 1 马红伟 2 李建锋 3 刘 洋 4 王加浩 1
+（1. 华北电力大学电气与电子工程学院 保定 071003
+2. 河北雄安许继电科综合能源技术有限公司 雄安 071600
+3. 中国电力科学研究院有限公司 北京 100192 4. 许继集团有限公司 郑州 450040）
+摘要 构建以新能源为主体的新型电力系统是实现“双碳”目标的重要举措，配电网源荷储
+协同是促进高比例风光能源消纳的有力措施。基于数据驱动的人工智能方法具有无模型、自适应
+等特点，可以自主学习风光能源及负荷的复杂不确定性，对有源配电网优化调控具有良好的支撑
+作用。该文考虑源荷功率预测精度特点和设备运行调控特性，提出基于深度强化学习算法的有源
+配电网多时间尺度智能优化调控方法。其中，日前阶段制定储能系统和柔性负荷的调控计划，以
+实现配电网的经济运行，减小对上级电网造成的调峰压力，并针对多节点多时段状态空间设计相
+应的特征提取方法；日内阶段将优化调度问题转换为马尔科夫决策过程，设计表征联络线功率波
+动平抑和灵活性资源日前计划跟踪效果的奖励函数，实现了对全调控时段内的功率波动平抑及跟
+踪日前计划效果的统筹优化。最后通过修改后的 IEEE 33算例系统验证了所提方法的有效性与优
+越性。
+关键词：有源配电网 优化调控 源荷储协同 深度强化学习
+中图分类号：TM73
+0 引言 网优化调控时需考虑风、光能源的复杂不确定性[7]。
+对于不确定性优化问题，常用的方法有模糊优化[8]、
+构建以新能源为主体的新型电力系统是实现
+随机优化[9]、区间优化[10]、鲁棒优化[11]等。其中，
+“双碳”目标的必由之路，而促进以风能、太阳能为
+模糊优化使用模糊隶属度函数假定随机变量分布，
+代表的可再生能源并网消纳将成为完成这一目标的
+易受主观因素的影响[12]；随机优化通常假设随机变
+关键[1]。推动有源配电网等新形态电网建设可满足
+量服从某一概率分布模型，其依赖于参数假设，往
+新能源分布式发电和新型交互式用能设备的大量接
+往难以准确地描述不确定量的实际分布[13]；区间优
+入，对新能源的开发利用起到了支撑作用[2]。但风、
+化使用区间变量代替点变量，适用于波动范围较小
+光等新能源发电出力具有波动性、随机性和不可控
+的情况[14]；鲁棒优化只需不确定量的变化范围，其
+性，其装机容量的增加将提高配电网的不确定性和
+通常针对不确定集中的最坏情况进行优化，给出的
+调控难度，配电网的安全经济运行正面临严峻挑战。
+调度结果一般偏保守[14]。
+合理地利用储能系统[3]、柔性负荷[4]等灵活性资源
+在实际运行时，由于源荷预测精度随着时间尺
+对能量进行跨时调度和波动平抑，可促进新能源消
+度的减小而不断提高，并且考虑到电网不同时间尺
+纳，减小其对上级电网造成的调峰压力，已成为国
+度的调控需求和设备响应特性的差异[15]，许多学者
+内外关注的热点[5-6]。在此背景下，有源配电网源荷
+采用多时间尺度的调控框架以降低预测误差对调控
+储协同优化对解决上述问题具有重要价值。
+效果的影响[16-18]。文献[19]和文献[20]分别采用线性
+为提高配电网运行的经济性和安全性，在配电
+优化和近似动态规划实现了多时间尺度调度，但仅
+以波动功率平抑或经济运行作为单目标，对多目标
+国家电网公司科技项目资助（4000-202316071A-1-1-ZN）。
+收稿日期 2024-02-29 改稿日期 2024-05-06 协同的考虑不够充分；文献[21]在日内采用随机模
+
+=== page 2 ===
+1488 电 工 技 术 学 报 2025年3月
+型预测控制的方法实现了对功率波动平抑和运营成 息冗余，根据其时空耦合特性构造状态矩阵，并重
+本的综合优化，但其整体优化效果受预测窗大小限 新设计特征提取方法，可有效地提高深度强化学习
+制，且较为依赖预测信息。此外，日内阶段对部分 方法的优化效果和收敛性。
+快速响应设备进行再调控易使其运行状态大幅偏离 3）分析源荷不确定性影响配电网运行的不同表
+日前计划，进而会对其调控能力及全时段调控效果 现形式，将优化调控问题转换为马尔科夫决策过程
+造成影响。因此，需要对提高全时段调控效果的优 （Markov Decision Process, MDP），利用深度强化学
+化方法进行进一步研究。 习方法实现对全时段内的功率波动平抑及日前计划
+上述文献大多采用传统方法，其求解速度和精 跟踪效果的优化。
+度受限于问题规模、变量维数以及物理模型的准确
+1 有源配电网多时间尺度智能优化调控
+程度，难以应对配电网中设备种类日益增长、运行
+框架
+特性复杂多样和系统参数不明确等挑战。而基于数
+据驱动的人工智能方法具有无模型和自适应等特 1.1 有源配电网多时间尺度优化调控
+点，其不依赖精确的物理建模，在求解高维非线性 配电网中因风/光等不可控电源而产生的源荷
+问题时具有一定优势，为上述问题的解决提供了一 不匹配问题将加重上级电网的调峰压力，其出力的
+种有效途径[22-25]。 不确定性也将影响配电网的稳定经济运行。因此，
+人工智能技术可有效地支撑源网荷储的协同运 需要在考虑源荷不确定性的情况下，通过综合调控
+行[26]，而深度强化学习将具有感知能力的深度学习 储能系统、柔性负荷等灵活性资源提高对新能源的
+和具有决策能力的强化学习相结合，已经在仿真分 消纳能力。配电网中常采用电化学等储能设备，其
+析[27]、智能调度[28]、无功优化[29]等方面得到了较多 具有较短的响应时间，可对功率波动进行实时平抑。
+应用，其在电力系统中的作用已得到充分体现。文 此外，为维持储能系统的可持续运行，一般需要保
+献[30]阐述了深度强化学习相较于传统方法的优 证其在一个调控周期内的能量守恒。对于柔性负荷，
+势，其可以处理更大量的数据，且具有实时性和较 本文考虑其日前市场机制[33]，在日前阶段给出其调
+好的鲁棒性；文献[31]在不假设数据集中不确定性 控计划。
+分布的情况下，在优化过程中通过深度强化学习方 风、光能源及负荷的不确定性对配电网日内运
+法捕获和利用历史及当前数据中包含的多个不确定 行造成的影响主要体现为两种形式：①风、光能源
+性；文献[32]针对不同响应速度的设备建立了两时 及负荷受环境等因素影响，其功率本身随时间不断
+间尺度控制策略，并在长时间尺度上通过深度强化 波动，不同设备所产生的同向波动通过配电网进行
+学习算法提高其在整体调控时段内的调控效果。现 传递，并叠加至配电网与上级电网的联络线上，将
+有研究大多将深度强化学习方法用于实时或滚动优 对配电网本身以及上级电力系统的稳定运行造成影
+化，往往采用单时段或一定前瞻时段内的变量作为 响；②若利用储能等可调控设备对一段时间内功率
+状态空间，而日前调度状态空间具有多节点、多时 波动的累计偏差进行平抑，其实际运行状态将与日
+段的特点，若不对高维变量造成的信息冗余问题进 前计划产生偏差，会对其未来的调控能力造成影响。
+行处理，将会对优化效果造成一定影响。 本文在日内阶段主要考虑对联络线功率波动和储能
+鉴于此，为实现配电网中灵活性资源的合理利 系统荷电状态（State of Charge, SOC）与日前计划
+用，在统筹考虑源荷不确定性和各可调控设备运行 的偏差进行优化。
+特性的基础上，本文提出了一种基于深度强化学 因此，本文采用多时间尺度协调优化调控的方
+习的有源配电网多时间尺度多目标协同优化调控 法，在日前以 1 h为时间尺度，考虑源荷不确定性，
+策略。与已有的研究工作相比，本文的创新和贡献 以配电网日运行成本最低、配电网与上级电网联络
+如下： 线功率最平滑为目标，制定柔性负荷和储能系统的
+1）建立有源配电网多时间尺度智能优化调控模 调控计划，且具有一定的鲁棒性；在日内以 5 min为
+型，通过数据驱动的深度强化学习方法自主学习源 时间尺度，根据源荷的高精度预测，在日前计划的
+荷不确定性，在保证配电网经济稳定运行的同时实 基础上对储能系统充放电功率进行调整，在跟踪日
+现对风、光等间歇性不可控分布式电源的消纳。 前调控计划的同时，减小配电网与上级电网联络线
+2）考虑有源配电网多时段状态空间中存在的信 上因负荷及风、光发电的随机性导致的实时功率波
+
+=== page 3 ===
+第40卷第5期 李 鹏等 基于深度强化学习的有源配电网多时间尺度源荷储协同优化调控 1489
+动。本文所提多时间尺度优化调控策略框架如图 1 训练时，从经验回放池中抽取 m条样本，将价
+所示。 值网络的时间差分误差（Temporal Difference error,
+TD error）作为其损失函数，表示为
+L(θq)= m 1 ∑ m ⎡ ⎣ yj −Q(s t j,a t j;θq)⎤ ⎦ 2 （1）
+j=1
+其中
+yj =rj +γQ′⎡sj ,μ′(sj;θμ′);θq′⎤ （2）
+t ⎣ t+1 t ⎦
+式中，m为批训练样本条数；j为样本序号；y为时
+间差分目标（TD target）；r 为当前奖励值；γ为折
+t
+扣因子；Q′⎡sj ,μ′(sj;θμ′);θq′⎤为目标价值网络对下
+⎣ t+1 t ⎦
+图1 多时间尺度优化调控策略框架
+一时刻状态s 和目标策略网络对当前状态输出动
+t+1
+Fig.1 The multi-timescale optimal scheduling frame work
+作μ′(sj;θμ′)的打分；Q(sj,aj;θq)为当前价值网络对
+t t t
+1.2 深度确定性策略梯度算法
+当前状态s 和当前动作a 的打分。
+t t
+如果一个系统在下一时刻的状态只与当前时刻
+为使得面对任意状态 S 时，策略网络都能做出
+的状态相关，则这个系统可称为马尔科夫过程
+良好的动作，令策略网络的目标函数为价值网络打
+（Markov Process, MP）。强化学习的基本思想是最大
+分的期望，表示为
+化智能体从环境中获得的回报以学习最优策略，可
+maxJ(θμ)=maxE { Q⎡S,μ(S;θμ);θq⎤ } （3）
+用马尔科夫决策过程（MDP）对强化学习问题进行 S ⎣ ⎦
+建模。MDP 通常由状态空间 S、动作空间 A、奖赏
+式中，J(θμ)为当前策略网络的目标函数；E {·}为
+S
+函数 ρ、状态转移函数 f等组成[34]，其中s ∈S表示
+t 状态空间 S 内当前价值网络对当前策略网络做出动
+智能体在 t 时刻所处的状态，a ∈A表示智能体在 t
+t 作的打分期望。
+时刻做出的动作，r ~ρ(s,a)表示智能体在状态s
+t t t t 以批训练的方式对价值网络打分期望进行近
+下执行动作a 获得的奖励值。
+t 似，即将批训练使用的 m 条样本对应的价值网络
+深度确定性策略梯度（Deep Deterministic
+打分作为策略网络优化目标值的近似，并遵循确
+Policy Gradient, DDPG）是一种基于演员-评论家
+定性策略，通过梯度下降法对策略网络的参数进行
+（Actor-Critic）方法的深度强化学习算法，其吸收了
+更新。
+深度 Q网络（Deep Q-Network, DQN）和确定策略
+1 m
+梯度（Deterministic Policy Gradient, DPG）算法的优 ∇ J ≈ ∑⎡∇ Q(sj,aˆj;θq)⎤
+θμ m ⎣ θμ t ⎦
+点，对连续控制任务可获得良好的决策效果。DDPG j=1
+1 m
+主要由策略网络、价值网络、经验回放池等部分组 = ∑⎡∇ Q(sj,aˆj;θq)⋅∇ aˆj⎤ （4）
+m ⎣ aˆj t θμ ⎦
+j=1
+成，其中，策略网络μ根据状态生成动作，价值网
+络Q则根据状态和动作输出一个反映动作好坏的实 aˆj =μ(s
+t
+j;θμ) （5）
+数。策略网络与价值网络又分为当前网络与目标网
+式中，∇ J 为策略网络目标函数对策略网络参数的
+络，将当前策略网络、目标策略网络、当前价值网
+θμ
+梯度，将 m条批训练样本对策略网络参数的梯度作
+络和目标价值网络分别表示为μ(s;θμ)、μ′(s;θμ′)、
+为其近似；aˆj 即μ(sj;θμ)，为当前策略网络对当前
+Q(s,a;θq) 和Q′(s,a;θq′)，其网络参数分别为θμ、 t
+状态输出的动作。
+θμ′、θq和θq′，目标网络的结构和初始参数与当前
+最后，采用滑动平均的方式，按照一定的比例
+网络相同。在生成样本数据时，DDPG 将从环境中
+使用当前网络的参数对目标网络进行更新。
+探索得到的数据以一个状态转换序列(s,a,r,s )
+t t t t+1
+⎧⎪θq′ ←τθq+(1−τ)θq′
+为单元存放在记忆库中。当记忆库充满数据时，则
+⎨ （6）
+对最旧的样本数据进行替换，以保证记忆库中存放
+⎪⎩θμ′ ←τθμ+(1−τ)θμ′
+序列的及时更新。 式中，τ为软更新系数。
+
+=== page 4 ===
+1490 电 工 技 术 学 报 2025年3月
+1.3 有源配电网智能优化调控框架 2.1.1 配电网日运行成本最低
+在日前和日内阶段，均采用 DDPG 算法对智能 以对风、光发电的全部消纳为前提，配电网的
+体进行训练，以得到合理的有源配电网优化调控策 日运行成本为
+略。根据选择的状态空间选取部分配电网运行信息
+T ⎡ ⎤
+作为智能体的状态输入，将智能体动作输出映射为 C =∑ ⎢C (t)+C (t)+C (t)+C (t)+ ∑ CX (t)⎥
+1 grid loss ES FL punish
+调控指令，并根据奖励函数计算奖励值，采用 t=1⎣ X∈Ω X ⎦
+（7）
+DDPG 算法对日前和日内智能体进行训练，以得到
+式中，T为调控周期内调控时段数；C (t)、C (t)、
+合理的有源配电网优化调控策略。其中，日前智能 grid loss
+C (t)、C (t)和CX (t)分别为 t 时刻配电网购售
+体所需的配电网运行信息包括每一调控时段内每 ES FL punish
+电成本、配电网有功损耗成本、储能系统调控成
+一节点的净负荷预测功率，其变量维数由配电网节
+点数量和日前调控时段数共同决定；日内智能体所
+本[35]、柔性负荷调控成本[36]和体现约束条件 X的惩
+需的运行信息包括当前调控时段、各节点的短期预 罚成本；Ω 为约束条件集合，包括储能荷电状态约
+X
+测功率与其日前预测功率的差值，以及储能实际荷 束、线路功率约束等约束条件。式（7）中各成本变
+电状态与参考荷电状态的差值。智能体可根据历史 量的具体计算式为
+数据和在线运行数据进行离线训练，其总体框架如
+C (t)=λ P (t) （8）
+grid grid grid
+图 2 所示。
+C (t)=λ ⎡P (t)+P (t)⎤ （9）
+loss loss⎣ loss⋅grid loss⋅ES ⎦
+⎛ 1 ⎞
+P (t)=(1−η )Pcha(t)+⎜ −1⎟Pdis(t)+ηselfS ⋅SOC(t)
+loss⋅ES cha ES ⎝η ⎠ ES dis ES
+dis
+（10）
+⎡ Pdis(t)⎤
+C (t)=λ ⎢η Pcha(t)+ ES ⎥ （11）
+ES ES ⎣ cha ES η ⎦
+dis
+nFL
+C (t)=∑λ Pori (t)−P (t) （12）
+FL FL FL,i FL,i
+i=1
+图2 智能优化调控框架 ⎧ϕX[X −X(t)] X(t)＜X
+1 min min
+⎪
+Fig.2 Intelligent optimization scheduling frame work CX (t)=⎨0 X ≤X(t)≤X （13）
+punish min max
+⎪ ϕX[X(t)−X ] X(t)＞X
+2 基于改进特征提取网络的日前智能优 ⎩ 2 max max
+化调控模型 式中，λ 、λ 、λ 和λ 分别为单位电价、损耗
+grid loss ES FL
+成本系数、储能调控成本系数和柔性负荷调控成本
+2.1 目标函数
+系数；P (t)、P (t)、P (t)、Pcha(t)、Pdis(t)、
+随着风、光发电容量的不断增长，电力系统负 grid loss⋅grid loss⋅ES ES ES
+Pori (t)和P (t)分别为 t 时刻的配电网与上级电网
+荷曲线发生了较大变化，且风力发电呈现逆调峰特 FL,i FL,i
+交换功率、配电网有功网损、储能有功损耗、储能
+性，加剧了电网运行调度的难度。在配电网接入大
+充电功率、储能放电功率、第 i 类柔性负荷原始功
+量分布式风、光电源后，可能会发生功率倒送的现
+象，危害上级电网的安全运行。储能系统可以在低 率和第 i 类柔性负荷调控后功率；η cha 、η dis 和η d s i e s lf
+分别为储能系统的充电效率、放电效率和自放电率；
+负荷时吸收电能，在高负荷时释放电能，起到“削
+峰填谷”的作用，但运行时其使用寿命会消耗，具 S 为储能系统总容量；SOC(t)为储能系统在 t时刻
+ES
+有一定的运行成本。 的荷电状态；n 为柔性负荷总数；ϕX 和ϕX 为约束
+FL 1 2
+为保证配电网的经济运行，同时降低配电网中 条件 X的惩罚系数，通常取较大值；X 和 X 分
+min max
+风、光发电对上级电网造成的调峰压力，本文日前 别为约束条件 X的下限和上限。
+调控以配电网日运行成本最低、联络线功率最平滑 2.1.2 联络线功率最平滑
+为优化目标。 可用功率均方差表征联络线功率的平滑程度[8]，
+
+=== page 5 ===
+第40卷第5期 李 鹏等 基于深度强化学习的有源配电网多时间尺度源荷储协同优化调控 1491
+其计算公式为 调控周期内的能量守恒，即在一个调控周期内初、
+末 SOC相等，表示为
+C =∑ T ⎡P (t)−Pmean⎤ 2 （14）
+2 ⎣ grid grid ⎦ SOC(0)=SOC(T) （21）
+t=1
+1 T 式中，SOC(0)和 SOC(T)分别为储能系统在调控周期
+Pmean = ∑P (t) （15）
+grid T grid 初、末的荷电状态。
+t=1
+2.2.2 柔性负荷
+式中，Pmean为调控周期内联络线功率的平均值。
+grid 用户侧具有多种形式的柔性负荷[37]，其中可中
+上述两个目标函数相互影响，且量纲不同，对
+断负荷可以作为一种虚拟电源，其调控策略可与分
+其分别进行归一化后采用线性加权和作为最终的目
+布式电源同等考虑[38]；而可平移负荷可以视作一种
+标函数，具体计算式为
+特殊的可转移负荷，故本文以可转移负荷为例，探
+C C 寻配电网中柔性负荷的调控模式，其约束条件为调
+min F =λ
+1Co
+1
+ri
++λ
+2Co
+2
+ri
+（16）
+控周期内负荷总量保持不变，即
+1 2
+式中，Cori和Cori分别为调控前的日运行成本和联络 T T
+1 2 ∑P (t)=∑Pori (t) （22）
+线功率均方差；λ和λ分别为两个目标函数的权重 FL,i FL,i
+1 2 t=1 t=1
+系数，其和为 1。
+此外，在每个调控时段内可转移负荷的调节能
+2.2 约束条件
+力受到一定限制，即可转移负荷的功率存在上下限。
+除传统潮流方程约束、电量平衡约束、线路功
+率约束、节点电压约束等约束条件外，在调控周期 Pmin(t)≤P (t)≤Pmax(t) （23）
+FL,i FL,i FL,i
+内，配电网运行还需要满足储能系统及柔性负荷的
+式中，Pmin(t)和Pmax(t)分别为 t 时刻第 i 类柔性负
+有关约束条件。 FL,i FL,i
+荷的功率下限和上限。
+2.2.1 储能系统
+2.3 深度强化学习任务的转换
+在任意时刻，储能只能处于充电或放电状态，
+上述包含不确定性源荷功率的优化模型是一个
+且充放电功率有最大值，约束条件表示为
+不确定优化模型，其求解过程通常需要将不确定量
+Pcha(t)⋅Pdis(t)=0 （17） 确定化，如采用分布函数等方式描述不确定量的分
+ES ES
+布情况，并利用其可信度区间或鲁棒边界进行优化
+⎧⎪Pcha(t)≤Pcha.max 求解，或使用场景生成和削减方法生成典型场景并
+⎨ ES ES （18）
+⎪⎩Pdis(t)≤Pdis.max 进行优化求解，但这些确定化方法可能会导致对源
+ES ES
+荷不确定性的描述不够准确。而基于数据驱动的深
+式中，Pcha.max和Pdis.max分别为储能系统允许的最大
+ES ES 度强化学习方法无需对源荷不确定量的分布进行假
+充电和放电功率。
+设，数据集中的源荷不确定性将在训练过程中体现，
+为保护储能使用寿命，防止过充过放，储能系
+并通过强化学习过程被智能体捕捉。因此，将有源
+统需考虑自身荷电状态约束，表示为
+配电网不确定性优化调控问题转换为深度强化学习
+η Pcha(t) Pdis(t) 任务进行求解具有一定优势。
+SOC(t)= cha ES + ES + ( 1−ηself) SOC(t−1)
+S η S dis 在日前阶段，智能体的每一回合只有一次交互，
+ES dis ES
+（19） 即智能体根据状态s 做出动作a 并获得奖赏r ，因
+t t t
+SOC ≤SOC(t)≤SOC （20） 此，价值网络的损失函数从时间差分误差退化为预
+min max
+测误差，即式（1）变为
+式中，SOC 和SOC 分别为储能系统荷电状态的
+min max
+下限和上限。 L(θq)= 1 ∑ m ⎡rj −Q ( sj,aj;θq)⎤ 2 （24）
+m ⎣ t t t ⎦
+将对储能系统荷电状态的约束转换为罚函数 j=1
+的形式作为其惩罚成本[28]，具体计算式如式（13） 日前调控所用的深度强化学习任务相关设定
+所示。 如下。
+为维持储能系统的持续运行，需保证其在一个 1）状态空间
+
+=== page 6 ===
+1492 电 工 技 术 学 报 2025年3月
+日前调控的目标与配电网的运行状态信息在时 将提取到的空间特征时序矩阵展平后送入全连接网
+间和空间上均具有相关性。一方面，由于配电网中 络，通过训练使智能体学习其时间关系，最终生成
+存在参数缺失或不准确的情况，需要从配电网运行 相应控制动作。在策略网络及价值网络中均采用上
+状态中提取如网损等优化目标的信息；另一方面， 述对状态空间的处理方法，得到日前调控DDPG网络
+日前调控模型是对配电网在整个调控周期内的各 结构如图 3所示。
+项目标进行优化，需要综合配电网在各个时段内的
+状态信息。因此，本文日前调控所用 DDPG 的状态
+空间为
+{ }
+Shour = P(t) （25）
+i i∈[1,nnode ],t∈[1,T]
+式中，P(t)为t时刻第i个节点的净负荷功率；n
+i node
+为配电网中节点数。
+2）动作空间
+日前调控的控制对象为储能系统及柔性负荷，
+故其动作空间为
+{ }
+Ahour = P (t) ,P (t) （26）
+ES t∈[1,T−1] FL,i i∈[1,nFL ],t∈[1,T]
+3）奖励函数
+DDPG 中的策略网络会学习如何最大化奖励， 图3 采用改进特征提取网络的日前调控DDPG网络
+因此，为最小化目标函数，将奖励值设置为负的目 结构
+标函数，即 Fig.3 Structure of DDPG network with improved feature
+extraction network in day-ahead stage
+Rhour =−F （27）
+3 考虑全时段调控效果的日内实时优化
+4）网络结构
+调控模型
+考虑到状态空间中存在多时段多节点数据，其
+变量维数较高，且存在一定程度的信息冗余，因此 3.1 日内实时优化
+需要通过特征提取网络对其进行特征提取。深度学 为弥补日前调控模型中各预测量精度不足的问
+习中常用的特征提取网络有全连接网络和卷积神经 题，及时平抑因风、光能源及负荷产生的联络线功
+网络。其中，全连接网络将相邻两层隐藏层中的所 率波动，在日内根据超短期预测进行实时优化。日
+有神经元全部连接，通过训练使智能体学习输入与 内功率波动示意图如图 4 所示。源荷波动具有一定
+输出之间的非线性映射关系；卷积神经网络类似于 的随机性，其日内实际功率并不均匀分布于日前预
+生物视觉神经结构，常用于识别n×n方形范围内的 测值的两侧。若以联络线功率跟踪日前计划值为目
+特征信息。上述两种特征提取网络的效果已在许多 标进行全额平抑[21]，这种源荷波动导致的联络线功
+领域中得到了验证，但其特征提取方式并未考虑配 率整体偏移将会使储能系统实际运行状态大幅偏离
+电网多时段状态空间中变量的时空关系。 日前计划值，进而影响综合调控的经济性和鲁棒性，
+考虑状态空间中各状态信息的时空耦合特性， 甚至违背相关约束条件。
+将其中各变量以行为节点序号、列为时间的方式进
+行排列，转换为n ×T维的状态矩阵形式。由于如
+node
+网损等受配电网参数不明确影响的优化目标只与当
+前时间截面的配电网状态有关，因此采用n 个
+conv
+n ×1的一维卷积网络对每一时间截面上节点状态
+node
+信息的空间特征进行提取，并保留所提取空间特征 图4 日内功率波动示意图
+的时序关系，得到n ×T维的空间特征时序矩阵。 Fig.4 Schematic diagram of intraday power fluctuation
+conv
+
+=== page 7 ===
+第40卷第5期 李 鹏等 基于深度强化学习的有源配电网多时间尺度源荷储协同优化调控 1493
+通过设计合理反映联络线功率偏离和储能SOC 行线性加权可得
+偏离的奖励函数，可训练智能体以得到综合评价上
+C (t)=λΔSOCdiff (t)+λSOCdiff(t) （32）
+3 31 next 32
+述两者在全调控时段内偏离情况的价值网络，以及
+使得累计偏离最小的动作网络，从而实现日内调控 ΔSOCdiff(t)= SOCdiff.act(t) −SOCdiff.ref(t) （33）
+next next next
+的目标。
+3.2 深度强化学习任务 SOCdiff.act(t)=SOC(t+1) −SOC (t+1)
+在每一个时刻，智能体根据超短期预测计算联 next PES(t)=PE re S f(t)+ΔPES(t) ref
+（34）
+络线功率偏差值及储能荷电状态偏离量，并依此确
+SOCdiff(t)= SOC(t)−SOCref(t) （35）
+定储能系统出力的修正量，这一过程为经典的强化
+学习模型，其相关设定如下。
+式中， SOCdiff(t) 为 t 时刻储能 SOC 偏差量；
+1）状态空间
+SOCdiff.act(t)为 t 时刻储能按照当前调控动作修正出
+next
+在日内调控中，智能体需在跟踪日前计划的同
+力时，其在t+1时刻的 SOC偏差量；ΔSOCdiff (t)体
+next
+时，平抑源荷产生的不确定性功率波动，因此，本
+现了当前调控动作对储能 SOC 的修正效果；λ 和
+31
+文日内调控所用 DDPG的状态空间为
+λ 为权重系数。
+32
+{ } 另外，可通过调控前后联络线功率偏离的差
+Smin = t,Pdiff.pre(t) ,SOCdiff.ref(t) （28）
+t i i∈[1,nnode ] next
+值[39]评价当前时刻动作平抑功率波动的效果。
+P i diff.pre(t)=P i pre(t)−P i ref(t) （29） C (t)= Pdiff.act(t) − Pdiff.pre(t) （36）
+4 grid grid
+SOCdiff.ref(t)=SOC(t+1) −SOCref(t+1)（30）
+next PES(t)=PE re S f(t) P g d ri i d ff.act(t)=P g a r c id t(t)−P g r r e id f(t) （37）
+式中，Pdiff.pre(t)为 t 时刻第 i 个节点短期预测功率
+i Pdiff.pre(t)=Ppre(t)−Pref(t) （38）
+Ppre(t)与日前预测功率Pref(t)的差值；SOCdiff.ref(t)为 grid grid grid
+i i next
+t 时刻储能按照日前计划出力时，其在 t +1 时刻的 式中，Pdiff.act(t)和Pdiff.pre(t)分别为 t时刻联络线上调
+grid grid
+SOC偏差量；SOC(t+1) 为储能在t时刻SOC 控后功率与日前预测功率的差值和短期预测功率与
+PES(t)=PE r S ef(t) 日前预测功率的差值；Pact(t)、Ppre(t)和Pref(t)分别
+的基础上按照日前计划出力后在 t +1时刻的 SOC； grid grid grid
+为 t 时刻对储能功率进行修正后的联络线功率、联
+Pref(t)为 t 时刻储能的日前计划出力；SOCref(t+1)
+ES 络线短期预测功率和联络线日前预测功率。
+为储能在 t +1时刻的 SOC日前计划值。
+对C (t)和C (t)进行线性加权并取反，最终构建
+2）动作空间 3 4
+奖励函数为
+智能体在日前计划值的基础上对储能功率进行
+修正，其动作空间为 Rmin =−[λC (t)+λC (t)] （39）
+t 3 3 4 4
+Amin ={ΔP (t)} （31） 式中，λ和λ分别为两目标的权重系数。
+t ES 3 4
+4）网络结构
+式中，ΔP (t)为对储能功率的修正量。 由于日内DDPG的状态空间和动作空间均较为
+ES
+3）奖励函数 简单，故采取全连接网络作为其策略网络和价值网
+为降低联络线功率波动、减小储能系统荷电状 络，具体参数见后文 4.2节。
+态与日前计划的偏差，实现日内调控目标，需设计
+4 算例
+能够合理评价智能体动作合理性的奖励函数，其主
+要由跟踪日前计划和平抑功率波动两部分组成。 4.1 算例系统介绍
+智能体动作跟踪日前计划的效果可由两方面体 本文仿真计算基于 Python 3.9 环境下的
+现：一方面为对储能 SOC的修正量，反映当前时刻 TensorFlow 2.10平台和 Keras 2.10框架，硬件配置
+该动作的直接效果；另一方面为储能 SOC 的偏差 为AMD Ryzen 5 5600H处理器和NVIDIA GTX 1650
+量，反映历史动作的累积控制效果。对上述两者进 计算卡。
+
+=== page 8 ===
+1494 电 工 技 术 学 报 2025年3月
+针对上述有源配电网多目标优化调控方法，
+本文采用 IEEE 33 节点拓展系统进行仿真验证。
+该配电网电压基准值为 12.66 kV，其结构如图 5
+所示。
+图5 修改后的IEEE 33算例系统 图7 日内功率波动
+Fig.5 Modified IEEE 33-bus distribution network Fig.7 Power fluctuation in intraday stage
+在保持原有线路参数不变的基础上，在节点 18 为日内某天 min级尺度的源荷随机波动情况，以及
+接入容量为 1 MW的风电场；在节点 33、21分别接 其导致的联络线功率波动情况。
+入容量为 0.6、0.3 MW的光伏机组；在节点 7、17、 4.2 算法收敛情况及方法对比
+32分别接入最大功率为 0.4、0.2、0.2 MW，容量为 深度强化学习算法的效果与其网络参数相关，
+1.2、0.6、0.6 MW·h 的储能装置；接入负荷总有功 本文所用网络结构和超参数见表 2。对于本文仿真
+容量为 2 MW，其分布保持原有参数不变；此外， 算例，为平衡所提取空间特征的质量和降维效果，
+每个节点均存在分布时段和可调度时段不同的两类
+日前调控特征提取网络中卷积网络数量n = 8。
+conv
+柔性负荷，其分布与负荷分布相同，参数见表 1[40]。
+表2 网络结构及超参数
+相关电源及负荷均视为恒功率因数。优化调控成本
+Tab.2 Structure and parameters of network
+和储能系统等参数[11,36]见附表 1、附表 2。
+日前 日内
+表1 柔性负荷参数 参数
+策略网络 价值网络 策略网络 价值网络
+Tab.1 Parameters of flexible load
+学习率 0.001 0.002 0.001 0.002
+原负荷时段/h 功率分布/MW 可调度时段/h
+软更新系数 0.005 0.005 0.005 0.005
+16, 17, 18 0.1, 0.2, 0.1 10～20
+全连接网络层数 3 3 3 3
+18, 19, 20 0.1, 0.2, 0.1 12～23
+采用蒙特卡洛法构造配电网 500 天运行数据集 每层神经元数 512 512 32 64
+[12]，针对典型日内负荷曲线、风电出力曲线和光伏出 回放池容量 1 000 10 000
+力曲线，假设其预测误差均服从正态分布，以1 h和 批训练样本条数 128 256
+5 min 为时间尺度添加噪声，以模拟较长时间尺度下 探索代数 300 5 740
+的功率预测误差和短时功率波动，并按照8:2的比例 总迭代数 3 000 28 700
+将上述数据集划分为训练集和测试集。图 6 为源荷 通过训练过程中智能体获得奖励值的变化以评
+日前 h级尺度的不确定范围及某天实际情况；图 7 估深度强化学习算法的训练效果。其中，日运行成
+本系数λ和联络线功率平滑度系数λ的比例、储能
+1 2
+日前计划跟踪系数λ和功率波动平抑系数λ的比
+3 4
+例分别控制日前和日内调控中对不同优化目标的偏
+向，在运行过程中可根据实际需求选取；储能 SOC
+修正系数λ 和储能SOC偏差系数λ 的比例主要影
+31 32
+响智能体对储能 SOC 偏离的容忍程度，过大的λ
+32
+会使智能体对储能功率的再调控过于保守，最终选
+取的各多目标权重系数见附表 3。为排除随机性干
+扰，使用不同的随机数种子重复进行十次实验，得
+图6 日前不确定范围 到日前和日内阶段收敛情况分别如图 8 和图 9 所
+Fig.6 Uncertain scope in day-ahead stage 示，其中浅色部分为十次训练的奖励值波动范围，
+
+=== page 9 ===
+第40卷第5期 李 鹏等 基于深度强化学习的有源配电网多时间尺度源荷储协同优化调控 1495
+深色线条为平均奖励值曲线。训练过程中奖励值在
+一定区间内波动，并逐渐收敛至某一数值附近，可
+见在经过设定迭代次数的训练后，日前和日内智能
+体均能有效收敛。由于环境状态存在的不确定性，
+其奖励值也在一定范围内波动。
+图10 不同特征提取网络收敛情况对比
+Fig.10 Comparison of convergence of different feature
+extraction networks
+为验证本文方法优化调控效果和本文所提特征
+提取网络的有效性和优越性，将本文方法与其他方
+图8 日前阶段收敛情况
+法进行对比。其中，方法 1 通过场景法考虑源荷不
+Fig.8 Convergence case in day-ahead stage
+确定性，并采用遗传算法进行求解；方法2采用n×n
+卷积网络作为特征提取网络，其余部分与本文方法
+相同。在十次重复实验内，方法 1 包括场景生成、
+缩减、求解在内的平均计算时间为 273 min，方法 2
+及本文方法训练时间分别为 93 min 及 91 min，生成
+策略耗时均在 0.1 s以内，因此本文使用的人工智能
+方法在计算速度方面更具优势。十次重复实验在测
+试集上的优化结果平均值如图 11所示，其中方法 1
+优化结果整体偏高，且分布较为离散，说明其优化
+图9 日内阶段收敛情况
+效果具有一定的随机性；方法 2优化效果整体较好，
+Fig.9 Convergence case in intraday stage
+但仍有部分实验结果较差；而本文方法优化效果最
+为验证本文所提特征提取网络的有效性，将直 好，且不同独立实验的优化结果更为接近，具有较
+接采用全连接网络[41]和采用n×n卷积网络[12]作为 好的稳定性。
+特征提取网络的网络结构与本文所提网络结构进行
+对比，其收敛情况如对比图 10所示。直接采用全连
+接网络时，由于配电网状态矩阵中存在较多的信息
+冗余，网络拟合效果较差，导致智能体不能较好地
+学习数据特征，其收敛曲线存在一定的振荡现象，
+优化效果也较差；采用n×n卷积网络作为特征提取
+网络时，配电网状态矩阵中的信息能在一定程度上
+被提取出来，但该网络结构并未针对多阶段状态空
+间中变量的时空关系进行相应改进，因此其收敛情 图11 日前重复实验结果对比
+况和优化效果虽较采用全连接网络时有所提高，但 Fig.11 Comparison of repeated experimental results in
+每次实验的收敛曲线仍有较大差异，说明其优化效 day-ahead stage
+果具有一定的随机性，且总体优化效果仍不及本文 为验证本文方法在不确定环境下优化调控效果
+方法；采用本文方法时，收敛曲线快速接近最终迭 的有效性和优越性，计算测试集数据中本文方法、
+代值，且独立实验之间最终的优化值差异更小，优 方法 1 和方法 3 调控方案的优化目标值，其中方法
+化效果更好且更稳定。因此，本文所提特征提取网 3 未考虑源荷不确定性，直接通过遗传算法对日前
+络可以有效地提高算法的收敛性和收敛效果。 确定性优化模型进行求解。三种方法的优化结果如
+
+=== page 10 ===
+1496 电 工 技 术 学 报 2025年3月
+图 12 所示。由图 12可见，方法 3 优化值分布不规
+则，部分优化值分布于某一数值附近，且分布较为
+离散，说明其优化效果受源荷功率不确定性影响较
+大；方法 1 通过场景法考虑源荷不确定性，针对整
+体调控效果进行优化，使优化值分布更为集中，但
+仍呈现多个集中点叠加的分布规律，说明通过场景
+缩减技术得到的典型场景所表征的源荷不确定性可
+能与其实际概率分布仍有差异；而本文方法所得优
+化值分布与方法 1 相似，但分布更为集中，说明通
+图13 日内重复实验结果对比
+过数据驱动的深度强化学习方法可以使智能体有效
+Fig.13 Comparison of repeated experimental results in
+学习数据集中的源荷不确定性，在面对复杂不确定
+intraday stage
+场景时将更具优势。
+导致最终的优化结果在一定范围内变化。
+4.3 仿真结果分析
+为验证本文方法多目标优化的通用性，以日前
+调度为例，取不同权重因子并进行训练后，从测试
+集中随机选取一天数据计算各优化目标值，得到调
+控前及不同权重因子下各优化目标值见表 3。可见
+日前调控后综合运行成本有所增加，其主要成本仍
+为购电成本，但储能调控成本占比提高较多，这主
+要是因为储能设备单位调控成本目前仍在较高水
+图12 日前不确定性影响对比 平。当λ取值增加时，联络线功率均方差逐渐减小，
+2
+Fig.12 Comparison of impacts of uncertainty in 表明调峰效果变好，此时储能调控成本有所增加，
+day-ahead stage 导致综合运行成本增加；而柔性负荷调控成本并无
+明显变化趋势，说明当前调控成本下通过柔性负荷
+在日前调控结果的基础上，日内以 min 级尺度
+进行调峰具有较好的性价比。日前调控通过合理调
+对储能功率进行实时修正以实现对功率波动的平
+整全天配电网潮流以降低网络损耗，当权重因子λ
+抑。为验证本文方法全时段调控效果的有效性和优 1
+和λ分别取 0.3 和 0.7 时，有功网损成本降低了
+越性，将本文方法与其他方法进行对比。其中，方 2
+法 4 为全额平抑，即利用储能系统将有源配电网中
+37.97%，联络线功率均方差降低了 62.57%。
+的源荷波动功率全部平抑；方法 5 为单步优化，在 表3 日前调控优化目标值
+每个调度时段内以本文奖励函数最大为目标并采用 Tab.3 Target value of day-ahead scheduling
+粒子群算法进行优化。十次重复实验在测试集上的 调控后(λ,λ)
+1 2
+优化目标 调控前
+优化结果如图 13 所示，图中虚线为方法 4 在一天 (0.5,0.5) (0.4,0.6) (0.3,0.7)
+之中获得的累计奖励值。由图 13可知，方法 5在每 购电成本/元 2 687.63 2 614.17 2 653.60 2 697.21
+一调控时段内对平抑波动功率和跟踪储能日前计划 有功网损成本/元 417.71 327.51 275.74 259.12
+的优化目标进行了统筹考虑，从而在一定程度上提 储能损耗成本/元 6.15 25.99 83.85 114.45
+高了奖励值，而本文方法在此基础上考虑了当前时 储能调控成本/元 5.43 325.17 1 251.46 1 629.11
+段调控指令对全时段内整体优化效果的影响，从而 柔性负荷调控成本/元 0 235.66 287.83 273.18
+大幅提高了累计奖励值。本文方法累计奖励值分布 综合运行成本/元 3 116.92 3 528.50 4 552.48 4 973.07
+较方法 5 更为分散的原因主要在于：方法 5 仅对当 联络线功率均方差/MW2 7.08 5.08 3.14 2.65
+前调控时段进行优化，其解空间较为简单，对整体 多目标优化值 1 0.924 8 0.806 0 0.740 7
+优化效果的影响也较小；而本文方法关注全时段整 日前调控前后联络线功率如图 14 所示，可见
+体优化效果，因此解空间更为复杂，受训练过程中 在 0～6 h 时，配电网向上级电网倒送功率有所降
+不确定环境影响，得到的智能体参数存在一定差异， 低，这是因为储能系统在此时处于充电状态，吸收
+
+=== page 11 ===
+第40卷第5期 李 鹏等 基于深度强化学习的有源配电网多时间尺度源荷储协同优化调控 1497
+了风机的大部分出力；在 16～22 h 时，配电网的 离值始终维持在一定范围内，并且大幅降低了储能
+负荷高峰得到了有效削减，此时储能和柔性负荷共 SOC初末状态偏差。为及时平抑源荷造成的随机波
+同作用，减小了配电网的需求功率。其中在柔性负 动，部分时段储能功率出现频繁过零的现象，这一
+荷可调度时段的限制下，智能体将原本分布在16～ 调控指令可由一定策略分配至不同的储能系统及单
+20 h 的部分柔性负荷重新分配至 10～15 h 和 22～ 元组[42]，本文暂不对其进行讨论。
+23 h 以实现削峰填谷。通过日前调控，配电网总体
+功率波动得到了有效平抑，其对上级电网造成的调
+峰压力也随之减小。在实际运行中，可根据配电网
+及上级电网的要求合理调整各目标权重以实现多
+目标最优。
+图15 日内联络线功率调控结果
+Fig.15 Results of tie-line power in intraday stage
+图14 日前调控结果
+Fig.14 Results of day-ahead scheduling
+图 15 为方法 4 全额平抑、方法 5 单步优化和
+本文方法日内调控前后的联络线功率。图 16为三种
+方法的储能日前计划出力、日内实际出力、日前参
+考 SOC和日内实际 SOC结果。由图 16可见，在大
+部分时段内，本文方法和方法 5 对储能系统功率的
+调控方案与方法 4 基本相同，说明两者均对功率波
+动进行了有效平抑。在功率波动较大时，本文方法
+和方法 5 均减小了对联络线功率波动的平抑程度， 图16 日内储能实际运行结果
+以避免对储能系统 SOC造成较大影响。本文方法和 Fig.16 Actual operation of energy storage in
+对比方法的区别主要体现在 6～7 h和 19～21 h。其 intraday stage
+中，在 6～7 h时，联络线功率实际值与日前预测存 三种方法的日内调控指标对比见表 4，其中，
+在偏差，因此方法 4 和方法 5 通过调控储能系统使 调控前指储能系统完全按照日前计划运行，其储能
+联络线功率维持日前计划值，而导致储能系统 SOC SOC 实际偏差为 0，功率波动即为源荷功率在联络
+发生了偏离；本文方法考虑了当前时段调控命令对 线上的实际波动；方法 4 对联络线功率波动进行了
+后续时段的影响，主动减小了对联络线功率的跟踪， 全额平抑，因此储能系统 SOC 产生了较大的偏差，
+减小了储能 SOC的偏离，从而保留了一定的调控能 从而降低了累积奖励值；方法 5 在每一时间截面上
+力。在 19～21 h时，联络线功率也产生了较大偏差， 进行单步优化，在功率波动平抑和储能跟踪日前计
+本文方法和方法 5 均在平抑功率波动和跟踪储能日 划之间进行了一定取舍，从而提高了奖励值；本文
+前计划之间做出了一定取舍，但方法 5 针对单一时 方法则不仅权衡了两目标的优化效果，还考虑了当
+段进行优化，未能对储能 SOC 偏离值进行主动修 前时段动作对未来的影响，从而提高了整个调控时
+正，因此储能 SOC仍有较大偏离，且调控结束时储 段内的累积奖励值。在实际运行中，可根据配电网
+能 SOC较初始值有一定的偏差；而本文方法通过考 及储能的要求合理选择各目标权重以实现综合优
+虑全时段的优化效果，使得调控时段内储能 SOC偏 化调控。
+
+=== page 12 ===
+1498 电 工 技 术 学 报 2025年3月
+表4 不同方法日内调控指标对比 附表2 储能系统参数
+Tab.4 Comparison of intra-day scheduling indicators App.Tab.2 Parameters of energy storage systems
+using different methods 参 数 数 值
+调控指标 调控前 方法4 方法5 本文方法 充电效率η 0.95
+cha
+累计功率偏差/MW 2.48 0 0.39 0.75 放电效率η dis 0.95
+累计SOC偏差 0 1.47 1.02 0.39
+自放电率η
+d
+s
+i
+e
+s
+lf /h-1 0.000 5
+初始SOC 0.3
+累计奖励值 0 63.62 65.53 72.97
+SOC下限SOC 0.1
+min
+5 结论 SOC上限SOC 0.9
+max
+附表3 多目标权重系数
+本文考虑源荷在多时间尺度上的不确定性，提
+App.Tab.3 Multi objective weight coefficient
+出了一种基于深度强化学习的有源配电网源荷储多
+权重系数 数 值
+时间尺度优化调控策略，并通过算例验证了该方法
+日运行成本系数λ 0.3
+1
+的有效性和优越性，主要结论如下：
+联络线功率平滑度系数λ 0.7
+2
+1）采用基于数据驱动的深度强化学习方法，不
+储能SOC修正系数λ 0.3
+31
+依赖于概率分布假设，可自主学习数据集中不确定
+储能SOC偏差系数λ 0.7
+32
+量的概率信息；根据多时段状态空间变量时空耦合
+储能日前计划跟踪系数λ 30
+3
+特性设计的特征提取网络可以有效地提高深度学习
+功率波动平抑系数λ 10
+4
+方法的优化效果和收敛性。
+参考文献
+2）日前调控以 1 h为时间尺度，在不假设源荷
+不确定量概率分布的情况下，实现了配电网日运行
+[1] 张智刚, 康重庆. 碳中和目标下构建新型电力系统
+成本最低和联络线功率最平滑的多目标优化，当权
+的挑战与展望[J]. 中国电机工程学报, 2022, 42(8):
+重因子取一定值时，有功网损成本降低了 37.97%，
+2806-2819.
+联络线功率均方差降低了 62.57%。 Zhang Zhigang, Kang Chongqing. Challenges and
+3）日内调控以 5 min为时间尺度，以短期预测 prospects for constructing the new-type power system
+为基础，储能功率修正量为控制对象，考虑源荷实 towards a carbon neutrality future[J]. Proceedings of
+际功率与日前预测功率的持续偏移问题，在跟踪日 the CSEE, 2022, 42(8): 2806-2819.
+前计划的基础上实现了对风、光能源及负荷功率波 [2] 辛保安, 单葆国, 李琼慧, 等. “双碳” 目标下 “能
+动的实时平抑。 源三要素” 再思考[J]. 中国电机工程学报, 2022,
+后续工作将考虑电网在不同时间尺度上的其他 42(9): 3117-3126.
+调控需求，以及不同种类新型储能对调控策略的具 Xin Baoan, Shan Baoguo, Li Qionghui, et al.
+体影响，以完善本文所提方法。 Rethinking of the “three elements of energy” toward
+carbon peak and carbon neutrality[J]. Proceedings of
+附 录
+the CSEE, 2022, 42(9): 3117-3126.
+附表1 优化调控成本参数 [3] Boicea V A. Energy storage technologies: the past and
+App.Tab.1 Cost parameters of optimal scheduling the present[J]. Proceedings of the IEEE, 2014,
+102(11): 1777-1794.
+参 数 数 值
+[4] 王珂, 姚建国, 姚良忠, 等. 电力柔性负荷调度研
+单位电价λ /[元/(kW·h)] 0.36
+grid
+究综述[J]. 电力系统自动化, 2014, 38(20): 127-135.
+损耗成本系数λ /[元/(kW·h)] 0.68
+loss
+Wang Ke, Yao Jianguo, Yao Liangzhong, et al. Survey
+储能调控成本系数λ /[元/(kW·h)] 0.6
+ES
+of research on flexible loads scheduling technologies
+柔性负荷调控成本系数λ /[元/(kW·h)] 0.4
+FL
+[J]. Automation of Electric Power Systems, 2014,
+储能SOC约束惩罚系数φSOC,φSOC/元 1 000
+1 2 38(20): 127-135.
+线路功率约束惩罚系数φline,φline/(元/kW) 10
+1 2 [5] Gill S, Kockar I, Ault G W. Dynamic optimal power
+
+=== page 13 ===
+第40卷第5期 李 鹏等 基于深度强化学习的有源配电网多时间尺度源荷储协同优化调控 1499
+flow for active distribution networks[J]. IEEE 机工程学报, 2023, 43(16): 6255-6266.
+Transactions on Power Systems, 2014, 29(1): 121-131. Li Peng, Jiang Lei, Wang Jiahao, et al. Optimization
+[6] 尤毅, 刘东, 钟清, 等. 主动配电网优化调度策略 of dual-time scale reactive voltage for distribution
+研究[J]. 电力系统自动化, 2014, 38(9): 177-183. network with renewable energy based on deep
+You Yi, Liu Dong, Zhong Qing, et al. Research on reinforcement learning[J]. Proceedings of the CSEE,
+optimal schedule strategy for active distribution 2023, 43(16): 6255-6266.
+network[J]. Automation of Electric Power Systems, [13] Li Yunyi, Wan Can, Chen Dawei, et al. Nonparametric
+2014, 38(9): 177-183. probabilistic optimal power flow[J]. IEEE Transactions
+[7] Chen Xiaoshuang, Lin Jin, Liu Feng, et al. Optimal on Power Systems, 2022, 37(4): 2758-2770.
+control of DERs in ADN under spatial and temporal [14] 王骞, 张学广, 徐殿国. 考虑内–外生双重不确定
+correlated uncertainties[J]. IEEE Transactions on 性的风储系统联合规划方法[J]. 中国电机工程学
+Smart Grid, 2020, 11(2): 1216-1228. 报, 2023, 43(1): 169-181.
+[8] 金国彬, 潘狄, 陈庆, 等. 考虑源荷不确定性的直 Wang Qian, Zhang Xueguang, Xu Dianguo. A joint
+流配电网模糊随机日前优化调度[J]. 电工技术学 planning method of wind-storage system considering
+报, 2021, 36(21): 4517-4528. endogenous and exogenous uncertainty[J]. Proceedings
+Jin Guobin, Pan Di, Chen Qing, et al. Fuzzy random of the CSEE, 2023, 43(1): 169-181.
+day-ahead optimal dispatch of DC distribution [15] Lopez-Ramos L M, Kekatos V, Marques A G, et al.
+network considering the uncertainty of source-load[J]. Two-timescale stochastic dispatch of smart
+Transactions of China Electrotechnical Society, 2021, distribution grids[J]. IEEE Transactions on Smart
+36(21): 4517-4528. Grid, 2018, 9(5): 4282-4292.
+[9] 徐崇博, 杨晓东, 张有兵, 等. 考虑风险管控的含 [16] Li Peng, Wang Zixuan, Wang Jiahao, et al. A multi-
+智能软开关主动配电网随机运行优化方法[J]. 电 time-space scale optimal operation strategy for a
+力系统自动化, 2021, 45(11): 68-76. distributed integrated energy system[J]. Applied
+Xu Chongbo, Yang Xiaodong, Zhang Youbing, et al. Energy, 2021, 289: 116698.
+Stochastic operation optimization method for active [17] 陈明昊, 孙毅, 谢志远. 基于双层深度强化学习的
+distribution networks with soft open point considering 园区综合能源系统多时间尺度优化管理[J]. 电工
+risk management and control[J]. Automation of 技术学报, 2023, 38(7): 1864-1881.
+Electric Power Systems, 2021, 45(11): 68-76. Chen Minghao, Sun Yi, Xie Zhiyuan. The multi-time-
+[10] 李鹏, 王加浩, 黎灿兵, 等. 计及源荷不确定性与设 scale management optimization method for park
+备变工况特性的园区综合能源系统协同优化运行方 integrated energy system based on the Bi-layer deep
+法[J]. 中国电机工程学报, 2023, 43(20): 7802-7812. reinforcement learning[J]. Transactions of China
+Li Peng, Wang Jiahao, Li Canbing, et al. Collaborative Electrotechnical Society, 2023, 38(7): 1864-1881.
+optimal scheduling of the community integrated [18] 李勇, 凌锋, 乔学博, 等. 基于网侧资源协调的自
+energy system considering source-load uncertainty and 储能柔性互联配电系统日前-日内优化[J]. 电工技
+equipment off-design performance[J]. Proceedings of 术学报, 2024, 39(3): 758-773, 923.
+the CSEE, 2023, 43(20): 7802-7812. Li Yong, Ling Feng, Qiao Xuebo, et al. Day-ahead and
+[11] 梁俊文, 林舜江, 刘明波, 等. 主动配电网分布式鲁 intra-day optimization of flexible interconnected
+棒优化调度方法[J]. 电网技术, 2019, 43(4): 1336-1344. distribution system with self-energy storage based on
+Liang Junwen, Lin Shunjiang, Liu Mingbo, et al. the grid-side resource coordination[J]. Transactions of
+Distributed robust optimal dispatch in active China Electrotechnical Society, 2024, 39(3): 758-773, 923.
+distribution networks[J]. Power System Technology, [19] Kalantar-Neyestanaki M, Cherkaoui R. Coordinating
+2019, 43(4): 1336-1344. distributed energy resources and utility-scale battery
+[12] 李鹏, 姜磊, 王加浩, 等. 基于深度强化学习的新 energy storage system for power flexibility provision
+能源配电网双时间尺度无功电压优化[J]. 中国电 under uncertainty[J]. IEEE Transactions on Sustainable
+
+=== page 14 ===
+1500 电 工 技 术 学 报 2025年3月
+Energy, 2021, 12(4): 1853-1863. 42(21): 7667-7682.
+[20] Zhu Jianquan, Chen Jiajun, Zhuo Yelin, et al. [27] 汤涌, 姚伟, 王宏志, 等. 电网仿真分析与决策的
+Stochastic energy management of active distribution 人工智能方法[J]. 中国电机工程学报, 2022, 42(15):
+network based on improved approximate dynamic 5384-5406.
+programming[J]. IEEE Transactions on Smart Grid, Tang Yong, Yao Wei, Wang Hongzhi, et al. Artificial
+2022, 13(1): 406-416. intelligence techniques for power grid simulation
+[21] Wang Kang, Wang Chengfu, Zhang Zhenwei, et al. analysis and decision making[J]. Proceedings of the
+Multi-timescale active distribution network optimal CSEE, 2022, 42(15): 5384-5406.
+dispatching based on SMPC[J]. IEEE Transactions on [28] 李涛, 胡维昊, 李坚, 等. 基于深度强化学习算法
+Industry Applications, 2022, 58(2): 1644-1653. 的光伏-抽蓄互补系统智能调度[J]. 电工技术学报,
+[22] Kamruzzaman M, Duan Jiajun, Shi Di, et al. A deep 2020, 35(13): 2757-2768.
+reinforcement learning-based multi-agent framework Li Tao, Hu Weihao, Li Jian, et al. Intelligent economic
+to enhance power system resilience using shunt dispatch for PV-PHS integrated system: a deep
+resources[J]. IEEE Transactions on Power Systems, reinforcement learning-based approach[J]. Transactions
+2021, 36(6): 5525-5536. of China Electrotechnical Society, 2020, 35(13):
+[23] 顾雪平, 刘彤, 李少岩, 等. 基于改进双延迟深度 2757-2768.
+确定性策略梯度算法的电网有功安全校正控制[J]. [29] 张剑, 崔明建, 何怡刚. 结合数据驱动与物理模型
+电工技术学报, 2023, 38(8): 2162-2177. 的主动配电网双时间尺度电压协调优化控制[J].
+Gu Xueping, Liu Tong, Li Shaoyan, et al. Active 电工技术学报, 2024, 39(5): 1327-1339.
+power correction control of power grid based on Zhang Jian, Cui Mingjian, He Yigang. Dual timescales
+improved twin delayed deep deterministic policy coordinated and optimal voltages control in
+gradient algorithm[J]. Transactions of China distribution systems using data-driven and physical
+Electrotechnical Society, 2023, 38(8): 2162-2177. optimization[J]. Transactions of China Electrotechnical
+[24] 董雷, 杨子民, 乔骥, 等. 基于分层约束强化学习 Society, 2024, 39(5): 1327-1339.
+的综合能源多微网系统优化调度[J]. 电工技术学 [30] 张自东, 邱才明, 张东霞, 等. 基于深度强化学习
+报, 2024, 39(5): 1436-1453. 的微电网复合储能 协调控制方法[J]. 电网技术,
+Dong Lei, Yang Zimin, Qiao Ji, et al. Optimal 2019, 43(6): 1914-1921.
+scheduling of integrated energy multi-microgrid Zhang Zidong, Qiu Caiming, Zhang Dongxia, et al. A
+system based on hierarchical constraint reinforcement coordinated control method for hybrid energy storage
+learning[J]. Transactions of China Electrotechnical system in microgrid based on deep reinforcement
+Society, 2024, 39(5): 1436-1453. learning[J]. Power System Technology, 2019, 43(6):
+[25] 胡维昊, 曹迪, 黄琦, 等. 深度强化学习在配电网 1914-1921.
+优化运行中的应用[J]. 电力系统自动化, 2023, [31] Huang Shiying, Li Peng, Yang Ming, et al. A control
+47(14): 174-191. strategy based on deep reinforcement learning under
+Hu Weihao, Cao Di, Huang Qi, et al. Application of the combined wind-solar storage system[J]. IEEE
+deep reinforcement learning in optimal operation of Transactions on Industry Applications, 2021, 57(6):
+distribution network[J]. Automation of Electric Power 6547-6558.
+Systems, 2023, 47(14): 174-191. [32] Yang Qiuling, Wang Gang, Sadeghi A, et al. Two-
+[26] 王继业. 人工智能赋能源网荷储协同互动的应用及 timescale voltage control in distribution grids using
+展望[J]. 中国电机工程学报, 2022, 42(21): 7667- deep reinforcement learning[J]. IEEE Transactions on
+7682. Smart Grid, 2020, 11(3): 2313-2323.
+Wang Jiye. Application and prospect of Source-grid- [33] Wu Hongyu, Shahidehpour M, Alabdulwahab A, et al.
+load-storage coordination enabled by artificial Demand response exchange in the stochastic day-
+intelligence[J]. Proceedings of the CSEE, 2022, ahead scheduling with variable renewable generation
+
+=== page 15 ===
+第40卷第5期 李 鹏等 基于深度强化学习的有源配电网多时间尺度源荷储协同优化调控 1501
+[J]. IEEE Transactions on Sustainable Energy, 2015, Multi-timescale active distribution network scheduling
+6(2): 516-525. considering demand response and user comprehensive
+[34] 刘全, 翟建伟, 章宗长, 等. 深度强化学习综述[J]. satisfaction[J]. IEEE Transactions on Industry
+计算机学报, 2018, 41(1): 1-27. Applications, 2021, 57(3): 1995-2005.
+Liu Quan, Zhai Jianwei, Zhang Zongchang, et al. A [40] 刘俊峰, 罗燕, 侯媛媛, 等. 考虑广义储能的微电
+survey on deep reinforcement learning[J]. Chinese 网主动能量管理优化算法研究[J]. 电网技术, 2023,
+Journal of Computers, 2018, 41(1): 1-27. 47(1): 245-255.
+[35] 董雷, 陈卉, 蒲天骄, 等. 基于模型预测控制的主 Liu Junfeng, Luo Yan, Hou Yuanyuan, et al. Research
+动配电网多时间尺度动态优化调度[J]. 中国电机 on optimization algorithm of active microgrid energy
+工程学报, 2016, 36(17): 4609-4617. management considering generalized energy storage[J].
+Dong Lei, Chen Hui, Pu Tianjiao, et al. Multi-time Power System Technology, 2023, 47(1): 245-255.
+scale dynamic optimal dispatch in active distribution [41] 王珂, 姚建国, 余佩遥, 等. 基于深度强化学习的
+network based on model predictive control[J]. 电网前瞻调度智能决策架构及关键技术初探[J].
+Proceedings of the CSEE, 2016, 36(17): 4609-4617. 中国电机工程学报, 2022, 42(15): 5430-5439.
+[36] 姜云鹏, 任洲洋, 李秋燕, 等. 考虑多灵活性资源 Wang Ke, Yao Jianguo, Yu Peiyao, et al. Architecture
+协调调度的配电网新能源消纳策略[J]. 电工技术 and key technologies of intelligent decision-making of
+学报, 2022, 37(7): 1820-1835. power grid look-ahead dispatch based on deep
+Jiang Yunpeng, Ren Zhouyang, Li Qiuyan, et al. An reinforcement learning[J]. Proceedings of the CSEE,
+accommodation strategy for renewable energy in 2022, 42(15): 5430-5439.
+distribution network considering coordinated dispatching [42] 李相俊, 马锐. 考虑电池组健康状态的储能系统能
+of multi-flexible resources[J]. Transactions of China 量管理方法[J]. 电网技术, 2020, 44(11): 4210-4217.
+Electrotechnical Society, 2022, 37(7): 1820-1835. Li Xiangjun, Ma Rui. Energy management method of
+[37] Li Peng, Wang Zixuan, Liu Haitao, et al. Bi-level energy storage system considering the SOH of battery
+optimal configuration strategy of community pack[J]. Power System Technology, 2020, 44(11):
+integrated energy system with coordinated planning 4210-4217.
+and operation[J]. Energy, 2021, 236: 121539.
+[38] 朱兰, 周雪莹, 唐陇军, 等. 计及可中断负荷的微 作者简介
+电网多目标优化运行[J]. 电网技术, 2017, 41(6): 李 鹏 男，1965年生，教授，博士生导师，研究方向为新能源电
+1847-1854. 力系统、综合能源系统与微网、储能技术应用、人工智能在智慧能
+Zhu Lan, Zhou Xueying, Tang Longjun, et al. Multi- 源中的应用等。
+objective optimal operation for microgrid considering E-mail：ncepulp@ncepu.edu.cn
+interruptible loads[J]. Power System Technology, 钟瀚明 男，1999年生，硕士研究生，研究方向为人工智能在电网
+2017, 41(6): 1847-1854. 优化运行方面的应用。
+[39] Sheng Hongzhang, Wang Chengfu, Li Bowen, et al. E-mail：ncepuzhm@ncepu.edu.cn（通信作者）
+Multi-Timescale Optimal Dispatch of Source-Load-Storage Coordination in
+Active Distribution Network Based on Deep Reinforcement Learning
+Li Peng1 Zhong Hanming1 Ma Hongwei2 Li Jianfeng3 Liu Yang4 Wang Jiahao1
+（1. School of Electrical and Electronic Engineering North China Electric Power University
+Baoding 071003 China
+2. Hebei Xiong’an XJ Electric Power Integrated Energy Technology Co. Ltd Xiong’an 071600 China
+3. China Electric Power Research Institute Beijing 100192 China
+4. XJ Group Corporation Zhengzhou 450040 China）
+Abstract The stochastic, volatile, and uncontrollable nature of renewable energy generation such as wind
+
+=== page 16 ===
+1502 电 工 技 术 学 报 2025年3月
+and solar leads to increased uncertainty and difficulty in regulation with the expansion of installed capacity.
+Consequently, the safe, economical, and stable operation of distribution networks faces formidable challenges. The
+data-driven artificial intelligence method has the characteristics of model-free and self-adaptation. It can
+independently learn the complex uncertainty of wind and solar energy and load, and has a good supporting role for
+the optimal regulation of active distribution network. Consider the problem of high dimensional variable
+information redundancy in day-ahead scheduling and the dilemma of stabilizing fluctuating power and tracking
+day ahead scheduling in intraday scheduling, this paper proposes a multi-timescale intelligent optimal regulation
+method for active distribution network based on deep reinforcement learning algorithm.
+Firstly, a multi time scale framework for active distribution networks (AND) was constructed based on the
+operational characteristics and regulatory requirements of the equipment, and the corresponding state inputs and
+action outputs of deep reinforcement learning (DRL) agents at different time scales were described. In the day-
+ahead stage, this paper takes the lowest daily operation cost of ADN and the smoothest tie line power as the
+optimization objective. In order to reduce the influence of high-dimensional variable information redundancy in
+the day ahead state space on the optimization effect, an improved feature extraction method considering the spatio-
+temporal coupling characteristics of the day-ahead state information is proposed. In the intraday stage, considering
+the full absorption of uncertain power will cause deviations from the pre-scheduled operating status of controllable
+equipment as energy storage system (ESS), this paper designs a reward function that reasonably reflects the tie
+line power deviation and state of charge (SOC) deviation of ESS, and realizes the optimization in the whole
+scheduling period through the deep reinforcement learning method.
+Simulation results show that agents on both time scales can converge effectively. In the day ahead stage, while
+controlling the daily comprehensive operation cost of ADN, the peak value on the tie line is smoothed. The active
+power loss and the mean square deviation of tie line power is reduced. Compared with using fully connected
+network and n×n convolutional network as feature extraction network, the proposed feature extraction method has
+improved the convergence and convergence speed of DRL agent. In the intraday stage, the proposed method
+realizes the adaptive stabilization of fluctuating power while tracking the day ahead plan of scheduling equipment.
+The optimization effect of the proposed method in the whole scheduling period is better than that of the full
+consumption and single-step optimization.
+The following conclusions can be drawn from the simulation analysis: (1) Using the data-driven deep
+reinforcement learning method, the probability information of uncertainty in the data set can be learned
+autonomously. The feature extraction network designed according to the spatio-temporal coupling characteristics
+of multi period state space variables can effectively improve the optimization effect and convergence of the deep
+learning method. (2) Without assuming the probability distribution of source and load uncertainty, the day-ahead
+dispatch realizes the multi-objective optimization of the ADN with the lowest daily operation cost and the
+smoothest tie line power. (3) The intraday dispatch takes into account the offset between the actual power and the
+day ahead forecast power of the source and load, and realizes the real-time stabilization of the fluctuation of
+uncertain power while tracking the day-ahead plan.
+Keywords：Active distribution network, optimal dispatch, source-load-storage coordination, deep reinforcement
+learning
+（编辑 李 冰）

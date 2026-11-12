@@ -1,0 +1,29 @@
+{
+  "generated_on": "2026-11-09T16:32:36",
+  "candidate": "V4_candidate_001",
+  "config_sha256": "7834d0aa4191f616211b34d1f0afc28ee25044bab0b123cc2b47172897b70a9b",
+  "source_sha256": {
+    "rl_da_gate.py": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3",
+    "rl_b_c2_gate.py": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b",
+    "train_da_gate.py": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee",
+    "da_quote_map.py": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
+    "da_replay.py": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+    "truthful_gate_actor_adapter.py": "c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b",
+    "rl_spec.py": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1",
+    "rl_bidding.py": "a697e5f42b92a86c860154f222a0556697fd64374c0c65cefa9c03d6f54b940c",
+    "calibrate_anchor_v4.py": "2f66b5c32b10a235cb40ff72d13e2a7d0bb571defb47b1e4bb0850dde707cb06",
+    "calibrate_hinge_v4.py": "563e403cc5ed16e4a41b39a6fe2c82193cd83eb5e39f9656b5dba37c0f4c82e9",
+    "rl_env.py": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+    "c2_reward.py": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+    "daily_reward_b.py": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+    "b1_daily_baseline.py": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+    "dispatch_socp.py": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+    "v2_cy_jn_env.py": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+    "checkpoint_writer_v2.py": "0f973f6589b5594efa93d91e185254a765e43684076c197a30abf05ba80f7cd1",
+    "checkpoint_loader_v2.py": "23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe",
+    "run_formal_training.py": "24d43d8430a212bf9756180451f6c228a7c496f2114139b0edfeabb4bb90d66d",
+    "training_contract.py": "b037220311c95b3f921405648c4fbbd08d4f03e8f950a68b3c71aa0ff8456e9e",
+    "audit_run.py": "88fe2d3bc9f4202ddd8671c17077914123c0342c734034ec2c8098be27e220fd",
+    "make_formal_training_manifests.py": "dd1ebd90c3c5853a1c0df1aa9a45254809b16cf909523a181ed0e1fdaec6991a"
+  }
+}

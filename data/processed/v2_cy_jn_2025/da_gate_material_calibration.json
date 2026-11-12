@@ -1,0 +1,1164 @@
+{
+  "root": "runs\\DEV_DA_GATE_seed11_v2_best",
+  "material": {
+    "groups": 52,
+    "material_groups": 15,
+    "flat_groups": 31,
+    "mean_spearman_q_delta": 0.1087912087912088,
+    "median_spearman_q_delta": 0.2,
+    "material_mean_spearman": 0.1276190476190476,
+    "material_negative": 5,
+    "material_rows": 90
+  },
+  "material_groups": [
+    {
+      "group": "2022-12-13|2025-12-11|b2|ESS14|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 2,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 20.127599716186523,
+      "best_quote": 37.5,
+      "worst_quote": 75.0,
+      "delta_spread": 0.02623356870642546,
+      "spearman_q_delta": 0.6,
+      "spearman_q_training": 0.6,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b2|ESS14|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 2,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 121.13680267333984,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 7.299453217513019e-05,
+      "spearman_q_delta": 0.6571428571428573,
+      "spearman_q_training": 0.6571428571428573,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b2|ESS27|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 2,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 37.451988220214844,
+      "best_quote": 112.5,
+      "worst_quote": 150.0,
+      "delta_spread": 0.04538315784284919,
+      "spearman_q_delta": 0.3142857142857143,
+      "spearman_q_training": 0.3142857142857143,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b2|ESS27|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 2,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 79.62176513671875,
+      "best_quote": 0.0,
+      "worst_quote": 225.0,
+      "delta_spread": 3.6848510840442685,
+      "spearman_q_delta": 0.4285714285714286,
+      "spearman_q_training": 0.4285714285714286,
+      "material": false,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b3|ESS14|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 23.43556022644043,
+      "best_quote": 37.5,
+      "worst_quote": 150.0,
+      "delta_spread": 0.0262453444507873,
+      "spearman_q_delta": 0.7142857142857143,
+      "spearman_q_training": 0.7142857142857143,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b3|ESS14|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 123.63301086425781,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 4.110995291625326,
+      "spearman_q_delta": 0.3714285714285715,
+      "spearman_q_training": 0.3714285714285715,
+      "material": false,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b3|ESS27|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 39.569969177246094,
+      "best_quote": 0.0,
+      "worst_quote": 75.0,
+      "delta_spread": 0.04542397666954656,
+      "spearman_q_delta": 0.08571428571428573,
+      "spearman_q_training": 0.08571428571428573,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b3|ESS27|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 84.22320556640625,
+      "best_quote": 0.0,
+      "worst_quote": 75.0,
+      "delta_spread": 17.00489851676363,
+      "spearman_q_delta": 0.3714285714285715,
+      "spearman_q_training": 0.3714285714285715,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b11|ESS14|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 11,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 19.30232048034668,
+      "best_quote": 75.0,
+      "worst_quote": 0.0,
+      "delta_spread": 24.548967888619956,
+      "spearman_q_delta": -0.8285714285714287,
+      "spearman_q_training": -0.8285714285714287,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b11|ESS14|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 11,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 107.80375671386719,
+      "best_quote": 75.0,
+      "worst_quote": 0.0,
+      "delta_spread": 0.02659698010473832,
+      "spearman_q_delta": -0.3714285714285715,
+      "spearman_q_training": -0.3714285714285715,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b11|ESS27|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 11,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 36.84591293334961,
+      "best_quote": 0.0,
+      "worst_quote": 112.5,
+      "delta_spread": 0.14188072758639692,
+      "spearman_q_delta": 0.7142857142857143,
+      "spearman_q_training": 0.7142857142857143,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b11|ESS27|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 11,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 75.38207244873047,
+      "best_quote": 0.0,
+      "worst_quote": 75.38207244873047,
+      "delta_spread": 9.17989316511985,
+      "spearman_q_delta": -0.3714285714285715,
+      "spearman_q_training": -0.3714285714285715,
+      "material": false,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b12|ESS14|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 19.95497703552246,
+      "best_quote": 75.0,
+      "worst_quote": 0.0,
+      "delta_spread": 0.02623801801566117,
+      "spearman_q_delta": -0.5428571428571429,
+      "spearman_q_training": -0.5428571428571429,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b12|ESS14|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 133.79891967773438,
+      "best_quote": 0.0,
+      "worst_quote": 150.0,
+      "delta_spread": 6.569315967652756e-06,
+      "spearman_q_delta": 0.3142857142857143,
+      "spearman_q_training": 0.3142857142857143,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b12|ESS27|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 37.458343505859375,
+      "best_quote": 150.0,
+      "worst_quote": 37.458343505859375,
+      "delta_spread": 0.0454269601646331,
+      "spearman_q_delta": -0.028571428571428574,
+      "spearman_q_training": -0.028571428571428574,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b12|ESS27|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 81.23487854003906,
+      "best_quote": 0.0,
+      "worst_quote": 75.0,
+      "delta_spread": 34.229085812414255,
+      "spearman_q_delta": -0.3714285714285715,
+      "spearman_q_training": -0.3714285714285715,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b17|ESS14|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 17,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 19.891847610473633,
+      "best_quote": 19.891847610473633,
+      "worst_quote": 150.0,
+      "delta_spread": 1.1144363488924114e-05,
+      "spearman_q_delta": 0.8285714285714287,
+      "spearman_q_training": 0.8285714285714287,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b17|ESS14|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 17,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 125.76890563964844,
+      "best_quote": 0.0,
+      "worst_quote": 125.76890563964844,
+      "delta_spread": 11.856658766299631,
+      "spearman_q_delta": 0.2571428571428572,
+      "spearman_q_training": 0.2571428571428572,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b17|ESS27|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 17,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 37.55636215209961,
+      "best_quote": 0.0,
+      "worst_quote": 75.0,
+      "delta_spread": 0.003042875988619187,
+      "spearman_q_delta": 0.14285714285714288,
+      "spearman_q_training": 0.14285714285714288,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b17|ESS27|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 17,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 79.48876953125,
+      "best_quote": 0.0,
+      "worst_quote": 150.0,
+      "delta_spread": 16.298873625839164,
+      "spearman_q_delta": -0.2571428571428572,
+      "spearman_q_training": -0.2571428571428572,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b20|ESS14|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 20,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 18.562000274658203,
+      "best_quote": 0.0,
+      "worst_quote": 18.562000274658203,
+      "delta_spread": 0.00020272162586998377,
+      "spearman_q_delta": -0.08571428571428573,
+      "spearman_q_training": -0.08571428571428573,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b20|ESS14|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 20,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 87.34172058105469,
+      "best_quote": 150.0,
+      "worst_quote": 300.0,
+      "delta_spread": 21.448064652849943,
+      "spearman_q_delta": -0.2,
+      "spearman_q_training": -0.2,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b20|ESS27|charge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 20,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 34.98670196533203,
+      "best_quote": 0.0,
+      "worst_quote": 34.98670196533203,
+      "delta_spread": 1.3995269970296533,
+      "spearman_q_delta": -0.028571428571428574,
+      "spearman_q_training": -0.028571428571428574,
+      "material": false,
+      "flat": false
+    },
+    {
+      "group": "2022-12-13|2025-12-11|b20|ESS27|discharge",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 20,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 70.28678894042969,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 4.652635388956611,
+      "spearman_q_delta": 0.6,
+      "spearman_q_training": 0.6,
+      "material": false,
+      "flat": false
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b10|ESS14|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 18.961719512939453,
+      "best_quote": 112.5,
+      "worst_quote": 18.961719512939453,
+      "delta_spread": 1.96693684983984e-06,
+      "spearman_q_delta": -0.8285714285714287,
+      "spearman_q_training": -0.8285714285714287,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b10|ESS14|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 136.81997680664062,
+      "best_quote": 0.0,
+      "worst_quote": 225.0,
+      "delta_spread": 138.91220076608758,
+      "spearman_q_delta": 0.2571428571428572,
+      "spearman_q_training": 0.2571428571428572,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b10|ESS27|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 39.15354537963867,
+      "best_quote": 150.0,
+      "worst_quote": 0.0,
+      "delta_spread": 0.0002579650752352336,
+      "spearman_q_delta": 0.3714285714285715,
+      "spearman_q_training": 0.3714285714285715,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b10|ESS27|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 83.90604400634766,
+      "best_quote": 83.90604400634766,
+      "worst_quote": 225.0,
+      "delta_spread": 65.35067179490562,
+      "spearman_q_delta": 0.5428571428571429,
+      "spearman_q_training": 0.5428571428571429,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b11|ESS14|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 11,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 18.722400665283203,
+      "best_quote": 75.0,
+      "worst_quote": 37.5,
+      "delta_spread": 0.00026251105634855776,
+      "spearman_q_delta": -0.08571428571428573,
+      "spearman_q_training": -0.08571428571428573,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b11|ESS14|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 11,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 136.22149658203125,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 55.85629749556179,
+      "spearman_q_delta": 0.5428571428571429,
+      "spearman_q_training": 0.5428571428571429,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b11|ESS27|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 11,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 39.449127197265625,
+      "best_quote": 75.0,
+      "worst_quote": 0.0,
+      "delta_spread": 0.000523391533036488,
+      "spearman_q_delta": -0.6571428571428573,
+      "spearman_q_training": -0.6571428571428573,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b11|ESS27|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 11,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 84.31778717041016,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 16.734872725156592,
+      "spearman_q_delta": 0.3142857142857143,
+      "spearman_q_training": 0.3142857142857143,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b14|ESS14|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 14,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 19.182636260986328,
+      "best_quote": 112.5,
+      "worst_quote": 19.182636260986328,
+      "delta_spread": 2.1000847709728987e-06,
+      "spearman_q_delta": -0.08571428571428573,
+      "spearman_q_training": -0.08571428571428573,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b14|ESS14|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 14,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 122.92540740966797,
+      "best_quote": 0.0,
+      "worst_quote": 225.0,
+      "delta_spread": 65.32889489056849,
+      "spearman_q_delta": 0.028571428571428574,
+      "spearman_q_training": 0.028571428571428574,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b14|ESS27|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 14,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 35.8947868347168,
+      "best_quote": 150.0,
+      "worst_quote": 75.0,
+      "delta_spread": 6.071381683625532e-05,
+      "spearman_q_delta": -0.2,
+      "spearman_q_training": -0.2,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b14|ESS27|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 14,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 77.69657135009766,
+      "best_quote": 77.69657135009766,
+      "worst_quote": 225.0,
+      "delta_spread": 11.222626209944892,
+      "spearman_q_delta": -0.08571428571428573,
+      "spearman_q_training": -0.08571428571428573,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b20|ESS14|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 20,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 18.26418113708496,
+      "best_quote": 37.5,
+      "worst_quote": 112.5,
+      "delta_spread": 0.0004465765119334719,
+      "spearman_q_delta": 0.3714285714285715,
+      "spearman_q_training": 0.3714285714285715,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b20|ESS14|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 20,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 102.51114654541016,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 0.03957312305450955,
+      "spearman_q_delta": 0.5428571428571429,
+      "spearman_q_training": 0.5428571428571429,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b20|ESS27|charge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 20,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 36.547279357910156,
+      "best_quote": 0.0,
+      "worst_quote": 112.5,
+      "delta_spread": 0.019335530431234815,
+      "spearman_q_delta": -0.3714285714285715,
+      "spearman_q_training": -0.3714285714285715,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-30|2025-12-31|b20|ESS27|discharge",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 20,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 72.966552734375,
+      "best_quote": 150.0,
+      "worst_quote": 0.0,
+      "delta_spread": 2.6138110342799337e-06,
+      "spearman_q_delta": -0.6,
+      "spearman_q_training": -0.6,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b0|ESS14|charge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 0,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 30.155853271484375,
+      "best_quote": 75.0,
+      "worst_quote": 112.5,
+      "delta_spread": 0.007882658079580551,
+      "spearman_q_delta": 0.2571428571428572,
+      "spearman_q_training": 0.2571428571428572,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b0|ESS14|discharge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 0,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 128.07301330566406,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 69.311022460559,
+      "spearman_q_delta": 0.8285714285714287,
+      "spearman_q_training": 0.8285714285714287,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b0|ESS27|charge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 0,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 44.12339401245117,
+      "best_quote": 150.0,
+      "worst_quote": 0.0,
+      "delta_spread": 0.0176909122308615,
+      "spearman_q_delta": -0.6,
+      "spearman_q_training": -0.6,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b0|ESS27|discharge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 0,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 94.13570404052734,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 5.9911492493058205,
+      "spearman_q_delta": -0.08571428571428573,
+      "spearman_q_training": -0.08571428571428573,
+      "material": false,
+      "flat": false
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b17|ESS14|charge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 19.41958236694336,
+      "best_quote": 150.0,
+      "worst_quote": 112.5,
+      "delta_spread": 0.0002530952959887145,
+      "spearman_q_delta": 0.2571428571428572,
+      "spearman_q_training": 0.2571428571428572,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b17|ESS14|discharge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 135.94320678710938,
+      "best_quote": 0.0,
+      "worst_quote": 300.0,
+      "delta_spread": 108.69670643575742,
+      "spearman_q_delta": 0.2,
+      "spearman_q_training": 0.2,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b17|ESS27|charge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 38.76593017578125,
+      "best_quote": 0.0,
+      "worst_quote": 150.0,
+      "delta_spread": 0.004607433070319189,
+      "spearman_q_delta": -0.08571428571428573,
+      "spearman_q_training": -0.08571428571428573,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b17|ESS27|discharge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 83.5036392211914,
+      "best_quote": 75.0,
+      "worst_quote": 300.0,
+      "delta_spread": 46.04883184773398,
+      "spearman_q_delta": 0.3142857142857143,
+      "spearman_q_training": 0.3142857142857143,
+      "material": true,
+      "flat": false
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b23|ESS14|charge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 23,
+      "target": "ESS14",
+      "leg": "charge",
+      "actor_quote": 32.39297103881836,
+      "best_quote": 112.5,
+      "worst_quote": 0.0,
+      "delta_spread": 0.011072613383973362,
+      "spearman_q_delta": 0.2,
+      "spearman_q_training": 0.2,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b23|ESS14|discharge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 23,
+      "target": "ESS14",
+      "leg": "discharge",
+      "actor_quote": 110.13656616210938,
+      "best_quote": 0.0,
+      "worst_quote": 75.0,
+      "delta_spread": 0.029605669260931222,
+      "spearman_q_delta": -0.3714285714285715,
+      "spearman_q_training": -0.3714285714285715,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b23|ESS27|charge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 23,
+      "target": "ESS27",
+      "leg": "charge",
+      "actor_quote": 46.56028366088867,
+      "best_quote": 150.0,
+      "worst_quote": 0.0,
+      "delta_spread": 0.011428648355902737,
+      "spearman_q_delta": 0.8857142857142858,
+      "spearman_q_training": 0.8857142857142858,
+      "material": false,
+      "flat": true
+    },
+    {
+      "group": "2022-12-31|2025-12-28|b23|ESS27|discharge",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 23,
+      "target": "ESS27",
+      "leg": "discharge",
+      "actor_quote": 94.73854064941406,
+      "best_quote": 75.0,
+      "worst_quote": 300.0,
+      "delta_spread": 0.0022538861468746063,
+      "spearman_q_delta": 0.48571428571428577,
+      "spearman_q_training": 0.48571428571428577,
+      "material": false,
+      "flat": true
+    }
+  ],
+  "winter_worst_blocks": [
+    {
+      "pair_id": "2022-12-13|2025-12-11",
+      "unit": "ESS14",
+      "block": 3,
+      "diff": -71.54778145274895
+    },
+    {
+      "pair_id": "2022-12-13|2025-12-11",
+      "unit": "ESS27",
+      "block": 12,
+      "diff": -88.20800589483845
+    },
+    {
+      "pair_id": "2022-12-30|2025-12-31",
+      "unit": "ESS14",
+      "block": 10,
+      "diff": -111.11050785736845
+    },
+    {
+      "pair_id": "2022-12-30|2025-12-31",
+      "unit": "ESS27",
+      "block": 23,
+      "diff": -28.544745446695146
+    },
+    {
+      "pair_id": "2022-12-31|2025-12-28",
+      "unit": "ESS14",
+      "block": 17,
+      "diff": -98.11267848442108
+    },
+    {
+      "pair_id": "2022-12-31|2025-12-28",
+      "unit": "ESS27",
+      "block": 0,
+      "diff": -53.41378858404734
+    }
+  ],
+  "winter": {
+    "states": {
+      "2022-12-13|2025-12-11|b3|ESS14": {
+        "actor_quote": 123.63301086425781,
+        "gate": [
+          1,
+          1
+        ],
+        "scenarios": {
+          "0.0": {
+            "block_payoff": 71.56427194570153,
+            "block_accepted_mwh": 0.3999987311646749,
+            "b1_block_payoff": 71.54778248792192,
+            "accepted_periods": 4,
+            "mean_lmp": 278.91126261834665
+          },
+          "100.0": {
+            "block_payoff": 3.5348371332000026e-06,
+            "block_accepted_mwh": 2.7132950625079974e-08,
+            "b1_block_payoff": 71.54778248792192,
+            "accepted_periods": 0,
+            "mean_lmp": 283.7204431291371
+          },
+          "150.0": {
+            "block_payoff": 4.5664449701496363e-07,
+            "block_accepted_mwh": 7.689164765984967e-09,
+            "b1_block_payoff": 71.54778248792192,
+            "accepted_periods": 0,
+            "mean_lmp": 283.7198192723319
+          },
+          "258.0": {
+            "block_payoff": -8.128698989175854e-07,
+            "block_accepted_mwh": 8.56614541128299e-09,
+            "b1_block_payoff": 71.54778248792192,
+            "accepted_periods": 0,
+            "mean_lmp": 283.7226886087898
+          },
+          "300.0": {
+            "block_payoff": -1.0986775760680065e-06,
+            "block_accepted_mwh": 6.887160998299932e-09,
+            "b1_block_payoff": 71.54778248792192,
+            "accepted_periods": 0,
+            "mean_lmp": 283.72268772346723
+          },
+          "123.63301086425781": {
+            "block_payoff": 1.035172977035469e-06,
+            "block_accepted_mwh": 1.0821043142770323e-08,
+            "b1_block_payoff": 71.54778248792192,
+            "accepted_periods": 0,
+            "mean_lmp": 283.71982926805833
+          }
+        }
+      },
+      "2022-12-13|2025-12-11|b12|ESS27": {
+        "actor_quote": 81.23487854003906,
+        "gate": [
+          1,
+          1
+        ],
+        "scenarios": {
+          "0.0": {
+            "block_payoff": 88.19090558392547,
+            "block_accepted_mwh": 0.34025225308401397,
+            "b1_block_payoff": 88.20800730277051,
+            "accepted_periods": 4,
+            "mean_lmp": 359.07853805573563
+          },
+          "100.0": {
+            "block_payoff": 7.202110054668777e-07,
+            "block_accepted_mwh": 4.4914540552592874e-09,
+            "b1_block_payoff": 88.20800730277051,
+            "accepted_periods": 0,
+            "mean_lmp": 362.89179254238854
+          },
+          "150.0": {
+            "block_payoff": 3.51326250574168e-07,
+            "block_accepted_mwh": 4.497861790173076e-09,
+            "b1_block_payoff": 88.20800730277051,
+            "accepted_periods": 0,
+            "mean_lmp": 362.8915372701048
+          },
+          "258.0": {
+            "block_payoff": -8.741460294862057e-07,
+            "block_accepted_mwh": 3.4086127754295346e-09,
+            "b1_block_payoff": 88.20800730277051,
+            "accepted_periods": 0,
+            "mean_lmp": 362.8904431028297
+          },
+          "300.0": {
+            "block_payoff": -1.184958443224873e-06,
+            "block_accepted_mwh": 8.326141485736083e-09,
+            "b1_block_payoff": 88.20800730277051,
+            "accepted_periods": 0,
+            "mean_lmp": 362.8840885227912
+          },
+          "81.23487854003906": {
+            "block_payoff": 1.4079320510713193e-06,
+            "block_accepted_mwh": 8.070131514761233e-09,
+            "b1_block_payoff": 88.20800730277051,
+            "accepted_periods": 0,
+            "mean_lmp": 362.89517393323393
+          }
+        }
+      },
+      "2022-12-30|2025-12-31|b10|ESS14": {
+        "actor_quote": 136.81997680664062,
+        "gate": [
+          1,
+          1
+        ],
+        "scenarios": {
+          "0.0": {
+            "block_payoff": 111.11056192596646,
+            "block_accepted_mwh": 0.3999999991253376,
+            "b1_block_payoff": 111.1105549566577,
+            "accepted_periods": 4,
+            "mean_lmp": 377.7764057731618
+          },
+          "100.0": {
+            "block_payoff": 111.10976064892648,
+            "block_accepted_mwh": 0.39999994712537307,
+            "b1_block_payoff": 111.1105549566577,
+            "accepted_periods": 4,
+            "mean_lmp": 377.7744403189674
+          },
+          "150.0": {
+            "block_payoff": 0.00011629820769314808,
+            "block_accepted_mwh": 4.1882578407355915e-07,
+            "b1_block_payoff": 111.1105549566577,
+            "accepted_periods": 0,
+            "mean_lmp": 384.2111419982067
+          },
+          "258.0": {
+            "block_payoff": 1.3731054173581726e-05,
+            "block_accepted_mwh": 6.339489818341005e-08,
+            "b1_block_payoff": 111.1105549566577,
+            "accepted_periods": 0,
+            "mean_lmp": 384.2140074163391
+          },
+          "300.0": {
+            "block_payoff": 1.3652723372080913e-05,
+            "block_accepted_mwh": 6.911562720138548e-08,
+            "b1_block_payoff": 111.1105549566577,
+            "accepted_periods": 0,
+            "mean_lmp": 384.2153549100499
+          },
+          "136.81997680664062": {
+            "block_payoff": 4.7099289214428466e-05,
+            "block_accepted_mwh": 1.6778530426792286e-07,
+            "b1_block_payoff": 111.1105549566577,
+            "accepted_periods": 0,
+            "mean_lmp": 384.20916299974056
+          }
+        }
+      },
+      "2022-12-30|2025-12-31|b23|ESS27": {
+        "actor_quote": 82.442138671875,
+        "gate": [
+          1,
+          1
+        ],
+        "scenarios": {
+          "0.0": {
+            "block_payoff": -52.81975214848623,
+            "block_accepted_mwh": 1.8816332744204484e-09,
+            "b1_block_payoff": -24.27182997618592,
+            "accepted_periods": 0,
+            "mean_lmp": 32.0493811583475
+          },
+          "100.0": {
+            "block_payoff": -52.81643979393715,
+            "block_accepted_mwh": 1.7627118101877818e-09,
+            "b1_block_payoff": -24.27182997618592,
+            "accepted_periods": 0,
+            "mean_lmp": 32.04110033839006
+          },
+          "150.0": {
+            "block_payoff": -52.82173840074854,
+            "block_accepted_mwh": 1.7448928052510153e-09,
+            "b1_block_payoff": -24.27182997618592,
+            "accepted_periods": 0,
+            "mean_lmp": 32.054346865654026
+          },
+          "258.0": {
+            "block_payoff": -52.863911840571255,
+            "block_accepted_mwh": 5.050193425418599e-11,
+            "b1_block_payoff": -24.27182997618592,
+            "accepted_periods": 0,
+            "mean_lmp": 32.15978141556088
+          },
+          "300.0": {
+            "block_payoff": -52.86397100947265,
+            "block_accepted_mwh": 3.188434548915411e-11,
+            "b1_block_payoff": -24.27182997618592,
+            "accepted_periods": 0,
+            "mean_lmp": 32.15992934823559
+          },
+          "82.442138671875": {
+            "block_payoff": -52.816575422881066,
+            "block_accepted_mwh": 1.7811714072970292e-09,
+            "b1_block_payoff": -24.27182997618592,
+            "accepted_periods": 0,
+            "mean_lmp": 32.04143940041866
+          }
+        }
+      },
+      "2022-12-31|2025-12-28|b17|ESS14": {
+        "actor_quote": 135.94320678710938,
+        "gate": [
+          1,
+          1
+        ],
+        "scenarios": {
+          "0.0": {
+            "block_payoff": 98.12023906755164,
+            "block_accepted_mwh": 0.39999996096911583,
+            "b1_block_payoff": 98.11292763262054,
+            "accepted_periods": 4,
+            "mean_lmp": 345.30062822106413
+          },
+          "100.0": {
+            "block_payoff": 98.11832889980005,
+            "block_accepted_mwh": 0.399999178059938,
+            "b1_block_payoff": 98.11292763262054,
+            "accepted_periods": 4,
+            "mean_lmp": 345.2963350518292
+          },
+          "150.0": {
+            "block_payoff": 4.694437040845555e-05,
+            "block_accepted_mwh": 2.0837628060397012e-07,
+            "b1_block_payoff": 98.11292763262054,
+            "accepted_periods": 0,
+            "mean_lmp": 351.2914976174626
+          },
+          "258.0": {
+            "block_payoff": 7.86209456175438e-05,
+            "block_accepted_mwh": 3.5034410104784e-07,
+            "b1_block_payoff": 98.11292763262054,
+            "accepted_periods": 0,
+            "mean_lmp": 351.278843906391
+          },
+          "300.0": {
+            "block_payoff": 3.4414431203117496e-05,
+            "block_accepted_mwh": 1.732922900239189e-07,
+            "b1_block_payoff": 98.11292763262054,
+            "accepted_periods": 0,
+            "mean_lmp": 351.28239685003234
+          },
+          "135.94320678710938": {
+            "block_payoff": 0.0002491481994768466,
+            "block_accepted_mwh": 1.0275098583624546e-06,
+            "b1_block_payoff": 98.11292763262054,
+            "accepted_periods": 0,
+            "mean_lmp": 351.28978273537393
+          }
+        }
+      },
+      "2022-12-31|2025-12-28|b0|ESS27": {
+        "actor_quote": 94.13570404052734,
+        "gate": [
+          1,
+          1
+        ],
+        "scenarios": {
+          "0.0": {
+            "block_payoff": 53.43808381515373,
+            "block_accepted_mwh": 0.2999996463110202,
+            "b1_block_payoff": 53.41379084880005,
+            "accepted_periods": 3,
+            "mean_lmp": 221.80094268886984
+          },
+          "100.0": {
+            "block_payoff": 1.6161090484092667e-06,
+            "block_accepted_mwh": 2.0825706335272124e-08,
+            "b1_block_payoff": 53.41379084880005,
+            "accepted_periods": 0,
+            "mean_lmp": 224.1698420936762
+          },
+          "150.0": {
+            "block_payoff": -1.2185936841295097e-06,
+            "block_accepted_mwh": 2.072700719732348e-08,
+            "b1_block_payoff": 53.41379084880005,
+            "accepted_periods": 0,
+            "mean_lmp": 224.16487163409977
+          },
+          "258.0": {
+            "block_payoff": -1.6420928841288508e-06,
+            "block_accepted_mwh": 6.880451260464672e-09,
+            "b1_block_payoff": 53.41379084880005,
+            "accepted_periods": 0,
+            "mean_lmp": 224.16856669176457
+          },
+          "300.0": {
+            "block_payoff": -5.306297130271656e-06,
+            "block_accepted_mwh": 1.9867672323140083e-08,
+            "b1_block_payoff": 53.41379084880005,
+            "accepted_periods": 0,
+            "mean_lmp": 224.16554751308462
+          },
+          "94.13570404052734": {
+            "block_payoff": 2.264752702588586e-06,
+            "block_accepted_mwh": 2.3503058092768115e-08,
+            "b1_block_payoff": 53.41379084880005,
+            "accepted_periods": 0,
+            "mean_lmp": 224.16993773325714
+          }
+        }
+      }
+    }
+  },
+  "buffer": {
+    "transitions": 3816,
+    "cells_nonempty": 124,
+    "cell_count_min": 1,
+    "cell_count_max": 215,
+    "high_discharge_quote": {
+      "ESS9": 652,
+      "ESS14": 705,
+      "ESS17": 183,
+      "ESS27": 252
+    },
+    "explored_legs": 1960,
+    "explored_discharge": 1520,
+    "mean_discharge_quote": {
+      "ESS9": 105.67813110351562,
+      "ESS14": 138.45201110839844,
+      "ESS17": 40.668479919433594,
+      "ESS27": 104.34759521484375
+    }
+  },
+  "buffer_root": "runs\\DEV_DA_GATE_seed11_v2"
+}

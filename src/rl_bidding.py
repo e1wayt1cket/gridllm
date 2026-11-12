@@ -70,7 +70,8 @@ class CentralizedCritic(nn.Module):
     Input: [all_agents_full_obs | all_actions]
     """
 
-    def __init__(self, n_agents: int, obs_dim: int, act_dim: int):
+    def __init__(self, n_agents: int, obs_dim: int, act_dim: int,
+                 dropout: float = 0.0):
         super().__init__()
         # Total input: obs_dim*n_agents (all agents' full observation, so the
         # critic also sees each agent's per-agent shared features such as
@@ -78,16 +79,20 @@ class CentralizedCritic(nn.Module):
         #            + act_dim * n_agents (all actions)
         self.critic_in = obs_dim * n_agents + act_dim * n_agents
         h = 256 if n_agents <= 20 else 512
-        # Deeper critic with a drop layer; dropout only regularizes the
-        # online critic and must be off for the target networks (see MATD3).
+        # Dropout defaults to 0.0: with the day-reward scale the Q spread
+        # between actions is small, and an active drop layer in the online
+        # forward — including the actor-gradient forward — injects noise of
+        # that same order, which is how the v3 critic learned to rank quotes
+        # backwards (see reports/algorithm_diagnostics, rank_activity). The
+        # parameter remains so older behaviour is reproducible on demand.
         self.q1 = nn.Sequential(
-            nn.Linear(self.critic_in, h), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(self.critic_in, h), nn.ReLU(), nn.Dropout(dropout),
             nn.Linear(h, h), nn.ReLU(),
             nn.Linear(h, h // 2), nn.ReLU(),
             nn.Linear(h // 2, 1),
         )
         self.q2 = nn.Sequential(
-            nn.Linear(self.critic_in, h), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(self.critic_in, h), nn.ReLU(), nn.Dropout(dropout),
             nn.Linear(h, h), nn.ReLU(),
             nn.Linear(h, h // 2), nn.ReLU(),
             nn.Linear(h // 2, 1),

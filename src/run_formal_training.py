@@ -2,7 +2,7 @@
 
 `--check` only verifies the data, code and config manifests and reports the
 readiness status. `--seed` refuses to start unless the status is
-`GO_FORMAL_TRAINING`; `--all` runs the five frozen seeds sequentially. The
+`GO_FORMAL_TRAINING`; `--all` runs the frozen seeds sequentially. The
 script never commits, never overwrites a run directory and never evaluates the
 test or holiday blocks.
 """
@@ -20,11 +20,14 @@ from pathlib import Path
 import yaml
 
 import make_formal_training_manifests as mfm
+import training_contract as tc
 
 ROOT = Path.cwd()
-OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_ready"
+# Protocol v4 is the live frozen set; v3, v2 and `formal_training_ready` are
+# historical and must be requested explicitly with --config-dir.
+OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v4"
 RUNS = ROOT / "runs"
-SEEDS = (11, 23, 37, 53, 71)
+SEEDS = (11, 23)
 
 
 def config_hash(config: dict) -> str:
@@ -44,23 +47,11 @@ def verify(out: Path = OUT) -> dict:
     saved_code = json.loads(code_manifest.read_text(encoding="utf-8"))
     saved_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     current_data = mfm.data_payload()
-    current_code = {
-        "candidate": mfm.CANDIDATE,
-        "source_sha256": {
-            name: mfm.sha(ROOT / "src" / name)
-            for name in mfm.SOURCE_FILES
-        },
-        "git": saved_code.get("git"),
-        "tests": {
-            "test_da_quote_mapping.py": mfm.sha(
-                ROOT / "tests/test_da_quote_mapping.py"),
-            "test_train_da_gate_guards.py": mfm.sha(
-                ROOT / "tests/test_train_da_gate_guards.py"),
-            "audit_phase20_action_routing.py": mfm.sha(
-                ROOT / "src/audit_phase20_action_routing.py"),
-        },
-    }
+    # The same payload the generator freezes, so the launcher cannot drift
+    # from the manifest it is gating.
+    current_code = mfm.code_payload()
     saved_config = yaml.safe_load(config.read_text(encoding="utf-8"))
+    contract_violations = tc.validate_contract(saved_config, saved_data)
     checks = {
         "data_payload_matches": saved_data == current_data,
         "code_sources_match": saved_code.get("source_sha256")
@@ -82,13 +73,19 @@ def verify(out: Path = OUT) -> dict:
         "legacy_label_matches": saved_data.get(
             "legacy_label_matches_declared") is True,
         "h2_sealed": saved_data.get("h2_opened") is False,
+        "budget_contract_ok": not contract_violations,
     }
     checks["all_pass"] = all(checks.values())
+    declared = saved_manifest.get("training_readiness_status")
     return {
         "checks": checks,
-        "status": saved_manifest.get("training_readiness_status"),
+        # The manifest records the readiness declared at freeze time; a
+        # directory that no longer verifies must not echo it back as GO.
+        "status": declared if checks["all_pass"] else "NO_GO",
+        "declared_status": declared,
         "accepted_candidate": saved_manifest.get("accepted_candidate"),
         "config_sha256": saved_manifest.get("config_sha256"),
+        "contract_violations": contract_violations,
     }
 
 
@@ -107,6 +104,8 @@ def command(seed: int, config: dict, out: Path = OUT) -> list[str]:
         "--exposures", str(budget["exposures_per_day_max"]),
         "--early-stop-patience", str(formal["validation"]["early_stop_patience"]),
         "--min-rounds", str(budget["minimum_rounds"]),
+        "--max-rounds", str(budget["exposures_per_day_max"]),
+        "--max-episodes", str(budget["episodes_per_seed_max"]),
         "--run-id", run_id(seed, out), "--trace-blocks",
     ]
 
@@ -118,6 +117,9 @@ def main(argv=None) -> int:
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--config-dir", default=str(OUT))
+    parser.add_argument("--resume", action="store_true",
+                        help="continue an existing run directory instead of "
+                             "refusing it (TD-11)")
     args = parser.parse_args(argv)
     out = Path(args.config_dir)
     state = verify(out)
@@ -141,10 +143,13 @@ def main(argv=None) -> int:
     env["PYTHONPATH"] = "src"
     for seed in seeds:
         run = RUNS / run_id(seed, out)
-        if run.exists() and any(run.iterdir()):
+        existed = run.exists() and any(run.iterdir())
+        if existed and not args.resume:
             print(f"refused: {run} already exists", file=sys.stderr)
             return 3
         cmd = command(seed, config, out)
+        if existed:
+            cmd = cmd + ["--resume"]
         print(" ".join(cmd), flush=True)
         if args.dry_run:
             continue

@@ -1,0 +1,117 @@
+{
+  "boundary": "read-only routing audit; one in-memory update, no checkpoint write, no H2 and no legacy test",
+  "checks": {
+    "ess_order_matches": true,
+    "actor_output_4": true,
+    "quote_dim_2": true,
+    "critic_input_56": true,
+    "closed_gate_zero": true,
+    "open_gate_positive": true,
+    "target_route_v3": true,
+    "finite_difference": true,
+    "v2_not_called_in_update": true,
+    "v3_called_in_update": true,
+    "actor_loss_finite": true
+  },
+  "all_pass": true,
+  "routing": {
+    "ess_order_expected": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "ess_order_trainer": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "ess_order_real_env": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "actor_output_dim": 4,
+    "quote_dim": 2,
+    "critic_input_dim": 56,
+    "critic_output_shapes": [
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "closed_charge_quote": 0.0,
+    "open_discharge_quote": 297.0,
+    "leg_gradients": {
+      "charge": {
+        "q1": -1.5681509971618652,
+        "q2": -0.8710015416145325,
+        "q_min": -1.5681509971618652,
+        "twin_gap": 0.6971494555473328,
+        "dq_dquote": -0.00420033186674118
+      },
+      "discharge": {
+        "q1": -1.5681509971618652,
+        "q2": -0.8710015416145325,
+        "q_min": -1.5681509971618652,
+        "twin_gap": 0.6971494555473328,
+        "dq_dquote": -0.005802042316645384
+      }
+    },
+    "finite_difference_dq_dquote": {
+      "charge": -0.004208087921142578,
+      "discharge": -0.005781650543212891
+    },
+    "finite_difference_abs_error": {
+      "charge": 7.756054401397705e-06,
+      "discharge": 2.039177343249321e-05
+    },
+    "target_route_equals_v3": true,
+    "target_route_with_noise_finite": true,
+    "env_action_spec": {
+      "name": "storage_quote_v2",
+      "bounds": {
+        "charge_price": [
+          0.0,
+          150.0
+        ],
+        "discharge_price": [
+          0.0,
+          300.0
+        ]
+      }
+    },
+    "trainer_action_spec": {
+      "name": "storage_quote_v3",
+      "bounds": {
+        "charge_price": [
+          0.0,
+          150.0
+        ],
+        "discharge_price": [
+          0.0,
+          300.0
+        ]
+      }
+    },
+    "same_bounds_as_v3": true
+  },
+  "update_audit": {
+    "calls": {
+      "v2": 0,
+      "v3_actor_loss": 4,
+      "v3_target": 16
+    },
+    "v2_calls_in_update": 0,
+    "v3_calls_in_update": 20,
+    "actor_loss": 1.6760893166065216,
+    "actor_loss_finite": true
+  },
+  "note": "the environment carries the v2 action spec as metadata; its bounds and truthful point are identical to v3, so this does not change the numeric action contract"
+}

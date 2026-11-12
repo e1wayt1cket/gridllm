@@ -1,0 +1,239 @@
+{
+  "audit_id": "M0_current_clearing_audit_2026-11-12",
+  "phase": "M0",
+  "mode": "read_only_forensic_audit",
+  "repository": {
+    "root": "C:/Projects/00_WorkSpace/01_Projects/MakerB",
+    "git_revision_short": "63b008d",
+    "git_revision": "63b008d725e391d98b55f9d563b0d712cd710793",
+    "worktree_dirty_entries": 66,
+    "note": "the audit describes the working tree at this revision, not the HEAD commit alone"
+  },
+  "audited_protocol_identity": {
+    "matches_formal_training_v4_code_manifest": true,
+    "v4_pins_matched": 22,
+    "v4_pins_total": 22,
+    "v3_pins_matched": 11,
+    "v3_pins_total": 19,
+    "v3_mismatched_files": [
+      "rl_da_gate.py",
+      "rl_b_c2_gate.py",
+      "train_da_gate.py",
+      "da_quote_map.py",
+      "rl_spec.py",
+      "run_formal_training.py",
+      "training_contract.py",
+      "make_formal_training_manifests.py"
+    ],
+    "v4_config_sha256_recorded": "7834d0aa4191f616211b34d1f0afc28ee25044bab0b123cc2b47172897b70a9b",
+    "v4_accepted_candidate": "V4_candidate_001",
+    "v4_status": "finalized",
+    "consequence": "clearing and reward-path files are byte-identical between v3 and v4, so the clearing model described here holds for both; action-map, gate and reward-scale descriptions correspond to v4 (fixed_scale 100, action storage_quote_v4, gate logit bound 4.0), not to the v3 protocol named in CLAUDE.md"
+  },
+  "code_inputs": [
+    {
+      "path": "src/market.py",
+      "sha256": "293ecea8cf8bb2df933a1193639519463033e19cf852011b22a3ff6c46415b99"
+    },
+    {
+      "path": "src/dispatch_socp.py",
+      "sha256": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a"
+    },
+    {
+      "path": "src/dispatch_core.py",
+      "sha256": "b99398fa48a79486ff0e667678e912138500cf0ee728de6abcf1d216379cc90c"
+    },
+    {
+      "path": "src/money.py",
+      "sha256": "de58573dc07ac60b4049cb7851c9c7c137d2abc65d67f4f4952f1ee31ed19a12"
+    },
+    {
+      "path": "src/models.py",
+      "sha256": "26e39e93c386660afd2c804352ddf72bd6b259fef9f98a535056ad24663e8c35"
+    },
+    {
+      "path": "src/rl_env.py",
+      "sha256": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f"
+    },
+    {
+      "path": "src/rl_spec.py",
+      "sha256": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1"
+    },
+    {
+      "path": "src/da_quote_map.py",
+      "sha256": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358"
+    },
+    {
+      "path": "src/rl_da_gate.py",
+      "sha256": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3"
+    },
+    {
+      "path": "src/rl_b_c2_gate.py",
+      "sha256": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b"
+    },
+    {
+      "path": "src/rl_bidding.py",
+      "sha256": "a697e5f42b92a86c860154f222a0556697fd64374c0c65cefa9c03d6f54b940c"
+    },
+    {
+      "path": "src/train_da_gate.py",
+      "sha256": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee"
+    },
+    {
+      "path": "src/participant_payoff.py",
+      "sha256": "2051aa59f743239e4b2db200e25686825897eb8ee6f5e65362ab2c989dc1078d"
+    },
+    {
+      "path": "src/counterfactual_eval.py",
+      "sha256": "488cb1c5bfaf131c3404f3d1be7795c3c21e2628a91a4e265eb76ef4d40ffa50"
+    },
+    {
+      "path": "src/surplus_metrics.py",
+      "sha256": "705f7f46181f093fce572e9f93ccd169adcc209f72d60c5a3fb2bd4e8ca7e2e9"
+    },
+    {
+      "path": "src/v2_cy_jn_env.py",
+      "sha256": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a"
+    },
+    {
+      "path": "src/screen_v2_cy_jn_2025.py",
+      "sha256": "d625f60c84147c258e14597e3810d477edc61151a99e1296ccd45d79a4cb1860"
+    },
+    {
+      "path": "src/ess.py",
+      "sha256": "76c575f064d32136767acb0be738fabbfe2ad1d3b61b465729ac0f42822b79a1"
+    },
+    {
+      "path": "src/grid.py",
+      "sha256": "088969980fad15f2299a02ccaac9c8f616a58f7250ba916f2b144490e0c8b614"
+    },
+    {
+      "path": "src/scenarios.py",
+      "sha256": "91133e7f64449efff9311ea82edcc608cce9146f3580130fcbf49e859f5cd13f"
+    },
+    {
+      "path": "src/wholesale_price.py",
+      "sha256": "146b2115229da32b05bcf57defa588056a64c5648e2f9f1bad48853e8b50aa17"
+    },
+    {
+      "path": "src/daily_reward_b.py",
+      "sha256": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541"
+    },
+    {
+      "path": "src/c2_reward.py",
+      "sha256": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c"
+    },
+    {
+      "path": "src/b1_daily_baseline.py",
+      "sha256": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd"
+    },
+    {
+      "path": "src/config_loader.py",
+      "sha256": "e44269d6515f1f4aeb4d9416ccf53993106a5bafc2262e2dd272ed0d71481a71"
+    },
+    {
+      "path": "src/mpc_storage.py",
+      "sha256": "6d6cab7666ec08ebc88d8c069ca6c47b0b089520e5509691fcf79be7af56f9ff"
+    },
+    {
+      "path": "src/make_formal_training_manifests.py",
+      "sha256": "dd1ebd90c3c5853a1c0df1aa9a45254809b16cf909523a181ed0e1fdaec6991a"
+    }
+  ],
+  "config_and_manifest_inputs": [
+    {
+      "path": "config/defaults.yaml",
+      "sha256": "9ac7faa46564ca6dc6c65485104b53b63776db74056e8da3644ac9e8b3d88e19"
+    },
+    {
+      "path": "config/scenarios.yaml",
+      "sha256": "990bd065d92dc6436b02f5d2465cd0f2a3a587e20c94a212a75bd394c8a8b8f9"
+    },
+    {
+      "path": "reports/v2_cy_jn_2025/formal_training_v3/formal_training_config.yaml",
+      "sha256": "0b662d0058415501c25f8a9894ffa1436ace9ded635f7808d455f5c31e7b4319"
+    },
+    {
+      "path": "reports/v2_cy_jn_2025/formal_training_v3/formal_training_manifest.json",
+      "sha256": "4dd040bf8e608283ea98685e4d2c5a09ba09e85f15c99904267b5cb940a05cd7"
+    },
+    {
+      "path": "reports/v2_cy_jn_2025/formal_training_v3/formal_training_code_manifest.json",
+      "sha256": "63f2ea9bfd7de7d998b0b6d6672669041a2ff0a8b33cb80e7f086b426e2ef108"
+    },
+    {
+      "path": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_config.yaml",
+      "sha256": "d4cdfe843566a915d357429490a614a8f44de7f4a7f529738a8a1b1d04ef350a"
+    },
+    {
+      "path": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_manifest.json",
+      "sha256": "31c0bce1266fdcdd2de1394e38b31b752cd09cb5b969454ebebc58d2d6cf315d"
+    },
+    {
+      "path": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_code_manifest.json",
+      "sha256": "c9ec1da1a028ab1a68384f6e048983508e2257cb653186e669aee4640ffc717c"
+    },
+    {
+      "path": "reports/v2_cy_jn_2025/data_audit.md",
+      "sha256": "c82f41989de76e652158ee38563ef87e8f9ed223b818a6552180b616a9de2143"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "1471af8b1f342d2b6e0bfb193db8bb65a5e4c8a5e7a92f9eb4af0921ac4b94e3"
+    },
+    {
+      "path": ".claude/rules/training_contract.md",
+      "sha256": "52ee06d90bca19b6d7a970af2761a1ce26fabf1453b6abaf6d79cbc928ff9be6"
+    },
+    {
+      "path": ".claude/rules/data_governance.md",
+      "sha256": "df2ae36e141afdaa93306216b6a305cea91bee00f1b47735b2283b7491c4e0a9"
+    },
+    {
+      "path": ".claude/rules/model_constraints.md",
+      "sha256": "a811298b20442f397a16b4052ccc64b974a5eb98b6d95b265cf0f9b9a6663c13"
+    },
+    {
+      "path": ".claude/rules/reporting.md",
+      "sha256": "7bf44eced2204012a3f730090e2934bab33a2ed0e289a2479690b86388d00eac"
+    }
+  ],
+  "data_inputs": {
+    "read_directly_in_this_phase": false,
+    "reason": "the audit boundary forbids reading Test, Holiday and H2 data or artifacts; hashing a data file reads it, so data hashes are cited from the frozen formal manifest instead of recomputed",
+    "cited_from": "reports/v2_cy_jn_2025/formal_training_v4/formal_training_manifest.json -> formal_training_config.yaml -> formal_training.data.input_sha256",
+    "sha256": {
+      "near/load_price_pairing.csv": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363",
+      "bus_loads_96x33.npz": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078",
+      "price_curves.npz": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1",
+      "common_split.json": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335",
+      "holdout_status.json": "4f31263d8ebc1ecb02fbabecc64c118a3aea25ba81da1c6e81d38997d84e5e85",
+      "b1_terminal_neutral_manifest.json": "79a823e5e72c51f82bfb6128b4a31ae80ec1bb344846608b8b137c80f35f0011",
+      "b1_terminal_neutral_results.csv": "886ec54e6d553af3c5181bda6351ddef805437946c92a35c823a9a2300be50aa",
+      "b1_terminal_neutral_block_payoffs.json": "87cb7e9ddc2493b40479b2354ec4fcb266508c730582bb999b03c74f91483fed",
+      "terminal_soc_config.json": "abf4f910b87e8c0cf1a5985c6e044758a56b726cd434f2905e3bf88bd461b1c3",
+      "trainer_configs.json": "b3d4b084ce9586a6708abc9097aff5d83f1ccba51f2593f6405a11914a34d5a9"
+    }
+  },
+  "not_read": {
+    "data": [
+      "Test block",
+      "Holiday block",
+      "H2 holdout",
+      "price_curves.npz contents",
+      "bus_loads_96x33.npz contents",
+      "any b1_terminal_neutral artifact"
+    ],
+    "artifacts": [
+      "runs/FORMAL_*",
+      "snapshots/FORMAL_*",
+      "checkpoints",
+      "replay buffers",
+      "train.log",
+      "episodes.csv",
+      "eval_history.json"
+    ],
+    "reason": "outside the read scope defined for this phase; the consequence is recorded as NOT_TESTED in verification_report.json"
+  },
+  "generated_by": "read-only static inspection; no market was re-cleared and no training step was executed"
+}

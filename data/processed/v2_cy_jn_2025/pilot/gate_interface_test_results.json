@@ -1,0 +1,20 @@
+{
+  "checks": {
+    "closed_is_exact_truth": true,
+    "open_is_legal": true,
+    "gates_are_independent": true,
+    "evaluation_is_deterministic": true,
+    "training_sampling_reproducible": true,
+    "closed_sample_is_hard_zero": true,
+    "st_gate_gradient_nonzero": true,
+    "closed_price_gradient_zero": true,
+    "open_price_gradient_nonzero": true,
+    "critic_action_is_two_quotes": true,
+    "target_is_evaluation_action": true,
+    "per_unit_modes_cover_four": true,
+    "fleet_mode_range": true,
+    "monitor_fields_present": true,
+    "temperature_moves_probability_toward_half": true
+  },
+  "all_pass": true
+}

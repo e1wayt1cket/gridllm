@@ -1,0 +1,167 @@
+{
+  "day": {
+    "pair_id": "2022-07-22|2025-07-15",
+    "blocks_cleared": 24,
+    "fallbacks": 0,
+    "lmp_fallbacks": 0,
+    "all_optimal": true,
+    "voltage_violation_cells": 0,
+    "line_overload_cells": 0,
+    "terminal_soc": {
+      "ESS9": 0.5,
+      "ESS14": 0.5,
+      "ESS17": 0.5,
+      "ESS27": 0.5
+    },
+    "charge_mwh": {
+      "ESS9": 0.11815599864780206,
+      "ESS14": 0.11814793208387601,
+      "ESS17": 0.11815687046342147,
+      "ESS27": 4.581703324173823e-07
+    },
+    "discharge_mwh": {
+      "ESS9": 0.10000723865212768,
+      "ESS14": 0.10000041120980395,
+      "ESS17": 0.10000797655651476,
+      "ESS27": 3.858844177782221e-07
+    },
+    "cycles": {
+      "ESS9": 0.06817601165622804,
+      "ESS14": 0.06817135727927498,
+      "ESS17": 0.06817651469373007,
+      "ESS27": 2.6376710943612634e-07
+    },
+    "losses_mwh": 2.5318630464105287,
+    "quotes_legal": true,
+    "closed_gate_is_zero": true,
+    "delta_identity_max_error": 0.0,
+    "b_paid_only_at_last_block": true,
+    "b_last_block_equals_delta": true,
+    "c2_blocks_nonzero": 96,
+    "c2_boundary_max_error": 3.389649672058681e-15,
+    "b1_manifest_config_hash_matches": true,
+    "b1_input_hashes_match": true,
+    "b1_data_hash_matches_pair": true,
+    "updates_run": 17,
+    "total_steps": 24,
+    "buffer_len": 24,
+    "fixed_scale": 1000.0,
+    "reward_mode": "B_C2",
+    "gate": {
+      "steps": 24,
+      "open_frequency": {
+        "ESS9.charge": 0.7083333333333334,
+        "ESS9.discharge": 0.5,
+        "ESS14.charge": 0.4166666666666667,
+        "ESS14.discharge": 0.375,
+        "ESS17.charge": 0.375,
+        "ESS17.discharge": 0.4583333333333333,
+        "ESS27.charge": 0.625,
+        "ESS27.discharge": 0.625
+      },
+      "mean_probability": {
+        "ESS9.charge": 0.5344352175792059,
+        "ESS9.discharge": 0.4748254232108593,
+        "ESS14.charge": 0.4931062137087186,
+        "ESS14.discharge": 0.47027332459886867,
+        "ESS17.charge": 0.4981752708554268,
+        "ESS17.discharge": 0.4916407950222492,
+        "ESS27.charge": 0.5090438177188238,
+        "ESS27.discharge": 0.4687254863480727
+      },
+      "mode_counts": {
+        "4": 1,
+        "5": 2,
+        "20": 1,
+        "51": 1,
+        "75": 1,
+        "102": 1,
+        "107": 1,
+        "109": 1,
+        "136": 1,
+        "149": 1,
+        "171": 1,
+        "182": 1,
+        "193": 1,
+        "194": 1,
+        "201": 1,
+        "202": 1,
+        "209": 1,
+        "217": 1,
+        "231": 1,
+        "235": 1,
+        "241": 1,
+        "243": 1,
+        "247": 1
+      },
+      "distinct_modes": 23,
+      "saturated_upper": 0,
+      "saturated_lower": 0
+    },
+    "buffer_reward_sum_ESS9": 0.0009627565741539001,
+    "expected_reward_sum_ESS9": 0.0009627556331841607,
+    "buffer_reward_sum_ESS14": 0.0009663896635174751,
+    "expected_reward_sum_ESS14": 0.0009663895914748313,
+    "buffer_reward_sum_ESS17": 0.0010229134932160378,
+    "expected_reward_sum_ESS17": 0.0010229131217294914,
+    "buffer_reward_sum_ESS27": 0.10013383626937866,
+    "expected_reward_sum_ESS27": 0.10013384180062826,
+    "buffer_reward_identity_max_error": 5.531249597234833e-09
+  },
+  "checkpoint": {
+    "checkpoint_level": "resume",
+    "action_restored": true,
+    "buffer_sample_restored": true,
+    "losses_restored": true,
+    "actor_parameters_changed_by_update": true,
+    "actor_parameters_restored_and_updated_identically": true,
+    "counters_restored": true,
+    "exposure_restored": true,
+    "update_expected": {
+      "critic_loss": 0.49654553085565567,
+      "actor_loss": 0.8050131052732468,
+      "actor_loss_by_agent": {
+        "ESS9": 1.3094850778579712,
+        "ESS14": 0.9887748956680298,
+        "ESS17": 0.4766930937767029,
+        "ESS27": 0.4450993537902832
+      },
+      "q1_mean": -0.621551688760519,
+      "q2_mean": -0.5526538342237473,
+      "q_gap": 0.374603308737278,
+      "reward_scale": 1000.0
+    },
+    "update_actual": {
+      "critic_loss": 0.49654553085565567,
+      "actor_loss": 0.8050131052732468,
+      "actor_loss_by_agent": {
+        "ESS9": 1.3094850778579712,
+        "ESS14": 0.9887748956680298,
+        "ESS17": 0.4766930937767029,
+        "ESS27": 0.4450993537902832
+      },
+      "q1_mean": -0.621551688760519,
+      "q2_mean": -0.5526538342237473,
+      "q_gap": 0.374603308737278,
+      "reward_scale": 1000.0
+    },
+    "all_pass": true
+  },
+  "experiment": {
+    "experiment_id": "SMOKE_B_C2_GATE",
+    "reward_mode": "B_C2",
+    "gamma": 0.99,
+    "fixed_scale": 1000.0,
+    "gate_temperature": 1.0,
+    "price_noise_std": 0.5,
+    "target_policy_noise": 0.2,
+    "target_noise_clip": 0.5,
+    "lr": 0.0003,
+    "tau": 0.005,
+    "policy_delay": 2,
+    "batch_size": 8,
+    "buffer_capacity": 512,
+    "start_steps": 0
+  },
+  "all_pass": true
+}

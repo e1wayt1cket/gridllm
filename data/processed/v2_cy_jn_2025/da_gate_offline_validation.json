@@ -1,0 +1,373 @@
+{
+  "checks": [
+    {
+      "ok": true,
+      "check": "map monotone"
+    },
+    {
+      "ok": true,
+      "check": "map bounded"
+    },
+    {
+      "ok": true,
+      "check": "map and derivative finite"
+    },
+    {
+      "ok": true,
+      "check": "map(0)=0.5"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at -10.0"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at -3.1"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at -2.5"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at -1.0"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at 0.0"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at 1.0"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at 2.5"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at 3.1"
+    },
+    {
+      "ok": true,
+      "check": "numeric derivative at 10.0"
+    },
+    {
+      "ok": true,
+      "check": "gate-closed quote exactly zero"
+    },
+    {
+      "ok": true,
+      "check": "gate-open quote within bounds"
+    },
+    {
+      "ok": true,
+      "check": "high-region minimum gradient exceeds sigmoid"
+    },
+    {
+      "ok": true,
+      "check": "gate temperature starts at 4"
+    },
+    {
+      "ok": true,
+      "check": "gate temperature midpoint 2.5"
+    },
+    {
+      "ok": true,
+      "check": "gate temperature ends at 1"
+    },
+    {
+      "ok": true,
+      "check": "gate temperature stays 1"
+    },
+    {
+      "ok": true,
+      "check": "ST gate gradients finite"
+    },
+    {
+      "ok": true,
+      "check": "temperature raises the ST gradient at a saturated logit"
+    },
+    {
+      "ok": true,
+      "check": "deterministic gate is logit>0"
+    },
+    {
+      "ok": true,
+      "check": "Bernoulli open frequency near 0.5"
+    },
+    {
+      "ok": true,
+      "check": "sample batch size"
+    },
+    {
+      "ok": true,
+      "check": "sampler stats present"
+    },
+    {
+      "ok": true,
+      "check": "sampled obs matches buffer index"
+    },
+    {
+      "ok": true,
+      "check": "sampled action matches buffer index"
+    },
+    {
+      "ok": true,
+      "check": "sampled reward matches buffer index"
+    },
+    {
+      "ok": true,
+      "check": "sampling probabilities sum to one"
+    },
+    {
+      "ok": true,
+      "check": "per-transition probability cap is traceable"
+    },
+    {
+      "ok": true,
+      "check": "effective sample size in range"
+    },
+    {
+      "ok": true,
+      "check": "non-empty joint cells recorded"
+    },
+    {
+      "ok": true,
+      "check": "sampled transition probabilities positive"
+    },
+    {
+      "ok": true,
+      "check": "uniform-ratio positive"
+    },
+    {
+      "ok": true,
+      "check": "24/24 blocks cleared"
+    },
+    {
+      "ok": true,
+      "check": "all clears OPTIMAL"
+    },
+    {
+      "ok": true,
+      "check": "no voltage/line violation"
+    },
+    {
+      "ok": true,
+      "check": "terminal SOC 0.5"
+    },
+    {
+      "ok": true,
+      "check": "B delta identity"
+    },
+    {
+      "ok": true,
+      "check": "ESS9: B paid only at block 23"
+    },
+    {
+      "ok": true,
+      "check": "ESS9: C2 discounted identity"
+    },
+    {
+      "ok": true,
+      "check": "ESS9: C2 potential starts at zero"
+    },
+    {
+      "ok": true,
+      "check": "ESS14: B paid only at block 23"
+    },
+    {
+      "ok": true,
+      "check": "ESS14: C2 discounted identity"
+    },
+    {
+      "ok": true,
+      "check": "ESS14: C2 potential starts at zero"
+    },
+    {
+      "ok": true,
+      "check": "ESS17: B paid only at block 23"
+    },
+    {
+      "ok": true,
+      "check": "ESS17: C2 discounted identity"
+    },
+    {
+      "ok": true,
+      "check": "ESS17: C2 potential starts at zero"
+    },
+    {
+      "ok": true,
+      "check": "ESS27: B paid only at block 23"
+    },
+    {
+      "ok": true,
+      "check": "ESS27: C2 discounted identity"
+    },
+    {
+      "ok": true,
+      "check": "ESS27: C2 potential starts at zero"
+    },
+    {
+      "ok": true,
+      "check": "executed quotes legal"
+    },
+    {
+      "ok": true,
+      "check": "stored gates binary"
+    },
+    {
+      "ok": true,
+      "check": "forced exploration visited at least one leg"
+    },
+    {
+      "ok": true,
+      "check": "one day fills 24 transitions"
+    },
+    {
+      "ok": true,
+      "check": "exploration source stored"
+    },
+    {
+      "ok": true,
+      "check": "checkpoint schema v3"
+    },
+    {
+      "ok": true,
+      "check": "checkpoint action schema v3"
+    },
+    {
+      "ok": true,
+      "check": "DA metadata and sampler state saved"
+    },
+    {
+      "ok": true,
+      "check": "replay saved in bundle"
+    },
+    {
+      "ok": true,
+      "check": "open-gate action round-trips"
+    },
+    {
+      "ok": true,
+      "check": "replay restored after load"
+    },
+    {
+      "ok": true,
+      "check": "v2 checkpoint refused by the v3 trainer"
+    }
+  ],
+  "mapping": {
+    "grid": [
+      {
+        "fraction": 0.5,
+        "quote_cny": 150.0,
+        "logit": -1.4161007967157609e-16,
+        "dq_dlogit_cny": 58.800000000000004,
+        "sigmoid_dq_dlogit_cny": 75.0
+      },
+      {
+        "fraction": 0.86,
+        "quote_cny": 258.0,
+        "logit": 1.8367346938775508,
+        "dq_dlogit_cny": 58.800000000000004,
+        "sigmoid_dq_dlogit_cny": 36.120000000000005
+      },
+      {
+        "fraction": 0.9966666666666667,
+        "quote_cny": 299.0,
+        "logit": 2.5746990619968235,
+        "dq_dlogit_cny": 11.316065276116806,
+        "sigmoid_dq_dlogit_cny": 0.9966666666666565
+      },
+      {
+        "fraction": 0.9996666666666666,
+        "quote_cny": 299.9,
+        "logit": 2.956859752556184,
+        "dq_dlogit_cny": 0.3578454042369164,
+        "sigmoid_dq_dlogit_cny": 0.09996666666668895
+      },
+      {
+        "fraction": 0.01,
+        "quote_cny": 3.0,
+        "logit": -2.5,
+        "dq_dlogit_cny": 58.800000000000004,
+        "sigmoid_dq_dlogit_cny": 2.9699999999999998
+      },
+      {
+        "fraction": 0.99,
+        "quote_cny": 297.0,
+        "logit": 2.499999999999999,
+        "dq_dlogit_cny": 58.800000000000004,
+        "sigmoid_dq_dlogit_cny": 2.9700000000000024
+      }
+    ],
+    "high_region_min_gradient_cny": 9.661825914391331,
+    "sigmoid_high_region_min_gradient_cny": 0.8973000000000009,
+    "high_region_ratio_min": 10.767665122468875,
+    "logit_for_258": 1.8367346938775508,
+    "logit_for_299": 2.5746990619968235
+  },
+  "gate": {
+    "temperature_sequence": {
+      "0": 4.0,
+      "26": 3.2641509433962264,
+      "53": 2.5,
+      "79": 1.7641509433962268,
+      "106": 1.0,
+      "159": 1.0
+    },
+    "st_gradients": {
+      "-4.0_1.0": 1.8439863920211792,
+      "-4.0_4.0": 5.131571292877197,
+      "0.0_1.0": 26.099998474121094,
+      "0.0_4.0": 6.524999618530273,
+      "4.0_1.0": 1.8439892530441284,
+      "4.0_4.0": 5.131570816040039,
+      "8.0_1.0": 0.03499731048941612,
+      "8.0_4.0": 2.7403335571289062
+    },
+    "bernoulli_open_frequency": 0.499625
+  },
+  "sampler": {
+    "stats": {
+      "n": 48,
+      "batch": 48,
+      "uniform_fraction": 0.5,
+      "beta": 0.5,
+      "max_upweight": 5.0,
+      "cells_nonempty": 16,
+      "cell_count_min": 1,
+      "cell_count_median": 3.0,
+      "cell_count_max": 8,
+      "sample_prob_min": 0.017100408741924873,
+      "sample_prob_max": 0.029321144047134366,
+      "uniform_ratio_min": 0.7105225259915952,
+      "uniform_ratio_max": 1.218294465807504,
+      "ess": 46.85361957960683,
+      "ess_fraction": 0.9761170745751423,
+      "sampled_cells": 15
+    },
+    "n": 48,
+    "prob_min": 0.017100408741924873,
+    "prob_max": 0.029321144047134366,
+    "uniform_prob": 0.020833333333333332,
+    "cells": 16
+  },
+  "end_to_end": {
+    "day": {
+      "clears": 24,
+      "all_optimal": true,
+      "terminal_soc_max_err": 0.0,
+      "voltage_violation_cells": 0,
+      "line_overload_cells": 0,
+      "delta_fleet": 0.00023483503673435086,
+      "explored_legs": 75,
+      "buffer_len": 24
+    },
+    "gate_temperature": 4.0,
+    "exploration_epsilon": 1.0,
+    "sampler": {}
+  },
+  "all_ok": true
+}

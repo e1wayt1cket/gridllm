@@ -1,0 +1,46 @@
+{
+ "generated_at": "2026-11-12T15:50:25+08:00",
+ "label": "NON_FORMAL_DIAGNOSTIC",
+ "definition": "G = Revenue - Purchase - Cycle",
+ "rows": {
+  "ess_day_pnl": 1280,
+  "fleet_day_pnl": 320,
+  "paired_mapping_delta": 800
+ },
+ "checks": {
+  "net_identity": {
+   "status": "PASS",
+   "max_abs_residual_cny": 6.821210263296962e-13,
+   "tolerance_cny": 1e-06,
+   "scope": "every ESS row and every fleet row"
+  },
+  "fleet_equals_sum_ess": {
+   "status": "PASS",
+   "max_abs_residual_cny": 4.547473508864641e-13,
+   "fields": [
+    "revenue",
+    "purchase",
+    "cycle",
+    "net",
+    "energy"
+   ]
+  },
+  "paired_delta_identity": {
+   "status": "PASS",
+   "max_abs_residual_cny": 7.958078640513122e-13,
+   "scope": "delta_net = delta_revenue - delta_purchase - delta_cycle on every pair and scope"
+  },
+  "phase6d_net_agreement": {
+   "status": "PASS",
+   "max_abs_residual_cny": 0.0,
+   "cells_compared": 6400,
+   "source": "phase6d/accounting_reconciliation.csv"
+  },
+  "cycle_cost_formula": {
+   "status": "PASS",
+   "max_abs_deviation_from_100_cny_per_mwh": 5.684341886080802e-14,
+   "detail": "stored cycle cost equals 100 x (charge + discharge) on every row with nonzero throughput"
+  }
+ },
+ "status": "PASS"
+}

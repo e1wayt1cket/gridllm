@@ -1,0 +1,33 @@
+{
+  "seeds": [
+    11,
+    23,
+    37,
+    53,
+    71
+  ],
+  "main_experiment": "NEAR_B_C2_GATE",
+  "reward_ablation": "NEAR_B_ONLY_GATE",
+  "dataset": "JN-Base-NEAR",
+  "split": "data/processed/v2_cy_jn_2025/near/split.json",
+  "split_seed": 20261031,
+  "train_days": 53,
+  "validation_days": 11,
+  "test_days": 11,
+  "holiday_days": 5,
+  "exposures_per_training_day_min": 10,
+  "exposures_per_training_day_max": 15,
+  "episodes_per_seed_min": 530,
+  "episodes_per_seed_max": 795,
+  "block_steps_per_seed_min": 12720,
+  "block_steps_per_seed_max": 19080,
+  "critic_updates_per_block": 1,
+  "actor_updates_every_blocks": 2,
+  "batch_size": 128,
+  "buffer_capacity": 100000,
+  "start_steps": 0,
+  "selection_metric": "mean fleet delta G over the 11 validation days (settlement, not reward)",
+  "early_stop": "no validation improvement in 3 consecutive evaluations",
+  "formal_training_authorised": false,
+  "reason": "G10 not met; no independent holdout"
+}

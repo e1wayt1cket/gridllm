@@ -1,0 +1,1154 @@
+=== page 1 ===
+AppliedEnergy312(2022)118724
+Contents lists available at ScienceDirect
+Applied Energy
+journal homepage: www.elsevier.com/locate/apenergy
+Multi-agent deep reinforcement learning optimization framework for
+building energy system with renewable energy
+Rendong Shena, Shengyuan Zhongb, Xin Wena, Qingsong Ana,*, Ruifan Zhenga, Yang Lia,*,
+Jun Zhaoa
+aKey Laboratory of Efficient Utilization of Low and Medium Grade Energy (Tianjin University), Ministry of Education of China, Tianjin 300350, China
+bScience and Technology Research Institute, China Three Gorges Corporation, Beijing 100038, China
+H I G H L I G H T S
+•Multi-agent dueling double deep Q-network optimization framework was established.
+•Prioritized experience replay and feasible action screening mechanism was applied.
+•Value-decomposition network was used to solve multi-agent reliability problems.
+•Simulation results prove the economy and doability of the method.
+A R T I C L E I N F O A B S T R A C T
+Keywords: Under the background of high global building energy consumption, meeting the ever-growing energy con-
+Building energy system sumption demand of building energy system (BES) through renewable energy is one of the effective ways to
+Renewable energy promote the clean transformation of global energy structure and achieve “carbon neutrality”. However, with the
+Multi-agent cooperation
+introduction of renewable energy, BES control becomes more complicated. The mismatch between supply and
+Deep reinforcement learning
+demand sides limits the further growth of renewable energy consumption, which is caused by fluctuation of
+Cooperation optimization
+renewable energy and randomness of load. Therefore, it is challenging to develop an efficient framework to
+realize the cooperative control of various controlled objects in supply and demand sides. To address this chal-
+lenge, a multi-agent deep reinforcement learning framework was proposed to optimize the energy management
+of the building. In this paper, a dueling double deep Q-network was used for optimization of single agent, and
+value-decomposition network was put forward to solve the cooperation optimization of multiple agents. Also,
+considering the controlled characteristics of BES, prioritized experience replay and feasible action screening
+mechanism were introduced to accelerate the convergence and maintain stability of the algorithm applied to
+BES. Simulation results show that, the multi-agent cooperation algorithm can realize the control of variously
+different devices at the same time and achieve multi-objective cooperation optimization of BES. Moreover, the
+proposed approach reduced the uncomfortable duration by 84%, the unconsumed amount of renewable energy
+by 43%, and the energy cost by 8% compared with the conventional rule-based control approach.
+building energy system (BES) needs to be further improved [3–5]. To
+1. Introduction increase the renewable energy consumption, one of the feasible schemes
+is to introduce the energy storage system. However, due to the limitation
+Nearly 90% of time in our life is spent in buildings [1]. By 2019, the of economic and occupied space, the capacity of energy storage system
+global building energy consumption accounted for 35% of the total in conventional building systems is still unsatisfactory [6]. Thence, in
+energy consumption, and the total CO2 emission of building operation the stage of building operation, how to use limited energy storage
+was up to 10 Gt, accounting for 28% of the total global related carbon equipment to ensure occupant comfort while achieving renewable en-
+emissions [2]. In order to reduce the global carbon emission, the pro- ergy consumption is of great significance.
+portion of renewable energy in the terminal energy consumption of Under the background of limited energy storage, it is particularly
+* Corresponding authors.
+E-mail addresses: anqingsong@tju.edu.cn (Q. An), liyangtju@tju.edu.cn (Y. Li).
+https://doi.org/10.1016/j.apenergy.2022.118724
+Received 15 August 2021; Received in revised form 4 February 2022; Accepted 7 February 2022
+Availableonline24February2022
+0306-2619/©2022ElsevierLtd.Allrightsreserved.
+
+=== page 2 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Nomenclature Q current value network
+̂
+Q target value network
+Abbreviations r reward
+A2C advantage actor-critic s current state
+A3C asynchronous advantage actor-critic s’ state of the next moment
+BES building energy system V predictive state value function
+D3QN dueling double deep Q-network w weight of the current network
+DL deep learning w- weight of the target network
+DRL deep reinforcement learning waste unconsumed amount of renewable energy
+DQN deep Q-network
+DNN deep neural network Greeks
+DPG deterministic policy gradient α weight parameters of advantage function in current value
+DDPG deep deterministic policy gradient network
+FAS feasible action screening β weight parameters of value function in current value
+FCUs fan coil units network
+GSHP ground source heat pump α̂ weight parameters of advantage function in target value
+MACCM multi-agent cooperative control mode network
+MADRL multi-agent deep reinforcement learning
+̂β
+weight parameters of value function in target value
+POMDP partially observable Markov decision process network
+PER prioritized experience replay γ attenuation factor
+RL reinforcement learning θ weight parameters of main line in current value network
+SOC state of charge ̂θ weight parameters of main line in target value network
+TD temporal difference ω weight correction coefficient of PER
+VDN value-decomposition network
+Subscripts
+Symbols BA battery action
+A prediction relative advantage function b battery
+a current action FCU-A FCU of room A
+a’ action of the next moment FCU-B FCU of room B
+cost energy cost re renewable energy
+com uncomfortable heating duration rw waste of renewable energy
+G air volume ratio
+important to realize the dynamic matching between supply and demand problem of “curse of dimensionality” [17], which made it difficult to
+sides through optimization control. Building control system can make learn effectively. Therefore, some researchers had proposed deep
+buildings operate under the given conditions based on the input of learning (DL) that could be used to almost any complex function [18] to
+external parameters, and can dynamically adjust and make decision provide a new “brain” for RL algorithm. Deep reinforcement learning
+according to the specific operation requirement, so as to achieve the (DRL) is the combination of RL and DL, which can maximize the
+optimal operation objectives. The conventional BES simulation and exploration of feasible action space [19–21]. The performance of the
+optimization are based on model predictive control, whose optimization deep Q network (DQN) algorithm proposed by Google team in 2015 had
+result highly depends on the accuracy of the model, requiring expert surpassed human beings in Atari 2600 games [22]. Benefiting from its
+knowledge for development and calibration. Moreover, model predic- excellent “wisdom”, researchers tried to combine it with BES to realize
+tive control needs to spend some time to generate the optimal control the intellectualization of BES [23]. Currently, many researches on BES
+strategy again when the system state changes. Therefore, in the opera- were still limited to building energy consumption and indoor comfort,
+tion control stage of the BES, it needs one control method that can and there were few researches on improving local renewable energy
+realize the intelligent and adaptive control of the system according to consumption through energy storage equipment.
+the input parameters. Reinforcement learning (RL), which is very agile With the further research in the field of artificial intelligence, algo-
+in responding to stochastic changes and can learn and explore by itself, rithms dealing with tasks of different complexity were emerging, such as
+is one of the feasible methods [7–9]. Double DQN [24] and Dueling DQN [25]. Researchers in the field of
+Some researchers had used RL algorithm to control BES. Taking the energy could also use better algorithm to optimize BES. To solve over-
+most representative Q-learning algorithm as an example [10], the estimation of value functions in DQN, Hasselt et al. [26] used different
+earliest research appeared in 1997 [11], Q-learning was used to control value functions to complete action selection and action evaluation, so as
+the valve opening degree of a heating coil and the experiment showed to solve the problem of over-estimation in the learning process. There-
+that the control accuracy of Q-learning for electric heater was higher fore, based on dual neural network structure, using different neural
+than that of PI controller. The research related to Q-learning applied to networks to realize action selection and action evaluation is an effective
+BES first appeared in 1998 [12]. Researchers used Q-learning to control way to avoid over-estimation. Yan et al. [27] applied the Double DQN
+on/off of air heating, lighting, ventilation, and water heating by algorithm to the air condition system of an office, which was built in the
+observing the lifestyle and desires of inhabitants. In recent years, the TRNSYS simulation platform. The simulation results showed that for the
+researchers focused more attention on how to use RL algorithm to target of minimum energy consumption, this algorithm realized the
+reduce the energy cost [13], improve the comfort [14–15] and enhance energy-saving optimization operation of the system on the premise of
+the control flexibility [16] of BES. Although RL method had made some meeting the requirements of indoor thermal comfort. Compared with
+achievements in the field of practical engineering, with the increasing DQN, the total energy consumption of the system was reduced by 1.64%,
+complexity of BES, the conventional RL method was troubled by the and the proportion of uncomfortable duration decreased by 1.37%. Liu
+2
+
+=== page 3 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Table 1
+Relevant review works of RL and DRL.
+Ref & Year Algorithm Application object Control parameter Purposes
+Mozer et al., Q-learning Residential energy On/off of air heating, lighting, ventilation and water Optimize the energy management
+1998[12] management heating according to needs of inhabitants
+Mocanu et al., DQN, Deterministic policy Residential energy On/off of air conditioner, electric vehicle and Maintain the balance of energy supply and
+2019[23] gradient management dishwasher demand
+(DPG)
+Ding et al., Dueling Double Deep Q-network Residential energy Temperature setpoint, dimming level, blind slat Balance the energy efficiency and user
+2019[29] (D3QN) management angle and open percentage satisfaction
+Liu et al., Double DQN Residential energy On/off of time-shift load, adjustment of power-shift Optimize energy management
+2020[28] management load and charging or discharging of energy storage
+Wei et al., DQN HVAC system Air flow rate of VAV terminal boxes Balance energy cost and indoor
+2017[30] temperature requirements
+Wang et al., Advantage actor- critic (A2C) HVAC system Cooling temperature setpoint Optimize thermal comfort
+2017[31] alongside energy consumption
+Fu et al., Sarsa HVAC system On/off and wind intensity of HVAC system Decrease energy consumption without
+2018[16] losing comfort
+Yan et al., Double DQN HVAC systems Chilled water temperature setpoint and chilled pump Minimize both energy consumption and
+2019[27] frequency setpoint thermal discomfort
+Yoon et al., DQN HVAC systems Temperature setpoint and air flow rate of VRF system Balance thermal comfort and energy
+2019[34] and on/off of humidifier consumption
+Gao et al., Deep deterministic policy HVAC system Setpoints of air temperature and humidity of HVAC Minimize the energy consumption while
+2019[35] gradient (DDPG) improving the occupant thermal comfort
+Yang et al., Double DQN HVAC system Levels of input power and air volume Maintain indoor air quality and thermal
+2021[38] comfort with minimized energy cost.
+Deng et al., Non-stationary DQN HVAC system Setpoints of heating and cooling Minimize energy consumption and satisfy
+2022[39] occupant thermal comfort
+Kazmi et al., Partially observable Markov Heating supply water Heating temperature setpoint and on/off of storage Optimize energy efficiency
+2018[32] decision process (POMDP) system vessel
+Zhang et al., Asynchronous advantage actor- Heating supply water Supply water temperature setpoint Reduce heating energy consumption
+2018[33] critic (A3C) system
+Brandi et al., DQN Heating supply water Supply water temperature setpoint Optimize control of indoor temperature and
+2020[36] system heating energy consumption
+Yang et al., Q-learning PV/T-heat pump Mass flow rate of each loop Maintain indoor comfort level and achieve
+2015[14] system good energy efficiency
+Zhong et al., DQN Electric heating User subsidy price Improve renewable energy consumption
+2021[37] system and reduce energy cost
+Zhao et al., Soft actor-critic with dueling District heating Supply temperature of heat source and mass flow rate Maintain occupants’ comfort while
+2022[40] network (SACDN) system of each pipeline participating in demand response
+et al. [28] applied Double DQN to home energy management system DRL algorithms are still based on the optimization of single agent. For
+with solar PV, electric vehicles and other multiple devices. Compared the future BES coupled with cooling, heating and power supply, a single
+with DQN, Double DQN performed better in energy efficiency man- agent is unable to deal with the overlap of multiple adjustable param-
+agement and stability of the system. Ding et al. [29] applied the control eters of multiple devices. The cooperation between multiple agents is
+method based on Dueling Double Deep Q-network (D3QN) to balance needed to complete the task of intelligent control, and the DRL system
+the energy consumption and indoor comfort in commercial buildings, consisted of multiple agents is called multi-agent deep reinforcement
+and obtained the optimal control sequence of HVAC, lighting, sunshade learning (MADRL) system [43]. Fig. 1 shows the mind diagram of pre-
+and window subsystems. The above research showed that the upgraded vious correlation research regarding BES. Hurtado et al. [44] applied
+algorithm could improve the comprehensive performance of BES. The extended join action learning algorithm to the multi-agent system to
+representative relevant applications of RL and DRL are summarized in provide flexible power demand response for power grid while ensuring
+Table1. indoor comfort. Yu et al. [45] applied the actor-attention-critic algo-
+However, applying DRL algorithm alone will have some defects, such rithm to the optimization control of multi-area air condition system in
+as slow convergence speed and low stability. Then, we consider to commercial buildings, which achieved the lowest energy consumption
+introduce the prioritized experience replay (PER) algorithm and a on the premise of ensuring the thermal comfort and indoor air quality
+feasible action screening (FAS) mechanism into intelligent algorithms. comfort. The results showed that when the thermal zones were more
+Different from the conventional experience replay caching mechanism, than 30, the average energy consumption of the algorithm was reduced
+PER algorithm [41–42] evaluated and sorted the priority of the expe- by 56.50% and 75.25% respectively compared with that of the rule-
+rience data, and selected the experience with higher priority for model based scheme and heuristic scheme control methods. Ahrarinouri
+training. This algorithm increased the probability of important experi- et al. [46] studied the optimization control of the multi-carrier resi-
+ence being replayed, and improved the efficiency of model sampling and dential energy system. Each subject of the combined heat and power
+learning. However, the optimization control of energy system is unit, electric vehicle, dishwasher and hot water heater was distributed
+different from game simulation. It has clear physical laws in reality, and an agent, which was trained using Q-learning algorithm. The results
+includes many inexecutable actions. Therefore, the theoretical model showed that compared with the conventional methods such as fuzzy and
+can be used to pre-screen the action space, and then make the agent neural network and genetic algorithm, the multi-agent control method
+choose the action in the feasible action space. Then, the agents will not based on RL could save more energy costs. Kazmi [47] et al. found that
+violate the physical boundary whether being in the exploration mode or the multi-agent cooperative control mode (MACCM) in BES was clearly
+greedy mode, so as to ensure the stability of the algorithm. superior to that of the single agent. Results showed that over 40% saving
+In order to achieve excellent energy consumption performance in of building energy consumption was achieved by making use of either
+BES, joint control of multiple equipment is needed. The conventional human expert knowledge or additional sensors with no loss of occupant
+3
+
+=== page 4 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+comfort. At present, methods mainly used in the research of multi-agent study can be summarized as follows:
+cooperation were completely centralized and decentralized methods
+which had the problem of “lazy agent”. When facing certain tasks, the 1. A novel DQN control strategy which combines D3QN with PER al-
+approach above fails by learning inefficient policies with only one agent gorithm is proposed. Compared with conventional experience replay
+active and the other being “lazy”. This happens when one agent learns a method, PER algorithm increases the efficiency of model sampling
+useful policy, but a second agent is then discouraged from learning and accelerated the learning process of the algorithm applied to BES.
+because its exploration would hinder the first agent and lead to worse 2. Aiming at the strict physical constraints in BES control, FAS mech-
+team reward observability. Hence, the effective cooperation between anism is introduced. By using the existing theoretical model, the
+multiple controlled agents cannot be formed to achieve the optimization actions that violate the physical law are filtered in advance, which
+goal. The key of MADRL system is that agents not only need to interact means the unrealistic actions generated by the model can be avoided
+with the environment, but also need to cooperate with other agents in during actual operation. To the best of our knowledge, the above
+the environment to complete the task, which means that convergence mechanism has not been considered in the existing research works.
+cannot be achieved in many cases. And when there are many various 3. The VDN algorithm based on value function-decomposition is firstly
+kinds of agents in the environment, the optimal solution may not exist if proposed for BES, which solves the multi-agent reliability problems,
+the target of each agent is not consistent. Therefore, the key to build and completes the joint intelligent control of multiple agents. The
+MADRL algorithm is to combine with the practical application system, result proves that the proposed method can reduce the indoor un-
+and to choose the appropriate algorithm according to its cooperation comfortable duration and unconsumed amount of renewable energy
+environment, cooperation model and cooperation mechanism. To at the lowest energy cost.
+address this challenge, value-decomposition network (VDN) was first
+proposed by DeepMind team in 2018. Then it was used to solve multi- The remainder of this paper is organized as follows. The system and
+agent cooperation problems in games, power grids, traffic and other entity model parameters are introduced in Section 2. Section 3 shows the
+fields, and achieved good optimization results [48–49]. D3QN-PER algorithm adopted by each agent and the MADRL algorithm
+Although the above works have made noticeable contributions to the for multi-agent cooperation. Sections 4 presents the results and discus-
+applications of intelligent algorithms in BES, they did not consider the sion of the case study. Finally, Section 5 outlines our main conclusions
+expanded application of algorithms in the increasingly complex BES
+currently. With the controlled objects increasing, most application of 2. BES description
+multi-agent cooperation algorithms in BES has the problem of “lazy
+agent”, which makes it difficult to obtain the best control performance. 2.1. BES with multiple controlled agents
+Therefore, it is essential to consider the scalability of the algorithm while
+building more agents for controlled objects in BES. On the other hand, The BES constructed in this study includes renewable energy supply
+most of the works only focus on training the models to generate optimal system, as shown in Fig. 2.
+actions and neglect whether generated actions conform to the actual The building is located in Tianjin, China, consisted of two office
+operating conditions. However, strict physical constraints in BES control rooms (Room A/B) with the total area of 180 m2. The power supply
+have to be considered, such as battery charge–discharge level, etc. In includes the municipal power grid, photovoltaic and wind-driven
+view of these limitations, it necessary to established a FAS mechanism in generator. The cooling and heating supply is provided by ground
+the training process of the model. source heat pump (GSHP), and the indoor temperature is controlled by
+Driven by these motivations, this study established a multi-agent adjusting the air volume setting of fan coil units (FCUs). The air volume
+deep reinforcement learning control method to realize the joint intelli- is measured by the air volume ratio, which is the ratio of current air
+gent control of multiple agents and optimized the energy cost, renew- volume to maximum air volume.
+able energy consumption and indoor thermal comfort of the building In addition, detailed components models, such as fan coils unit
+equipped with energy storage devices. The main contributions of this model, GSHP model, battery model, etc. and room temperature
+Fig. 1. Research process on the artificial intelligence algorithm applied to BES and the position of this paper.
+4
+
+=== page 5 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Fig. 2. Schematic diagram of BES with multiple controlled subjects.
+calculation model are given in Appendix A. 3.2. Dueling DQN algorithm
+2.2. Parameters of controlled subjects The network structure of Dueling DQN is shown in Fig. 3. Different
+from deep neural network (DNN) in DQN which directly outputs the Q
+The controlled subjects in the system include the battery, four FCUs value, Dueling DQN outputs the predictive state value function V and the
+in the left room (room A) and two FCUs in the right room (room B). The prediction relative advantage function A respectively after obtaining the
+FCUs of the two rooms are under unified control, that is, four FCUs in intermediate characteristics. The two functions are added as action
+room A and two FCUs in room B are under unified control of air volume value functions. Through training V and A at the same time, the over-
+respectively. The specific adjustment parameters are shown in Table 2 fitting problem during network training can be avoided and the training
+As shown in Table 2, the air volume of FCU includes 4 optional speed of the network can be accelerated:
+values, of which 0 represents off and 1 represents maximum air volume.
+Q(s,a;θ,α,β)=V(s;θ,β)+A(s,a;θ,α) (2)
+That is, the four optional values of 0, 0.3, 0.6 and 1 correspond to off,
+low wind, medium wind and high wind respectively. The action space of where s is current state; a is current action; θ is full connection layer
+the agent controlling the FCU is [0, 0.3, 0.6, 1]. parameters of the main line; α and β is the full connection layer pa-
+The adjustable parameter of the battery is charge–discharge rate, i.e., rameters of two branches.
+the change of SOC. The setting of the value refers to the maximum
+charge and discharge power of the battery, so as to ensure that the 3.3. PER algorithm
+charge–discharge can be completed. The positive value and negative
+value represent charging and discharging the battery respectively, and PER algorithm is different from prioritized cleaning algorithm, it can
+0 means no operation. The action space of the agent controlling battery replay more useful experience in the learning process with higher fre-
+is [-0.015, (cid:0) 0.01, (cid:0) 0.005, 0.005, 0.01, 0.015]. quency. PER algorithm uses TD-error in temporal difference (TD) algo-
+rithm to measure the effect of each experience. Taking DQN algorithm as
+3. Framework of D3QN-PER and VDN algorithm an example, TD error is calculated as the absolute value of the difference
+between the Q value of an action target and the current Q value of the
+According to the above description, Double DQN and Dueling DQN current DNN output [42]:
+are the derivative algorithms of DQN, which perform better in BES. For ⃒ ⃒
+each controlled subject of BES, the D3QN [53] - a combination of Double TD-error= ⃒ ⃒r+γmaxQ(s′,a′,w)(cid:0) Q(s,a,w) ⃒ ⃒ (3)
+a′
+DQN and Dueling DQN-was adopted for each agent, and VDN was used
+for multi-agent cooperation in this study. When sampling, greedy priority and uniform random sampling
+methods are added to ensure that the priority of empirical samples is
+3.1. Double DQN algorithm directly proportional to TD-error. Meanwhile, it is ensured that the
+sampling probability of empirical samples with the lowest priority is
+Different from DQN algorithm, Double DQN separates action selec- also non-zero. The sampling probability of empirical sample i is defined
+tion and action evaluation in the target Q value, making them use as follows:
+different Q networks. In the Double DQN algorithm, the target Q value is po
+as follows: P(i)=∑i po (4)
+( ) k k
+r+γQ s′,argmaxQ(s′,a′;w);w(cid:0) (1) where pi is priority of empirical samples; o is sampling coefficient,
+a′
+when o is equal to zero, it means that uniform random sampling is
+where Q is current value network; r is reward; γ is attenuation factor; applied for experience replay.
+s’ is the state of the next moment; a’ is the action of the next moment; w In Eq. (4), pi is calculated by proportional prioritization method,
+is the weight of the current network; and w- is the weight of the target which is as follows:
+network. p i =TD(cid:0) error+ε (5)
+where ε is greedy rate, which can avoid the problem that the
+empirical samples will not be replayed when TD-error is zero.
+5
+
+=== page 6 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Table 2 Algorithm 1 D3QN-PER
+Adjustable parameters of each controlled subject. Input: learning rate lr, discount factor γ, greed rate ε, number of empirical samples k,
+network parameters update frequency C, number of iteration U, maximum step size of
+Controlled Adjustable parameter Value
+single episode T
+subject
+1.Initialize environment
+FCU in room A Air volume ratio GFCU-A [0, 0.3, 0.6, 1]
+2.Initialize experience replay pool
+FCU in room B Air volume ratio GFCU-B [0, 0.3, 0.6, 1]
+̂
+Battery Change of state of charge [-0.015, (cid:0) 0.01, (cid:0) 0.005, 0, 0.005, 3. Initialize current value network Q and target value network Q, weight parameters of
+(SOC) 0.01, 0.015] current network θ, weight parameters of target network ̂θ
+4. Initialize weight-changeΔ =0
+5. for episode =1, U do
+6. Initialize state s1
+7. for t =1, T do
+8. With probability ε select random action at, otherwise select at =argmaxQ(st ,a;w)
+9. Execute action at in emulator and observe rt and st+1
+10. Store transition (st, at, rt, st+1) and priority pt in Sum tree
+11. for j =1, k do
+12. Compute sampling probability P(j)according to Eq. (4)13. Sample from Sum tree
+14. Compute importance-sampling weight according to Eq. (6)
+15. Compute TD-error, according to Eq. (7)
+16. Update priority pt according to Eq. (5)
+17. Compute loss function, according to Eq. (8)
+18. Cumulative weight-change Δ←Δ+∇θL
+19. end for
+20. Update θ, resetΔ =0
+21. end for
+22. Every C step update Q ̂ =Q
+23. end for
+3.5. MADRL algorithm
+For BES in this study, MADRL algorithm can complete the task of
+intelligent control by multi-agent cooperation. Through the study of
+Fig. 3. The network structure of Dueling DQN.
+interaction behavior among agents and interaction behavior between
+agents and environment, the whole environment is learned, as shown in
+After obtaining the learning samples, in order to eliminate the de-
+Fig. 5 [54].
+viation caused by sampling, the concept of importance-sampling weight
+is introduced for correction. The calculation method of weight is as
+3.6. VDN algorithm
+follows:
+ω i = (N m ⋅P ax (i j ω )) j (cid:0)p (6) con I s n is t o e r n d t e r t a t r o g e e n t, s u th re e c V o D o N pe r a a lg ti o v r e i t o h p m ti m w i a z s a t u io se n d o i f n e a th ch is a s g t e u n d t y . u n V d D e N r t a h l e -
+gorithm can reflect the consistent target of all agents by assuming the
+sum of Q value of each agent [51]. Using the above DRL algorithm based
+3.4. D3QN-PER algorithm principle on value function approximation to give “intelligence” to agents, we
+need to model the joint action-value function of the system.
+After combining D3QN algorithm and PER algorithm, the calculation Supposing there are n agents in the system, then the joint Q function
+method of TD-error needs to combine the characteristics of Dueling DQN of all agents can be expressed as:
+and Double DQN, The Eq. (6) is modified as follows: Q((s 1 ,s 2 ,...,s n ),(a 1 ,a 2 ,...,a n )) (9)
+x (7)
+where Q
+̂
+is target value network;
+̂θ,α̂, ̂β
+are weight parameters of
+where sn is the local state that each agent can observe, sn in BES
+contain the joint state of agent1, agent2 and agent3, as showed in
+target value network.
+The loss function of DQN algorithm also needs to be calculated ac-
+Table 3; an represents the action taken by each agent.
+The basic assumption of VDN is that the joint Q function of the
+cording to two value networks at the same time, and the weight
+system can be approximated to the sum of Q functions of multiple
+correction of PER algorithm needs to be considered. The equation is as
+agents.
+follows:
+[ ] ∑n
+L=ω⋅E (r+γQ̂(s’,argmax a’ Q(s’,a’;θ,α,β);̂θ,̂α,̂β)(cid:0) Q(s,a;θ,α,β))2 Q((s 1 ,s 2 ,...,s n ),(a 1 ,a 2 ,...,a n ))≈ Q i (s i ,a i ) (10)
+(8) i=1
+The schematic diagram and pseudocode of D3QN-PER algorithm are
+where Qi is independent, which only depends on the local state in-
+shown in Fig. 4 and Algorithm 1 respectively. In order to simplify the
+formation si and action ai.
+The assumption of Eq. (10) can guarantee that the action obtained by
+expression, the weight parameters of value network in the diagram are
+maximizing the Q function of each agent is the same as the result ob-
+shown by w. In the control cycle, the control algorithm of each agent
+tained by maximizing the joint Q function, which is:
+uses the current value network Q to select the action (a) which is shown
+in Table 2 according to the observed state (s) of BES at each time. The ∑n ∑n
+selected actions (a) of each agent act together on the environment to maxQ=max Q i = maxQ i (11)
+a a ai
+generate the next state (s’) and corresponding reward (r) of BES. In the i=1 i=1
+training cycle, when enough empirical samples are stored in the expe- In other words, each agent’s Q function can be trained indirectly
+rience replay pool, the system will extract experience samples according through global reward. Moreover, the global optimal strategy can be
+to priority to train the current value network Q. obtained by selecting the action of maximizing Q value for each agent.
+6
+
+=== page 7 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Fig. 4. Schematic diagram of D3QN-PER.
+The MADRL control logic of the established BES is shown in Fig. 7.
+3.7. System evaluation method
+In order to comprehensively evaluate the operation characteristics of
+BES, this study evaluated it from three aspects: energy cost, unconsumed
+amount of renewable energy and thermal comfort, then the reward
+function was built accordingly.
+(1) Energy cost
+Referring to Appendix A, according to the characteristics of the
+system, the evaluation parameters of energy cost are as follows:
+∑
+cost (cid:0) K Okek
+cost= total k=1 (13)
+cost
+total
+where costtotal is the normalized reference indicator of energy cost,
+Fig. 5. Schematic diagram of interaction between MADRL. w ∑ hich is computed by the benchmark model, CNY (Chinese Yuan);
+K k=1 Okek is the actual energy cost of one system operation cycle, CNY.
+(2) Unconsumed amount of renewable energy
+Table 3 The unconsumed amount of renewable energy in one system oper-
+Local observation state of each agent.
+ation cycle is the sum of the unconsumed amount at each time.
+Agent number State of agents ∑
+waste (cid:0) Δt K Pk
+Agent1 (FCU in Indoor and outdoor temperature difference, Solar radiation, waste= total k=1 rw (14)
+waste
+room A) Supply water temperature, Duration before room is occupied, total
+Duration before room is unoccupied, Indoor temperature, where wastetotal is the normalized reference indicator of unconsumed
+Indoor temperature 5 min ago, Indoor temperature 10 min
+amount of renewable energy, which is computed by the benchmark
+ago, Indoor temperature 15 min ago ∑
+Agent2 (FCU in Indoor and outdoor temperature difference, Solar radiation, model, kWh; Δt K k=1 Pk rw is the actual unconsumed amount of renewable
+room B) Supply water temperature, Duration before room is occupied, energy in one system operation cycle, kWh.
+Duration before room is unoccupied, Indoor temperature,
+(3) Thermal comfort
+Indoor temperature 5 min ago, Indoor temperature 10 min
+The maximum uncomfortable heating duration in one operation
+ago, Indoor temperature 15 min ago
+Agent3 (Battery) Photovoltaic power generation, Wind power generation, Grid cycle is converted according to the annual maximum uncomfortable
+power price, SOC, Power consumption heating duration. The thermal comfort evaluation indicator is as follows:
+∑
+( ) com= com total (cid:0) K k=1 count c k om (15)
+com
+argmaxQ= argmaxQ i (12) total
+a ai
+where comtotal is the maxim
+∑
+um uncomfortable heating duration in
+The network structure of VDN algorithm with two agents is shown in one operation cycle, minute; K k=1 count c k om is the total uncomfortable
+Fig. 6. Although each agent chooses action through its own network, duration of the system in one operation cycle, minute.
+joint Q function is used in learning. (4) Comprehensive evaluation indicator
+The intelligent control method of BES established in this study will The operation of BES needs to consider multiple evaluation indica-
+use D3QN-PER algorithm to build control strategy for each agent, and tor. Therefore, according to the Eq. (13) ~ (15), the multi-target eval-
+use VDN algorithm to build multi-agent joint optimization framework. uation parameters are established as reward:
+7
+
+=== page 8 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+3.9. Parameter setting of controlled model
+The environment construction of BES in this study used the mathe-
+matical model established in Appendix A, and the equipment adjustment
+mode was set according to Section 2.2. The room temperature state and
+GSHP real-time working condition shown in Fig. 1 were calculated
+through the established equipment mathematical model.
+3.9.1. Benchmark control model
+The control strategy of the benchmark model controls the air volume
+ratio of Room A/B and SOC of battery respectively. GFCU-A and GFCU-B are
+the control variables that affect the actual energy consumption in the
+system. The adjustment of air volume ratio will affect the real-time in-
+door temperature state and the working state of GSHP. Fig. 8 shows the
+Fig. 6. Structure of VDN algorithm. control logic of the system under the benchmark model. The information
+that needs to be exchanged in the control process between supply and
+r=w cost ⋅cost+w waste ⋅waste+w com ⋅com (16) demand is the total energy consumption and the local price. According
+to the municipal power price and renewable energy generation capacity,
+where wcost, wwaste and wcom are the weight coefficients of the 3
+the SOC of battery is dynamically adjusted to ensure the most
+evaluation indicator which are set to 0.75, 1 and 0.75 , respectively.
+economical power supply. When the local power price is relatively low,
+the consumption of renewable energy can be increased by adjusting the
+3.8. FAS mechanism
+equipment to increase power consumption. When the local electricity
+price is relatively high, the economic operation can be realized by
+In this study, FAS mechanism was designed for the battery in BES.
+reducing power consumption.
+Referring to the battery model in Appendix A, the screening method is as
+In the logic framework shown in Fig. 8, the specific adjustment logic
+follows:
+of air volume ratio for the rooms is shown in Table 4, in which the
+{
+0.2⩽SOCk+a ⩽1,a ⩾0 detailed values of all adjustable parameters are listed. When the room is
+L BA = 0.2⩽SOCk+a ⩽1;0⩽ek(cid:0) (cid:0) ek BA (cid:0) ek )B + A a ⋅e , a <0 unoccupied, and the room temperature is below the setting range, the air
+BA re rw BA bmax BA volume ratio is set to 0.3, otherwise set to 0. When the room is occupied,
+(17) and the room temperature is below, among and above the setting range,
+where aBA is the control action of the battery; ek is the power con- the air volume ratio is set to 1, 0.6 and 0.3 respectively.
+sumption of the office at k time period, kWh; ek is the renewable energy
+re 3.9.2. Multi-agent cooperative control model
+generation at k time period, kWh; ek is the unconsumed renewable
+rw Under MACCM, each agent no longer has a clear control logic, and
+energy at k time period, kWh; ebmax is the maximum capacity of the
+action section at each time is completely determined by the DRL algo-
+battery.
+rithm of each agent. To ensure the control logic consistent, hierarchical
+I.e., the action aBA selected at each time can’t make the SOC of the
+control logic of supply and demand is also adopted in multi-agent
+battery at the next time exceed the physical boundary limit, and the
+cooperation, as shown in Fig. 9.
+battery discharge cannot be incorporated into the power grid. Based on
+the above mechanism, it can ensure that the system can run for a com-
+plete cycle.
+Fig. 7. Multi-agent cooperative control method based on VDN.
+8
+
+=== page 9 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+4. Results and discussion
+In this study, A rule-based benchmark control model and MACCM are
+used to optimize BES with a period of 3 days, and each day is divided
+into 1440 period, i.e., time step is 1 min.
+4.1. Analysis of benchmark model
+By automatically adjusting the operating conditions of FCUs, the
+balance can be achieved between comfort and energy saving. According
+to the control rule of benchmark model, when indoor occupancy state or
+the range of local power price change, the setting range of indoor tem-
+perature will change accordingly. Detailed values of parameters setting
+refer to Table 4 and the energy consumption of BES with a period of 3
+days adopting the benchmark model is shown in Table 5.
+The detailed analysis is as follows:
+(1) Indoor temperature analysis
+The control of indoor comfort is the key to the operation of the
+Fig. 8. Control logic of benchmark model of BES. system which has priority over energy cost and consumption of
+renewable energy. The room temperature change of room A and B in the
+3-day control period is shown in Fig. 10 in which the upper and lower
+Table 4
+limits of indoor comfortable temperature is marked with dotted lines.
+Rules of the simple benchmark control used for comparison.
+Fig. 10 shows that the indoor temperature of room B is generally
+Local power price Air volume Ta setting lower than that of room A, which is due to that there are two FCUs in
+(CNY/kWh) ratio range (℃)
+Room B and four FCUs in room A. In addition, the temperature of room A
+Room when [0, +∞] 0/0.3 [18,24] drops faster at night, which is due to that room A has two external walls
+unoccupied
+that leads to greater heat dissipation. During the whole control period,
+Room when [0.6, +∞] 0/0.6/1 [18,21]
+occupied [0.4, 0.6] 0/0.6/1 [18,22] the uncomfortable duration of two rooms when occupied is 287 min.
+[0.2, 0.4] 0/0.6/1 [20,23] According to the national heating standard GB50736-2012, the total
+[0, 0.2] 0/0.6/1 [20,24] uncomfortable duration of the system in the 3-day control period should
+not exceed 48 min, and the result of the benchmark model far exceed
+this value.
+(2) Analysis of renewable energy consumption
+This study focuses on the local consumption of renewable energy and
+the unconsumed amount of renewable energy shown refers to which not
+used by the system. The renewable energy power generation and un-
+consumed renewable energy of BES during the 3-day control period are
+shown in Fig. 11.
+Fig. 11 shows that unconsumed renewable energy is mainly
+concentrated at night, which is due to the low power demand caused by
+the electrical equipment being turned off and the indoor temperature
+maintained at a lower level. Hence, the redundant renewable energy
+cannot be consumed when the battery is full. The intermittent fluctua-
+tion of unconsumed amount is caused by the intermittent start-up of
+FCUs and GSHP. In the whole control period, the power generation,
+unconsumed amount and consumption ratio of renewable energy are
+139.5 kWh, 24.9 kWh and 82.1%, respectively.
+4.2. Analysis of optimization process
+Fig. 9. Multi-agent cooperative hierarchical control logic. The total number of iterations of the multi-agent deep reinforcement
+learning algorithm is 10000, and the results are output every 25 itera-
+1. In the first layer, agent1 and agent2 select action GFCU-A and action tions. The changes of key indicators in the learning process are as
+GFCU-B according to their respective states, and the selected actions follows:
+interact with the environment to affect the indoor temperature state; (1) Change of reward
+2. In the second layer, agent3 selects action aBA according to its own The change of rewards in the learning process of the algorithm is
+state, which considers the energy consumption impact of agent1 and shown in Fig. 12.
+agent2 on the environment; xIt can be seen from Fig. 12 that due to the high greedy rate, the
+3. In the third layer, the environment generates the state of agent1 and algorithm is in the exploratory state in which each agent tends to
+agent2 at the next time, which includes the energy consumption randomly select actions in the early stage and the rewards fluctuate
+impact of agent3 on the environment. greatly. However, due to enough attempts, the algorithm also has the
+chance to get higher rewards. In the later stage, each agent tends to
+Under this control model, each agent will not only affect the envi- choose the action with higher Q value as the greedy rate decreases, and
+ronment, but also the other agents, so as to form a clear cooperative finally the fluctuation of reward gradually decreases and stabilizes at a
+relationship. The local observation state of each agent in the control higher value.
+logic is shown in Table 3 above. (2) Change of uncomfortable duration
+9
+
+=== page 10 ===
+AppliedEnergy312(2022)118724
+Table 5 The variation curve of unconsumed amount of renewable energy during
+Energy performance of the benchmark model. the algorithm learning process of the system is shown in Fig. 14.
+Energy Unconsumed amount Uncomfortable It can be seen from Fig. 14 that in the vast majority of cases, the value
+cost of renewable energy duration (minute) of unconsumed renewable energy of MACCM is lower than that of the
+(CNY) (kWh) benchmark model, and the difference between the two models is more
+Benchmark 193.4 24.9 287 obvious when the value is stable in later stage. However, in the early
+model results exploration stage, there are a large number of values with smaller
+amount of unconsumed consumption renewable energy, which needs to
+be further analyzed combined with the energy cost.
+During the learning process of the algorithm, the change of indoor
+(4) Energy cost
+temperature uncomfortable duration of two rooms in BES is shown in
+The energy cost of the system is the concentrated embodiment of
+Fig. 13. The uncomfortable duration in the 3-day control period should
+economy. The change of energy cost in the algorithm learning process of
+be controlled within 48 min according to the conversion value of heating
+the system is shown in Fig. 15.
+standard.
+The fluctuation in Fig. 15 is similar to that in Fig. 14, and MACCM is
+The fluctuation of uncomfortable duration is more severe in the early
+more economical than the benchmark model in most cases. Similarly,
+stage, which is due to the random action selection of agent and leads to
+some values in the exploration stage are better than those in the stable
+an uncomfortable indoor environment. As the number of iterations in-
+stage, which needs to be analyzed in combination with Figs. 13-15. In
+creases, the uncomfortable duration tends to be stable. Since the task of
+the three groups of results, all the values that better than the final stable
+controlling the room temperature is relatively simple, agent1 and agent2
+results cannot be achieved at the same time. For example, when the
+soon learn how to optimize the control.
+energy cost is very low, each agent chooses to make the room more
+(3) Renewable energy consumption
+uncomfortable, and gives up the storage of renewable energy, and pre-
+The utilization of renewable energy is the focus of the current energy
+fers to store valley price electricity. Although the individual indicator is
+system, and how to effectively improve the local consumption is the key.
+better, the overall reward is lower, and the later stable value is the result
+Room A Room B
+25 upper limit value
+24
+23
+22
+21
+20
+19 lower limit value
+18
+0 6 12 18 24 30 36 42 48 54 60 66 72
+Fig. 10. Indoor temperature under the benchmark model.
+4.5
+4.0
+3.5
+3.0
+2.5
+2.0
+1.5
+1.0
+0.5
+0.0
+0 6 12 18 24 30 36 42 48 54 60 66 72
+10
+Wk/rewopygreneelbaweneR
+R. Shen et al.
+Unconsumed amount
+Generation capacity
+Fig. 11. Renewable energy consumption under the benchmark model.
+
+=== page 11 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+2.25
+2.00
+1.75
+1.50
+1.25
+1.00
+0.75
+0.50
+0 1250 2500 3750 5000 6250 7500 8750 10000
+Fig. 12. The reward curve of MACCM.
+800
+700
+600
+500
+400
+300
+200
+Conversion value of heating standard
+100
+0
+0 1250 2500 3750 5000 6250 7500 8750 10000
+Fig. 13. Uncomfortable duration change curve of MACCM.
+of multiple indicator equilibrium. models is analyzed, as shown in Fig. 17.
+As shown in Fig. 17, compared with the benchmark model, the in-
+door temperature of room B is significantly higher at night, and rela-
+4.3. Result analysis of MACCM
+tively lower during the day. This indicates that the agents can consume
+the surplus renewable energy by increasing the indoor temperature at
+According to the output results of the model iteration under MACCM,
+night, and reduce the energy cost by decreasing the indoor temperature
+the energy consumption performance of BES in the 3-day control period
+when the electricity price is high during the day. Therefore, compared
+is shown in Table 6.
+with the established control strategy, multi-agent cooperative control
+Compared with the benchmark model, the above indicators of
+can learn strategies with long planning horizons based on the reasonable
+MACCM are significantly decreased, especially the uncomfortable
+parameter settings during training.
+duration is kept within the limit value of the national heating standard.
+(2) Analysis of renewable energy consumption
+The detailed analysis is as follows:
+This study focuses on the local consumption of renewable energy,
+(1) Indoor temperature analysis
+therefore the unconsumed amount refers to the part not used by the
+The change of indoor temperature under MACCM is shown in Fig. 16.
+system. Fig. 18 shows the renewable energy generation capacity and
+The upper and lower limits of comfortable temperature in the heating
+unconsumed amount in BES during 3-days control period.
+standard are marked with two blue dotted lines.
+As shown in Fig. 18, the unconsumed amount of renewable energy is
+In Fig. 16, it can be observed that the duration outside the comfort
+significantly lower than that under the benchmark model, especially at
+range of the MACCM is significantly reduced compared with that of the
+night. Combined with the analysis of indoor temperature changes,
+benchmark model. Different from the way of controlling indoor tem-
+MACCM can consume more renewable energy by increasing indoor
+perature using the given control strategy, the change of room temper-
+temperature at night when equipped with the same capacity of batteries.
+ature under MACCM has no obvious periodicity. In general, due to more
+It effectively uses the heating load as a flexible adjustable resource to
+FCU equipment in room A, the temperature of room A is higher than that
+increase the utilization rate of local renewable energy in the form of
+of room B in daytime, which is the opposite at night because of larger
+demand response.
+areas of external walls in room A. In order to observe the difference in
+(3) Analysis of battery charge–discharge
+detail, the temperature change of the same room under two control
+11
+
+=== page 12 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+35
+30 Benchmark model value
+25
+20
+15
+10
+5
+0 1250 2500 3750 5000 6250 7500 8750 10000
+Fig. 14. Variation curve of unconsumed amount of renewable energy based on MACCM.
+250
+240
+230
+220
+210
+Benchmark model value
+200
+190
+180
+170
+160
+150
+0 1250 2500 3750 5000 6250 7500 8750 10000
+Fig. 15. Energy cost change curve of MACCM.
+night, the system tends to charge to full directly under the benchmark
+Table 6
+model when the renewable energy generation capacity is high. How-
+Energy consumption performance of MACCM.
+ever, the MACCM takes priority to consume more self-generated energy.
+Energy Unconsumed amount Uncomfortable
+cost of renewable energy duration
+5. Conclusion
+Results of MACCM 178.2 14.1 kWh 45 min
+CNY The BES integrated with renewable energy is a complex system, in
+Decrease ratio 8% 43% 84%
+which the randomness and volatility of renewable energy on the supply
+compared to
+benchmark model side and the randomness of energy consumption on the demand side will
+have significant influence. Therefore, it is important to control the key
+equipment on both sides of supply and demand intelligently. Aiming at
+Energy storage equipment is considered to be an important equip- solving this problem, this paper proposed a multi-agent deep rein-
+ment for effective consumption of renewable energy. How to achieve forcement learning algorithm which could optimized the energy cost,
+more consumption under limited storage capacity is also a key problem renewable energy consumption and indoor thermal comfort of the
+to be solved by the control strategy. The change of SOC under the two building, and achieved better optimization results. The achievements
+control models is shown in Fig. 19. and conclusions of this study can be summarized as follows:
+As shown in Fig. 19, neither of the two control models chooses bulk
+charging due to the high power consumption and electricity price. At
+12
+
+=== page 13 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Room A Room B
+25
+upper limit value
+24
+23
+22
+21
+20
+19
+lower limit value
+18
+0 6 12 18 24 30 36 42 48 54 60 66 72
+Fig. 16. Indoor temperature under MACCM.
+Room B multi agent cooperation model Room B benchmark model
+25
+24
+23
+22
+21
+20
+19
+18
+0 6 12 18 24 30 36 42 48 54 60 66 72
+Fig. 17. Comparison of indoor temperature of room B under the two control models.
+4.5
+Unconsumed amount
+4.0 Generation capacity
+3.5
+3.0
+2.5
+2.0
+1.5
+1.0
+0.5
+0.0
+0 6 12 18 24 30 36 42 48 54 60 66 72
+Fig. 18. Renewable energy consumption under MACCM.
+13
+
+=== page 14 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Multi-agent cooperation model Benchmark model
+1.0
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0 6 12 18 24 30 36 42 48 54 60 66 72
+Fig. 19. The change of SOC under the two control models.
+(1) Mathematical models of each equipment and building load
+calculation were established for a single BES. Besides, a more
+3.6
+Wind power
+intelligent D3QN-PER algorithm was deployed in the controlled
+Photovoltaic
+3.2 agents of BES to meet the increasingly complex control tasks.
+(2) The VDN algorithm based on value function-decomposition was
+2.8
+applied to the multi-agent deep reinforcement learning control
+2.4 method to realize the joint intelligent control of multiple agents.
+Furthermore, considering the controlled characteristics of BES,
+2.0 PER and FAS mechanism were introduced, which greatly reduced
+the training time and improved the stability of the algorithm
+1.6
+applied to BES.
+1.2 (3) According to the established system evaluation method,
+compared with the benchmark control model, the multi-agent
+0.8
+cooperation algorithm reduced the uncomfortable duration by
+0.4 84%, the unconsumed amount of renewable energy by 43%, and
+the energy cost by 8%.
+0.0
+0 2 4 6 8 10 12 14 16 18 20 22 24
+As a common method, the multi-agent deep reinforcement learning
+control method for single building proposed in this study can be applied
+to the optimization of regional building energy systems. Although early
+Fig. A-1. 24-hour power generation of photovoltaic and wind power in BES.
+model training of MADRL will take some time, it can greatly improve the
+flexibility of controlling regional building energy system, and promote
+the regional renewable energy consumption as well as peak load cutting
+and valley filling compared with conventional control algorithm.
+In this study, the intelligent optimization method of BES was dis-
+cussed, and there are still some imperfections. For example, the evalu-
+ation and control of indoor comfort is relatively simple. Therefore, more
+control parameters of indoor comfort will be taken into consideration in
+the following research, such as PM2.5 concentration, CO2 concentration,
+indoor air velocity, etc. Also, we will.
+CRediT authorship contribution statement
+Rendong Shen: Conceptualization, Methodology, Writing – original
+Fig. A-2. Heat transfer model of walls. draft. Shengyuan Zhong: Data curation. Xin Wen: Software. Qingsong
+An: Supervision. Ruifan Zheng: . Yang Li: Validation. Jun Zhao: .
+14
+
+=== page 15 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+Declaration of Competing Interest Acknowledgement
+The authors declare that they have no known competing financial This research is supported by “Key research and development project
+interests or personal relationships that could have appeared to influence in Tianjin (20YFYSGX00020)” and “Science and technology service
+the work reported in this paper. network initiative of Chinese academy of sciences (KFJ-STS-QYZD-
+2021-02-006)”.
+Appendix A
+Environment construction
+The detailed notes and parameter setting of the component models, room temperature calculation model, power demand and local price model in
+BES established in this study can refer to another published papers of our research team [55].
+(1) Components model
+(a) Fan coils unit model
+The indoor temperature was primarily controlled by changing the amount of heating supplied by the FCU. The heating capacity of the FCU (QFCU)
+was calculated using the enthalpy difference between the inlet and outlet air.
+Q FCU =Δt⋅{G FCU [C a T a +H a (2500+1.84T a )](cid:0) G FCU [C a T FCU +H a (2500+1.84T FCU )]} (A1)
+Based on QFCU, the relationship between the output temperature of the water tank and the FCU output temperature can be derived as
+Q FCU =C w m w Δt(T FCUb (cid:0) T FCU ) (A2)
+The FCU power consumption in each stage was calculated by Eq. (A-3):
+( )
+G 3
+e FCU =P rFCU ⋅ G FCU ⋅Δt (A-3)
+rFCU
+(b) GSHP model
+When the water in the water tank enters GSHP, the compressor will start heating when the water temperature is lower than the setting point of the
+heat pump temperature (40 ℃). According to Eq. (A-4), the water supply temperature of GSHP can be calculated.
+{
+T =T +ΔtP (ΔtC m ),T <T
+G tank GSHP w w tank q
+T =T ,T ⩾T (A4)
+G tank tank q
+According to the coefficient of performance (COP), the power consumption of GSHP can be further calculated. COP formula is obtained by fitting
+the actual operation data, as shown in Eq. (A-5).
+⎧
+⎨COP=1.190230×103x6(cid:0) 5.130190×103x5+8.944914×103x4(cid:0) 8.102804×103x3
++4.038387×103x2(cid:0) 1.047582×103x+1.118404×102, x⩾0.4 (A5)
+⎩
+COP=1.8, x<0.4
+x=P GSHP /P rGSHP (A6)
+where PrGSHP is the GSHP heating power; x is the load rate.
+According to the COP and heating power of GSHP, the power consumption of GSHP can be calculated by Eq. (A-7)
+e GSHP =ΔtP GSHP /COP (A7)
+where, eGSHP is GSHP power consumption.
+(c) Battery model
+In this study, SOC is used to represent the capacity state of battery and one day is divided into k stages in this model. Eq. (A-8) can be used to
+calculate the SOC of battery at each time stage.
+⎧ (cid:0) )
+⎪⎪⎪⎪⎪⎪⎪⎪⎪⎪⎪⎨
+SOCk+1=
+SO
+SO
+C
+C
+k+
+k
+1,
+(cid:0)
+SO
+z
+C
+k
+bc
+k
+⋅P
+∈
+k
+bc
+[0
+(cid:0)
+.
+e
+2
+b
+z
+,
+m
+k
+b
+1
+a
+d
+x
+]
+c
+⋅Pk
+bdc
+⋅Δt
+SOC = ⎪⎪⎪⎪⎪⎪⎪⎪⎪⎪⎪⎩
+P
+P
+k bd
+k b
+c
+c
+∈
+∈
+z
+[
+k
+[
+P
+P
++
+b
+b
+d
+c
+c
+,
+z
+,
+m
+m
+k
+i
+i
+n
+n
+,
+,
+⩽
+P
+P
+1
+b
+b
+c
+d
+,m
+c,m
+ax
+a
+]
+x
+]
+(A8)
+bc bdc
+Charge-discharge will cause the capacity loss of the battery. When the charge–discharge cycle depth of the battery is ΔSOC, the maximum number
+of charge–discharge cycles N before the failure of the battery can be calculated by Eq. (A-9). Formula (A-10) can calculate the equivalent power cost of
+the battery by using the maximum charge–discharge cycles.
+N=b 1 +b 2 eb bm 3⋅Δ ax SOC+b 4 eb bm 5⋅Δ ax SOC... (A9)
+O
+Ok b = N I 10)
+15
+
+=== page 16 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+(d) Renewable energy model
+Renewable energy generation capacity is the collected actual data, and real-time power generation capacity is shown in Fig. A-1. The installed
+capacity of wind turbine and photovoltaic is 3 kW and 3.9 kW, respectively. The time step of generation capacity data is minutes.
+(e) Water tank model
+The water tank is connected with FCU and GSHP to stabilize the supply. The heat transfer model of the water tank was established by using the
+multi-node model, that is, the water tank was divided into multiple layers along the vertical direction. Assuming that each layer can be completely
+mixed in the calculation process, the energy balance equation of node u can be expressed as:
+( )
+m u dT d ta τ nk,u=F u Gm G (cid:0) T G (cid:0) T tank,u ) (cid:0) F u FCUm F (cid:0) T tank,u (cid:0) T FCU ) (cid:0) C hA (cid:0) T tank,u (cid:0) T o )
+w
+{ (cid:0) )
+11)
+m m,u T tank,u(cid:0)1 (cid:0) T tank,u ,m m,u >0
++ (cid:0) )
+m m,u+1 T tank,u (cid:0) T tank,u+1 ,m m,u+1 >0
+(2) Room temperature calculation model
+(a) Room temperature state equation
+This study defined room temperature as the air temperature and assumed that indoor air temperature was uniform. Factors that affect room
+temperature include heat generation from personnel and equipment and heat transfer from walls and windows. The room temperature is calculated by
+Eq. (A-12):
+[
+(cid:0) ) ∑6 ( )
+C a m a T a k+1(cid:0) T a k =Δt Qk p +Qk light +Qk c + A w,i h w,in,i T w k ,in,i (cid:0) T a k +
+i=1 12)
+(cid:0) ) (cid:0) ) (cid:0) )]
+A h Tk(cid:0) Tk +ρVA C Tk(cid:0) Tk +CGk Tk (cid:0) Tk
+gs gs o a a a leak a o a a FCU FCU a
+(b) Wall temperature state equation
+The heat transfer model is shown in Fig. A-2. The air and wall surface exchanged heat through convective heat transfer, while heat conduction
+occurred inside the wall. External wall temperature equations, Equations (A-13) and (A-14), were constructed without considering the effects of solar
+radiation.
+( ) [ ( ) ( ) ]
+λ
+C w,i m w,i T w k+ ,o 1 ,i (cid:0) T w k ,o,i =Δt A w,i h w,o,i T o k(cid:0) T w k ,o,i + δ A w,i T w k ,in,i (cid:0) T w k ,o,i +α solar A w,i G 13)
+( ) [ ( ) ( )]
+λ
+C w,i m w,i T w k+ ,in 1 ,i (cid:0) T w k ,in,i =Δt A w,i h w,in,i T a k(cid:0) T w k ,in,i + δ A w,i T w k ,o,i (cid:0) T w k ,in,i 14)
+Assuming that the temperatures of the inner wall’s two surfaces are the same. To facilitate the calculation, the inner wall was divided into two
+equal parts to exchange heat with the adjacent room’s air. The internal wall temperature state equation is shown in Eq. (A-15)
+( ) ( )
+C w,i m 2 w,i T w k+ ,in 1 ,i (cid:0) T w k ,in,i =ΔtA w,i h w,in,i T w k ,in,i (cid:0) T a k 15)
+(3) Power demand and local price model
+(a) Power demand
+The power demand of this system mainly comes from GSHP, FCU, lighting equipment and computers. The total power demand can be calculated by
+Eq. (A-16), and the power balance constraint of the system is shown in Eq. (A-17).
+ek=ek GSHP +ek light +ek C +ek FCU 16)
+(cid:0) )
+Pk e +Pk re +Pk bc (cid:0) Pk bdc (cid:0) Pk rw ⋅Δt=ek 17)
+(b) Local price
+The local price is different from that of the municipal power grid because of the presence of local renewable energy. The local power price is the
+average value of the cost of various power supply methods at time k, as shown in Eq. (A-18).
+(cid:0) )
+Pk⋅Ok+Pk⋅Ok +Pk⋅Ok
+Ok= e e re re b b 18)
+Pk+Pk +Pk
+e re b
+Because this paper focused on the operation stage of BES, the initial investment cost of renewable energy generation equipment was not considered
+temporarily, and only the operation and maintenance cost was considered.
+References performance of a low energy building. Appl Energy 2020;280:115862. https://doi.
+org/10.1016/j.apenergy.2020.115862.
+[5] Buonomano A, Calise F, Cappiello FL, Palombo A, Vicidomini M. Dynamic analysis
+[1] Wu W, Dong B, Wang Q(, Kong M, Yan Da, An J, et al. A novel mobility-based
+of the integration of electric vehicles in efficient buildings fed by renewables. Appl
+approach to derive urban-scale building occupant profiles and analyze impacts on Energy 2019;245:31–50.
+building energy consumption. Appl Energy 2020;278:115656. https://doi.org/
+[6] Li H, Wang Z, Hong T, Piette MA. Energy flexibility of residential buildings: A
+10.1016/j.apenergy.2020.115656.
+systematic review of characterization and quantification methods and applications.
+[2] IEA. 2020 global status report for buildings and construction. International Energy
+Appl Energy 2021;3:100054. https://doi.org/10.1016/j.adapen.2021.100054.
+Agency 2020.
+[7] Yin L, Wu Y. Mode-decomposition memory reinforcement network strategy for
+[3] Gasser J, Cai H, Karagiannopoulos S, Heer P, Hug G. Predictive energy
+smart generation control in multi-area power systems containing renewable
+management of residential buildings while self-reporting flexibility envelope. Appl
+energy. Appl Energy 2022;307:118266. https://doi.org/10.1016/j.
+Energy 2021;288:116653. https://doi.org/10.1016/j.apenergy.2021.116653.
+[4] García Kerdan I, Morillo´n G´alvez D. Artificial neural network structure apenergy.2021.118266.
+optimisation for accurately prediction of exergy, comfort and life cycle cost
+16
+
+=== page 17 ===
+R. Shen et al. A p p l i e d E n e r g y 312(2022)118724
+[8] Alanne K, Sierla S. An overview of machine learning applications for smart control. 2018 ASHRAE/IBPSA-USA Building Performance Analysis Conference and
+buildings. Sustainable Cities and Society 2022;76:103445. https://doi.org/ SimBuild. 2018.
+10.1016/j.scs.2021.103445. [34] Yoon YR, Moon HJ. Performance based thermal comfort control (PTCC) using deep
+[9] Biemann M, Scheller F, Liu X, Huang L. Experimental evaluation of model-free reinforcement learning for space cooling. Energy Build 2019;203:109420. https://
+reinforcement learning algorithms for continuous HVAC control. Appl Energy doi.org/10.1016/j.enbuild.2019.109420.
+2021;298:117164. https://doi.org/10.1016/j.apenergy.2021.117164. [35] Gao GY, Li J, Wen YG. Deep comfort: energy-efficient thermal comfort control in
+[10] Va´zquez-Canteli JR, Nagy Z. Reinforcement learning for demand response: A smart buildings via deep reinforcement learning. IEEE Internet Things J 2020;7:
+review of algorithms and modeling techniques. Appl Energy 2019;235:1072–89. 8472–84.
+[11] Anderson CW, Hittle DC, Katz AD, Kretchmar RM. Synthesis of reinforcement [36] Brandi S, Piscitelli MS, Martellacci M, Martellacci M, Capozzoli A. Deep
+learning, neural networks and PI control applied to a simulated heating coil. Artif reinforcement learning to optimise indoor temperature control and heating energy
+Intell Eng 1997;11(4):421–9. consumption in buildings. Energy Build 2020;224:110225.
+[12] Mozer MC. The neural network house: an environment that adapts to its [37] Zhong S, Wang X, Zhao J, Li W, Li H, Wang Y, et al. Deep reinforcement learning
+inhabitants. Proceedings AAAI Spring Symposium on Intelligent Environments. framework for dynamic pricing demand response of regenerative electric heating.
+1998. Appl Energy 2021;288:116623. https://doi.org/10.1016/j.apenergy.2021.116623.
+[13] Dalamagkidis K, Kolokotsa D, Kalaitzakis K, Stavrakakis GS. Reinforcement [38] Yang T, Zhao L, Li W, Wu J, Zomaya AY. Towards healthy and cost-effective indoor
+learning for energy conservation and comfort in buildings. Build Environ 2007;42 environment management in smart homes: A deep reinforcement learning
+(7):2686–98. approach. Appl Energy 2021;300:117335. https://doi.org/10.1016/j.
+[14] Yang L, Nagy Z, Goffin P, Schlueter A. Reinforcement learning for optimal control apenergy.2021.117335.
+of low exergy buildings. Appl Energy 2015;156:577–86. [39] Deng X, Zhang Yi, Zhang Yi, Qi He. Towards optimal HVAC control in non-
+[15] Cheng Z, Zhao Q, Wang F, Jiang Yi, Xia Li, Ding J. Satisfaction based Q-learning for stationary building environments combining active change detection and deep
+integrated lighting and blind control. Energy Build 2016;127:43–55. reinforcement learning. Build Environ 2022;211:108680. https://doi.org/
+[16] Fu Q, Hu L, Wu H, Hu F, Hu W, Chen J. A Sarsa-based adaptive controller for 10.1016/j.buildenv.2021.108680.
+building energy conservation. J Comput Methods Sci Eng 2018;18(2):329–38. [40] Zhao H, Wang B, Liu H, Sun H, Pan Z, Guo Q. Exploiting the flexibility inside park-
+[17] Yan QC. Researches on the curse of dimensionality in reinforcement learning. level commercial buildings considering heat transfer time delay: A memory-
+Soochow University; 2010. augmented deep reinforcement learning approach. IEEE Trans Sustainable Energy
+[18] Yang T, Zhao L, Li W, Zomaya AY. Reinforcement learning in sustainable energy 2022;13(1):207–19.
+and electric systems: a survey. Annual Reviews in Control 2020;49:145–63. [41] Li J, Yu T, Zhang X, Li F, Lin D, Zhu H. Efficient experience replay based deep
+[19] Kou P, Liang D, Wang C, Wu Z, Gao L. Safe deep reinforcement learning-based deterministic policy gradient for AGC dispatch in integrated energy system. Appl
+constrained optimal control scheme for active distribution networks. Appl Energy Energy 2021;285:116386. https://doi.org/10.1016/j.apenergy.2020.116386.
+2020;264:114772. https://doi.org/10.1016/j.apenergy.2020.114772. [42] Schaul T, Quan J, Antonoglou I, Silver D. Prioritized experience replay.
+[20] Lu R, Li Y-C, Li Y, Jiang J, Ding Y. Multi-agent deep reinforcement learning based International Conference on Learning Representations, 2016.
+demand response for discrete manufacturing systems energy management. Appl [43] Jiang CX, Jing ZX, Cui XR, Ji TY, Wu QH. Multiple agents and reinforcement
+Energy 2020;276:115473. https://doi.org/10.1016/j.apenergy.2020.115473. learning for modelling charging loads of electric taxis. Appl Energy 2018;222:
+[21] Wu J, He H, Peng J, Li Y, Li Z. Continuous reinforcement learning of energy 158–68.
+management with deep Q network for a power split hybrid electric bus. Appl [44] Hurtado LA, Mocanu E, Nguyen PH, Gibescu M, Kamphuis RIG. Enabling
+Energy 2018;222:799–811. cooperative behavior for building demand response based on extended joint action
+[22] Yang Y, Ming J. Image quality assessment based on the space similarity learning. IEEE Trans Ind Inf 2018;14(1):127–36.
+decomposition model. Signal Process 2016;120:797–805. [45] Yu L, Sun Yi, Xu Z, Shen C, Yue D, Jiang T, et al. Multi-Agent deep reinforcement
+[23] Mocanu E, Mocanu DC, Nguyen PH, Liotta A, Webber ME, Gibescu M, et al. On-line learning for HVAC control in commercial buildings. IEEE Trans Smart Grid 2021;
+building energy optimization using deep reinforcement learning. IEEE Trans Smart 12(1):407–19.
+Grid 2019;10(4):3698–708. [46] Ahrarinouri M, Rastegar M, Seifi AR. Multi-Agent reinforcement learning for
+[24] Liu Q, Zhai JW, Zhang ZZ, Zhong S, Xu J. A Survey on Deep Reinforcement energy management in residential buildings. IEEE Trans Ind Inf 2021;17(1):
+Learning. Chinese Journal of Computers 2018;41:1–27. 659–66.
+[25] Wang ZY, Schaul T, Hessel M, van Hasselt H, Lanctot M, da Freitas N. Dueling [47] Kazmi H, Suykens J, Driesen J. Valuing knowledge, information and agency in
+network architectures for deep reinforcement learning. 33rd International multi-agent reinforcement learning: a case study in smart buildings. 17th
+Conference on International Conference on Machine Learning. 2016. International Conference on Autonomous Agents and Multiagent Systems(AAMAS
+[26] Hasselt HV, Guez A, Silver D. Deep reinforcement learning with double Q-learning. 2018), 2018.
+30th Association-for-the-Advancement-of-Artificial-Intelligence (AAAI) Conference [48] Sunehag P, Lever G, Gruslys A, Czarnecki WM, Zambaldi V, Jaderberg M, et al.
+on Artificial Intelligence. 2016. Value-decomposition networks for cooperative multi-agent learning based on team
+[27] Yan JW, Huang Q, Zhou X. Energy-saving optimization operation of central air- reward. 17th International Conference on Autonomous Agents and Multiagent
+conditioning system based on double-DQN algorithm. Journal of South China Systems(AAMAS). 2018, 2085–2087..
+University of Technology 2019;47(1):135–44. [49] Zhu F, Yang Z, Lin F, Xin Y. Decentralized cooperative control of multiple energy
+[28] Liu YK, Zhang DX, Gooi HB. Optimization strategy based on deep reinforcement storage systems in urban railway based on multi-agent deep reinforcement
+learning for home energy management. CSEE J Power Energy Syst 2020;6:572–82. learning. IEEE Trans Power Electron 2020;35(9):9368–79.
+[29] Ding XZ, Du W. A.OCTOPUS: Cerpa Deep reinforcement learning for holistic smart [51] Jia R, Jin M, Sun K, Hong T, Spanos C. Advanced building control via deep
+building control. 6th ACM International Conference 2019:326–35. reinforcement learning. Energy Procedia 2019;158:6158–63.
+[30] Wei TS, Wang YZ, Zhu Q. Deep reinforcement learning for building HVAC control. [53] Lopez-Martinez D, Eschenfeldt P, Ostvar S, Ingram M, Hur C, Picard R. Deep
+Design Automation Conference 2017. reinforcement learning for optimal critical care pain management with morphine
+[31] Wang Y, Velswamy K, Huang B. A long-short term memory recurrent neural using dueling double-deep Q networks. IEEE Engineering in Medicine and Biology
+network based reinforcement learning controller for office heating ventilation and Society 2019.
+air condition systems. Processes 2017;5(3):46. [54] Zhang Y. Research on multi-agent deep reinforcement learning methods and
+[32] Kazmi H, Mehmood F, Lodeweyckx S, Driesen J. Gigawatt-hour scale savings on a applications. Xidian University; 2018.
+budget of zero: Deep reinforcement learning based optimal control of hot water [55] Zhong S, Zhao J, Li W, Li H, Deng S, Li Y, et al. Quantitative analysis of information
+systems. Energy 2018;144:159–68. interaction in building energy systems based on mutual information. Energy 2021;
+[33] Zhang ZA, Chong A, Pan YQ, Zhang CL, Lu SL, Lam KP. A deep reinforcement 214:118867. https://doi.org/10.1016/j.energy.2020.118867.
+learning approach to using whole building energy model for HVAC optimal
+17

@@ -1,0 +1,62 @@
+{
+  "written_at": "2026-11-12T13:41:23+08:00",
+  "label": "NON_FORMAL_DIAGNOSTIC",
+  "python": "C:\\Users\\26036\\.conda\\envs\\energy_env\\python.exe",
+  "torch": "2.11.0+cpu",
+  "numpy": "1.24.3",
+  "files": {
+    "src/run_phase6_frozen_policy.py": "837b92930a988954978c1ed6580436896fd401df16d47efa6994bc9d72d1c038",
+    "src/quote_map_candidates.py": "629ffb4233e6f25aeebd429d2158358a65da99f35aae664618389977ce1692ab",
+    "src/da_quote_map.py": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
+    "src/rl_da_gate.py": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3",
+    "src/rl_b_c2_gate.py": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b",
+    "src/rl_env.py": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+    "src/rl_spec.py": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1",
+    "src/da_replay.py": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+    "src/train_da_gate.py": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee",
+    "src/v2_cy_jn_env.py": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+    "src/screen_v2_cy_jn_2025.py": "d625f60c84147c258e14597e3810d477edc61151a99e1296ccd45d79a4cb1860",
+    "src/participant_payoff.py": "2051aa59f743239e4b2db200e25686825897eb8ee6f5e65362ab2c989dc1078d",
+    "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078",
+    "data/processed/v2_cy_jn_2025/price_curves.npz": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1",
+    "data/processed/v2_cy_jn_2025/common_split.json": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335",
+    "data/processed/v2_cy_jn_2025/terminal_soc_config.json": "abf4f910b87e8c0cf1a5985c6e044758a56b726cd434f2905e3bf88bd461b1c3",
+    "reports/v2_cy_jn_2025/formal_training_v4/formal_training_config.yaml": "d4cdfe843566a915d357429490a614a8f44de7f4a7f529738a8a1b1d04ef350a",
+    "reports/v2_cy_jn_2025/formal_training_v4/formal_training_manifest.json": "31c0bce1266fdcdd2de1394e38b31b752cd09cb5b969454ebebc58d2d6cf315d",
+    "reports/v2_cy_jn_2025/formal_training_v4/formal_training_code_manifest.json": "c9ec1da1a028ab1a68384f6e048983508e2257cb653186e669aee4640ffc717c",
+    "reports/v2_cy_jn_2025/formal_training_v4/formal_training_data_manifest.json": "e5eaa358c3445b613fa111c2655893e092594033a9597bb277be8ac580121424",
+    "runs/FORMAL_7834d0aa_seed11/run_manifest.json": "e01ce54871428dc40bb97251f1797e209b8c62e055007b5cdc19c0046c40cd8a",
+    "runs/FORMAL_7834d0aa_seed23/run_manifest.json": "877bd67344a8e8d0680da90162591b241209ba51a58a086968cd52ff721c719c",
+    "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/input_hashes.json": "695edce9c4c6a6cd11302cb0f20672af130b03f33381f9976533db0a7ae2b6f9",
+    "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/output_hashes.json": "3431ac83959945e556a374794ca48aa9cb0d7f5589862f3d7ea53083e80decf1",
+    "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/audit_manifest.json": "53e716ec5850990c1f5af514fd9247b1d39b53c582e6d2abaef8668caff85882",
+    "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/decision_report.md": "99ffd9631f664000f36d4d5ab24df40e964535576feffe73d936b500bafdd25f",
+    "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/mapping_candidates.json": "4459f17d476ef7cc520bbd0ffd768327337e09f7ef98cc545b77a0f5092cce6f"
+  },
+  "checkpoint_actor_sha256": {
+    "seed11_final": {
+      "ESS9": "4385a8ba3b0b78d2089ed56754a99aeefc3c99f5878f127b0458d2800a1a8047",
+      "ESS14": "afbbe586d206d6acb780bf4cd976536882a522d54d2c9b737aeeb9678a24b969",
+      "ESS17": "f2f3a0c1611e3f952fab9ce64a3e573005d20b1fff5af45ae1b549ca6804aa37",
+      "ESS27": "33620a2da5313610da84d9d18a6a81185dd84cbe72d12211e227f8292176ba1a"
+    },
+    "seed11_best": {
+      "ESS9": "137aa912dae6e9b48d882e50f7cc7fcf8761947072585c2721a0ba64170aa3ef",
+      "ESS14": "302bdf67519810d7b20048fc3efe880ea7046a14928d9a9c49508e94df8db84f",
+      "ESS17": "f3cc58098a3d9d7bad773cd920072a27565bb2ad853beff02e4c0fe3751cc6e8",
+      "ESS27": "9242b9e43f1336d59108eba9141a2155ce7f023c7c21de49aaabc1d262f370f7"
+    },
+    "seed23_final": {
+      "ESS9": "2194f4d0729568f2a67a90358a7c6a449ec656c202e7473c576e7b7be8dd07a8",
+      "ESS14": "12dadaab6a0e408e8fffca26457d3301184851c6d3ff5ccfd2e2057e5ed991b9",
+      "ESS17": "d36ecad2902aaf8128b8ae927969299c5c52868575bdd943b1089688f731ddcf",
+      "ESS27": "2bab815d71e8c3996ffaf5245d1ba63f4d8778478c849d08f149430a3a469906"
+    },
+    "seed23_best": {
+      "ESS9": "18ea5551ceac6cac0825738187267c13837709f20c8712ad5f2de64fb8e1ca58",
+      "ESS14": "e9f9dd51401bb3ca675b1ecba7f972981d636110eed99e7fe80b0e86a9806e77",
+      "ESS17": "731a9904220fafec3e5dd1000535b03626fd90b4ad6c8b6f1c3d1d36113c07ce",
+      "ESS27": "5d3993590b04b9f37436672a7b9a277e1500222c47bd1dba12f8836704898b48"
+    }
+  }
+}

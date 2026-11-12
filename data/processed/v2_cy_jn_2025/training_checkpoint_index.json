@@ -1,0 +1,172 @@
+{
+  "1": {
+    "round": 1,
+    "episode": 53,
+    "step": 1272,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00001272",
+    "counters": {
+      "total_steps": 1272,
+      "episode": 53,
+      "updates": 1145,
+      "buffer_len": 1272
+    },
+    "manifest_sha256": "959e25dc5ac39cc2207d7d6332b3785c9a9d4c255198ec45e3d592917fcc3a3c",
+    "counters_sha256": "bc27cce649fcf1465be3df93383ab7a94ba947c70d8b00b36c830e2eaace0eba",
+    "checkpoint_tree_sha256": "7d0be9b09c2b29d45118a41ede0d51710eadd0afb699c8b0bfd0d97d2b0560bf",
+    "snapshot_sha256": "a52c42ad33242ac820bb59ebfb5bfcaeaba166de075003a58124921d66556d9c",
+    "reproduced": true
+  },
+  "2": {
+    "round": 2,
+    "episode": 106,
+    "step": 2544,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00002544",
+    "counters": {
+      "total_steps": 2544,
+      "episode": 106,
+      "updates": 2417,
+      "buffer_len": 2544
+    },
+    "manifest_sha256": "ab023c13824c8c9f8920919b7fc676505277471900c3ae08bdf66d97956b63cd",
+    "counters_sha256": "f9204d7b55a6e63e996fb3fa11c78e4b8a5fc34123f61305dd8c33eab39db24a",
+    "checkpoint_tree_sha256": "55f79ac1f82eb35ef4e2febca843eb73c2ca26db26eec6434d6ae3bd910e2293",
+    "snapshot_sha256": "cc251201ff9a7f3bb537ec1b79aa6ec61534d65f40450397b9e33c6d425b08a9",
+    "reproduced": true
+  },
+  "3": {
+    "round": 3,
+    "episode": 159,
+    "step": 3816,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00003816",
+    "counters": {
+      "total_steps": 3816,
+      "episode": 159,
+      "updates": 3689,
+      "buffer_len": 3816
+    },
+    "manifest_sha256": "9af4c21711eb16b46bd376bbf493afde1cbfa40871d3c08d5391d49750334442",
+    "counters_sha256": "12d46c527c1e7b7f16ba746ee0bc820e71f47f781ce9578a13bfbe2d4d81e793",
+    "checkpoint_tree_sha256": "d74d006387ff0ffdb2fe3f78e39363f6cfb5d88068655fe982559bef0f1bc63a",
+    "snapshot_sha256": "dab8a8f6f5f71206a9924e4b095ed270d6b87a3fa27bae4adf87fa1caca02ab9",
+    "reproduced": true
+  },
+  "4": {
+    "round": 4,
+    "episode": 212,
+    "step": 5088,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00005088",
+    "counters": {
+      "total_steps": 5088,
+      "episode": 212,
+      "updates": 4961,
+      "buffer_len": 5088
+    },
+    "manifest_sha256": "b1c0ffca86077eb8fe4aefafa96552dabe30355982af6e400b5074b28b08116b",
+    "counters_sha256": "5e148a65673c737b369ba375bdfaf7786e3bc5ef1410db05160f5b0e748cbe7a",
+    "checkpoint_tree_sha256": "7cfd5732f26c46bd1d09032ac119ec387d77b5e3a608a0beb947b83b34eb155f",
+    "snapshot_sha256": "cfb132eb943f10f18a82e8f018ca0cf342acad65d43685bd38ca4d80d36deef4",
+    "reproduced": true
+  },
+  "5": {
+    "round": 5,
+    "episode": 265,
+    "step": 6360,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00006360",
+    "counters": {
+      "total_steps": 6360,
+      "episode": 265,
+      "updates": 6233,
+      "buffer_len": 6360
+    },
+    "manifest_sha256": "76dad215fcb4b9552dca7b2223d9f8f6e909c85fa971a301451c5c0e8feed03b",
+    "counters_sha256": "f14749767d85087921c3b5ca79524353456ea640e2e736d78ebc0d35ae95d21f",
+    "checkpoint_tree_sha256": "f90cba81e3ea73d65c53dbf5fc610824f8b3fde4708ff94faa0af6cb0f61e62a",
+    "snapshot_sha256": "b8e489cdf05243fb7a73624530db5b254f15fb01da1e21df8d45ff904cc5fe2e",
+    "reproduced": true
+  },
+  "6": {
+    "round": 6,
+    "episode": 318,
+    "step": 7632,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00007632",
+    "counters": {
+      "total_steps": 7632,
+      "episode": 318,
+      "updates": 7505,
+      "buffer_len": 7632
+    },
+    "manifest_sha256": "558e36384815f931910d55702a1a0d1cb9715c345f70201a392ec39a2850f97e",
+    "counters_sha256": "450bdfc6d67c9b40ded71b1e872e4e09b5841784cb9cf3fc7c60c91f137efddd",
+    "checkpoint_tree_sha256": "beb34792b1ed4665b2c5b42200393211d2ed75cb594c101fe1927c22d8f939a9",
+    "snapshot_sha256": "d41e668db7d709326403a42704ec3124dc425d9ce894e4e13ab53cf9464a1459",
+    "reproduced": true
+  },
+  "7": {
+    "round": 7,
+    "episode": 371,
+    "step": 8904,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00008904",
+    "counters": {
+      "total_steps": 8904,
+      "episode": 371,
+      "updates": 8777,
+      "buffer_len": 8904
+    },
+    "manifest_sha256": "b7f7941f979c3e0d841b0cf1e62801e2fca62717b2730b324251bfa6b92b0cc8",
+    "counters_sha256": "b426a237afc638ab15bdd4ba947ecd516f70571e0b9424143797ac4147f51501",
+    "checkpoint_tree_sha256": "3903b7c23cdef49ee8b979bd073d04ff2c899a1a5c831a5613309855a1ea8a50",
+    "snapshot_sha256": "d96f50b85169612840ba81197c9c52fb4808df93793c50e7f4530f619d048294",
+    "reproduced": true
+  },
+  "8": {
+    "round": 8,
+    "episode": 424,
+    "step": 10176,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00010176",
+    "counters": {
+      "total_steps": 10176,
+      "episode": 424,
+      "updates": 10049,
+      "buffer_len": 10176
+    },
+    "manifest_sha256": "b5dd23fb66c9bb5b3a747318cf3fdb7f75b1a471b757b2f772cda80c32c9a0f8",
+    "counters_sha256": "412cb4b4bbbff5c1ec8b854f47f6f78b589c3e43e2294db6ba220e96db477798",
+    "checkpoint_tree_sha256": "3e3c91eac6f977a6483a53eeeebe97bd34abd2463bd597d30b627ecd2f1ecd28",
+    "snapshot_sha256": "0aa6bf425de41dd2060695456244a5a3a86af6b1dd56c8e6f8400fb4a81ad067",
+    "reproduced": true
+  },
+  "9": {
+    "round": 9,
+    "episode": 477,
+    "step": 11448,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00011448",
+    "counters": {
+      "total_steps": 11448,
+      "episode": 477,
+      "updates": 11321,
+      "buffer_len": 11448
+    },
+    "manifest_sha256": "f9b742679589c106d3364622f98cf6c5dd38d3e3308dbdd6ae596d83fbca9cb6",
+    "counters_sha256": "b0990704d44e74a89b91991e97bbd3bfd2b5ac71f8adea1dbdb9dc4965dae625",
+    "checkpoint_tree_sha256": "40f77670fa09ef3cc6e51fa669265e55d0a4a35cdfc24de858806778725af613",
+    "snapshot_sha256": "1ff92bd3dc4a03f94ae3cdd4c554b57d2dbc022f14b445db2ff7aeb9050f3f99",
+    "reproduced": true
+  },
+  "10": {
+    "round": 10,
+    "episode": 530,
+    "step": 12720,
+    "checkpoint_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00012720",
+    "counters": {
+      "total_steps": 12720,
+      "episode": 530,
+      "updates": 12593,
+      "buffer_len": 12720
+    },
+    "manifest_sha256": "4b258d33a11f8abb6662f159ab9b7323eb7dfa3985fe01ef1fc287bfd9b49f78",
+    "counters_sha256": "4d14861720efff710ca451e5e0b57d97587ee25a4bd346a03285a6ab74bec63c",
+    "checkpoint_tree_sha256": "c96329b499f2243bf3e36b36c4c6cb2aee86129f41db3052669b715f1cd4649a",
+    "snapshot_sha256": "ba7fc99bb73b9d7bfab0a848e577a3943ee5a2ff6cbd5e84d90bddca8c90324e",
+    "reproduced": true
+  }
+}

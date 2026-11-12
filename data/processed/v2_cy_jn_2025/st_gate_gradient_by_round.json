@@ -1,0 +1,1462 @@
+{
+  "1": {
+    "ESS9": {
+      "actor_loss": -0.056980520486831665,
+      "gate_logit_grad_norm_by_leg": [
+        6.968461434553319e-07,
+        8.076422659542004e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        7.79181505095039e-07,
+        3.167904424117296e-06
+      ],
+      "final_weight_gate_grad_norm": 3.2455878681503236e-05,
+      "final_weight_price_grad_norm": 9.617194882594049e-05,
+      "final_bias_gate_grad_norm": 1.2529744708444923e-06,
+      "actor_total_grad_norm": 0.0001028352853609249,
+      "gate_prob_mean_by_leg": [
+        0.9997791051864624,
+        0.9996703267097473
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.00022080022608861327,
+        0.00032944814302027225
+      ],
+      "sample_open_fraction_by_leg": [
+        1.0,
+        1.0
+      ],
+      "adam_update_gate_weight_norm": 0.0001969692384591326,
+      "adam_update_gate_bias_norm": 6.640456717832421e-08,
+      "adam_update_price_weight_norm": 0.00024214548466261476,
+      "critic_loss": 0.0005039343959651887,
+      "target_q_mean": 0.06018616631627083,
+      "q1_mean": 0.057789839804172516,
+      "q2_mean": 0.06600974500179291,
+      "q_gap": 0.009838540107011795,
+      "buffer_reward_mean": 2.595227851998061e-05
+    },
+    "ESS14": {
+      "actor_loss": 1.008562684059143,
+      "gate_logit_grad_norm_by_leg": [
+        0.00014107873721513897,
+        8.642964530736208e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.004725691396743059,
+        1.907477417262271e-05
+      ],
+      "final_weight_gate_grad_norm": 0.0051133702509105206,
+      "final_weight_price_grad_norm": 0.16028186678886414,
+      "final_bias_gate_grad_norm": 0.00030537150450982153,
+      "actor_total_grad_norm": 0.16596457362174988,
+      "gate_prob_mean_by_leg": [
+        0.9800937175750732,
+        0.29643625020980835
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.01945868693292141,
+        0.20843295753002167
+      ],
+      "sample_open_fraction_by_leg": [
+        0.984375,
+        0.28125
+      ],
+      "adam_update_gate_weight_norm": 0.00034275423968210816,
+      "adam_update_gate_bias_norm": 2.5184785954479594e-06,
+      "adam_update_price_weight_norm": 0.0002424795675324276,
+      "critic_loss": 0.06584668159484863,
+      "target_q_mean": -0.956779956817627,
+      "q1_mean": -0.9236143231391907,
+      "q2_mean": -0.9929797649383545,
+      "q_gap": 0.10053135454654694,
+      "buffer_reward_mean": -0.0007090737344697118
+    },
+    "ESS17": {
+      "actor_loss": 0.8032119870185852,
+      "gate_logit_grad_norm_by_leg": [
+        0.00018755244673229754,
+        6.639373896177858e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.002963507315143943,
+        0.00026370937121100724
+      ],
+      "final_weight_gate_grad_norm": 0.0058992039412260056,
+      "final_weight_price_grad_norm": 0.10975135117769241,
+      "final_bias_gate_grad_norm": 0.0004618792445398867,
+      "actor_total_grad_norm": 0.11526041477918625,
+      "gate_prob_mean_by_leg": [
+        0.9543963670730591,
+        0.32930612564086914
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.04339934140443802,
+        0.22070646286010742
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9453125,
+        0.296875
+      ],
+      "adam_update_gate_weight_norm": 0.00036379427183419466,
+      "adam_update_gate_bias_norm": 1.3238085557532031e-05,
+      "adam_update_price_weight_norm": 0.0011663821060210466,
+      "critic_loss": 0.04001014679670334,
+      "target_q_mean": -0.7842192053794861,
+      "q1_mean": -0.7865221500396729,
+      "q2_mean": -0.7552663683891296,
+      "q_gap": 0.06463541090488434,
+      "buffer_reward_mean": 0.0013677255483344197
+    },
+    "ESS27": {
+      "actor_loss": 0.6581504940986633,
+      "gate_logit_grad_norm_by_leg": [
+        0.00024210776609834284,
+        0.0004950060392729938
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.002435938687995076,
+        0.004237055778503418
+      ],
+      "final_weight_gate_grad_norm": 0.008514446206390858,
+      "final_weight_price_grad_norm": 0.09094951301813126,
+      "final_bias_gate_grad_norm": 0.000967445143032819,
+      "actor_total_grad_norm": 0.0974205881357193,
+      "gate_prob_mean_by_leg": [
+        0.9567359685897827,
+        0.9341213703155518
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.04127153754234314,
+        0.06137525290250778
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9453125,
+        0.9375
+      ],
+      "adam_update_gate_weight_norm": 0.0008308180258609354,
+      "adam_update_gate_bias_norm": 2.1837286112713628e-05,
+      "adam_update_price_weight_norm": 0.0015655896859243512,
+      "critic_loss": 0.025500208139419556,
+      "target_q_mean": -0.6253717541694641,
+      "q1_mean": -0.6506665349006653,
+      "q2_mean": -0.5902220606803894,
+      "q_gap": 0.07541240751743317,
+      "buffer_reward_mean": -0.00021923857275396585
+    }
+  },
+  "2": {
+    "ESS9": {
+      "actor_loss": -0.02536311186850071,
+      "gate_logit_grad_norm_by_leg": [
+        2.8331842258921824e-05,
+        2.198324909841176e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        6.334184581646696e-05,
+        0.000565763795748353
+      ],
+      "final_weight_gate_grad_norm": 0.005178883671760559,
+      "final_weight_price_grad_norm": 0.012990669347345829,
+      "final_bias_gate_grad_norm": 0.000187770085176453,
+      "actor_total_grad_norm": 0.014499293640255928,
+      "gate_prob_mean_by_leg": [
+        0.9746445417404175,
+        0.9762089252471924
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.024603042751550674,
+        0.02311864122748375
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9765625,
+        1.0
+      ],
+      "adam_update_gate_weight_norm": 0.005374997854232788,
+      "adam_update_gate_bias_norm": 1.437421997252386e-05,
+      "adam_update_price_weight_norm": 0.005521480459719896,
+      "critic_loss": 0.00019542660447768867,
+      "target_q_mean": 0.03036896139383316,
+      "q1_mean": 0.026144936680793762,
+      "q2_mean": 0.02887890674173832,
+      "q_gap": 0.004297620616853237,
+      "buffer_reward_mean": -0.00010859081521630287
+    },
+    "ESS14": {
+      "actor_loss": 0.6633079648017883,
+      "gate_logit_grad_norm_by_leg": [
+        0.00011422813986428082,
+        7.586002084281063e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0032520988024771214,
+        3.921963070752099e-06
+      ],
+      "final_weight_gate_grad_norm": 0.0006369403563439846,
+      "final_weight_price_grad_norm": 0.0319516584277153,
+      "final_bias_gate_grad_norm": 3.7924030038993806e-05,
+      "actor_total_grad_norm": 0.033498380333185196,
+      "gate_prob_mean_by_leg": [
+        0.9809927344322205,
+        0.08004535734653473
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.018595581874251366,
+        0.07343779504299164
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9765625,
+        0.078125
+      ],
+      "adam_update_gate_weight_norm": 0.00020357329049147666,
+      "adam_update_gate_bias_norm": 1.1570259630389046e-06,
+      "adam_update_price_weight_norm": 0.00025291802012361586,
+      "critic_loss": 0.021946394816040993,
+      "target_q_mean": -0.6649668216705322,
+      "q1_mean": -0.6245059967041016,
+      "q2_mean": -0.6390572190284729,
+      "q_gap": 0.06305263191461563,
+      "buffer_reward_mean": -0.0017235674895346165
+    },
+    "ESS17": {
+      "actor_loss": 0.5737582445144653,
+      "gate_logit_grad_norm_by_leg": [
+        8.651623647892848e-05,
+        1.0524670869926922e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.001350077916868031,
+        3.3787026040954515e-05
+      ],
+      "final_weight_gate_grad_norm": 0.0008563494775444269,
+      "final_weight_price_grad_norm": 0.01696682535111904,
+      "final_bias_gate_grad_norm": 6.0524293076014146e-05,
+      "actor_total_grad_norm": 0.019184548407793045,
+      "gate_prob_mean_by_leg": [
+        0.9446978569030762,
+        0.2292337268590927
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.05210878327488899,
+        0.17592933773994446
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9375,
+        0.171875
+      ],
+      "adam_update_gate_weight_norm": 0.0004928632988594472,
+      "adam_update_gate_bias_norm": 1.2816137314075604e-05,
+      "adam_update_price_weight_norm": 0.0007748710340820253,
+      "critic_loss": 0.01133512519299984,
+      "target_q_mean": -0.5722348690032959,
+      "q1_mean": -0.5516683459281921,
+      "q2_mean": -0.5510449409484863,
+      "q_gap": 0.044803183525800705,
+      "buffer_reward_mean": -0.000950210727751255
+    },
+    "ESS27": {
+      "actor_loss": 0.41084498167037964,
+      "gate_logit_grad_norm_by_leg": [
+        6.255389598663896e-05,
+        0.0001337913126917556
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0011373350862413645,
+        0.0022011632099747658
+      ],
+      "final_weight_gate_grad_norm": 0.00030181556940078735,
+      "final_weight_price_grad_norm": 0.010110708884894848,
+      "final_bias_gate_grad_norm": 2.826597665261943e-05,
+      "actor_total_grad_norm": 0.011001119390130043,
+      "gate_prob_mean_by_leg": [
+        0.9556626081466675,
+        0.9526559114456177
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.04227297008037567,
+        0.04499998688697815
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9609375,
+        0.953125
+      ],
+      "adam_update_gate_weight_norm": 0.0002469507744535804,
+      "adam_update_gate_bias_norm": 6.39731524643139e-06,
+      "adam_update_price_weight_norm": 0.0005040744435973465,
+      "critic_loss": 0.009533105418086052,
+      "target_q_mean": -0.41814786195755005,
+      "q1_mean": -0.39493849873542786,
+      "q2_mean": -0.39822179079055786,
+      "q_gap": 0.028529666364192963,
+      "buffer_reward_mean": -0.0003247997083235532
+    }
+  },
+  "3": {
+    "ESS9": {
+      "actor_loss": -0.01730598881840706,
+      "gate_logit_grad_norm_by_leg": [
+        1.5096761174504536e-08,
+        2.7566800326894736e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0,
+        5.4438341976492666e-06
+      ],
+      "final_weight_gate_grad_norm": 0.00010803331679198891,
+      "final_weight_price_grad_norm": 6.578951433766633e-05,
+      "final_bias_gate_grad_norm": 3.7309303024812834e-06,
+      "actor_total_grad_norm": 0.00012764775601681322,
+      "gate_prob_mean_by_leg": [
+        0.004622368142008781,
+        0.31400373578071594
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.004593980498611927,
+        0.21524997055530548
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0,
+        0.3125
+      ],
+      "adam_update_gate_weight_norm": 5.381298251450062e-05,
+      "adam_update_gate_bias_norm": 1.5512829065755795e-07,
+      "adam_update_price_weight_norm": 4.7992471081670374e-05,
+      "critic_loss": 0.0004712339141406119,
+      "target_q_mean": 0.017092429101467133,
+      "q1_mean": 0.018015164881944656,
+      "q2_mean": 0.019625678658485413,
+      "q_gap": 0.00302886706776917,
+      "buffer_reward_mean": -0.0019513643346726894
+    },
+    "ESS14": {
+      "actor_loss": 0.4363138973712921,
+      "gate_logit_grad_norm_by_leg": [
+        0.00015434253145940602,
+        8.582787245359214e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0037778408732265234,
+        9.898063808577717e-07
+      ],
+      "final_weight_gate_grad_norm": 0.0009538494050502777,
+      "final_weight_price_grad_norm": 0.011223133653402328,
+      "final_bias_gate_grad_norm": 6.435401155613363e-05,
+      "actor_total_grad_norm": 0.012393084354698658,
+      "gate_prob_mean_by_leg": [
+        0.9773294925689697,
+        0.10277065634727478
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.02210512012243271,
+        0.09197446703910828
+      ],
+      "sample_open_fraction_by_leg": [
+        0.96875,
+        0.1015625
+      ],
+      "adam_update_gate_weight_norm": 0.00035715129342861474,
+      "adam_update_gate_bias_norm": 1.5345620340667665e-05,
+      "adam_update_price_weight_norm": 0.000604130094870925,
+      "critic_loss": 0.014504965394735336,
+      "target_q_mean": -0.41994115710258484,
+      "q1_mean": -0.427814245223999,
+      "q2_mean": -0.4122069478034973,
+      "q_gap": 0.03260664641857147,
+      "buffer_reward_mean": -0.0008035589708015323
+    },
+    "ESS17": {
+      "actor_loss": 0.3841279447078705,
+      "gate_logit_grad_norm_by_leg": [
+        2.5564169845893048e-05,
+        4.0818438719725236e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0007049328414723277,
+        0.0036507328040897846
+      ],
+      "final_weight_gate_grad_norm": 0.0005967648467049003,
+      "final_weight_price_grad_norm": 0.09704369306564331,
+      "final_bias_gate_grad_norm": 2.906774534494616e-05,
+      "actor_total_grad_norm": 0.09963863343000412,
+      "gate_prob_mean_by_leg": [
+        0.9827508926391602,
+        0.9941617250442505
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.01691683940589428,
+        0.005794312339276075
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9921875,
+        0.96875
+      ],
+      "adam_update_gate_weight_norm": 0.0032469998113811016,
+      "adam_update_gate_bias_norm": 1.2642685760511085e-06,
+      "adam_update_price_weight_norm": 0.003934396430850029,
+      "critic_loss": 0.01720208302140236,
+      "target_q_mean": -0.36972862482070923,
+      "q1_mean": -0.35193321108818054,
+      "q2_mean": -0.3697972893714905,
+      "q_gap": 0.046525388956069946,
+      "buffer_reward_mean": -0.00037006998900324106
+    },
+    "ESS27": {
+      "actor_loss": 0.206936314702034,
+      "gate_logit_grad_norm_by_leg": [
+        0.00025456029106862843,
+        0.0002819018845912069
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0026170758064836264,
+        0.002365154679864645
+      ],
+      "final_weight_gate_grad_norm": 0.004192497581243515,
+      "final_weight_price_grad_norm": 0.05564792826771736,
+      "final_bias_gate_grad_norm": 0.000498464098200202,
+      "actor_total_grad_norm": 0.057736240327358246,
+      "gate_prob_mean_by_leg": [
+        0.9385709762573242,
+        0.9607656002044678
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.057484254240989685,
+        0.03758739307522774
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9609375,
+        0.96875
+      ],
+      "adam_update_gate_weight_norm": 0.0019707081373780966,
+      "adam_update_gate_bias_norm": 3.726104841916822e-05,
+      "adam_update_price_weight_norm": 0.0021628444083034992,
+      "critic_loss": 0.016953924670815468,
+      "target_q_mean": -0.22405444085597992,
+      "q1_mean": -0.1855328232049942,
+      "q2_mean": -0.1938234269618988,
+      "q_gap": 0.03451637551188469,
+      "buffer_reward_mean": -0.0030416951049119234
+    }
+  },
+  "4": {
+    "ESS9": {
+      "actor_loss": -0.018098387867212296,
+      "gate_logit_grad_norm_by_leg": [
+        1.362658341719225e-08,
+        3.6556291433953447e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0,
+        3.494062184472568e-05
+      ],
+      "final_weight_gate_grad_norm": 5.524802327272482e-05,
+      "final_weight_price_grad_norm": 0.0009025554754771292,
+      "final_bias_gate_grad_norm": 7.026926027720037e-07,
+      "actor_total_grad_norm": 0.0009197271429002285,
+      "gate_prob_mean_by_leg": [
+        0.006633833982050419,
+        0.9285542964935303
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.0065783909521996975,
+        0.06603257358074188
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0,
+        0.9375
+      ],
+      "adam_update_gate_weight_norm": 0.0015775087522342801,
+      "adam_update_gate_bias_norm": 1.0996778883054503e-06,
+      "adam_update_price_weight_norm": 0.0020382823422551155,
+      "critic_loss": 0.0006384267471730709,
+      "target_q_mean": 0.018609030172228813,
+      "q1_mean": 0.01895671896636486,
+      "q2_mean": 0.01877056621015072,
+      "q_gap": 0.001530507579445839,
+      "buffer_reward_mean": 0.0014582639560103416
+    },
+    "ESS14": {
+      "actor_loss": 0.3620249629020691,
+      "gate_logit_grad_norm_by_leg": [
+        6.338739694911055e-06,
+        2.496423512354795e-09
+      ],
+      "price_logit_grad_norm_by_leg": [
+        5.48177667951677e-05,
+        0.0
+      ],
+      "final_weight_gate_grad_norm": 0.0002810438454616815,
+      "final_weight_price_grad_norm": 0.0031687829177826643,
+      "final_bias_gate_grad_norm": 1.19516444101464e-05,
+      "actor_total_grad_norm": 0.0032608150504529476,
+      "gate_prob_mean_by_leg": [
+        0.9994201064109802,
+        0.008259588852524757
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.0005792087176814675,
+        0.008173225447535515
+      ],
+      "sample_open_fraction_by_leg": [
+        1.0,
+        0.0
+      ],
+      "adam_update_gate_weight_norm": 0.00012804642028640956,
+      "adam_update_gate_bias_norm": 2.7139262215314375e-07,
+      "adam_update_price_weight_norm": 0.00020552468777168542,
+      "critic_loss": 0.00648780632764101,
+      "target_q_mean": -0.3302890658378601,
+      "q1_mean": -0.3364713191986084,
+      "q2_mean": -0.3488519489765167,
+      "q_gap": 0.03872666135430336,
+      "buffer_reward_mean": 0.0016714779194444418
+    },
+    "ESS17": {
+      "actor_loss": 0.3177551329135895,
+      "gate_logit_grad_norm_by_leg": [
+        4.682633516495116e-06,
+        2.283074309161748e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.2283381693123374e-05,
+        8.075330697465688e-05
+      ],
+      "final_weight_gate_grad_norm": 0.00016602867981418967,
+      "final_weight_price_grad_norm": 0.005650075618177652,
+      "final_bias_gate_grad_norm": 6.226302502909675e-06,
+      "actor_total_grad_norm": 0.00586784677579999,
+      "gate_prob_mean_by_leg": [
+        0.4098241925239563,
+        0.975081205368042
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.241785928606987,
+        0.02424679324030876
+      ],
+      "sample_open_fraction_by_leg": [
+        0.40625,
+        0.9609375
+      ],
+      "adam_update_gate_weight_norm": 0.00020133146608714014,
+      "adam_update_gate_bias_norm": 8.923625500756316e-07,
+      "adam_update_price_weight_norm": 0.00016972101002465934,
+      "critic_loss": 0.0031012953259050846,
+      "target_q_mean": -0.30626314878463745,
+      "q1_mean": -0.30906999111175537,
+      "q2_mean": -0.30218279361724854,
+      "q_gap": 0.024257546290755272,
+      "buffer_reward_mean": 0.0035633284132927656
+    },
+    "ESS27": {
+      "actor_loss": 0.16674894094467163,
+      "gate_logit_grad_norm_by_leg": [
+        7.99267872935161e-05,
+        8.211728709284216e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.001114456681534648,
+        0.0011238802690058947
+      ],
+      "final_weight_gate_grad_norm": 0.0004014470614492893,
+      "final_weight_price_grad_norm": 0.003379581728950143,
+      "final_bias_gate_grad_norm": 6.87168212607503e-05,
+      "actor_total_grad_norm": 0.003681015921756625,
+      "gate_prob_mean_by_leg": [
+        0.9632154107093811,
+        0.9759352803230286
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.03535517677664757,
+        0.023440144956111908
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9609375,
+        0.984375
+      ],
+      "adam_update_gate_weight_norm": 0.00036839261883869767,
+      "adam_update_gate_bias_norm": 1.640255686652381e-05,
+      "adam_update_price_weight_norm": 0.0007220312836579978,
+      "critic_loss": 0.0034137368202209473,
+      "target_q_mean": -0.17302116751670837,
+      "q1_mean": -0.1535326987504959,
+      "q2_mean": -0.16044981777668,
+      "q_gap": 0.01951536349952221,
+      "buffer_reward_mean": 0.000802656402811408
+    }
+  },
+  "5": {
+    "ESS9": {
+      "actor_loss": -0.013743485324084759,
+      "gate_logit_grad_norm_by_leg": [
+        1.0049340026796472e-08,
+        1.6669747537889634e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.292975184696843e-07,
+        2.5885339709930122e-05
+      ],
+      "final_weight_gate_grad_norm": 2.2482612621388398e-05,
+      "final_weight_price_grad_norm": 0.0006586812087334692,
+      "final_bias_gate_grad_norm": 5.62944364901341e-07,
+      "actor_total_grad_norm": 0.0006709592998959124,
+      "gate_prob_mean_by_leg": [
+        0.010946705006062984,
+        0.9514244198799133
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.010800423100590706,
+        0.046004753559827805
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0234375,
+        0.953125
+      ],
+      "adam_update_gate_weight_norm": 0.00021598473540507257,
+      "adam_update_gate_bias_norm": 4.099009913716145e-07,
+      "adam_update_price_weight_norm": 0.0003339596150908619,
+      "critic_loss": 0.0005396939814090729,
+      "target_q_mean": 0.011594927869737148,
+      "q1_mean": 0.014470325782895088,
+      "q2_mean": 0.013844991102814674,
+      "q_gap": 0.0008283425122499466,
+      "buffer_reward_mean": -0.0017651270609349012
+    },
+    "ESS14": {
+      "actor_loss": 0.2892231047153473,
+      "gate_logit_grad_norm_by_leg": [
+        6.892754026921466e-05,
+        2.0019657313241623e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0010754524264484644,
+        0.0013694913359358907
+      ],
+      "final_weight_gate_grad_norm": 0.0015822140267118812,
+      "final_weight_price_grad_norm": 0.07360482960939407,
+      "final_bias_gate_grad_norm": 6.966353248571977e-05,
+      "actor_total_grad_norm": 0.0781613290309906,
+      "gate_prob_mean_by_leg": [
+        0.9624506235122681,
+        0.9890990257263184
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.03591598942875862,
+        0.010734607465565205
+      ],
+      "sample_open_fraction_by_leg": [
+        0.921875,
+        1.0
+      ],
+      "adam_update_gate_weight_norm": 0.001454233075492084,
+      "adam_update_gate_bias_norm": 5.694179435522528e-06,
+      "adam_update_price_weight_norm": 0.0020027572754770517,
+      "critic_loss": 0.003065535333007574,
+      "target_q_mean": -0.2853667438030243,
+      "q1_mean": -0.2689633071422577,
+      "q2_mean": -0.2833360731601715,
+      "q_gap": 0.02614687569439411,
+      "buffer_reward_mean": -0.0004937488702125847
+    },
+    "ESS17": {
+      "actor_loss": 0.26227086782455444,
+      "gate_logit_grad_norm_by_leg": [
+        4.101605100004235e-06,
+        3.4374875212961342e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        9.539491657051258e-06,
+        0.00011239179002586752
+      ],
+      "final_weight_gate_grad_norm": 0.00014532075147144496,
+      "final_weight_price_grad_norm": 0.004388321191072464,
+      "final_bias_gate_grad_norm": 6.457213657995453e-06,
+      "actor_total_grad_norm": 0.004582447465509176,
+      "gate_prob_mean_by_leg": [
+        0.3764491379261017,
+        0.9778136610984802
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.23460917174816132,
+        0.021630408242344856
+      ],
+      "sample_open_fraction_by_leg": [
+        0.375,
+        0.9765625
+      ],
+      "adam_update_gate_weight_norm": 0.0007803019252605736,
+      "adam_update_gate_bias_norm": 1.9536739728209795e-06,
+      "adam_update_price_weight_norm": 0.0007878807955421507,
+      "critic_loss": 0.0016489315312355757,
+      "target_q_mean": -0.25251924991607666,
+      "q1_mean": -0.2545516788959503,
+      "q2_mean": -0.25724196434020996,
+      "q_gap": 0.012748079374432564,
+      "buffer_reward_mean": -0.0004162757541052997
+    },
+    "ESS27": {
+      "actor_loss": 0.14451180398464203,
+      "gate_logit_grad_norm_by_leg": [
+        5.888269515708089e-05,
+        5.9194237110204995e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0008220735471695662,
+        0.0007929159910418093
+      ],
+      "final_weight_gate_grad_norm": 0.0016693902434781194,
+      "final_weight_price_grad_norm": 0.026486927643418312,
+      "final_bias_gate_grad_norm": 0.00020309632236603647,
+      "actor_total_grad_norm": 0.02756335586309433,
+      "gate_prob_mean_by_leg": [
+        0.961422324180603,
+        0.9723712205886841
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.03698134794831276,
+        0.026795463636517525
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9765625,
+        0.96875
+      ],
+      "adam_update_gate_weight_norm": 0.00030329503351822495,
+      "adam_update_gate_bias_norm": 1.2007563782390207e-05,
+      "adam_update_price_weight_norm": 0.00036888194154016674,
+      "critic_loss": 0.0014458487275987864,
+      "target_q_mean": -0.14515259861946106,
+      "q1_mean": -0.14131034910678864,
+      "q2_mean": -0.13668034970760345,
+      "q_gap": 0.011032935231924057,
+      "buffer_reward_mean": -0.0014718801248818636
+    }
+  },
+  "6": {
+    "ESS9": {
+      "actor_loss": -0.01045333780348301,
+      "gate_logit_grad_norm_by_leg": [
+        2.383160868646428e-08,
+        1.4382136441781768e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        3.063017288695846e-07,
+        4.0606286347610876e-05
+      ],
+      "final_weight_gate_grad_norm": 0.00015586306108161807,
+      "final_weight_price_grad_norm": 0.004647745750844479,
+      "final_bias_gate_grad_norm": 5.997648713673698e-06,
+      "actor_total_grad_norm": 0.004741513170301914,
+      "gate_prob_mean_by_leg": [
+        0.020661858841776848,
+        0.964996874332428
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.020154818892478943,
+        0.03361748158931732
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0625,
+        0.9765625
+      ],
+      "adam_update_gate_weight_norm": 0.000880979176145047,
+      "adam_update_gate_bias_norm": 3.118383347100462e-06,
+      "adam_update_price_weight_norm": 0.0007494305609725416,
+      "critic_loss": 0.0007362443138845265,
+      "target_q_mean": 0.007535521872341633,
+      "q1_mean": 0.010689414106309414,
+      "q2_mean": 0.010839298367500305,
+      "q_gap": 0.0006220352370291948,
+      "buffer_reward_mean": -0.0013235976221039891
+    },
+    "ESS14": {
+      "actor_loss": 0.24376893043518066,
+      "gate_logit_grad_norm_by_leg": [
+        2.4735460101510398e-05,
+        8.881089888745919e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.0005265141953714192,
+        0.0008179020951502025
+      ],
+      "final_weight_gate_grad_norm": 0.004000537563115358,
+      "final_weight_price_grad_norm": 0.058022189885377884,
+      "final_bias_gate_grad_norm": 0.00018973284750245512,
+      "actor_total_grad_norm": 0.06331746280193329,
+      "gate_prob_mean_by_leg": [
+        0.973179042339325,
+        0.9375412464141846
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.02592426910996437,
+        0.057344742119312286
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9765625,
+        0.921875
+      ],
+      "adam_update_gate_weight_norm": 0.0003523714258335531,
+      "adam_update_gate_bias_norm": 1.50169144035317e-05,
+      "adam_update_price_weight_norm": 0.0006237291381694376,
+      "critic_loss": 0.0019258804386481643,
+      "target_q_mean": -0.2501354217529297,
+      "q1_mean": -0.2343948632478714,
+      "q2_mean": -0.23774626851081848,
+      "q_gap": 0.015396730974316597,
+      "buffer_reward_mean": -0.002936899894848466
+    },
+    "ESS17": {
+      "actor_loss": 0.2271905094385147,
+      "gate_logit_grad_norm_by_leg": [
+        6.6885644400827e-07,
+        1.0774707561722607e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        2.638263140397612e-06,
+        3.0350181987159885e-05
+      ],
+      "final_weight_gate_grad_norm": 3.253448448958807e-05,
+      "final_weight_price_grad_norm": 0.0003128359967377037,
+      "final_bias_gate_grad_norm": 1.513693064225663e-06,
+      "actor_total_grad_norm": 0.0003282594552729279,
+      "gate_prob_mean_by_leg": [
+        0.10879360139369965,
+        0.9732072353363037
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.09659364819526672,
+        0.025974543765187263
+      ],
+      "sample_open_fraction_by_leg": [
+        0.140625,
+        0.953125
+      ],
+      "adam_update_gate_weight_norm": 0.00015830007032491267,
+      "adam_update_gate_bias_norm": 3.9629304637855967e-07,
+      "adam_update_price_weight_norm": 0.00016255451191682369,
+      "critic_loss": 0.0013349035289138556,
+      "target_q_mean": -0.227776437997818,
+      "q1_mean": -0.22301550209522247,
+      "q2_mean": -0.22189797461032867,
+      "q_gap": 0.009467567317187786,
+      "buffer_reward_mean": -0.0014528458705171943
+    },
+    "ESS27": {
+      "actor_loss": 0.1313004344701767,
+      "gate_logit_grad_norm_by_leg": [
+        2.883364686567802e-05,
+        3.130244294879958e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.00028307829052209854,
+        0.0004439471522346139
+      ],
+      "final_weight_gate_grad_norm": 0.0004035566817037761,
+      "final_weight_price_grad_norm": 0.005052465945482254,
+      "final_bias_gate_grad_norm": 5.676853106706403e-05,
+      "actor_total_grad_norm": 0.005351551808416843,
+      "gate_prob_mean_by_leg": [
+        0.9573225378990173,
+        0.9707428812980652
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.04066719114780426,
+        0.028270043432712555
+      ],
+      "sample_open_fraction_by_leg": [
+        0.953125,
+        0.9609375
+      ],
+      "adam_update_gate_weight_norm": 0.000224750314373523,
+      "adam_update_gate_bias_norm": 1.3810707969241776e-05,
+      "adam_update_price_weight_norm": 0.00041444043745286763,
+      "critic_loss": 0.0007056300528347492,
+      "target_q_mean": -0.13022392988204956,
+      "q1_mean": -0.12940984964370728,
+      "q2_mean": -0.12464982271194458,
+      "q_gap": 0.00854119285941124,
+      "buffer_reward_mean": -0.0034324440639466047
+    }
+  },
+  "7": {
+    "ESS9": {
+      "actor_loss": -0.004077456891536713,
+      "gate_logit_grad_norm_by_leg": [
+        5.099630939753297e-08,
+        8.716282877685444e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.1521520804080865e-07,
+        1.0971998563036323e-05
+      ],
+      "final_weight_gate_grad_norm": 8.97214067663299e-06,
+      "final_weight_price_grad_norm": 0.00017530388140585274,
+      "final_bias_gate_grad_norm": 3.9171970911411336e-07,
+      "actor_total_grad_norm": 0.00017975716036744416,
+      "gate_prob_mean_by_leg": [
+        0.02393450029194355,
+        0.9340628385543823
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.02329038642346859,
+        0.06135900318622589
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0078125,
+        0.9140625
+      ],
+      "adam_update_gate_weight_norm": 0.0009870226494967937,
+      "adam_update_gate_bias_norm": 8.219896585615061e-07,
+      "adam_update_price_weight_norm": 0.0008998175617307425,
+      "critic_loss": 0.00068668118910864,
+      "target_q_mean": 0.0023799065966159105,
+      "q1_mean": 0.004351450130343437,
+      "q2_mean": 0.004242291674017906,
+      "q_gap": 0.00043882703175768256,
+      "buffer_reward_mean": -0.0014889935264363885
+    },
+    "ESS14": {
+      "actor_loss": 0.2300129383802414,
+      "gate_logit_grad_norm_by_leg": [
+        0.00014023203402757645,
+        0.00010265667515341192
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.00041336333379149437,
+        0.0004953780444338918
+      ],
+      "final_weight_gate_grad_norm": 0.007373012136667967,
+      "final_weight_price_grad_norm": 0.017945941537618637,
+      "final_bias_gate_grad_norm": 0.00035846809623762965,
+      "actor_total_grad_norm": 0.019892575219273567,
+      "gate_prob_mean_by_leg": [
+        0.6421600580215454,
+        0.9434556365013123
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.21100933849811554,
+        0.05054046958684921
+      ],
+      "sample_open_fraction_by_leg": [
+        0.578125,
+        0.9609375
+      ],
+      "adam_update_gate_weight_norm": 0.0011676799040287733,
+      "adam_update_gate_bias_norm": 6.397080869646743e-05,
+      "adam_update_price_weight_norm": 0.0007506199763156474,
+      "critic_loss": 0.0018624539952725172,
+      "target_q_mean": -0.23090091347694397,
+      "q1_mean": -0.21901412308216095,
+      "q2_mean": -0.22632628679275513,
+      "q_gap": 0.014685495756566525,
+      "buffer_reward_mean": -0.0014149725902825594
+    },
+    "ESS17": {
+      "actor_loss": 0.23133304715156555,
+      "gate_logit_grad_norm_by_leg": [
+        1.323893741300708e-07,
+        4.3881965439140913e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        6.448912017731345e-07,
+        2.4205401132348925e-06
+      ],
+      "final_weight_gate_grad_norm": 1.0890448720601853e-05,
+      "final_weight_price_grad_norm": 6.616018072236329e-05,
+      "final_bias_gate_grad_norm": 4.3414044625933457e-07,
+      "actor_total_grad_norm": 7.177525549195707e-05,
+      "gate_prob_mean_by_leg": [
+        0.07412039488554001,
+        0.8353841304779053
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.0683872327208519,
+        0.13713569939136505
+      ],
+      "sample_open_fraction_by_leg": [
+        0.1171875,
+        0.8359375
+      ],
+      "adam_update_gate_weight_norm": 0.002163572469726205,
+      "adam_update_gate_bias_norm": 8.503185995323292e-07,
+      "adam_update_price_weight_norm": 0.002122778445482254,
+      "critic_loss": 0.0012157659512013197,
+      "target_q_mean": -0.22421681880950928,
+      "q1_mean": -0.2279243916273117,
+      "q2_mean": -0.2268001288175583,
+      "q_gap": 0.007941598072648048,
+      "buffer_reward_mean": -7.185238064266741e-05
+    },
+    "ESS27": {
+      "actor_loss": 0.1249258741736412,
+      "gate_logit_grad_norm_by_leg": [
+        8.301419256895315e-06,
+        1.2948921721545048e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        6.647065310971811e-05,
+        0.00029103626729920506
+      ],
+      "final_weight_gate_grad_norm": 0.0006698245415464044,
+      "final_weight_price_grad_norm": 0.017154132947325706,
+      "final_bias_gate_grad_norm": 5.537869583349675e-05,
+      "actor_total_grad_norm": 0.01790449395775795,
+      "gate_prob_mean_by_leg": [
+        0.9910578727722168,
+        0.9827001094818115
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.008841922506690025,
+        0.01694989576935768
+      ],
+      "sample_open_fraction_by_leg": [
+        0.96875,
+        0.9609375
+      ],
+      "adam_update_gate_weight_norm": 0.0004203922289889306,
+      "adam_update_gate_bias_norm": 1.0144491170649417e-05,
+      "adam_update_price_weight_norm": 0.0005427710129879415,
+      "critic_loss": 0.0007438758038915694,
+      "target_q_mean": -0.12076960504055023,
+      "q1_mean": -0.12334588915109634,
+      "q2_mean": -0.12044447660446167,
+      "q_gap": 0.006061372812837362,
+      "buffer_reward_mean": -0.0022968940902501345
+    }
+  },
+  "8": {
+    "ESS9": {
+      "actor_loss": -0.00034798734122887254,
+      "gate_logit_grad_norm_by_leg": [
+        5.205867736890468e-08,
+        6.43044302250928e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.2316743891460646e-07,
+        3.1666859285905957e-06
+      ],
+      "final_weight_gate_grad_norm": 4.5118167690816335e-06,
+      "final_weight_price_grad_norm": 4.447126229933929e-06,
+      "final_bias_gate_grad_norm": 3.5033400536121917e-07,
+      "actor_total_grad_norm": 6.990148449403932e-06,
+      "gate_prob_mean_by_leg": [
+        0.03463485464453697,
+        0.8125249147415161
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.03328758105635643,
+        0.1518806517124176
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0234375,
+        0.828125
+      ],
+      "adam_update_gate_weight_norm": 0.00031408158247359097,
+      "adam_update_gate_bias_norm": 1.7519865878057317e-06,
+      "adam_update_price_weight_norm": 0.0002663034538272768,
+      "critic_loss": 0.0005253730341792107,
+      "target_q_mean": -0.000772246508859098,
+      "q1_mean": 0.0009813385549932718,
+      "q2_mean": 0.00043650451698340476,
+      "q_gap": 0.000721868360415101,
+      "buffer_reward_mean": -0.0012631125282496214
+    },
+    "ESS14": {
+      "actor_loss": 0.21172146499156952,
+      "gate_logit_grad_norm_by_leg": [
+        6.984065839787945e-05,
+        2.7918367777601816e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.00018110763630829751,
+        0.00028086695238016546
+      ],
+      "final_weight_gate_grad_norm": 0.0012984381755813956,
+      "final_weight_price_grad_norm": 0.01391300093382597,
+      "final_bias_gate_grad_norm": 6.738179945386946e-05,
+      "actor_total_grad_norm": 0.021278612315654755,
+      "gate_prob_mean_by_leg": [
+        0.2451254427433014,
+        0.9754518270492554
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.13056401908397675,
+        0.02246905490756035
+      ],
+      "sample_open_fraction_by_leg": [
+        0.1953125,
+        0.9765625
+      ],
+      "adam_update_gate_weight_norm": 0.0009214177262037992,
+      "adam_update_gate_bias_norm": 6.347609451040626e-05,
+      "adam_update_price_weight_norm": 0.0005678231245838106,
+      "critic_loss": 0.0005203466862440109,
+      "target_q_mean": -0.2096036970615387,
+      "q1_mean": -0.2051016390323639,
+      "q2_mean": -0.21028205752372742,
+      "q_gap": 0.008059250190854073,
+      "buffer_reward_mean": -0.00047417538007721305
+    },
+    "ESS17": {
+      "actor_loss": 0.22254130244255066,
+      "gate_logit_grad_norm_by_leg": [
+        1.5652103968477604e-07,
+        7.402947517221037e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        4.16517593748722e-07,
+        3.583071020329953e-06
+      ],
+      "final_weight_gate_grad_norm": 6.231253064470366e-05,
+      "final_weight_price_grad_norm": 0.0002842760004568845,
+      "final_bias_gate_grad_norm": 2.9237448870844673e-06,
+      "actor_total_grad_norm": 0.00030464711016975343,
+      "gate_prob_mean_by_leg": [
+        0.08468693494796753,
+        0.7767078876495361
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.07716906815767288,
+        0.17299285531044006
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0625,
+        0.8359375
+      ],
+      "adam_update_gate_weight_norm": 0.00029016812914051116,
+      "adam_update_gate_bias_norm": 3.774474066631228e-08,
+      "adam_update_price_weight_norm": 0.0001234011579072103,
+      "critic_loss": 0.0006585689843632281,
+      "target_q_mean": -0.21773917973041534,
+      "q1_mean": -0.21922841668128967,
+      "q2_mean": -0.21824407577514648,
+      "q_gap": 0.00761010218411684,
+      "buffer_reward_mean": 0.0001991871395148337
+    },
+    "ESS27": {
+      "actor_loss": 0.11306561529636383,
+      "gate_logit_grad_norm_by_leg": [
+        2.628609763632994e-06,
+        6.013995061948663e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.5200533198367339e-05,
+        0.00017657056741882116
+      ],
+      "final_weight_gate_grad_norm": 4.65986886410974e-05,
+      "final_weight_price_grad_norm": 0.0023135060910135508,
+      "final_bias_gate_grad_norm": 2.136266402885667e-06,
+      "actor_total_grad_norm": 0.0024578182492405176,
+      "gate_prob_mean_by_leg": [
+        0.9949802756309509,
+        0.987122654914856
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.004982158076018095,
+        0.012652987614274025
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9921875,
+        0.984375
+      ],
+      "adam_update_gate_weight_norm": 0.00024030389613471925,
+      "adam_update_gate_bias_norm": 6.16777788309264e-06,
+      "adam_update_price_weight_norm": 0.0006569279939867556,
+      "critic_loss": 0.000563529203645885,
+      "target_q_mean": -0.11217546463012695,
+      "q1_mean": -0.11178388446569443,
+      "q2_mean": -0.11100898683071136,
+      "q_gap": 0.003338361857458949,
+      "buffer_reward_mean": -0.0017651692032814026
+    }
+  },
+  "9": {
+    "ESS9": {
+      "actor_loss": 0.0050675771199166775,
+      "gate_logit_grad_norm_by_leg": [
+        9.881203055783772e-08,
+        2.549373220972484e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.26880024708953e-07,
+        3.768660099012777e-05
+      ],
+      "final_weight_gate_grad_norm": 9.413648513145745e-05,
+      "final_weight_price_grad_norm": 0.002312939614057541,
+      "final_bias_gate_grad_norm": 5.757028247899143e-06,
+      "actor_total_grad_norm": 0.0023909336887300014,
+      "gate_prob_mean_by_leg": [
+        0.038942500948905945,
+        0.9645501971244812
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.0373256541788578,
+        0.0341012105345726
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0390625,
+        0.9453125
+      ],
+      "adam_update_gate_weight_norm": 0.0004968238063156605,
+      "adam_update_gate_bias_norm": 2.257085270684911e-06,
+      "adam_update_price_weight_norm": 0.00014873563486617059,
+      "critic_loss": 0.0003978318127337843,
+      "target_q_mean": -0.002749233739450574,
+      "q1_mean": -0.004495905712246895,
+      "q2_mean": -0.004909704439342022,
+      "q_gap": 0.0007295439718291163,
+      "buffer_reward_mean": 0.0034241140820086002
+    },
+    "ESS14": {
+      "actor_loss": 0.20031428337097168,
+      "gate_logit_grad_norm_by_leg": [
+        3.66113890777342e-05,
+        1.1079875548603013e-05
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.00010991363524226472,
+        0.00017366281826980412
+      ],
+      "final_weight_gate_grad_norm": 0.0013428592355921865,
+      "final_weight_price_grad_norm": 0.010430128313601017,
+      "final_bias_gate_grad_norm": 6.630733696511015e-05,
+      "actor_total_grad_norm": 0.01789901591837406,
+      "gate_prob_mean_by_leg": [
+        0.30285221338272095,
+        0.9755521416664124
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.10618949681520462,
+        0.02180977538228035
+      ],
+      "sample_open_fraction_by_leg": [
+        0.3125,
+        1.0
+      ],
+      "adam_update_gate_weight_norm": 0.0005212274845689535,
+      "adam_update_gate_bias_norm": 3.689865843625739e-05,
+      "adam_update_price_weight_norm": 0.00045652801054529846,
+      "critic_loss": 0.0005708688404411077,
+      "target_q_mean": -0.19310496747493744,
+      "q1_mean": -0.19597285985946655,
+      "q2_mean": -0.19898299872875214,
+      "q_gap": 0.0056727430783212185,
+      "buffer_reward_mean": 0.0014742619823664427
+    },
+    "ESS17": {
+      "actor_loss": 0.2199770212173462,
+      "gate_logit_grad_norm_by_leg": [
+        1.7068845181711367e-07,
+        1.3482657550412114e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        5.33901925336977e-07,
+        7.365212695731316e-06
+      ],
+      "final_weight_gate_grad_norm": 0.00013285128807183355,
+      "final_weight_price_grad_norm": 0.0007613369962200522,
+      "final_bias_gate_grad_norm": 6.47412525722757e-06,
+      "actor_total_grad_norm": 0.0008150641224347055,
+      "gate_prob_mean_by_leg": [
+        0.09006953239440918,
+        0.8108934760093689
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.08175311982631683,
+        0.15307731926441193
+      ],
+      "sample_open_fraction_by_leg": [
+        0.09375,
+        0.828125
+      ],
+      "adam_update_gate_weight_norm": 0.0009075017878785729,
+      "adam_update_gate_bias_norm": 3.4359250093984883e-06,
+      "adam_update_price_weight_norm": 0.000346229353453964,
+      "critic_loss": 0.0007987390272319317,
+      "target_q_mean": -0.20517447590827942,
+      "q1_mean": -0.21724571287631989,
+      "q2_mean": -0.2144475281238556,
+      "q_gap": 0.008260799571871758,
+      "buffer_reward_mean": 0.0044046007096767426
+    },
+    "ESS27": {
+      "actor_loss": 0.1056075245141983,
+      "gate_logit_grad_norm_by_leg": [
+        2.29119609684858e-06,
+        5.159547981747892e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.9240860638092272e-05,
+        0.00014641134475823492
+      ],
+      "final_weight_gate_grad_norm": 0.00011110871855635196,
+      "final_weight_price_grad_norm": 0.0047843134962022305,
+      "final_bias_gate_grad_norm": 9.816849342314526e-06,
+      "actor_total_grad_norm": 0.005401468835771084,
+      "gate_prob_mean_by_leg": [
+        0.9952788949012756,
+        0.9958776831626892
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.004687531851232052,
+        0.004090440459549427
+      ],
+      "sample_open_fraction_by_leg": [
+        0.9921875,
+        0.9921875
+      ],
+      "adam_update_gate_weight_norm": 0.0002965868916362524,
+      "adam_update_gate_bias_norm": 4.971544058207655e-06,
+      "adam_update_price_weight_norm": 0.0005754815065301955,
+      "critic_loss": 0.0004112785682082176,
+      "target_q_mean": -0.10213277488946915,
+      "q1_mean": -0.10259376466274261,
+      "q2_mean": -0.1046985387802124,
+      "q_gap": 0.003922726958990097,
+      "buffer_reward_mean": 0.0005386155098676682
+    }
+  },
+  "10": {
+    "ESS9": {
+      "actor_loss": 0.0068156784400343895,
+      "gate_logit_grad_norm_by_leg": [
+        9.839354930818445e-08,
+        4.378918220027117e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        2.3595218578975619e-07,
+        5.093060099170543e-05
+      ],
+      "final_weight_gate_grad_norm": 0.0003068518126383424,
+      "final_weight_price_grad_norm": 0.004552598111331463,
+      "final_bias_gate_grad_norm": 2.3867080017225817e-05,
+      "actor_total_grad_norm": 0.004767165519297123,
+      "gate_prob_mean_by_leg": [
+        0.050144508481025696,
+        0.9483848214149475
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.04744512215256691,
+        0.048736877739429474
+      ],
+      "sample_open_fraction_by_leg": [
+        0.078125,
+        0.9140625
+      ],
+      "adam_update_gate_weight_norm": 0.0012225982500240207,
+      "adam_update_gate_bias_norm": 2.5726334570208564e-05,
+      "adam_update_price_weight_norm": 0.0015225987881422043,
+      "critic_loss": 0.0006085671484470367,
+      "target_q_mean": -0.008417523466050625,
+      "q1_mean": -0.006264998111873865,
+      "q2_mean": -0.00673068268224597,
+      "q_gap": 0.0006356753292493522,
+      "buffer_reward_mean": -0.0012000270653516054
+    },
+    "ESS14": {
+      "actor_loss": 0.17334721982479095,
+      "gate_logit_grad_norm_by_leg": [
+        2.0683168258983642e-05,
+        4.560482921078801e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        0.00011599207209656015,
+        8.246212382800877e-05
+      ],
+      "final_weight_gate_grad_norm": 0.0002891397743951529,
+      "final_weight_price_grad_norm": 0.0017664209008216858,
+      "final_bias_gate_grad_norm": 1.6327385310432874e-05,
+      "actor_total_grad_norm": 0.002114511327818036,
+      "gate_prob_mean_by_leg": [
+        0.3155615031719208,
+        0.9668067693710327
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.07602472603321075,
+        0.025336673483252525
+      ],
+      "sample_open_fraction_by_leg": [
+        0.3515625,
+        0.984375
+      ],
+      "adam_update_gate_weight_norm": 0.00016483530635014176,
+      "adam_update_gate_bias_norm": 6.7433038566377945e-06,
+      "adam_update_price_weight_norm": 0.00033135569537989795,
+      "critic_loss": 0.000561945082154125,
+      "target_q_mean": -0.17321762442588806,
+      "q1_mean": -0.16874149441719055,
+      "q2_mean": -0.17215797305107117,
+      "q_gap": 0.0057949465699493885,
+      "buffer_reward_mean": -0.001844020327553153
+    },
+    "ESS17": {
+      "actor_loss": 0.19195768237113953,
+      "gate_logit_grad_norm_by_leg": [
+        7.936341717140749e-07,
+        3.8263914348135586e-07
+      ],
+      "price_logit_grad_norm_by_leg": [
+        1.4964276715545566e-06,
+        4.097403234482044e-06
+      ],
+      "final_weight_gate_grad_norm": 0.00010854936408577487,
+      "final_weight_price_grad_norm": 0.0003925137862097472,
+      "final_bias_gate_grad_norm": 6.145901352283545e-06,
+      "actor_total_grad_norm": 0.0004292637459002435,
+      "gate_prob_mean_by_leg": [
+        0.11848068237304688,
+        0.9133912324905396
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.10409750789403915,
+        0.07883325219154358
+      ],
+      "sample_open_fraction_by_leg": [
+        0.09375,
+        0.875
+      ],
+      "adam_update_gate_weight_norm": 0.000630274647846818,
+      "adam_update_gate_bias_norm": 7.1296371970674954e-06,
+      "adam_update_price_weight_norm": 0.00041118229273706675,
+      "critic_loss": 0.0007716476684436202,
+      "target_q_mean": -0.1927717626094818,
+      "q1_mean": -0.18780013918876648,
+      "q2_mean": -0.1892777532339096,
+      "q_gap": 0.00683748209849,
+      "buffer_reward_mean": -0.0008931185584515333
+    },
+    "ESS27": {
+      "actor_loss": 0.091215118765831,
+      "gate_logit_grad_norm_by_leg": [
+        1.4635990055467119e-06,
+        3.630788796726847e-06
+      ],
+      "price_logit_grad_norm_by_leg": [
+        4.425899362558994e-07,
+        0.00016846266225911677
+      ],
+      "final_weight_gate_grad_norm": 3.514466880005784e-05,
+      "final_weight_price_grad_norm": 0.00345507450401783,
+      "final_bias_gate_grad_norm": 2.1231489881756715e-06,
+      "actor_total_grad_norm": 0.003789352485910058,
+      "gate_prob_mean_by_leg": [
+        0.08381534367799759,
+        0.9960503578186035
+      ],
+      "surrogate_p_one_minus_p_by_leg": [
+        0.07646679133176804,
+        0.003913169261068106
+      ],
+      "sample_open_fraction_by_leg": [
+        0.0625,
+        0.9921875
+      ],
+      "adam_update_gate_weight_norm": 0.00136280688457191,
+      "adam_update_gate_bias_norm": 3.319281631775084e-06,
+      "adam_update_price_weight_norm": 0.0014739545295014977,
+      "critic_loss": 0.00027338502695783973,
+      "target_q_mean": -0.0912020355463028,
+      "q1_mean": -0.08987361192703247,
+      "q2_mean": -0.0896761566400528,
+      "q_gap": 0.0028804666362702847,
+      "buffer_reward_mean": -0.0024004250299185514
+    }
+  }
+}

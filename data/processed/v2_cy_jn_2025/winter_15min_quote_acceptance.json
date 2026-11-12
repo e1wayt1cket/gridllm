@@ -1,0 +1,1845 @@
+{
+  "verification": {
+    "b1_max_block_diff": {
+      "2022-12-13|2025-12-11": 1.4210854715202004e-14,
+      "2022-12-30|2025-12-31": 2.842170943040401e-14,
+      "2022-12-31|2025-12-28": 1.4210854715202004e-14
+    },
+    "note": "B1 per-period payoffs are a full truthful day under the terminal-neutral rolling mechanism; block sums are compared with b1_terminal_neutral_block_payoffs.json."
+  },
+  "states": {
+    "cp2|2022-12-13|2025-12-11|b17|ESS14": {
+      "checkpoint": 2,
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 17,
+      "unit": "ESS14",
+      "actor_quote": 0.0,
+      "actor_actions": {
+        "ESS9": [
+          142.18655395507812,
+          132.5642547607422
+        ],
+        "ESS14": [
+          53.883872985839844,
+          0.0
+        ],
+        "ESS17": [
+          12.926057815551758,
+          0.0
+        ],
+        "ESS27": [
+          24.880691528320312,
+          54.781063079833984
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.9771705865859985,
+          0.9786529541015625
+        ],
+        "ESS14": [
+          0.9814471006393433,
+          0.0792655497789383
+        ],
+        "ESS17": [
+          0.9484527111053467,
+          0.2319256216287613
+        ],
+        "ESS27": [
+          0.9580215215682983,
+          0.9544388651847839
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          1,
+          1
+        ],
+        "ESS14": [
+          1,
+          0
+        ],
+        "ESS17": [
+          1,
+          0
+        ],
+        "ESS27": [
+          1,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.49999986029127996,
+        "ESS14": 0.21873590708726434,
+        "ESS17": 0.2640559799265268,
+        "ESS27": 0.6826994427483121
+      },
+      "recorded_worst_block": {
+        "checkpoint": 2,
+        "pair_id": "2022-12-13|2025-12-11",
+        "unit": "ESS14",
+        "block": 17,
+        "recorded_quote": 0.0,
+        "recorded_soc": 0.21873590708726434,
+        "recorded_diff": -35.39402715762384
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 36.06878044426216,
+          "block_period_sum_cny": 36.06878044426216,
+          "block_discharge_mwh": 0.17477880359729386,
+          "b1_block_discharge_mwh": 0.35888833362269146,
+          "b1_block_payoff_cny": 71.462807601886,
+          "accepted_periods": 3,
+          "accepted_mwh": 0.1747788035972939,
+          "mean_lmp": 306.0050442192982,
+          "min_lmp": 305.1724045264138,
+          "max_lmp": 306.52153965342484,
+          "diff_vs_b1_cny": -35.39402715762384
+        },
+        "100.0": {
+          "block_payoff_cny": 1.0592147443494413e-05,
+          "block_period_sum_cny": 1.0592147443494415e-05,
+          "block_discharge_mwh": 7.748373083426334e-08,
+          "b1_block_discharge_mwh": 0.35888833362269146,
+          "b1_block_payoff_cny": 71.462807601886,
+          "accepted_periods": 0,
+          "accepted_mwh": 7.748373083426334e-08,
+          "mean_lmp": 308.40833160635566,
+          "min_lmp": 306.18677587697465,
+          "max_lmp": 311.1172957327454,
+          "diff_vs_b1_cny": -71.46279700973855
+        },
+        "150.0": {
+          "block_payoff_cny": 8.763234007971673e-06,
+          "block_period_sum_cny": 8.763234007971672e-06,
+          "block_discharge_mwh": 9.379321140211962e-08,
+          "b1_block_discharge_mwh": 0.35888833362269146,
+          "b1_block_payoff_cny": 71.462807601886,
+          "accepted_periods": 0,
+          "accepted_mwh": 9.379321140211962e-08,
+          "mean_lmp": 308.40411415807137,
+          "min_lmp": 306.1813611908955,
+          "max_lmp": 311.11484657697315,
+          "diff_vs_b1_cny": -71.46279883865199
+        },
+        "258.0": {
+          "block_payoff_cny": -6.310936315943402e-07,
+          "block_period_sum_cny": -6.310936315943402e-07,
+          "block_discharge_mwh": 8.569228441297621e-09,
+          "b1_block_discharge_mwh": 0.35888833362269146,
+          "b1_block_payoff_cny": 71.462807601886,
+          "accepted_periods": 0,
+          "accepted_mwh": 8.569228441297621e-09,
+          "mean_lmp": 308.40668960016615,
+          "min_lmp": 306.183519739107,
+          "max_lmp": 311.1152139463926,
+          "diff_vs_b1_cny": -71.46280823297963
+        },
+        "300.0": {
+          "block_payoff_cny": -1.019698778793201e-06,
+          "block_period_sum_cny": -1.019698778793201e-06,
+          "block_discharge_mwh": 7.578720057907501e-09,
+          "b1_block_discharge_mwh": 0.35888833362269146,
+          "b1_block_payoff_cny": 71.462807601886,
+          "accepted_periods": 0,
+          "accepted_mwh": 7.578720057907501e-09,
+          "mean_lmp": 308.40574164354166,
+          "min_lmp": 306.1853704675258,
+          "max_lmp": 311.1137496604826,
+          "diff_vs_b1_cny": -71.46280862158478
+        }
+      }
+    },
+    "cp2|2022-12-13|2025-12-11|b12|ESS27": {
+      "checkpoint": 2,
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "unit": "ESS27",
+      "actor_quote": 50.695350646972656,
+      "actor_actions": {
+        "ESS9": [
+          141.44422912597656,
+          129.42120361328125
+        ],
+        "ESS14": [
+          46.56362533569336,
+          0.0
+        ],
+        "ESS17": [
+          21.553455352783203,
+          0.0
+        ],
+        "ESS27": [
+          23.840892791748047,
+          50.695350646972656
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.9744004011154175,
+          0.9759499430656433
+        ],
+        "ESS14": [
+          0.9809769988059998,
+          0.08154510706663132
+        ],
+        "ESS17": [
+          0.937753438949585,
+          0.21807071566581726
+        ],
+        "ESS27": [
+          0.9606798887252808,
+          0.956092357635498
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          1,
+          1
+        ],
+        "ESS14": [
+          1,
+          0
+        ],
+        "ESS17": [
+          1,
+          0
+        ],
+        "ESS27": [
+          1,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.49999986570373056,
+        "ESS14": 0.2724992435096929,
+        "ESS17": 0.2725005658438243,
+        "ESS27": 0.5676994878823103
+      },
+      "recorded_worst_block": {
+        "checkpoint": 2,
+        "pair_id": "2022-12-13|2025-12-11",
+        "unit": "ESS27",
+        "block": 12,
+        "recorded_quote": 50.695350646972656,
+        "recorded_soc": 0.5676994878823103,
+        "recorded_diff": -88.20800113868174
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 88.17982726241169,
+          "block_period_sum_cny": 88.1798272624117,
+          "block_discharge_mwh": 0.34021351319372806,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.34021351319372806,
+          "mean_lmp": 359.07583509369925,
+          "min_lmp": 358.2457502828792,
+          "max_lmp": 360.1155466472122,
+          "diff_vs_b1_cny": -0.02818004035880506
+        },
+        "100.0": {
+          "block_payoff_cny": 5.899170172831788e-06,
+          "block_period_sum_cny": 5.89917017283179e-06,
+          "block_discharge_mwh": 3.733471009652751e-08,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.733471009652751e-08,
+          "mean_lmp": 362.88349569472564,
+          "min_lmp": 361.40201926889284,
+          "max_lmp": 364.63815488924905,
+          "diff_vs_b1_cny": -88.20800140360033
+        },
+        "150.0": {
+          "block_payoff_cny": 1.7402596033584495e-07,
+          "block_period_sum_cny": 1.7402596033584495e-07,
+          "block_discharge_mwh": 3.10209049651349e-09,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.10209049651349e-09,
+          "mean_lmp": 362.89039596079215,
+          "min_lmp": 361.40543740301325,
+          "max_lmp": 364.64236857001146,
+          "diff_vs_b1_cny": -88.20800712874455
+        },
+        "258.0": {
+          "block_payoff_cny": -3.914132665837679e-07,
+          "block_period_sum_cny": -3.914132665837679e-07,
+          "block_discharge_mwh": 2.2017453664812465e-09,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.2017453664812465e-09,
+          "mean_lmp": 362.89395470343965,
+          "min_lmp": 361.4076930236431,
+          "max_lmp": 364.64479515195336,
+          "diff_vs_b1_cny": -88.20800769418378
+        },
+        "300.0": {
+          "block_payoff_cny": -4.663560584227319e-07,
+          "block_period_sum_cny": -4.6635605842273185e-07,
+          "block_discharge_mwh": 2.4432632849420557e-09,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.4432632849420557e-09,
+          "mean_lmp": 362.8954267180451,
+          "min_lmp": 361.4080844352982,
+          "max_lmp": 364.64523746624207,
+          "diff_vs_b1_cny": -88.20800776912657
+        },
+        "50.695350646972656": {
+          "block_payoff_cny": 6.164088752864054e-06,
+          "block_period_sum_cny": 6.164088752864054e-06,
+          "block_discharge_mwh": 2.925579788464747e-08,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.9255797884647466e-08,
+          "mean_lmp": 362.8944535217527,
+          "min_lmp": 361.4076902517433,
+          "max_lmp": 364.64448562435035,
+          "diff_vs_b1_cny": -88.20800113868175
+        }
+      }
+    },
+    "cp2|2022-12-30|2025-12-31|b23|ESS14": {
+      "checkpoint": 2,
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 23,
+      "unit": "ESS14",
+      "actor_quote": 0.0,
+      "actor_actions": {
+        "ESS9": [
+          135.82809448242188,
+          129.6145782470703
+        ],
+        "ESS14": [
+          48.95018768310547,
+          0.0
+        ],
+        "ESS17": [
+          7.54115629196167,
+          0.0
+        ],
+        "ESS27": [
+          29.550981521606445,
+          47.59815216064453
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.9523833990097046,
+          0.954235315322876
+        ],
+        "ESS14": [
+          0.9664290547370911,
+          0.1086721420288086
+        ],
+        "ESS17": [
+          0.9372761845588684,
+          0.3016955256462097
+        ],
+        "ESS27": [
+          0.9419996738433838,
+          0.9351576566696167
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          1,
+          1
+        ],
+        "ESS14": [
+          1,
+          0
+        ],
+        "ESS17": [
+          1,
+          0
+        ],
+        "ESS27": [
+          1,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.38262021438853805,
+        "ESS14": 0.27000000662635226,
+        "ESS17": 0.2700000608297656,
+        "ESS27": 0.28858665510111126
+      },
+      "recorded_worst_block": {
+        "checkpoint": 2,
+        "pair_id": "2022-12-30|2025-12-31",
+        "unit": "ESS14",
+        "block": 23,
+        "recorded_quote": 0.0,
+        "recorded_soc": 0.27000000662635226,
+        "recorded_diff": -30.82725227421143
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": -52.69530200603411,
+          "block_period_sum_cny": -52.69530200603411,
+          "block_discharge_mwh": 2.0263414053210207e-09,
+          "b1_block_discharge_mwh": 1.4174525029342159e-09,
+          "b1_block_payoff_cny": -21.868049731822683,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.0263414053210207e-09,
+          "mean_lmp": 31.73825767562849,
+          "min_lmp": 31.483319619190997,
+          "max_lmp": 31.98336056869531,
+          "diff_vs_b1_cny": -30.82725227421143
+        },
+        "100.0": {
+          "block_payoff_cny": -52.75276972581103,
+          "block_period_sum_cny": -52.75276972581103,
+          "block_discharge_mwh": 4.285448688815621e-10,
+          "b1_block_discharge_mwh": 1.4174525029342159e-09,
+          "b1_block_payoff_cny": -21.868049731822683,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.285448688815621e-10,
+          "mean_lmp": 31.88192787412775,
+          "min_lmp": 31.64238122867062,
+          "max_lmp": 32.11003972007414,
+          "diff_vs_b1_cny": -30.884719993988345
+        },
+        "150.0": {
+          "block_payoff_cny": -52.74624931257418,
+          "block_period_sum_cny": -52.74624931257417,
+          "block_discharge_mwh": 4.83972154106047e-10,
+          "b1_block_discharge_mwh": 1.4174525029342159e-09,
+          "b1_block_payoff_cny": -21.868049731822683,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.83972154106047e-10,
+          "mean_lmp": 31.8656268094837,
+          "min_lmp": 31.621980833460924,
+          "max_lmp": 32.09501935727201,
+          "diff_vs_b1_cny": -30.878199580751488
+        },
+        "258.0": {
+          "block_payoff_cny": -52.74620299737035,
+          "block_period_sum_cny": -52.74620299737035,
+          "block_discharge_mwh": 4.04403492694445e-10,
+          "b1_block_discharge_mwh": 1.4174525029342159e-09,
+          "b1_block_payoff_cny": -21.868049731822683,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.04403492694445e-10,
+          "mean_lmp": 31.86551106595329,
+          "min_lmp": 31.621863631128953,
+          "max_lmp": 32.09493183860479,
+          "diff_vs_b1_cny": -30.878153265547663
+        },
+        "300.0": {
+          "block_payoff_cny": -52.74263742221363,
+          "block_period_sum_cny": -52.74263742221363,
+          "block_discharge_mwh": 3.768713833193942e-10,
+          "b1_block_discharge_mwh": 1.4174525029342159e-09,
+          "b1_block_payoff_cny": -21.868049731822683,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.768713833193942e-10,
+          "mean_lmp": 31.85659714323642,
+          "min_lmp": 31.607669979561955,
+          "max_lmp": 32.09107813719866,
+          "diff_vs_b1_cny": -30.87458769039095
+        }
+      }
+    },
+    "cp2|2022-12-30|2025-12-31|b23|ESS27": {
+      "checkpoint": 2,
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 23,
+      "unit": "ESS27",
+      "actor_quote": 47.59815216064453,
+      "actor_actions": {
+        "ESS9": [
+          135.82809448242188,
+          129.6145782470703
+        ],
+        "ESS14": [
+          48.95018768310547,
+          0.0
+        ],
+        "ESS17": [
+          7.54115629196167,
+          0.0
+        ],
+        "ESS27": [
+          29.550981521606445,
+          47.59815216064453
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.9523833990097046,
+          0.954235315322876
+        ],
+        "ESS14": [
+          0.9664290547370911,
+          0.1086721420288086
+        ],
+        "ESS17": [
+          0.9372761845588684,
+          0.3016955256462097
+        ],
+        "ESS27": [
+          0.9419996738433838,
+          0.9351576566696167
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          1,
+          1
+        ],
+        "ESS14": [
+          1,
+          0
+        ],
+        "ESS17": [
+          1,
+          0
+        ],
+        "ESS27": [
+          1,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.38262021438853805,
+        "ESS14": 0.27000000662635226,
+        "ESS17": 0.2700000608297656,
+        "ESS27": 0.28858665510111126
+      },
+      "recorded_worst_block": {
+        "checkpoint": 2,
+        "pair_id": "2022-12-30|2025-12-31",
+        "unit": "ESS27",
+        "block": 23,
+        "recorded_quote": 47.59815216064453,
+        "recorded_soc": 0.28858665510111126,
+        "recorded_diff": -24.257698719920846
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": -48.58422714248705,
+          "block_period_sum_cny": -48.58422714248706,
+          "block_discharge_mwh": 6.533984215575131e-10,
+          "b1_block_discharge_mwh": 1.4277261001539062e-09,
+          "b1_block_payoff_cny": -24.27182997618592,
+          "accepted_periods": 0,
+          "accepted_mwh": 6.533984215575131e-10,
+          "mean_lmp": 32.13818649254392,
+          "min_lmp": 32.044346414941494,
+          "max_lmp": 32.21577914308279,
+          "diff_vs_b1_cny": -24.31239716630114
+        },
+        "100.0": {
+          "block_payoff_cny": -48.54429500409067,
+          "block_period_sum_cny": -48.54429500409067,
+          "block_discharge_mwh": 4.537065228790599e-09,
+          "b1_block_discharge_mwh": 1.4277261001539062e-09,
+          "b1_block_payoff_cny": -24.27182997618592,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.537065228790598e-09,
+          "mean_lmp": 32.02653154334556,
+          "min_lmp": 31.898306864058405,
+          "max_lmp": 32.146789677056155,
+          "diff_vs_b1_cny": -24.27246502790475
+        },
+        "150.0": {
+          "block_payoff_cny": -48.56061763610589,
+          "block_period_sum_cny": -48.560617636105896,
+          "block_discharge_mwh": 1.682483179842468e-09,
+          "b1_block_discharge_mwh": 1.4277261001539062e-09,
+          "b1_block_payoff_cny": -24.27182997618592,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.682483179842468e-09,
+          "mean_lmp": 32.07100815190108,
+          "min_lmp": 31.943531804569325,
+          "max_lmp": 32.1908827470732,
+          "diff_vs_b1_cny": -24.288787659919976
+        },
+        "258.0": {
+          "block_payoff_cny": -48.556442072170555,
+          "block_period_sum_cny": -48.556442072170555,
+          "block_discharge_mwh": 1.9555292700340323e-09,
+          "b1_block_discharge_mwh": 1.4277261001539062e-09,
+          "b1_block_payoff_cny": -24.27182997618592,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.9555292700340323e-09,
+          "mean_lmp": 32.06028768574124,
+          "min_lmp": 31.940070815424914,
+          "max_lmp": 32.16591344239806,
+          "diff_vs_b1_cny": -24.284612095984635
+        },
+        "300.0": {
+          "block_payoff_cny": -48.55473570463778,
+          "block_period_sum_cny": -48.554735704637785,
+          "block_discharge_mwh": 1.35663017613765e-09,
+          "b1_block_discharge_mwh": 1.4277261001539062e-09,
+          "b1_block_payoff_cny": -24.27182997618592,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.3566301761376498e-09,
+          "mean_lmp": 32.05541629540894,
+          "min_lmp": 31.93286238261024,
+          "max_lmp": 32.1667360005787,
+          "diff_vs_b1_cny": -24.282905728451865
+        },
+        "47.59815216064453": {
+          "block_payoff_cny": -48.529528696106766,
+          "block_period_sum_cny": -48.529528696106766,
+          "block_discharge_mwh": 7.743371995943035e-09,
+          "b1_block_discharge_mwh": 1.4277261001539062e-09,
+          "b1_block_payoff_cny": -24.27182997618592,
+          "accepted_periods": 0,
+          "accepted_mwh": 7.743371995943035e-09,
+          "mean_lmp": 31.985974233224063,
+          "min_lmp": 31.853566826069716,
+          "max_lmp": 32.117975195903846,
+          "diff_vs_b1_cny": -24.257698719920846
+        }
+      }
+    },
+    "cp2|2022-12-31|2025-12-28|b23|ESS14": {
+      "checkpoint": 2,
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 23,
+      "unit": "ESS14",
+      "actor_quote": 0.0,
+      "actor_actions": {
+        "ESS9": [
+          130.68435668945312,
+          134.67471313476562
+        ],
+        "ESS14": [
+          53.11161804199219,
+          0.0
+        ],
+        "ESS17": [
+          7.6162109375,
+          0.0
+        ],
+        "ESS27": [
+          36.26317596435547,
+          64.2618179321289
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.9263113737106323,
+          0.9288620352745056
+        ],
+        "ESS14": [
+          0.9406593441963196,
+          0.14744627475738525
+        ],
+        "ESS17": [
+          0.9130021333694458,
+          0.3522477447986603
+        ],
+        "ESS27": [
+          0.9016261696815491,
+          0.895854115486145
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          1,
+          1
+        ],
+        "ESS14": [
+          1,
+          0
+        ],
+        "ESS17": [
+          1,
+          0
+        ],
+        "ESS27": [
+          1,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.4320650728409162,
+        "ESS14": 0.27000001868840573,
+        "ESS17": 0.2700001219216017,
+        "ESS27": 0.2700000767106515
+      },
+      "recorded_worst_block": {
+        "checkpoint": 2,
+        "pair_id": "2022-12-31|2025-12-28",
+        "unit": "ESS14",
+        "block": 23,
+        "recorded_quote": 0.0,
+        "recorded_soc": 0.27000001868840573,
+        "recorded_diff": -33.170982236984
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": -52.71421446043277,
+          "block_period_sum_cny": -52.71421446043277,
+          "block_discharge_mwh": 4.3451889231573734e-10,
+          "b1_block_discharge_mwh": 3.1631872625385237e-09,
+          "b1_block_payoff_cny": -19.54323222344877,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.3451889231573734e-10,
+          "mean_lmp": 31.785546615877223,
+          "min_lmp": 31.640696743075527,
+          "max_lmp": 32.09417713294711,
+          "diff_vs_b1_cny": -33.170982236984
+        },
+        "100.0": {
+          "block_payoff_cny": -52.69256476114943,
+          "block_period_sum_cny": -52.69256476114943,
+          "block_discharge_mwh": 3.709900943971466e-09,
+          "b1_block_discharge_mwh": 3.1631872625385237e-09,
+          "b1_block_payoff_cny": -19.54323222344877,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.709900943971466e-09,
+          "mean_lmp": 31.731420529585115,
+          "min_lmp": 31.554118374669002,
+          "max_lmp": 32.06948489125631,
+          "diff_vs_b1_cny": -33.14933253770066
+        },
+        "150.0": {
+          "block_payoff_cny": -52.68977317515587,
+          "block_period_sum_cny": -52.689773175155864,
+          "block_discharge_mwh": 3.040289153294383e-09,
+          "b1_block_discharge_mwh": 3.1631872625385237e-09,
+          "b1_block_payoff_cny": -19.54323222344877,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.040289153294383e-09,
+          "mean_lmp": 31.724441938915604,
+          "min_lmp": 31.53984597896122,
+          "max_lmp": 32.06784110808152,
+          "diff_vs_b1_cny": -33.146540951707095
+        },
+        "258.0": {
+          "block_payoff_cny": -52.689795580222224,
+          "block_period_sum_cny": -52.689795580222224,
+          "block_discharge_mwh": 2.055834860495495e-09,
+          "b1_block_discharge_mwh": 3.1631872625385237e-09,
+          "b1_block_payoff_cny": -19.54323222344877,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.055834860495495e-09,
+          "mean_lmp": 31.724498502739504,
+          "min_lmp": 31.539819040842247,
+          "max_lmp": 32.06793413711006,
+          "diff_vs_b1_cny": -33.146563356773456
+        },
+        "300.0": {
+          "block_payoff_cny": -52.691997232651374,
+          "block_period_sum_cny": -52.691997232651374,
+          "block_discharge_mwh": 1.8029161404516145e-09,
+          "b1_block_discharge_mwh": 3.1631872625385237e-09,
+          "b1_block_payoff_cny": -19.54323222344877,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.8029161404516145e-09,
+          "mean_lmp": 31.730002775842586,
+          "min_lmp": 31.550555346170068,
+          "max_lmp": 32.069188377988276,
+          "diff_vs_b1_cny": -33.148765009202606
+        }
+      }
+    },
+    "cp2|2022-12-31|2025-12-28|b0|ESS27": {
+      "checkpoint": 2,
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 0,
+      "unit": "ESS27",
+      "actor_quote": 62.87875747680664,
+      "actor_actions": {
+        "ESS9": [
+          137.84335327148438,
+          137.4250946044922
+        ],
+        "ESS14": [
+          51.655540466308594,
+          0.0
+        ],
+        "ESS17": [
+          28.407358169555664,
+          0.0
+        ],
+        "ESS27": [
+          29.589038848876953,
+          62.87875747680664
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.9599938988685608,
+          0.9622709155082703
+        ],
+        "ESS14": [
+          0.9672551155090332,
+          0.11186493188142776
+        ],
+        "ESS17": [
+          0.9091765880584717,
+          0.24049842357635498
+        ],
+        "ESS27": [
+          0.9314327239990234,
+          0.9295589923858643
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          1,
+          1
+        ],
+        "ESS14": [
+          1,
+          0
+        ],
+        "ESS17": [
+          1,
+          0
+        ],
+        "ESS27": [
+          1,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.5,
+        "ESS14": 0.5,
+        "ESS17": 0.5,
+        "ESS27": 0.5
+      },
+      "recorded_worst_block": {
+        "checkpoint": 2,
+        "pair_id": "2022-12-31|2025-12-28",
+        "unit": "ESS27",
+        "block": 0,
+        "recorded_quote": 62.87875747680664,
+        "recorded_soc": 0.5,
+        "recorded_diff": -50.605471120539306
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 53.435741079355054,
+          "block_period_sum_cny": 53.43574107935505,
+          "block_discharge_mwh": 0.29999995458603307,
+          "b1_block_discharge_mwh": 0.2999998846595222,
+          "b1_block_payoff_cny": 53.41379084880005,
+          "accepted_periods": 3,
+          "accepted_mwh": 0.29999995458603307,
+          "mean_lmp": 221.80877207357614,
+          "min_lmp": 52.8775667453959,
+          "max_lmp": 286.3567851282874,
+          "diff_vs_b1_cny": 0.02195023055499945
+        },
+        "100.0": {
+          "block_payoff_cny": 9.491161569737911e-07,
+          "block_period_sum_cny": 9.491161569737905e-07,
+          "block_discharge_mwh": 1.4517926409969774e-08,
+          "b1_block_discharge_mwh": 0.2999998846595222,
+          "b1_block_payoff_cny": 53.41379084880005,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.4517926409969776e-08,
+          "mean_lmp": 224.15268890347585,
+          "min_lmp": 52.87672410209266,
+          "max_lmp": 289.581963590178,
+          "diff_vs_b1_cny": -53.41378989968389
+        },
+        "150.0": {
+          "block_payoff_cny": -1.931080550711189e-06,
+          "block_period_sum_cny": -1.931080550711189e-06,
+          "block_discharge_mwh": 2.0170236642018483e-08,
+          "b1_block_discharge_mwh": 0.2999998846595222,
+          "b1_block_payoff_cny": 53.41379084880005,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.0170236642018483e-08,
+          "mean_lmp": 224.14709332634004,
+          "min_lmp": 52.86657257998247,
+          "max_lmp": 289.57819486936353,
+          "diff_vs_b1_cny": -53.4137927798806
+        },
+        "258.0": {
+          "block_payoff_cny": -5.288988295363118e-06,
+          "block_period_sum_cny": -5.288988295363119e-06,
+          "block_discharge_mwh": 1.83613970565402e-08,
+          "b1_block_discharge_mwh": 0.2999998846595222,
+          "b1_block_payoff_cny": 53.41379084880005,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.83613970565402e-08,
+          "mean_lmp": 224.1447663300064,
+          "min_lmp": 52.85992808413734,
+          "max_lmp": 289.5783770512252,
+          "diff_vs_b1_cny": -53.413796137788346
+        },
+        "300.0": {
+          "block_payoff_cny": -6.3505073369933375e-06,
+          "block_period_sum_cny": -6.3505073369933375e-06,
+          "block_discharge_mwh": 1.7694654058639372e-08,
+          "b1_block_discharge_mwh": 0.2999998846595222,
+          "b1_block_payoff_cny": 53.41379084880005,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.769465405863937e-08,
+          "mean_lmp": 224.1431595360192,
+          "min_lmp": 52.8555418920891,
+          "max_lmp": 289.5778121646246,
+          "diff_vs_b1_cny": -53.41379719930738
+        },
+        "62.87875747680664": {
+          "block_payoff_cny": 2.8083197282607335,
+          "block_period_sum_cny": 2.808319728260734,
+          "block_discharge_mwh": 0.014853574749215703,
+          "b1_block_discharge_mwh": 0.2999998846595222,
+          "b1_block_payoff_cny": 53.41379084880005,
+          "accepted_periods": 1,
+          "accepted_mwh": 0.014853574749215701,
+          "mean_lmp": 224.01127738143518,
+          "min_lmp": 52.84074839638394,
+          "max_lmp": 289.06828139861904,
+          "diff_vs_b1_cny": -50.60547112053931
+        }
+      }
+    },
+    "cp10|2022-12-13|2025-12-11|b3|ESS14": {
+      "checkpoint": 10,
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "unit": "ESS14",
+      "actor_quote": 299.6588134765625,
+      "actor_actions": {
+        "ESS9": [
+          0.0,
+          110.23760223388672
+        ],
+        "ESS14": [
+          0.0,
+          299.6588134765625
+        ],
+        "ESS17": [
+          0.0,
+          1.8872854709625244
+        ],
+        "ESS27": [
+          0.0,
+          280.4524841308594
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.05440092459321022,
+          0.9501408338546753
+        ],
+        "ESS14": [
+          0.007197218481451273,
+          0.9995799660682678
+        ],
+        "ESS17": [
+          0.12122498452663422,
+          0.9066126942634583
+        ],
+        "ESS27": [
+          0.08420442789793015,
+          0.9985448122024536
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          0,
+          1
+        ],
+        "ESS14": [
+          0,
+          1
+        ],
+        "ESS17": [
+          0,
+          1
+        ],
+        "ESS27": [
+          0,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.49999999419820074,
+        "ESS14": 0.5000000080062933,
+        "ESS17": 0.4999997415589022,
+        "ESS27": 0.5000000048277139
+      },
+      "recorded_worst_block": {
+        "checkpoint": 10,
+        "pair_id": "2022-12-13|2025-12-11",
+        "unit": "ESS14",
+        "block": 3,
+        "recorded_quote": 299.6588134765625,
+        "recorded_soc": 0.5000000080062933,
+        "recorded_diff": -71.54778436627177
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 72.94950464555737,
+          "block_period_sum_cny": 72.94950464555737,
+          "block_discharge_mwh": 0.39999980093183196,
+          "b1_block_discharge_mwh": 0.3999997160104877,
+          "b1_block_payoff_cny": 71.54778248792192,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.3999998009318319,
+          "mean_lmp": 282.3738570632396,
+          "min_lmp": 274.52660172031915,
+          "max_lmp": 293.62433446307534,
+          "diff_vs_b1_cny": 1.4017221576354473
+        },
+        "100.0": {
+          "block_payoff_cny": 9.364231467416295e-06,
+          "block_period_sum_cny": 9.364231467416293e-06,
+          "block_discharge_mwh": 6.997530753854552e-08,
+          "b1_block_discharge_mwh": 0.3999997160104877,
+          "b1_block_payoff_cny": 71.54778248792192,
+          "accepted_periods": 0,
+          "accepted_mwh": 6.997530753854551e-08,
+          "mean_lmp": 287.3532077540473,
+          "min_lmp": 279.3987629201198,
+          "max_lmp": 298.79184317559776,
+          "diff_vs_b1_cny": -71.54777312369045
+        },
+        "150.0": {
+          "block_payoff_cny": 1.936406816006112e-06,
+          "block_period_sum_cny": 1.936406816006112e-06,
+          "block_discharge_mwh": 3.132896563348364e-08,
+          "b1_block_discharge_mwh": 0.3999997160104877,
+          "b1_block_payoff_cny": 71.54778248792192,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.132896563348364e-08,
+          "mean_lmp": 287.3531948850829,
+          "min_lmp": 279.3987392264839,
+          "max_lmp": 298.79185637409904,
+          "diff_vs_b1_cny": -71.5477805515151
+        },
+        "258.0": {
+          "block_payoff_cny": -1.4004167117953393e-06,
+          "block_period_sum_cny": -1.4004167117953393e-06,
+          "block_discharge_mwh": 1.2378516149591844e-08,
+          "b1_block_discharge_mwh": 0.3999997160104877,
+          "b1_block_payoff_cny": 71.54778248792192,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.2378516149591844e-08,
+          "mean_lmp": 287.35434971102075,
+          "min_lmp": 279.39871279795545,
+          "max_lmp": 298.7937077245852,
+          "diff_vs_b1_cny": -71.54778388833863
+        },
+        "300.0": {
+          "block_payoff_cny": -1.881367391910673e-06,
+          "block_period_sum_cny": -1.8813673919106732e-06,
+          "block_discharge_mwh": 1.0210400406613837e-08,
+          "b1_block_discharge_mwh": 0.3999997160104877,
+          "b1_block_payoff_cny": 71.54778248792192,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.0210400406613837e-08,
+          "mean_lmp": 287.35438219144817,
+          "min_lmp": 279.39909065945096,
+          "max_lmp": 298.7936507289071,
+          "diff_vs_b1_cny": -71.54778436928932
+        },
+        "299.6588134765625": {
+          "block_payoff_cny": -1.8783498468565746e-06,
+          "block_period_sum_cny": -1.8783498468565746e-06,
+          "block_discharge_mwh": 1.0226504434087447e-08,
+          "b1_block_discharge_mwh": 0.3999997160104877,
+          "b1_block_payoff_cny": 71.54778248792192,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.0226504434087445e-08,
+          "mean_lmp": 287.3543821536417,
+          "min_lmp": 279.39909043633173,
+          "max_lmp": 298.7936507830403,
+          "diff_vs_b1_cny": -71.54778436627177
+        }
+      }
+    },
+    "cp10|2022-12-13|2025-12-11|b12|ESS27": {
+      "checkpoint": 10,
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "unit": "ESS27",
+      "actor_quote": 274.192138671875,
+      "actor_actions": {
+        "ESS9": [
+          0.0,
+          109.05152130126953
+        ],
+        "ESS14": [
+          0.0,
+          297.6844177246094
+        ],
+        "ESS17": [
+          0.0,
+          1.3412370681762695
+        ],
+        "ESS27": [
+          0.0,
+          274.192138671875
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.04727426543831825,
+          0.9570678472518921
+        ],
+        "ESS14": [
+          0.033445101231336594,
+          0.9989829659461975
+        ],
+        "ESS17": [
+          0.1151595264673233,
+          0.9142075777053833
+        ],
+        "ESS27": [
+          0.07490357011556625,
+          0.9986792206764221
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          0,
+          1
+        ],
+        "ESS14": [
+          0,
+          1
+        ],
+        "ESS17": [
+          0,
+          1
+        ],
+        "ESS27": [
+          0,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.7874996818193548,
+        "ESS14": 0.7874993772296466,
+        "ESS17": 0.40213367810465883,
+        "ESS27": 0.6725003738243512
+      },
+      "recorded_worst_block": {
+        "checkpoint": 10,
+        "pair_id": "2022-12-13|2025-12-11",
+        "unit": "ESS27",
+        "block": 12,
+        "recorded_quote": 274.192138671875,
+        "recorded_soc": 0.6725003738243512,
+        "recorded_diff": -88.20800835560462
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 88.20596239576355,
+          "block_period_sum_cny": 88.20596239576354,
+          "block_discharge_mwh": 0.3403078077027106,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.34030780770271063,
+          "mean_lmp": 359.0807104454834,
+          "min_lmp": 358.2476075286648,
+          "max_lmp": 360.134164806422,
+          "diff_vs_b1_cny": -0.0020449070069759046
+        },
+        "100.0": {
+          "block_payoff_cny": 1.7388133970538913e-05,
+          "block_period_sum_cny": 1.7388133970538913e-05,
+          "block_discharge_mwh": 8.670913693409117e-08,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 8.670913693409117e-08,
+          "mean_lmp": 362.8841747519582,
+          "min_lmp": 361.3986903157284,
+          "max_lmp": 364.63489958316103,
+          "diff_vs_b1_cny": -88.20798991463654
+        },
+        "150.0": {
+          "block_payoff_cny": -5.811115279971583e-07,
+          "block_period_sum_cny": -5.811115279971583e-07,
+          "block_discharge_mwh": 1.9234575315667825e-08,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.9234575315667822e-08,
+          "mean_lmp": 362.8823219888916,
+          "min_lmp": 361.39612819788886,
+          "max_lmp": 364.63196373500523,
+          "diff_vs_b1_cny": -88.20800788388203
+        },
+        "258.0": {
+          "block_payoff_cny": -9.042079271377429e-06,
+          "block_period_sum_cny": -9.042079271377427e-06,
+          "block_discharge_mwh": 2.7682271757494676e-08,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.768227175749468e-08,
+          "mean_lmp": 362.8740690409618,
+          "min_lmp": 361.3837173135249,
+          "max_lmp": 364.61963409424527,
+          "diff_vs_b1_cny": -88.20801634484978
+        },
+        "300.0": {
+          "block_payoff_cny": -7.994562869323684e-07,
+          "block_period_sum_cny": -7.994562869323685e-07,
+          "block_discharge_mwh": 3.373067355471402e-09,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.373067355471402e-09,
+          "mean_lmp": 362.89280282368986,
+          "min_lmp": 361.40791135850907,
+          "max_lmp": 364.64504794836074,
+          "diff_vs_b1_cny": -88.2080081022268
+        },
+        "274.192138671875": {
+          "block_payoff_cny": -1.0528341169064131e-06,
+          "block_period_sum_cny": -1.0528341169064131e-06,
+          "block_discharge_mwh": 2.6219857906982985e-09,
+          "b1_block_discharge_mwh": 0.34031817090535965,
+          "b1_block_payoff_cny": 88.20800730277051,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.6219857906982985e-09,
+          "mean_lmp": 362.89256744616483,
+          "min_lmp": 361.4087126436018,
+          "max_lmp": 364.6451793843464,
+          "diff_vs_b1_cny": -88.20800835560463
+        }
+      }
+    },
+    "cp10|2022-12-30|2025-12-31|b10|ESS14": {
+      "checkpoint": 10,
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "unit": "ESS14",
+      "actor_quote": 299.3697204589844,
+      "actor_actions": {
+        "ESS9": [
+          0.0,
+          110.69842529296875
+        ],
+        "ESS14": [
+          0.0,
+          299.3697204589844
+        ],
+        "ESS17": [
+          0.0,
+          1.370481252670288
+        ],
+        "ESS27": [
+          0.0,
+          282.125732421875
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.048887912184000015,
+          0.9564612507820129
+        ],
+        "ESS14": [
+          0.011257858946919441,
+          0.999428927898407
+        ],
+        "ESS17": [
+          0.11716906726360321,
+          0.9138855934143066
+        ],
+        "ESS27": [
+          0.07695360481739044,
+          0.9989569187164307
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          0,
+          1
+        ],
+        "ESS14": [
+          0,
+          1
+        ],
+        "ESS17": [
+          0,
+          1
+        ],
+        "ESS27": [
+          0,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.8946739280447843,
+        "ESS14": 0.8999999937187283,
+        "ESS17": 0.8320651965197146,
+        "ESS27": 0.8999999649640796
+      },
+      "recorded_worst_block": {
+        "checkpoint": 10,
+        "pair_id": "2022-12-30|2025-12-31",
+        "unit": "ESS14",
+        "block": 10,
+        "recorded_quote": 299.3697204589844,
+        "recorded_soc": 0.8999999937187283,
+        "recorded_diff": -111.11054896510721
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 111.14122353227971,
+          "block_period_sum_cny": 111.14122353227972,
+          "block_discharge_mwh": 0.3999999452474124,
+          "b1_block_discharge_mwh": 0.39999999889886917,
+          "b1_block_payoff_cny": 111.1105549566577,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.3999999452474124,
+          "mean_lmp": 377.85311038543557,
+          "min_lmp": 377.68590845551677,
+          "max_lmp": 378.1389253758537,
+          "diff_vs_b1_cny": 0.030668575622030403
+        },
+        "100.0": {
+          "block_payoff_cny": 111.13714850462664,
+          "block_period_sum_cny": 111.13714850462662,
+          "block_discharge_mwh": 0.399999093079956,
+          "b1_block_discharge_mwh": 0.39999999889886917,
+          "b1_block_payoff_cny": 111.1105549566577,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.399999093079956,
+          "mean_lmp": 377.8435133457309,
+          "min_lmp": 377.6809286936624,
+          "max_lmp": 378.1241014618633,
+          "diff_vs_b1_cny": 0.026593547968928988
+        },
+        "150.0": {
+          "block_payoff_cny": 0.00013320073834323815,
+          "block_period_sum_cny": 0.00013320073834323815,
+          "block_discharge_mwh": 4.7514562403762417e-07,
+          "b1_block_discharge_mwh": 0.39999999889886917,
+          "b1_block_payoff_cny": 111.1105549566577,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.751456240376242e-07,
+          "mean_lmp": 384.3042277807273,
+          "min_lmp": 384.1134697364848,
+          "max_lmp": 384.62713641434686,
+          "diff_vs_b1_cny": -111.11042175591935
+        },
+        "258.0": {
+          "block_payoff_cny": 9.510129186433959e-06,
+          "block_period_sum_cny": 9.510129186433957e-06,
+          "block_discharge_mwh": 4.0280618186153284e-08,
+          "b1_block_discharge_mwh": 0.39999999889886917,
+          "b1_block_payoff_cny": 111.1105549566577,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.0280618186153284e-08,
+          "mean_lmp": 384.3044063669681,
+          "min_lmp": 384.11362218317316,
+          "max_lmp": 384.6272475289094,
+          "diff_vs_b1_cny": -111.1105454465285
+        },
+        "300.0": {
+          "block_payoff_cny": 5.92573826474757e-06,
+          "block_period_sum_cny": 5.92573826474757e-06,
+          "block_discharge_mwh": 2.854041639839643e-08,
+          "b1_block_discharge_mwh": 0.39999999889886917,
+          "b1_block_payoff_cny": 111.1105549566577,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.854041639839643e-08,
+          "mean_lmp": 384.3052479340142,
+          "min_lmp": 384.1141740223551,
+          "max_lmp": 384.62838550073224,
+          "diff_vs_b1_cny": -111.11054903091943
+        },
+        "299.3697204589844": {
+          "block_payoff_cny": 5.99155045630581e-06,
+          "block_period_sum_cny": 5.991550456305808e-06,
+          "block_discharge_mwh": 2.8789718855321033e-08,
+          "b1_block_discharge_mwh": 0.39999999889886917,
+          "b1_block_payoff_cny": 111.1105549566577,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.8789718855321037e-08,
+          "mean_lmp": 384.3052572077923,
+          "min_lmp": 384.1141849030311,
+          "max_lmp": 384.6283935772901,
+          "diff_vs_b1_cny": -111.11054896510724
+        }
+      }
+    },
+    "cp10|2022-12-30|2025-12-31|b10|ESS27": {
+      "checkpoint": 10,
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "unit": "ESS27",
+      "actor_quote": 282.125732421875,
+      "actor_actions": {
+        "ESS9": [
+          0.0,
+          110.69842529296875
+        ],
+        "ESS14": [
+          0.0,
+          299.3697204589844
+        ],
+        "ESS17": [
+          0.0,
+          1.370481252670288
+        ],
+        "ESS27": [
+          0.0,
+          282.125732421875
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.048887912184000015,
+          0.9564612507820129
+        ],
+        "ESS14": [
+          0.011257858946919441,
+          0.999428927898407
+        ],
+        "ESS17": [
+          0.11716906726360321,
+          0.9138855934143066
+        ],
+        "ESS27": [
+          0.07695360481739044,
+          0.9989569187164307
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          0,
+          1
+        ],
+        "ESS14": [
+          0,
+          1
+        ],
+        "ESS17": [
+          0,
+          1
+        ],
+        "ESS27": [
+          0,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.8946739280447843,
+        "ESS14": 0.8999999937187283,
+        "ESS17": 0.8320651965197146,
+        "ESS27": 0.8999999649640796
+      },
+      "recorded_worst_block": {
+        "checkpoint": 10,
+        "pair_id": "2022-12-30|2025-12-31",
+        "unit": "ESS27",
+        "block": 10,
+        "recorded_quote": 282.125732421875,
+        "recorded_soc": 0.8999999649640796,
+        "recorded_diff": -128.13994164951862
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 128.17899331526405,
+          "block_period_sum_cny": 128.17899331526405,
+          "block_discharge_mwh": 0.39999998607961007,
+          "b1_block_discharge_mwh": 0.39999999912814505,
+          "b1_block_payoff_cny": 128.1399497924643,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.39999998607961007,
+          "mean_lmp": 420.4474985017522,
+          "min_lmp": 418.0850078900668,
+          "max_lmp": 422.28184850395485,
+          "diff_vs_b1_cny": 0.039043522799744323
+        },
+        "100.0": {
+          "block_payoff_cny": 128.17850004319385,
+          "block_period_sum_cny": 128.17850004319388,
+          "block_discharge_mwh": 0.3999999850492116,
+          "b1_block_discharge_mwh": 0.39999999912814505,
+          "b1_block_payoff_cny": 128.1399497924643,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.3999999850492116,
+          "mean_lmp": 420.44626379785916,
+          "min_lmp": 418.08367086562373,
+          "max_lmp": 422.2824493309073,
+          "diff_vs_b1_cny": 0.03855025072957119
+        },
+        "150.0": {
+          "block_payoff_cny": 105.02576199765085,
+          "block_period_sum_cny": 105.02576199765085,
+          "block_discharge_mwh": 0.3267386525158195,
+          "b1_block_discharge_mwh": 0.39999999912814505,
+          "b1_block_payoff_cny": 128.1399497924643,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.3267386525158195,
+          "mean_lmp": 421.3002504142238,
+          "min_lmp": 420.3257765496265,
+          "max_lmp": 422.27776673146116,
+          "diff_vs_b1_cny": -23.11418779481346
+        },
+        "258.0": {
+          "block_payoff_cny": 2.048661449545971e-05,
+          "block_period_sum_cny": 2.0486614495459715e-05,
+          "block_discharge_mwh": 7.181285508141589e-08,
+          "b1_block_discharge_mwh": 0.39999999912814505,
+          "b1_block_payoff_cny": 128.1399497924643,
+          "accepted_periods": 0,
+          "accepted_mwh": 7.181285508141588e-08,
+          "mean_lmp": 425.4193423441413,
+          "min_lmp": 422.9587735363317,
+          "max_lmp": 427.34148870865897,
+          "diff_vs_b1_cny": -128.13992930584982
+        },
+        "300.0": {
+          "block_payoff_cny": 4.442312954546409e-06,
+          "block_period_sum_cny": 4.442312954546408e-06,
+          "block_discharge_mwh": 2.0597798846093646e-08,
+          "b1_block_discharge_mwh": 0.39999999912814505,
+          "b1_block_payoff_cny": 128.1399497924643,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.0597798846093646e-08,
+          "mean_lmp": 425.41941728683685,
+          "min_lmp": 422.95894564839347,
+          "max_lmp": 427.3415320774396,
+          "diff_vs_b1_cny": -128.13994535015135
+        },
+        "282.125732421875": {
+          "block_payoff_cny": 8.142945685405393e-06,
+          "block_period_sum_cny": 8.142945685405394e-06,
+          "block_discharge_mwh": 3.2846980290863646e-08,
+          "b1_block_discharge_mwh": 0.39999999912814505,
+          "b1_block_payoff_cny": 128.1399497924643,
+          "accepted_periods": 0,
+          "accepted_mwh": 3.2846980290863646e-08,
+          "mean_lmp": 425.4197876931209,
+          "min_lmp": 422.9591519396446,
+          "max_lmp": 427.3420349156779,
+          "diff_vs_b1_cny": -128.13994164951862
+        }
+      }
+    },
+    "cp10|2022-12-31|2025-12-28|b17|ESS14": {
+      "checkpoint": 10,
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "unit": "ESS14",
+      "actor_quote": 272.49664306640625,
+      "actor_actions": {
+        "ESS9": [
+          0.0,
+          107.10779571533203
+        ],
+        "ESS14": [
+          0.0,
+          272.49664306640625
+        ],
+        "ESS17": [
+          0.0,
+          1.0199142694473267
+        ],
+        "ESS27": [
+          0.0,
+          258.4327392578125
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.048247139900922775,
+          0.954345166683197
+        ],
+        "ESS14": [
+          0.20015406608581543,
+          0.9951796531677246
+        ],
+        "ESS17": [
+          0.11752448230981827,
+          0.9156713485717773
+        ],
+        "ESS27": [
+          0.07908236235380173,
+          0.9981260895729065
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          0,
+          1
+        ],
+        "ESS14": [
+          0,
+          1
+        ],
+        "ESS17": [
+          0,
+          1
+        ],
+        "ESS27": [
+          0,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.8373193129305645,
+        "ESS14": 0.4396739195936775,
+        "ESS17": 0.5344810875186384,
+        "ESS27": 0.8795120005063592
+      },
+      "recorded_worst_block": {
+        "checkpoint": 10,
+        "pair_id": "2022-12-31|2025-12-28",
+        "unit": "ESS14",
+        "block": 17,
+        "recorded_quote": 272.49664306640625,
+        "recorded_soc": 0.4396739195936775,
+        "recorded_diff": -98.11292689445582
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 98.15677542460507,
+          "block_period_sum_cny": 98.15677542460506,
+          "block_discharge_mwh": 0.3999998701378125,
+          "b1_block_discharge_mwh": 0.39999985490675205,
+          "b1_block_payoff_cny": 98.11292763262054,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.39999987013781246,
+          "mean_lmp": 345.39202589966806,
+          "min_lmp": 344.55224572616856,
+          "max_lmp": 346.3560429104319,
+          "diff_vs_b1_cny": 0.04384779198451838
+        },
+        "100.0": {
+          "block_payoff_cny": 98.15884380411119,
+          "block_period_sum_cny": 98.15884380411119,
+          "block_discharge_mwh": 0.39999779634309557,
+          "b1_block_discharge_mwh": 0.39999985490675205,
+          "b1_block_payoff_cny": 98.11292763262054,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.39999779634309557,
+          "mean_lmp": 345.39846428522554,
+          "min_lmp": 344.55377706148323,
+          "max_lmp": 346.3785565569871,
+          "diff_vs_b1_cny": 0.04591617149064575
+        },
+        "150.0": {
+          "block_payoff_cny": 2.816452428867394e-05,
+          "block_period_sum_cny": 2.816452428867394e-05,
+          "block_discharge_mwh": 1.2073576454855542e-07,
+          "b1_block_discharge_mwh": 0.39999985490675205,
+          "b1_block_payoff_cny": 98.11292763262054,
+          "accepted_periods": 0,
+          "accepted_mwh": 1.2073576454855542e-07,
+          "mean_lmp": 351.37080990730794,
+          "min_lmp": 350.49314832750997,
+          "max_lmp": 352.39524513978915,
+          "diff_vs_b1_cny": -98.11289946809624
+        },
+        "258.0": {
+          "block_payoff_cny": 9.448077369617551e-07,
+          "block_period_sum_cny": 9.44807736961755e-07,
+          "block_discharge_mwh": 6.39061127381105e-09,
+          "b1_block_discharge_mwh": 0.39999985490675205,
+          "b1_block_payoff_cny": 98.11292763262054,
+          "accepted_periods": 0,
+          "accepted_mwh": 6.39061127381105e-09,
+          "mean_lmp": 351.37324414591563,
+          "min_lmp": 350.4925048235635,
+          "max_lmp": 352.3995306847096,
+          "diff_vs_b1_cny": -98.1129266878128
+        },
+        "300.0": {
+          "block_payoff_cny": 4.436789421245415e-07,
+          "block_period_sum_cny": 4.436789421245415e-07,
+          "block_discharge_mwh": 4.398364854023926e-09,
+          "b1_block_discharge_mwh": 0.39999985490675205,
+          "b1_block_payoff_cny": 98.11292763262054,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.398364854023926e-09,
+          "mean_lmp": 351.3732472845748,
+          "min_lmp": 350.49251318088596,
+          "max_lmp": 352.3995308451242,
+          "diff_vs_b1_cny": -98.1129271889416
+        },
+        "272.49664306640625": {
+          "block_payoff_cny": 7.381647349474128e-07,
+          "block_period_sum_cny": 7.381647349474129e-07,
+          "block_discharge_mwh": 5.569445110999385e-09,
+          "b1_block_discharge_mwh": 0.39999985490675205,
+          "b1_block_payoff_cny": 98.11292763262054,
+          "accepted_periods": 0,
+          "accepted_mwh": 5.569445110999384e-09,
+          "mean_lmp": 351.37324412985555,
+          "min_lmp": 350.4925065250174,
+          "max_lmp": 352.39952955442,
+          "diff_vs_b1_cny": -98.11292689445581
+        }
+      }
+    },
+    "cp10|2022-12-31|2025-12-28|b17|ESS27": {
+      "checkpoint": 10,
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "unit": "ESS27",
+      "actor_quote": 258.4327392578125,
+      "actor_actions": {
+        "ESS9": [
+          0.0,
+          107.10779571533203
+        ],
+        "ESS14": [
+          0.0,
+          272.49664306640625
+        ],
+        "ESS17": [
+          0.0,
+          1.0199142694473267
+        ],
+        "ESS27": [
+          0.0,
+          258.4327392578125
+        ]
+      },
+      "gate_probability": {
+        "ESS9": [
+          0.048247139900922775,
+          0.954345166683197
+        ],
+        "ESS14": [
+          0.20015406608581543,
+          0.9951796531677246
+        ],
+        "ESS17": [
+          0.11752448230981827,
+          0.9156713485717773
+        ],
+        "ESS27": [
+          0.07908236235380173,
+          0.9981260895729065
+        ]
+      },
+      "gate_deterministic": {
+        "ESS9": [
+          0,
+          1
+        ],
+        "ESS14": [
+          0,
+          1
+        ],
+        "ESS17": [
+          0,
+          1
+        ],
+        "ESS27": [
+          0,
+          1
+        ]
+      },
+      "soc": {
+        "ESS9": 0.8373193129305645,
+        "ESS14": 0.4396739195936775,
+        "ESS17": 0.5344810875186384,
+        "ESS27": 0.8795120005063592
+      },
+      "recorded_worst_block": {
+        "checkpoint": 10,
+        "pair_id": "2022-12-31|2025-12-28",
+        "unit": "ESS27",
+        "block": 17,
+        "recorded_quote": 258.4327392578125,
+        "recorded_soc": 0.8795120005063592,
+        "recorded_diff": -108.12603359705483
+      },
+      "scenarios": {
+        "0.0": {
+          "block_payoff_cny": 108.18051442052483,
+          "block_period_sum_cny": 108.18051442052482,
+          "block_discharge_mwh": 0.39999999186774854,
+          "b1_block_discharge_mwh": 0.3999999558405955,
+          "b1_block_payoff_cny": 108.12604612553528,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.39999999186774854,
+          "mean_lmp": 370.45129324704004,
+          "min_lmp": 369.7299831922107,
+          "max_lmp": 371.4613857835125,
+          "diff_vs_b1_cny": 0.054468294989533206
+        },
+        "100.0": {
+          "block_payoff_cny": 108.18050935223096,
+          "block_period_sum_cny": 108.18050935223097,
+          "block_discharge_mwh": 0.39999994513656123,
+          "b1_block_discharge_mwh": 0.3999999558405955,
+          "b1_block_payoff_cny": 108.12604612553528,
+          "accepted_periods": 4,
+          "accepted_mwh": 0.39999994513656123,
+          "mean_lmp": 370.45131211945846,
+          "min_lmp": 369.729704514524,
+          "max_lmp": 371.4614996130685,
+          "diff_vs_b1_cny": 0.05446322669568815
+        },
+        "150.0": {
+          "block_payoff_cny": 0.0008640557387518326,
+          "block_period_sum_cny": 0.0008640557387518325,
+          "block_discharge_mwh": 3.1632892059343802e-06,
+          "b1_block_discharge_mwh": 0.3999999558405955,
+          "b1_block_payoff_cny": 108.12604612553528,
+          "accepted_periods": 1,
+          "accepted_mwh": 3.1632892059343802e-06,
+          "mean_lmp": 374.6388469412501,
+          "min_lmp": 373.8821378730245,
+          "max_lmp": 375.70046834572594,
+          "diff_vs_b1_cny": -108.12518206979654
+        },
+        "258.0": {
+          "block_payoff_cny": 1.2686499220768132e-05,
+          "block_period_sum_cny": 1.268649922076813e-05,
+          "block_discharge_mwh": 4.829731549529053e-08,
+          "b1_block_discharge_mwh": 0.3999999558405955,
+          "b1_block_payoff_cny": 108.12604612553528,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.829731549529053e-08,
+          "mean_lmp": 374.6568855065673,
+          "min_lmp": 373.903425338082,
+          "max_lmp": 375.71124970573163,
+          "diff_vs_b1_cny": -108.12603343903606
+        },
+        "300.0": {
+          "block_payoff_cny": 5.573405846626178e-06,
+          "block_period_sum_cny": 5.573405846626178e-06,
+          "block_discharge_mwh": 2.2828822248937737e-08,
+          "b1_block_discharge_mwh": 0.3999999558405955,
+          "b1_block_payoff_cny": 108.12604612553528,
+          "accepted_periods": 0,
+          "accepted_mwh": 2.2828822248937737e-08,
+          "mean_lmp": 374.65589613641134,
+          "min_lmp": 373.90251783935594,
+          "max_lmp": 375.7098733530572,
+          "diff_vs_b1_cny": -108.12604055212944
+        },
+        "258.4327392578125": {
+          "block_payoff_cny": 1.2528480472270812e-05,
+          "block_period_sum_cny": 1.252848047227081e-05,
+          "block_discharge_mwh": 4.771802562843771e-08,
+          "b1_block_discharge_mwh": 0.3999999558405955,
+          "b1_block_payoff_cny": 108.12604612553528,
+          "accepted_periods": 0,
+          "accepted_mwh": 4.7718025628437714e-08,
+          "mean_lmp": 374.65689780095056,
+          "min_lmp": 373.90343964047986,
+          "max_lmp": 375.71126227325414,
+          "diff_vs_b1_cny": -108.12603359705481
+        }
+      }
+    }
+  }
+}

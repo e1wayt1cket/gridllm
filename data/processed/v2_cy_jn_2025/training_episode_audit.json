@@ -1,0 +1,100 @@
+{
+  "run_id": "EXPLORATORY_NEAR_B_C2_GATE_seed11_v2",
+  "status": "completed",
+  "budget_episodes": 530,
+  "episodes_run": 530,
+  "unique_episode_ids": 530,
+  "episode_id_min": 1,
+  "episode_id_max": 530,
+  "episode_duplicates": 0,
+  "rounds": {
+    "1": 53,
+    "2": 53,
+    "3": 53,
+    "4": 53,
+    "5": 53,
+    "6": 53,
+    "7": 53,
+    "8": 53,
+    "9": 53,
+    "10": 53
+  },
+  "block_steps": 12720,
+  "blocks_per_episode": 24,
+  "update_calls": 12593,
+  "critic_updates": 50372,
+  "actor_update_calls": 6297,
+  "actor_updates": 25188,
+  "buffer_len": 12720,
+  "gate_stats_rows": 530,
+  "gate_stats_unique_episodes": 530,
+  "round_distinct_dates": {
+    "1": 53,
+    "2": 53,
+    "3": 53,
+    "4": 53,
+    "5": 53,
+    "6": 53,
+    "7": 53,
+    "8": 53,
+    "9": 53,
+    "10": 53
+  },
+  "all_rounds_same_date_set": true,
+  "min_exposures_per_pair": 10,
+  "max_exposures_per_pair": 10,
+  "snapshots": [
+    "round_001.json",
+    "round_002.json",
+    "round_003.json",
+    "round_004.json",
+    "round_005.json",
+    "round_006.json",
+    "round_007.json",
+    "round_008.json",
+    "round_009.json",
+    "round_010.json"
+  ],
+  "checkpoints": [
+    "step_00001272",
+    "step_00002544",
+    "step_00003816",
+    "step_00005088",
+    "step_00006360",
+    "step_00007632",
+    "step_00008904",
+    "step_00010176",
+    "step_00011448",
+    "step_00012720"
+  ],
+  "resumes": [
+    {
+      "checkpoint_step": 5088,
+      "episodes_in_checkpoint": 212,
+      "resume_episode": 212,
+      "partial_round_discarded": false,
+      "note": "first external stop at episode 252"
+    },
+    {
+      "checkpoint_step": 6360,
+      "episodes_in_checkpoint": 265,
+      "resume_episode": 265,
+      "partial_round_discarded": false,
+      "note": "second external stop at episode 301"
+    }
+  ],
+  "interruption_note": "Two external stops occurred. The checkpointed round boundary was resumed; uncheckpointed partial-round episodes were re-run and the episode CSV was truncated to the checkpoint, so the final episode ids are 1..530 unique. train.log retains the interrupted attempts; the CSV is the authoritative episode log.",
+  "earlier_failed_attempt": {
+    "run_id": "EXPLORATORY_NEAR_B_C2_GATE_seed11",
+    "stopped_at_episode": 45,
+    "reason": "C2 rejected a 6e-7 SOC numerical overshoot with its 1e-12 check",
+    "fix": "1e-6 tolerance plus clipping and a regression test",
+    "diagnostic_checkpoint": "checkpoints/step_00001056",
+    "retained": true
+  },
+  "best_round": 2,
+  "best_checkpoint": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00002544",
+  "final_checkpoint": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00012720",
+  "h2_holdout_read": false,
+  "legacy_test_run": false
+}

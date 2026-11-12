@@ -1,0 +1,114 @@
+{
+  "2.5": {
+    "z_core": 2.5,
+    "params": {
+      "z_core": 2.5,
+      "slope": 0.196,
+      "tail_b": 9.799999999999992,
+      "q_hi": 0.99,
+      "q_lo": 0.010000000000000009
+    },
+    "checks": {
+      "monotone": true,
+      "bounded_0_1": true,
+      "finite": true,
+      "symmetric": true,
+      "endpoint_centre": true,
+      "endpoint_upper": true,
+      "endpoint_lower": true,
+      "derivative_continuous": true,
+      "torch_numpy_parity": true,
+      "derivative_numpy_torch_parity": true,
+      "autograd_matches_analytic": true,
+      "finite_difference_matches": true,
+      "extreme_logits_finite": true,
+      "integer_input_not_truncated": true,
+      "closed_gate_zero": true
+    },
+    "all_pass": true
+  },
+  "6.0": {
+    "z_core": 6.0,
+    "params": {
+      "z_core": 6.0,
+      "slope": 0.08166666666666667,
+      "tail_b": 4.0833333333333295,
+      "q_hi": 0.99,
+      "q_lo": 0.010000000000000009
+    },
+    "checks": {
+      "monotone": true,
+      "bounded_0_1": true,
+      "finite": true,
+      "symmetric": true,
+      "endpoint_centre": true,
+      "endpoint_upper": true,
+      "endpoint_lower": true,
+      "derivative_continuous": true,
+      "torch_numpy_parity": true,
+      "derivative_numpy_torch_parity": true,
+      "autograd_matches_analytic": true,
+      "finite_difference_matches": true,
+      "extreme_logits_finite": true,
+      "integer_input_not_truncated": true,
+      "closed_gate_zero": true
+    },
+    "all_pass": true
+  },
+  "8.0": {
+    "z_core": 8.0,
+    "params": {
+      "z_core": 8.0,
+      "slope": 0.06125,
+      "tail_b": 3.0624999999999973,
+      "q_hi": 0.99,
+      "q_lo": 0.010000000000000009
+    },
+    "checks": {
+      "monotone": true,
+      "bounded_0_1": true,
+      "finite": true,
+      "symmetric": true,
+      "endpoint_centre": true,
+      "endpoint_upper": true,
+      "endpoint_lower": true,
+      "derivative_continuous": true,
+      "torch_numpy_parity": true,
+      "derivative_numpy_torch_parity": true,
+      "autograd_matches_analytic": true,
+      "finite_difference_matches": true,
+      "extreme_logits_finite": true,
+      "integer_input_not_truncated": true,
+      "closed_gate_zero": true
+    },
+    "all_pass": true
+  },
+  "10.0": {
+    "z_core": 10.0,
+    "params": {
+      "z_core": 10.0,
+      "slope": 0.049,
+      "tail_b": 2.449999999999998,
+      "q_hi": 0.99,
+      "q_lo": 0.010000000000000009
+    },
+    "checks": {
+      "monotone": true,
+      "bounded_0_1": true,
+      "finite": true,
+      "symmetric": true,
+      "endpoint_centre": true,
+      "endpoint_upper": true,
+      "endpoint_lower": true,
+      "derivative_continuous": true,
+      "torch_numpy_parity": true,
+      "derivative_numpy_torch_parity": true,
+      "autograd_matches_analytic": true,
+      "finite_difference_matches": true,
+      "extreme_logits_finite": true,
+      "integer_input_not_truncated": true,
+      "closed_gate_zero": true
+    },
+    "all_pass": true
+  }
+}

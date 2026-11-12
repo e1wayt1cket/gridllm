@@ -1,0 +1,2824 @@
+=== page 1 ===
+1984 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+Privacy Preserving Demand Side Management Me-
+thod via Multi-Agent Reinforcement Learning
+Feiye Zhang, Qingyu Yang, Member, IEEE, and Dou An
+Abstract—The smart grid utilizes the demand side manage- Index Terms— Centralized training and decentralized execution,
+ment technology to motivate energy users towards cutting demand side management, multi-agent reinforcement learning, pri-
+demand during peak power consumption periods, which greatly vacy preserving.
+improves the operation efficiency of the power grid. However, as
+the number of energy users participating in the smart grid con-
+I. Introduction
+tinues to increase, the demand side management strategy of indi-
+THE smart grid [1] integrates efficient sensing technology,
+vidual agent is greatly affected by the dynamic strategies of other
+accurate measurement technology and advanced control
+agents. In addition, the existing demand side management meth-
+ods, which need to obtain users’ power consumption information, methods to realize the efficient, safe and stable operation of
+seriously threaten the users’ privacy. To address the dynamic the power grid system [2]. As a significant component of bal-
+issue in the multi-microgrid demand side management model, a ancing the power demand during peak consumption periods in
+novel multi-agent reinforcement learning method based on cen- the smart grid, the demand side management (DSM) technol-
+tralized training and decentralized execution paradigm is pre-
+ogy motivates the power users to change their inherent power
+sented to mitigate the damage of training performance caused by
+consumption behavior by adopting certain incentives (e.g.,
+the instability of training experience. In order to protect users’
+financial compensation), which can achieve the objective of
+privacy, we design a neural network with fixed parameters as the
+encryptor to transform the users’ energy consumption informa- optimizing resource allocation and ensuring efficient opera-
+tion from low-dimensional to high-dimensional and theoretically tion of the power grid system [3].
+prove that the proposed encryptor-based privacy preserving Recently, multiple DSM paradigms have been proposed and
+method will not affect the convergence property of the reinforce- implemented in the power grid operation, the research efforts
+ment learning algorithm. We verify the effectiveness of the pro-
+of DSM can be mainly divided into the following two cate-
+posed demand side management scheme with the real-world
+gories: price-based mechanism [4] and incentive-based mech-
+energy consumption data of Xi’an, Shaanxi, China. Simulation
+anism [5]. Price-based DSM paradigm utilizes the electricity
+results show that the proposed method can effectively improve
+users’ satisfaction while reducing the bill payment compared with consumption controller (ECC) to offer energy users with
+traditional reinforcement learning (RL) methods (i.e., deep Q autonomous load arrangement in response to the changes of
+learning (DQN), deep deterministic policy gradient (DDPG), energy prices [6]. And incentive-based DSM paradigm
+QMIX and multi-agent deep deterministic policy gradient (MAD- encourages energy users to reduce their peak-periods energy
+DPG)). The results also demonstrate that the proposed privacy
+consumption via the economic compensation [7]. Although
+protection scheme can effectively protect users’ privacy while
+the DSM technology has been proven to significantly improve
+ensuring the performance of the algorithm.
+the efficiency of resource allocation, the uncertainties of the
+Manuscript received July 26, 2022; revised August 22, 2022; accepted energy price, demand variation, etc., pose great difficulties to
+August 29, 2022. This work was supported in part by the National Science the decision-making process of the ECC.
+Foundation of China (61973247, 61673315, 62173268), the Key Research
+The reinforcement learning methods, which can obtain the
+and Development Program of Shaanxi (2022GY-033), the National
+Postdoctoral Innovative Talents Support Program of China (BX20200272), optimal solution to the sequential decision-making problem
+the Key Program of the National Natural Science Foundation of China (618 without explicitly constructing a complete environment
+33015), and the Fundamental Research Funds for the Central Universities (xzy0
+model, have been widely deployed in addressing the uncer-
+22021050). Recommended by Associate Editor Lei Ding. (Corresponding
+author: Qingyu Yang.) tainty issue in the DSM problem [8], [9]. For instance, in [8],
+Citation: F. Y. Zhang, Q. Y. Yang, and D. An, “Privacy preserving demand authors formulated the electric vehicle (EV) charging schedul-
+side management method via multi-agent reinforcement learning,” IEEE/CAA ing problem as a Markov decision process (MDP) and pro-
+J. Autom. Sinica, vol. 10, no. 10, pp. 1984–1999, Oct. 2023.
+posed a deep reinforcement learning algorithm to learn the
+F. Y. Zhang is with the Faculty of Electronic and Information Engineering,
+optimal charging strategy responses to the dynamic energy
+Xi’an Jiaotong University, Xi’an 710049, China (e-mail: zhangfy19970324@
+stu.xjtu.edu.cn). price. Moreover, to tackle the incoordination issue of agents’
+Q. Y. Yang is with the State Key Laboratory for Manufacturing Systems strategies caused by the increasing number of energy users
+Engineering (SKLMSE), Xi’an Jiaotong University, Xi’an 710049, and also participating in the DSM system, the multi-agent reinforce-
+with the Faculty of Electronic and Information Engineering, Xi’an Jiaotong
+ment learning method, which can obtain the joint optimal
+University, Xi’an 710049, China (e-mail: yangqingyu@mail.xjtu.edu.cn).
+D. An is with the Faculty of Electronic and Information Engineering, Xi’an strategy of multiple agents, has gradually become a research
+Jiaotong University, Xi’an 710049, and also with the MOE Key Laboratory hotspot in the DSM field [10], [11]. For instance, in [10],
+for Intelligent Networks and Network Security, Xi’an Jiaotong University, authors proposed an multi-agent deep deterministic policy
+Xi’an 710049, China (e-mail: douan2017@xjtu.edu.cn).
+gradient (MADDPG)-based method to decide the temperature
+Color versions of one or more of the figures in this paper are available
+online at http://ieeexplore.ieee.org. and humidity setpoints for multi-zone buildings, which can
+Digital Object Identifier 10.1109/JAS.2023.123321 achieve from 2.8% up to 15.4% energy saving under different
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 2 ===
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1985
+thermal comfort demands. tions of this paper are summarized as follows:
+The multi-agent reinforcement learning methods schedule 1) Novel Demand Side Management Algorithm: A novel
+the load resources of multiple energy users through the cen- multi-agent reinforcement learning algorithm is proposed to
+tralized information collection and training design, which produce the DSM control strategy for microgrids. Specifi-
+effectively overcomes the partially observation issue in multi- cally, the proposed method adopts the idea of centralized
+agent environment. Nevertheless, substantial multi-agent rein- training and decentralized execution paradigm to improve the
+forcement learning research efforts ignore the risk of privacy stability of training experience in the multi-agent environ-
+leakage in the centralized learning process. Some recent stud- ment. Moreover, an attention mechanism is proposed to
+ies [12], [13] have shown that a malicious adversary can gain endow each microgrid the ability of adaptively determining
+access to the private information of energy users by eaves- which microgrid is more noteworthy for better cooperation.
+dropping the communication, compromising smart meters, or 2) Explicit Privacy Protection Method: An encryptor based
+hacking into the cloud server [14]. For instance, authors in on a neural network with fixed parameters is presented to
+[13] proved that utilizing a simple probability density estima- transform the private information of microgrid (i.e., the
+tion method can derive customers’ routines from the electric- demand response strategy and the energy consumption
+ity consumption readings. Once the privacy of energy users is demand) from low-dimensional to high-dimensional in order
+disclosed, the adversary can conduct targeted advertising for to protect users’ privacy. Furthermore, we theoretically prove
+gaining profit through the inferred behavior patterns such as that the proposed encryptor-based privacy preserving method
+appliance usage and lifestyle of different households [15], will affect neither the convergence property nor the training
+even threaten the personal safety of the energy users condi- performance of the reinforcement learning algorithm.
+tioned on the inference such as consumers’ absence or pres- 3) Complete Experiments With Real-World Data: Extensive
+ence and residential location [16]. simulations are performed to verify the effectiveness of the
+To the best of our knowledge, there are only two works con- proposed method with the real-world energy consumption
+sidering the privacy issues in DSM methods based on multi- data of Xi’an, Shaanxi, China. Specifically, the proposed
+agent reinforcement learning [17], [18]. In [17], authors method is compared with the state-of-the-art RL methods in
+applied the federated learning technique to enable energy terms of the bill payment, satisfaction and utility. The abla-
+users to determine the neural network parameters in a decen- tion studies are conducted to prove the proposed privacy pro-
+tralized fashion without sharing private information. In [18], tection method will not cause performance degeneration of
+authors modeled the DSM problem of residential microgrid as reinforcement learning algorithm.
+a partially observable Markov decision process (POMDP), The rest of this paper is organized as follows. In Section II,
+and employed the recurrent neural network (RNN) to enhance we briefly review the researches related. In Section III, we
+the feature representation of partial observation. The method introduce the system model and the optimization objective of
+did not utilize the private information such as indoor tempera- the power grid system. In Section IV, we present the POMDP
+tures and arrival/departure times of EV in the training process. model of the DSM control, the detailed description of the pro-
+Aforementioned privacy preserving DSM studies endow posed algorithm and the privacy preserving method. In Sec-
+individual agent the ability of determining load control poli- tion V, we introduce the experimental studies, and finally, we
+cies without obtaining the private information of other energy conclude our paper in Section VI. We summarize the main
+users. However, there still exist two significant challenges in notations utilized in this paper in Table I.
+deploying the privacy preserving DSM program for realistic
+residential users. First, the complete distributed training man- II. Related Work
+ner, which ignores valuable information of other agents in the Recently, the uncertainty issue in the demand side manage-
+training process, will pose significant damage to the training ment environment has attracted growing attention, and a large
+efficiency due to the dynamic and time-varying strategy of number of model-based approaches have been proposed. For
+other agents results in the instability of training experience. instance, in [19], Erdinç et al. proposed a comfort violation
+Second, above privacy preserving DSM methods lack the minimization demand response strategy of air conditioning by
+proof of convergence property of the reinforcement learning forecasting the temperature set-point of thermostats to mini-
+algorithm, therefore they cannot theoretically guarantee the mize the average discomfort among energy users. In [20],
+optimization effect of the DSM strategy. In summary, how to authors propose a stochastic day-ahead scheduling method for
+protect the privacy of energy users while maintaining the pool-based demand exchange environment, in which eco-
+algorithm performance becomes the key issue of relevant nomic demand response is traded among participants. In [21],
+field. authors present a multi-class queueing system for residential
+In this paper, we propose a multi-agent reinforcement learn- demand aggregation to minimize the cost of the power con-
+ing algorithm based on centralized training and decentralized sumption under day-ahead pricing. However, above model-
+execution paradigm to mitigate the damage of training effi- based approaches require accurate environmental stochastic
+ciency caused by the instability of training experience. model, which may not be practical in real scenario.
+Besides, we present an explicit privacy protection method by Several literatures have been dedicated to tackle the direct
+transforming the private information of energy user from low- load control problem of the power grid by applying the model-
+dimensional to high-dimensional and theoretically prove that free deep reinforcement learning (DRL) algorithms. In [22],
+the proposed method will not affect the convergence property the scheduling strategies of home energy appliances are opti-
+of the reinforcement learning algorithm. The main contribu- mized by the double deep Q-learning (DDQN) algorithm,
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 3 ===
+1986 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+TABLE I Differently from above research effort, in this paper, in
+Main Notations Utilized in This Paper addition to proposing a multi-agent reinforcement learning
+algorithm to mitigate the influence of the instable experience
+Notation Explanation
+on the training performance, we also present an explicit pri-
+di;t Total energy consumption demand of microgrid i at time step t.
+vacy protection method by designing an encryptor based on
+d i b ;t ase Base energy demand of microgrid i at time step t. the neural network with fixed parameters to transform the pri-
+d i c ; o t n Controllable energy demand of microgrid i at time step t. vate information of the energy user from low-dimensional to
+et Energy price at time step t. high-dimensional and theoretically prove that the proposed
+pi;t D
+tim
+em
+e
+a
+s
+n
+te
+d
+p
+s
+t
+i
+.
+de management control signal offered to microgrid i at m
+fo
+e
+rc
+th
+e
+o
+m
+d
+e n
+w
+t
+i
+l
+l
+e
+l
+a
+n
+rn
+o
+i
+t
+n
+a
+g
+f f
+a
+e
+l
+c
+g
+t
+o r
+t
+i
+h
+t
+e
+hm
+co
+.
+nvergence property of the rein-
+li;t
+A
+ste
+c
+p
+tu
+t
+a
+.
+l amount of energy purchased by the microgrid i at time
+III. Problem Formulation
+soci;t Remaining battery energy of microgrid i at time step t.
+In this section, we first describe the system model of the
+δ Transmission loss of battery.
+power grid considered in this paper, and then formulate the
+K((cid:1);(cid:1);(cid:1)) Satisfaction function. optimization objective of the demand side management sys-
+st State of the entire power grid environment at time step t. tem.
+oi;tr ,
+i ;
+a
+t
+i;t, Observation, action, reward of microgrid i at time step t.
+A. System Description
+mi High-dimensional state-action feature of microgrid i. The considered power grid model is composed of a utility
+(cid:26) i, ϱ i Microgrid-dependent satisfaction coefficients. company, a centralized energy management system (CEMS)
+of high computing power and distributed microgrids equipped
+E Training episode.
+with energy storage system, energy consumption devices and
+τ Soft update parameter.
+local energy management system (LEMS) of low computing
+γ Discount factor.
+power, as shown in Fig. 1. Note that, in realistic scenarios, the
+α Learning rate. LEMS deployed in the individual microgrid does not have
+high computing power and thus is not suitable for undertak-
+which is proved to be effective in minimizing the users’ cost ing the strategy training task with high communication cost
+compared to the traditional DQN method. Du and Li [23] pro- and training cost [28], [29]. In this paper, a CEMS is adopted
+pose a real-time energy management strategy of microgrid to learn the demand side management strategies for all micro-
+based on the monte-carlo method in order to decrease the grids. The main components of the power grid system are
+demand-side peak-to-average ratio, and to maximize the profit described as follows.
+from selling energy. Yu et al. [24] formulate the energy cost
+minimization problem of household appliances as an MDP,
+Energy price
+and propose a demand side management algorithm based on
+deep deterministic policy gradients (DDPG) to offer continu-
+ous action spaces control. Zhang et al. [25] propose an auto-
+Utility Centralized
+mated building demand response control framework and uti- company EMS
+Scheduling
+lize the asynchronous advantage actor-critic (A3C) method to
+Sensory signal
+learn an optimal and cost-effective control policy. information
+Differently from above literatures that are devoted to solve
+Local Local Local
+the demand side management problem with single-agent RL EMS EMS EMS
+methods, many researchers have applied the multi-agent RL
+algorithms to investigate the coordination of multiple energy
+users [11]. For instance, Zhang et al. [26] develop a multi-
+household energy management framework for residential units Microgrid 1 Microgrid 2 Microgrid N
+containing distributed energy resources (DERs) such as photo-
+voltaic (PV), energy storage system (ESS) and controllable
+DevicesBattery DevicesBattery Devices Battery
+loads, which performs explicit collaboration to satisfy global
+grid constraints. Hu propose an MADDPG-based method to Fig. 1. System model of the demand side management scheme.
+decide the temperature and humidity setpoints for multi-zone
+buildings. Besides, Yu et al. [27] formulate the energy cost 1) Utility Company U: The utility company determines the
+minimization problem of commercial building containing current electricity price for all microgrids conditioned on the
+heating, ventilation, and air conditioning (HVAC) systems as average demand of the entire power grid system [30].
+a Markov game and utilize the multi-agent actor-attention- 2) Distributed Microgrids M=fM 1 ;M 2 ;:::;M n g: Dis-
+critic (MAAC) method, which does not require any prior tributed microgrids report the energy consumption demand
+knowledge of uncertain parameters and can operate without and battery information to the centralized energy manage-
+knowing building thermal dynamics models, to optimize the ment system conditioned on the status of electrical devices
+HVAC control. and equipped batteries, and then determine the demand side
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 4 ===
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1987
+(cid:12) (cid:12)
+(cid:12) (cid:12)
+management strategy based on the guidance of CEMS and the energy consumption demand d i;t at time step t by (cid:12)p i;t (cid:12)(cid:1)d i;t to
+partial observation. Note that, the number of microgrids is reduce bill payment. p i;t >0 indicates that the microgrid i can
+denoted as n. not only fulfill its total energy consumption demand d i;t at
+3) Centralized Energy Management System CEMS: The time step t, but also store extra energy by the volume p i;t (cid:1)d i;t
+centralized energy management system is responsible for the in the battery for subsequent usage. Because the base energy
+training process of all microgrids’ load scheduling. Note that consumption demand cannot be shifted or curtailed, the actual
+the CEMS, which is regarded as a service provider, collects energy purchase volume at any time must be strictly greater
+the demand and battery information from distributed micro- than its base demand
+grids and offers demand side management guidance to all
+microgrids with the objective of minimizing the operation cost (1+p i;t )(cid:2)d i;t >d i b ;t ase: (4)
+of the entire power grid while improving each microgrid’s The state transition function of the microgrid i’s remaining
+experience. battery energy soc from time step t to time step t+1 can be
+i
+In this paper, the power grid operates in discrete time steps, expressed as
+i.e., t2f0;1;:::;Tg, where T =+1 is the infinite time horizon. 8
+A
+c g
+c ti
+h
+o
+r
+o
+c
+i a
+n n
+d
+c
+r
+t i
+o
+a
+r n
+i
+o
+r
+c
+g
+a
+d
+l
+t
+l
+t e
+i
+a
+n
+s
+r t
+b
+i i
+y
+g
+s m
+l s
+t
+e
+t
+t
+i e
+o
+e
+c
+d m
+s s
+e
+,
+t
+t
+h
+m s
+e t
+)
+e
+h p
+a
+e
+n a
+e
+t
+n
+n
+d
+e c
+d
+n
+e
+a
+(
+r
+e n
+e
+g
+r
+t . h
+b g
+y
+g e
+e y
+. ,
+u
+d c
+b
+s
+h
+i o
+e
+a e
+v
+r
+n
+s a
+i
+s
+e
+s d
+t
+’
+i
+u e
+n d
+p
+m d
+g e
+r
+,
+p
+e
+i
+m
+n
+f
+t
+v
+i
+e
+t
+a
+o
+e
+o
+r
+n n
+n
+e
+t
+d t
+n
+w
+i
+d
+c
+l a (
+e o
+e
+e t
+m
+s
+i .
+c
+o g
+a a
+a
+n .
+t n
+,
+n
+e
+,
+d
+d
+g
+t a e
+o d
+n
+c
+l
+r i
+e d
+o
+; i t
+v
+e
+n
+a i
+s o
+s
+s i
+,
+u
+f
+r i
+i
+o
+m
+. m
+c
+e
+n o
+p
+. i ,
+n
+c
+t
+a
+i
+t r
+d n
+o
+h o
+i d
+n
+e -
+-
+soc i;t+1 =
+>>>>>>>>>><
+>>>>>>>>>>:0
+s
+s
+o
+o
+;
+c
+c
+i
+i
+;
+;
+t
+t
++
++
+(
+p
+1
+i 1 ;
+(cid:0)
+t (cid:0) (cid:2)
+(cid:14))
+(cid:14) d
+(cid:2)
+i;t
+p
+;
+i;t (cid:2)d i;t ; p
+p
+p
+i
+i
+i
+;
+;
+;
+t
+t
+t
+(cid:21)
+<
+<
+0
+0
+0
+s
+s
+o
+o
+c
+c
+i
+i
+;
+;
+t
+t
+(cid:21)
+<
+(cid:12)
+(cid:12) (cid:12) (cid:12) (cid:12)
+(cid:12)
+(cid:12) (cid:12) (cid:12) (cid:12)
+p
+p
+i
+i
+1
+1
+;
+;
+t
+t
+(cid:0)
+(cid:0)
+(cid:2)
+(cid:2)
+(cid:14)
+(cid:14)
+d
+d
+i
+i
+;
+;
+t
+t
+(cid:12)
+(cid:12) (cid:12) (cid:12) (cid:12)
+(cid:12)
+(cid:12) (cid:12) (cid:12) (cid:12)
+computer) (5)
+d i;t =d i b ;t ase+d i c ; o t n (1) w sto h r e a r g e e s s o o c f i; t m a i n c d ro s g o r c id i;t + i 1 a t a t r h e e r e b s e p g e i c n t n iv in e g ly o t f h t e im re e m st a e i p n i t n a g n e d n t e + rg 1 y .
+where, dbase represents the energy that is necessary to main-
+i;t From (5) we can observe that, microgrid i will store the
+tain the operation of the microgrid i. Notice that, if the base energy by the volume (1(cid:0)(cid:14))(cid:2)p i;t (cid:2)d i;t in the battery device
+demand exists, then the EMS should supply its consumption
+when the demand side management signal p i;t is no less than
+without any hesitation. In this way, the actual energy con- 0. While, when p i;t <0, the microgrid i will utilize the energy
+sumption of microgrid i at time step t cannot be less than
+stored in the battery device to compensate the reduction of its
+d i b ;t ase. Moreover, d i c ; o t n is the energy that the microgrid i can purchased energy. (cid:14)2(0;1) denotes the transmission loss rep-
+flexibly cut or increase in order to achieve the objective of
+resenting the charging efficiency of batteries, which can be
+demand response. The centralized energy management sys-
+modeled as
+tem first collects the joint information of all microgrids as
+w de e n ll o t a e s d t a h s e s electricity price provided by the utility company, (cid:14)= e N 1 i 0 ;t (cid:0)e (cid:0)N 1 i 0 ;t (6)
+t e N 1 i 0 ;t +e (cid:0)N 1 i 0 ;t
+s =fdbase;dcon;eg (2)
+t t t t where N i;t is the corresponding number of charging/discharg-
+where dbase and dcon represent the joint base demand and joint ing cycles of the battery i at time step t [31], in which the tran-
+t t
+controllable demand, respectively, denoted as sition function can be denoted as
+(cid:12) (cid:12)
+d
+d
+t b
+t c
+a
+o
+s
+n
+e=
+=
+f
+fd
+d 1
+1 c
+b
+o
+;
+;
+a
+t
+t
+n
+se
+;
+;
+:
+:
+:
+:
+:
+:
+;
+;
+d
+d
+n c
+n b
+o ;t
+; a
+n
+t s
+g
+e
+:
+g N i;t+1 =N i;t +
+(cid:12)
+(cid:12)soc i;
+s
+t+
+o
+1
+cm i
+(cid:0)
+a
+s
+x
+oc i;t
+(cid:12)
+(cid:12) : (7)
+Equation (6) indicates that the charging and discharging
+Note that, in this paper, we assume that the CEMS can only
+behaviors of the battery will cause a certain degree of wear
+observe the current state information s at time step t and is
+t
+and tear, which results in the deterioration of charging effi-
+uncertain about the state information s t+1 in the next time step
+t+1. Given the joint information s, the CEMS offers the ciency. Empirically, the energy storage volume of a battery at
+t
+any time step cannot exceed its maximum capacity. Thus, the
+scheduling signal to the LEMS of all microgrid. And the
+LEMS in turn determines the demand side management strat- soc i;t at all time steps must comply with the following inequal-
+ity:
+egy conditioned on the partial observation and the guidance of
+C
+na
+E
+l
+M
+of
+S .
+m
+W
+icr
+e
+o
+d
+g
+e
+ri
+n
+d
+o t
+i
+e
+a
+t
+t
+h
+t
+e
+im
+d
+e
+em
+st
+a
+e
+n
+p
+d
+t
+s
+a
+id
+s
+e
+p
+m
+i;t
+a
+2
+na
+[(cid:0)
+ge
+1
+m
+;1
+e
+]
+n
+,
+t
+w
+c
+h
+o
+i
+n
+ch
+tr o
+r
+l
+e p
+si
+r
+g
+e
+-
+- where socmax is the m
+0
+a
+(cid:20)
+xim
+so
+u
+c
+m
+i;t (cid:20)
+ca
+s
+p
+o
+a
+c
+c
+m
+i it
+a
+y
+x
+of the energy stora
+(
+g
+8
+e
+)
+sents the magnitude of extra (positive) and reduced (negative) i
+devices for the microgrid i.
+purchased power of microgrid as a ratio of its energy con-
+In summary, according to (5) as well as (4) and (8), the
+sumption demand d i;t .
+overall constraint for the demand side management control
+i a
+T
+t
+h
+ti
+e
+m
+a
+e
+c
+s
+tu
+te
+a
+p
+l a
+t
+m
+is
+o
+d
+u
+e
+n
+s
+t
+c r
+o
+i
+f
+b e
+e
+d
+n e
+a
+r
+s
+gy l i;t purchased by the microgrid
+signal p i;t of microgrid i at time step t can be presented as
+( )
+in which p i;t <0 indica
+l i
+t
+;t
+es
+=
+t
+(
+h
+1
+a
++
+t th
+p
+e
+i;t )
+m
+(cid:2)
+ic
+d
+r
+i
+o
+;t
+grid i will cut the to
+(
+t
+3
+a
+)
+l
+d i b ;t as
+d
+e
+i
+(cid:0)
+;t
+d i;t (cid:20)p
+i;t
+(cid:20)min so
+d
+c
+i;
+m i
+t (cid:2)
+ax
+(
+(cid:0)
+1(cid:0)
+so
+(cid:14)
+c
+)
+i;t;1 : (9)
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 5 ===
+1988 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+The former part of (9) indicates that the demand side man- (1+p i;t )(cid:2)d i;t >d i b ;t ase; 8i;t (16)
+agement control signal should ensure that the energy con-
+sumption at the current time step is higher than the base soc i;t +(1(cid:0)(cid:14))(cid:2)p i;t (cid:2)d i;t (cid:20)socm i ax; 8i;t:
+(17)
+demand. Moreover, the latter part of (9) represents that the
+demand side management control signal should ensure that the The first term of the objective function (13) represents the
+remaining energy of the battery is lower than the maximum sum of all microgirds’ bill payment at all time steps which
+volume while ensuring p i;t (cid:20)1. should be minimized and the second term of the objective
+function (13) indicates that the total satisfaction of all micro-
+B. Optimization Objective girds’ at all time steps which should be maximized. The con-
+The objective of the entire power grid system is to adjust the strains (14)−(17) are utilized to ensure that the demand side
+consumption patterns of all microgrids to cope with dynamic management control signal of each microgrid p i;t is within a
+energy prices, so as to minimize the energy purchase cost reasonable range.
+while improving the energy users’ experience from a social Note that, the energy consumption behavior as well as the
+perspective. We utilize rb to represent the bill payment of energy price are unpredictable in the optimization problem
+i;t
+(13). Thus, it is difficult to solve the optimization problem
+microgrid i at time step t and denote the satisfaction of micro-
+(13) via traditional optimization methods (e.g., Lyapunov
+grid i at time step t as rd.
+i;t optimization [32] and robust optimization [33]). This paper
+Specifically, the bill payment of microgrid i at time step t is
+adopts an RL-based approach which can adaptively learn the
+denoted as
+optimal policy through the interaction between the agent and
+r i b ;t =(cid:0)e t (cid:2)d i;t (cid:2)(1+p i;t ) (10) e nvironment without requiring the exact system model.
+where (cid:0)e t (cid:2)d i;t denotes the cost to fully satisfy the energy IV. Privacy Preserving MARL Method
+consumption demand of microgrid i. (1+p i;t ) is the percent- In this section, the design motivation of privacy preserving
+age of the actual purchased energy compared to the total demand side management strategy is first presented. Then, the
+energy consumption demand. demand side management problem is modeled as a decentral-
+Notice that, when the actual energy consumption volume of ized partially observable Markov decision process (Dec-
+microgrid i at time step t is less than its energy consumption POMDP) [34] with infinite time horizon. And finally, a pri-
+demand, the required energy of microgrid i cannot be satis- vacy preserving multi-agent reinforcement learning method is
+fied, which results in the bad experience. To characterize introduced to optimize the joint policy of all microgrids and to
+above experience of microgrids, we define the satisfaction of protect the private information of distributed microgrids.
+microgrid i at time step t as
+{ A. Motivation of Privacy Preserving MARL Method
+rd =
+(cid:0)K(l i;t ;d i;t ;soc i;t ); a i;t <0
+(11) Recently, reinforcement learning (RL) technique [35] has
+i;t 0; a i;t (cid:21)0 been proven to be quite effective in addressing the sequential
+where K((cid:1);(cid:1);(cid:1)) is the satisfaction function which is affected by decision-making problem intractable to human being. Alth-
+the purchased energy, energy consumption demand and bat- ough several RL algorithms (e.g., deep Q learning (DQN) [36]
+tery status of microgrid i at time step t. The satisfaction func- and deep deterministic policy gradient (DDPG) [37]) have
+tion is defined as follows: been employed in addressing the demand side measurement
+8 problem, they all ignore the fact that as the number of energy
+>><0; (cid:27)
+i;t
+(cid:20)0
+users participating in the power grid continues to increase, the
+K(l i;t ;d i;t ;soc i;t )=>>:(cid:26)
+i
+(cid:27)2
+i;t
++ϱ
+i
+(cid:27)
+i;t
+; (cid:27)
+i;t
+>0
+(12)
+demand side management strategy of individual agent is
+greatly affected by the dynamic strategies of other agents.
+where (cid:26) and ϱ are microgrid-dependent satisfaction coeffi-
+i i Multi-agent reinforcement learning methods can learn a joint
+cients. (cid:27) i;t =d i;t (cid:0)l i;t (cid:0)soc i;t denotes the demand reduction of optimal strategy for all agents through centralized training
+actual energy consumption compared to the energy consump- paradigm, however, the private information (e.g., energy con-
+tion demand. The quadratic term (cid:27)2 i;t in (12) indicates that a sumption demand and demand response strategy) of energy
+larger demand reduction (cid:27) i;t results in a higher dissatisfaction users will be exposed to extremely serious threats in the pro-
+level of microgrid i. cess of information transmission [38]. The energy consump-
+In summary, the overall objective of the demand side man- tion demand could potentially reveal the consumers’ personal
+agement system can be formulated as a constrained optimiza- daily behavior or habits, e.g., cooking time and frequency of
+tion problem, denoted as going to the bathroom at night [12]. Therefore, once the pri-
+vacy of energy users is disclosed, the adversary can conduct
+∑T ∑n
+targeted advertising for gaining profit, even threaten the per-
+min (cid:0)e t (cid:2)d i;t (cid:2)(1+p i;t )(cid:0)r i d ;t (13) sonal safety of energy users by monitoring the energy con-
+t=0 i=1
+sumption information [1]. Thus, there is a need to retain the
+s.t.
+benefits of multi-agent coordination while ensuring that the
+(cid:0)1(cid:20)p i;t (cid:20)1; 8i;t (14) private information is kept private.
+In order to address the issue of dynamic strategies in the
+0(cid:20)soc i;t ; 8i;t (15) multi-microgrid demand side management model, we propose
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 6 ===
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1989
+a novel multi-agent reinforcement learning scheme for time step t+1 when the environment receives the joint action
+demand side management problem based on the centralized of all agents: s t+1 =P(s t ;a t ).
+training decentralized execution paradigm [39]. The proposed 6) Reward Function R: The objective of the entire power
+method greatly improves the stability of training experience in grid system is to minimize the energy purchase cost of all
+multi-agent environment. Furthermore, in order to protect microgrid while improving the energy users’ experience.
+energy users’ privacy in the centralized training process, we Thus, the immediate reward of microgrid i at time step t is
+design an explicit encryptor to transform the energy consump- denoted as
+tion information and demand response strategy of microgrids
+from low-dimensional to high-dimensional. The proposed pri- r i;t =r i b ;t +r i d ;t (19)
+vacy protection method can effectively preserve the sensitive where rb represents the reward of bill payment and rd repre-
+i;t i;t
+information of energy users while maintaining the algorithm
+sents the reward of satisfaction.
+performance.
+The cumulative reward for individual microgrid i from time
+slot 0 to T is denoted as
+B. Dec-POMDP Model
+Due to the privacy concerns, obtaining the global informa- ∑T
+tion of the entire power grid system for the centralized R i = (cid:13)t(cid:2)r i;t (20)
+demand side management strategy is sometimes impractical in t=0
+realistic scenarios. In other words, the microgrids are unwill- where (cid:13)2(0;1] represents the discount factor. The objective
+ing to disclose all their operation conditions, which generally of all microgrids is to develop a joint policy (cid:25)(cid:3)=[(cid:25)(cid:3);(cid:25)(cid:3);:::;
+1 2
+contain the private information, to other agents. To address (cid:25)(cid:3) ] that can maximize the cumulative rewards of all micro-
+n
+above issue, the demand side management problem consid- grids in the entire power grid system.
+ered in this paper is formulated as a Dec-POMDP, which can
+be described as a six-element tuple [N;S;O;A;P;R] where C. Solution via Privacy Preserving MARL Method
+N =[1;2;:::;n] is the set of agents. At each time step t, an The overall structure of the proposed MARL method is
+agent i obtains an observation o i;t 2s t from the observation illustrated in Fig. 2 which mainly includes three ingredients:
+space O, which is a subset of the state space S, i.e., O(cid:26)S, 1) The actor network (cid:25)((cid:1)), deployed in the local EMS of indi-
+then the agent i chooses an action a i;t from the action space A vidual microgrid, is utilized to generate the action condi-
+to interact with the environment conditioned on a certain pol-
+tioned on the partial observation of each microgrid; 2) The
+icy a i;t =(cid:25) i (o i;t ). The environment responds a vector reward to critic network Q((cid:1);(cid:1)), deployed in the centralized EMS, is uti-
+the joint action of microgrids a t =fa 1;t ;:::;a n;t g by the reward lized to estimate the value function which represents the
+function R, denoted as
+cumulative reward obtained by performing a certain action in
+r t =[r 1;t ;r 2;t ;:::;r n;t ]=R(s t ;a t ) (18) a certain state; 3) The encryptor Enc((cid:1);(cid:1)) is utilized to trans-
+and steps into the next state s t+1 by the transition function form the private information of microgrids from low-dimen-
+P(s;a). Note that, due to the complexity of obtaining the sional to high-dimensional in order to protect users’ privacy.
+t t
+realistic grid system model, both the reward function R and The workflow of the proposed method is described as follows.
+the transition function P are unknown as a prior to agents. 1) Decentralized Execution: In this paper, we adopt a practi-
+The description of the Dec-POMDP formulation is defined as cal execution structure that each microgrid can only get access
+follows: to its partial information, i.e., the microgrid i can only obtain
+1) Agents N: Each microgrid is considered as an agent and its base demand d i b ;t ase, controllable demand d i c ; o t n and remain-
+the number of agents is denoted as n. ing battery energy soc i;t rather than the global state informa-
+2) State Space S: The state of the entire power grid environ- tion s t of the entire power grid system. At each time step t,
+ment at time step t is denoted as s t =fd t base;d t con;e t ;soc t g, each microgrid obtains an observation o t =fd i b ;t ase;d i c ; o t n;soc i;t g
+where d t base, d t con and soc t represent the joint base demand, the from the environment and responds an action a i;t by the actor
+joint controllable demand and the joint battery information at network a i;t
+=(cid:25)(cid:22)
+i
+i(o i;t ). The actor network is a multi-layer per-
+time step t, respectively. e t denotes the energy price provided ceptron (MLP) [40] with (cid:22) i being the parameters.
+by the utility company at time step t. Balancing the exploration and exploitation is necessary for
+3) Observation Space O: We adopt the assumption that the the reinforcement learning algorithm in the action selection
+state of environment is partial observable for each microgrid process, which effectively prevents the agent from falling into
+and formulate the observation of microgrid i at time step t as: sub-optimal strategies [41]. To encourage agents’ effective
+o t =fd i b ;t ase;d i c ; o t n;soc i;t g. exploration, we add a random Gaussian noise N(0;I) to the
+4) Action Space A: The action of microgrid i at time step t output layer of the actor network and the executed action can
+is designed as the demand side management control signal, be denoted as
+i.e., a i;t =p i;t . Note that, a i;t 2[(cid:0)1;1] and a i;t <0 indicates that (
+t
+t
+h
+im
+e
+e
+m
+s
+i
+t
+c
+e
+r
+p
+o g
+t
+r
+w
+id
+h i
+i
+l e
+w
+a
+i
+i
+l
+;
+l
+t >
+re
+0
+d u
+i
+c
+n
+e
+di
+t
+c
+h
+a
+e
+te s
+e n
+th
+er
+a
+g
+t
+y
+th
+p
+e
+u
+m
+rc
+i
+h
+c
+a
+ro
+se
+g
+d
+ri d
+v o
+w
+lu
+il
+m
+l p
+e
+u
+a
+r-
+t a i;t =clip (cid:25)(cid:22)
+i
+i(o i;t )+(cid:11)N(0;I);
+)
+ch 5 a ) s e T t r h a e n s e i n ti e o r n gy F b u e n y c o ti n o d n i P ts : d T em he a n tr d a n fo s r it t i h o e n s f u u b n s c e ti q o u n e n is t u a s m ag a e p . - d i b ;t ase(cid:0)d i;t ;min( socm i ax(cid:0)soc i;t;1) (21)
+ping from the state s t at time step t to the next state s t+1 at d i;t d i;t (cid:2)(1(cid:0)(cid:14))
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 7 ===
+1990 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+Δ J Δ L
+Decentralized Centralized
+Utility company
+execution training
+e a a, o
+1 Actor 1 1 Critic
+EMS a o 1 network 1 a 1 , o 1 a E 1 n , c o r 1 yptor 1 m 1 m −1 network 1 Q 1
+(Environment)
+s
+a 2 Actor a 2 , a 2 Critic
+Replay b (s u , f f a e , r r, s’) o 2 network 2 a 2 , o 2 a E 2 n , c o r 2 yptor 2 m 2 m −2 network 2 Q 2
+a n Actor a n , o n Critic
+S A R S’ o n network n a n , o n a E n n , c o r n yptor n m n m −n network n Q n
+Sample
+Fig. 2. The structure of proposed method, including 1) Actor networks for decentralized execution; 2) Critic networks for centralized training; 3) Encryptors
+to transform the private information of microgrids from low-dimensional to high-dimensional.
+where α is negatively correlated to the training episodes, i.e., In this paper, we design a neural network with fixed param-
+(cid:11)= 1 where ep is the number of current training episodes. eters as the encryptor to protect the privacy of energy users.
+ep
+The reason behind above setting is that, at the beginning of The structure of the proposed encryptor is illustrated in Fig. 3.
+training, the agent should explore the environment more fre- The encryptor i is utilized to transform the low-dimensional
+quently since the knowledge about the environment is insuffi- observation o i (contains the energy consumption demand) and
+cient. As the training continues, the agent will have enough action a i (contains the demand response strategy) of the
+experience about the environment and the added noise should microgrid i to the high-dimensional feature m i , denoted as
+be gradually reduced. The function clip((cid:1);(cid:1);(cid:1)) is utilized to m =Enc(o;aj!) (22)
+ensure that the executed action is between d i b ;t as d e i (cid:0) ;t di;t and where ! i =f! i;1 ;:::;! i;v i g is the jo i in i t p i arameter of the encryp-
+min(
+socm
+i
+ax(cid:0)soci;t;1),
+which ensures the satisfaction of (4) repre- tor i, in which v is the total number of layers of the neural net-
+senting di ; t t (cid:2) h ( a 1 t (cid:0) (cid:14) th ) e actual energy consumption is no less than the work. [! i;k jk2[1;v]] denotes the parameter of k-th layer in the
+base demand at all time steps and ensures the satisfaction of neural network.
+(8) indicating that the energy storage at a time step cannot
+exceed its maximum capacity.
+After all agents have finished the action selection process,
+r
+th
+n;
+e
+t g
+e
+t
+n
+o
+v
+t
+i
+h
+ro
+e
+n m
+jo
+e
+in
+n
+t
+t
+a
+w
+ct
+i
+i
+l
+o
+l
+n
+re
+o
+s
+f
+po
+a
+n
+g
+d
+en
+a
+ts
+v
+a
+e
+t
+c
+=
+tor
+fa
+r
+1
+e
+;t
+w
+;:
+a
+:
+r
+:
+d
+;a n
+r
+;
+t
+t g
+=
+a
+f
+n
+r
+d
+1;t ;
+s
+:
+t
+:
+e
+:
+p
+; oi
+mi
+Encryptor
+into the next state s t+1 , in which agents can obtain the next ai
+joint observation o t+1 . Finally, the interaction experience
+denoted as (o t ;a t ;r t ;o t+1 ) is stored in the replay buffer B
+which keeps the property of independently identically distri- ωi, 1 ωi, 2 ωi, 3 ωi, 4
+bution (I.I.D.) of training samples [42].
+Fig. 3. The structure of proposed encryptor.
+2) Privacy Preserving Method: In the proposed demand side
+management system, users’ demand response strategy and It is worth mentioning that, during the entire training pro-
+energy consumption demand (including the base demand and cess, we fix the parameters of each microgrid’s encryptor !,
+i
+the controllable demand) are the most important privacy infor- ensuring that the same observation-action input can obtain the
+mation. Once above private information of the energy users is same output, i.e.,
+disclosed, the privacy of energy users will be exposed to
+Enc(o;aj!)=Enc(o;aj!′ ); if ! =!′: (23)
+extremely serious threats. For instance, energy consumption i i i i i i i i
+demand and the demand response strategy may reveal the Theorem 1: Equation (23) ensures that the transformation
+number of electricity users, energy users’ hobby or health sta- from low-dimensional to high-dimensional will not affect the
+tus. Once a malicious adversary obtains such information, convergence property of the reinforcement learning algorithm.
+he/she can conduct targeted advertising for gaining profit, Proof: According to [43] the value function Q(o;a) satis-
+even threaten the personal safety of the energy users condi- fies the Bellman equation, described as follows:
+tioned on their energy consumption habits. Thus, the privacy ∑ ∑
+of users’ demand response strategy and energy consumption Q(cid:25)(o;a)=r+(cid:13) Pa o;o′ (cid:25)(a ′jo ′ )Q(cid:25)(o ′;a ′ ) (24)
+demand need to be well preserved in the demand side manage- o′2O a′2A
+ment system. where Pa o;o′ is the probability that the observation transitioned
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 8 ===
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1991
+′
+from o to o conditioned on the action a. Due to the fact that adopt the centralized training framework, i.e., each microgrid
+observation o and action a are encrypted as the high-dimen- shares the encrypted information of the taken action and the
+sional feature, the original Bellman equation can be rewritten observation with others. The individual microgrid utilizes the
+as critic network to evaluate the cumulative reward that can be
+Q(cid:25)(Enc(o;aj!))=r obtained by performing a certain action in a certain state. The
+∑ ∑ critic network of microgrid i, parameterized by (cid:18), will utilize
+i
++(cid:13) Pa o;o′ (cid:25)(a ′jo ′ )Q(cid:25)(Enc(o ′;a ′j!)): (25) the encrypted feature shared by other agents as well as its
+o′2O a′2A individual observation and action to learn a centralized state-
+Due to the fact that this paper considers the deterministic action value Q (cid:18)
+i
+i(o
+i
+;a
+i
+;m(cid:0)i ), where m(cid:0)i is the joint message
+reward function and the transition function of the environ- received by agent i, denoted as
+ment, (25) will be true if the encryption function Enc((cid:1);(cid:1)) of
+the same observation-action input can obtain the same output m(cid:0)i =[m 1 ;:::;m i(cid:0)1 ;m i+1 ;:::;m n ]: (30)
+during the entire training process. At the same time, because The objective of the demand side management system is to
+we fix the parameters of the encryptor in the entire training maximize the overall profits through effective cooperation of
+process, (25) will always hold. all microgrids in the entire power grid system. Under above
+Lemma 1: For each state-action pair of any Markov deci- circumstance, the energy consumption demand and the corre-
+sion process, there always exists an optimal policy (cid:25)⋆ that can sponding demand response strategy of different microgrids
+maximize the value function denoted as follows: will have different impacts on the value function formulation
+of a certain microgrid. Thus, in the process of representing the
+Q⋆(Enc(o;aj!))=maxQ(cid:25)(Enc(o;aj!))
+(cid:25) value function using the critic network, we adopt the idea of
+=Q(cid:25)⋆(Enc(o;aj!)) (26) attention mechanism [45] to endow each microgrid the capa-
+where Q⋆(Enc(o;aj!)) is the optimal value function. bility of adaptively determining which microgrid is more note-
+worthy. The structure of proposed attention-based critic net-
+The proof of Lemma 1 can be found in [43]. Lemma 1
+work is illustrated in Fig. 4.
+denotes that the value function derived from the optimal pol-
+icy
+(cid:25)⋆
+is better than that from any policy π
+Q⋆(Enc(o;aj!))=
+(cid:21)Q
+Q
+(
+(
+E
+E
+n
+n
+c
+c(
+(
+o
+o
+;
+;
+(cid:25)
+(cid:25)
+⋆
+(o
+(
+)
+o
+j!
+)j!
+):
+)
+(27)
+o
+a
+i
+i
+MLP
+Q
+Q
+i
+i
+,
+,
+n
+1 Qi
+Critic
+c
+The Bellman optimal equation can thus be described as fol- network
+lows:
+∑ m−i MLP Softmax
+Q⋆(Enc(o;aj!))=r+(cid:13)
+o′2O
+Pa o;o′m
+a
+a
+′
+xQ(cid:25)(Enc(o ′;a ′j!)): (28)
+Fig. 4. The structure of proposed attention-based critic network.
+Under this circumstance, as long as the agent takes the
+action following the optimal policy, the value function will be As shown in Fig. 4, an original value function Q
+′2Rn(cid:0)1=
+i
+greater than or equal to the value function obtained from the [Q i;1 ;:::;Q i;i(cid:0)1 ;Q i;i+1 ;:::;Q i;n ] can be obtained after the inputs
+previous non-optimal policy. According to (28), the way to o and a are propagating through an MLP. Then, we input the
+i i
+select the action conditioned on the optimal policy is denoted joint message m(cid:0)i received by agent i into the MLP suffixed
+as follows: by a softmax layer to generate the adjustment coefficients
+(cid:25)⋆ (o)=argmaxQ(cid:25)(Enc(o;aj!)): (29) c2Rn(cid:0)
+′
+1=[c 1 ;:::;c i(cid:0)1 ;c i+1 ;:::;c n ] of the original value func-
+a2A tion Q. And finally, the value function of microgrid i can be
+i
+According to [44], the policy gradient method of (32) can calculated by taking an inner-product of the adjustment coeffi-
+ensure that each update can make the existing policy not infe- cients with the original value function
+rior to the original policy, which theoretically guarantees the Q =c(cid:1)Q ′: (31)
+convergence of the algorithm. ■ i i
+Theorem 1 assures that the proposed encryptor-based pri- Further, the parameters of actor network
+(cid:25)(cid:22)
+i i of microgrid i
+vacy preserving method will not affect the training perfor- are updated through maximizing the cumulative reward utiliz-
+mance of the reinforcement learning algorithm. Moreover, the ing the gradient by a random mini-batch sampled from the
+parameters of each microgrid’s encryptor ! are kept secret to replay buffer B, denoted as
+i
+o U t n h d er er p t a h r i t s ic i c p ir a c n u ts m s o t f an t c h e e , d e e v m en a n i d f a si d m e a l m ic a io n u a s g e a m dv en er t s a s r y y st e c m an . ∇ (cid:22) i Ji=E oi ;ai 2B [∇ (cid:22) i (cid:25)(cid:22) i i(o i )∇ ai Q (cid:18) i i(o i ;a i ;m(cid:0)i )]: (32)
+obtain the m i provided by the microgrid, it is impossible for And the critic parameters (cid:18) i of microgrid i are updated
+him/her to infer the true demand response strategy and energy through the back-propagation of the loss function denoted as
+consumption demand of energy users from the high-dimen- follows:
+s e i n o e n r a g l y u fe s a e t r u s r ’ e s , e n w s h it i i c v h e i n ef f f o e r c m ti a v t e io ly n. preserves the privacy of Li=E oi ;ai 2B [(yi(cid:0)Q (cid:18) i i(o i ;a i ;m(cid:0)i ))2] (33)
+3) Policy Learning: In the proposed MARL method, we where yi denotes the target state-action value
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 9 ===
+1992 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+yi=ri+(cid:13)Qˆ (cid:18) i ′ (o ′;(cid:25)ˆ (cid:22)′ i(o ′ );m ′ ) (34) the action and transforms the private information from low-
+i i i i (cid:0)i dimensional to high-dimensional, as given in Lines 4−7. Then,
+in which (cid:25)ˆ and Qˆ are the target actor and target critic net-
+i i all microgrids execute the actions to interact with the environ-
+work, respectively. ment and store the joint experience in the replay buffer, as
+In summary, the neural network updating law can be pre- given in Lines 9 and 10. Finally, each microgird receives the
+sented as joint encrypted message provided by others and updates the
+{
+(cid:18)=(cid:18)(cid:0)(cid:11)∇
+(cid:18)
+L((cid:18)) actor network, critic network, target actor network and target
+(35) critic network, as given in Lines 11−16:
+(cid:22)=(cid:22)(cid:0)(cid:11)∇
+(cid:22)
+L((cid:22)):
+During the testing process, only the actor networks are
+And the parameters of target networks are softly updated as deployed to generate the control signals for each microgrid.
+follows [37]: The procedure of demand side management control strategy is
+8
+>><
+>>:
+(cid:18)
+(cid:22)
+′
+′
+i
+i=
+=
+(cid:28)
+(cid:28)
+(cid:18)
+(cid:22)
+i
+i
++
++
+(
+(
+1
+1
+(cid:0)
+(cid:0)
+(cid:28)
+(cid:28)
+)
+)
+(cid:18)
+(cid:22)
+′
+′
+i
+i
+(36)
+o
+t
+m
+r
+u
+a
+e
+t
+i
+n
+l
+n
+i
+t
+e
+n
+d
+e
+si
+d
+g
+a
+n
+i
+c
+n
+a
+to
+l
+A
+s
+r
+l
+c
+n
+g
+o
+e
+o
+n
+t
+r
+w
+d
+it
+i
+h
+o
+ti
+m
+r
+o
+k
+n
+2
+e
+to
+d
+, i
+o
+n
+p
+n
+r
+w
+o
+t
+d
+h
+h
+u
+i
+e
+c
+c
+h
+e
+p a
+e
+t
+r
+h
+a
+ti
+e
+c
+a
+h
+l
+d
+m
+o
+e
+b
+m
+i
+s
+c
+a
+e
+r
+n
+o
+rv
+d
+g
+a
+r
+t
+i
+s
+i
+d
+i
+o
+d
+n
+u
+e
+,
+t i
+m
+a
+li
+s
+z
+a
+e
+g
+n
+s
+i
+a
+v
+g
+t
+e
+h
+e
+n
+e
+-
+where (cid:28)<<1 is the soft update parameter. in Lines 3−5. In Line 7, the environment provides the reward
+to each microgrid and steps into the next time step. Moreover,
+Algorithm 1 AB-MADDPG Algorithm in Line 9, the evaluation metrics including the bill payment,
+the satisfaction and the utility of microgrids (which will be
+1: Initialize the replay buffer B, parameters of actor (cid:22) i and critic (cid:18) i
+introduced in Section V-A-3) are calculated to demonstrate
+for each microgrid.
+2: Initialize the parameters of target actor network (cid:22)′ i =(cid:22) i and tar- t he effectiveness of the proposed method.
+get critic network (cid:18) i ′=(cid:18) i for each microgrid. V. Performance Evaluation
+3: while t(cid:20)E do In this section, the experimental setup is first presented.
+4: for microgird i=1 to n do Then, the effectiveness of the proposed method is verified
+5: Obtain the observation o i;t. through intuitive demand side management results. Next, the
+6: Select action a i;t by (21). performance of the proposed AB-MADDPG algorithm is
+7: Determine the cipher feature information by m i;t by (22). compared with those of other widely utilized RL methods in
+8: end for terms of the bill payment, the satisfaction and the utility. After
+9: Execute actions to obtain the reward r i;t and next observation that, the proposed privacy preserving method is proven to pro-
+o i;t for each microgrid. tect users’ privacy without compromising the performance
+10: Store the joint experience [o t ;a t ;r t ;m t ;o t+1 ] in B. through the comparison between the proposed privacy pre-
+11: for microgird i=1 to n do serving algorithm with the algorithm without privacy protec-
+12: Obtain the joint encrypted message by (30). tion. Finally, the ablation studies are conducted to analyze the
+13: Calculate the loss function by (31) and (33). impact of hyperparameters on the algorithm performance.
+14: Calculate the gradient by (31) and (32).
+15: Update the actor and critic networks by (35).
+A. Experimental Setup
+16: Update the target networks by (36). 1) Dataset and Parameters: We build a simulation environ-
+17: end for ment that emulates the actual demand side management of
+18: end while microgrids in a region of Xi’an, Shaanxi, China. In the pro-
+posed simulation environment, 12 microgrids (including shop-
+ping mail, hotel, college, factory and residential area) need to
+Algorithm 2 Demand Side Management Control Strategy
+determine whether to reduce the energy consumption volume
+1: Load the parameters of actor network (cid:22) i for each microgrid. or to purchase excess energy for the subsequent usage condi-
+2: while t(cid:20)E test do tioned on the energy demand as well as the battery informa-
+3: for microgird i=1 to n do tion. The objective of each microgrid is to minimize the oper-
+4: Obtain the observation o i;t. ation cost while improving its satisfaction of energy consump-
+5: Select action a i;t by a i;t
+=(cid:25)(cid:22)
+i
+i(o i;t ). tion. We set the minimum time interval to 1 h and define the
+6: end for
+unit of energy consumption as 100 kWh. The training data of
+7: Execute actions to obtain the reward r i;t and next observation each microgrid’s energy consumption demand at each time
+step are sampled from a Gaussian distribution based on the
+o i;t for each microgrid.
+statistical results of the actual electricity consumption data of
+8: end while
+Xi’an, Shaanxi, China in 2014, as presented in Table II. The
+9: Calculate the evaluation metrics (i.e., the bill payment, the satis-
+testing data are the energy consumption data with the time
+faction and the utility of microgrids).
+scale of one hour in the same microgrids for 2000 hours in
+We summarized the proposed MARL method for learning 2015, as presented in Fig. 5. The base demand of the micro-
+the demand side management control strategy in Algorithm 1, grid i at time step t is modeled as (cid:24)(cid:2)d i;t where d i;t is the
+which is named as the attention-based multi-agent deep deter- energy consumption demand and ξ is randomly sampled from
+ministic policy gradient (AB-MADDPG). During the training the uniform distribution [0:1;0:3] with the interval 0.001. The
+process, each microgrid first perceives the observation, selects controllable demand is modeled as (1(cid:0)(cid:24))(cid:2)d i;t . The satisfac-
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 10 ===
+TABLE II peak-load-shifting. And the most intuitive way is to raise the
+The Distribution Of Energy Consumption Demand in One energy price when the total energy consumption demand is
+Hour for Each Microgrid in 20141
+high, and reduce the energy price when the total energy con-
+Microgrid Demand distribution (unit) sumption demand is low.
+( )
+Shopping mall I N 111:8;9:822 The implementation details of the proposed AB-MADDPG
+( )
+Shopping mall II N 117:6;7:762 method are summarized in Table III. Specifically, we train the
+( ) algorithm 2(cid:2)105 episodes and freeze the training process to
+Shopping mall III N 142:8;4:012
+( ) evaluate the performance every 1(cid:2)103 episodes. The evalua-
+Hotel I N ( 196:9;8:562 ) tion process is carried out 10 times with 2(cid:2)103 episodes. The
+Hotel II N ( 156:4;4:792 ) parameters τ, γ, α, the size of replay buffer and the size of
+Residential area I N 180:0;5:802 mini-batch are set to 1(cid:2)10 (cid:0)2, 0.95, 1(cid:2)10 (cid:0)3, 5(cid:2)104 and 128,
+( )
+Residential area II N 153:1;3:632 respectively.
+( )
+Residential area III N 176:8;5:332
+( )
+College I N 105:6;2:682 TABLE III
+( ) Parameter Settings of the AB -MADDPG Method
+College II N 117:3;6:912
+( )
+Parameter Value
+Factory I N 239:1;9:782
+Factory II N
+(
+140:4;7:892
+) Training episode 1(cid:2)105
+Evaluation frequency 1(cid:2)103
+Testing episode 2(cid:2)103
+Dimension of hidden layer 128
+Soft update parameter τ 1(cid:2)10(cid:0)2
+Discount factor γ 0.95
+Learning rate α 1(cid:2)10(cid:0)3
+Replay buffer size 5(cid:2)104
+Mini-batch size 128
+2) Benchmarks: We compare the performance of the AB-
+MADDPG method with four widely used RL benchmarks and
+two learning methods which draw on the idea of typical opti-
+mization algorithms to evaluate the effectiveness. The bench-
+marks are briefly introduced as follows:
+a) Independent deep Q network (IDQN) [36] is a value-
+based and single-agent RL method which utilizes the deep
+tion coefficients of each microgrid (cid:26) and ϱ are sampled from neural network to estimate the value function for each dis-
+i i
+the uniform distribution [0:1;0:2] with the interval 0.01. We crete action instead of the traditional look-up table. In order to
+set the maximum capacity of the battery socmax to 500 units. deploy the DQN in the demand side management scenario, the
+discrete action is modeled as [(cid:0)1;(cid:0)0:9;:::;0;:::;0:9;1]. Note
+Moreover, the pricing scheme of the utility company is
+that, the DQN follows a distributed training paradigm that
+denoted as
+8 each microgrid determines the demand side management
+e
+t
+=
+>>>>>>>>>>>>>>>><
+>>>>>>>>>>>>>>>>: 2
+3
+1
+2
+3
+:
+;
+:
+:
+:
+5
+0
+5
+5
+;
+;
+;
+;
+i
+i
+i
+i
+i
+f
+f
+f
+f
+f
+8
+1
+0
+4
+1
+0
+2
+0
+6
+(cid:20)
+0
+0
+(cid:20)
+(cid:20)
+d
+(cid:20)
+(cid:20)
+t
+d
+d
+<
+t
+t
+d
+d
+<
+<
+t
+t
+4
+<
+<
+0
+8
+1
+1
+2
+0
+2
+6
+0
+0
+0
+0
+(37)
+s
+c
+(
+w
+t
+c
+h
+I
+t
+o
+r
+r
+D
+h
+i
+e
+b
+o
+a
+t
+i
+i
+)
+D
+t
+r
+c
+c
+c
+e
+d
+h
+P
+r
+g
+i
+i
+n
+n
+i
+G
+t
+I
+u
+e
+e
+i
+a
+n
+c
+t
+s
+)
+t
+t
+d
+i
+w
+i
+l
+n
+e
+[
+i
+n
+z
+c
+3
+o
+p
+g
+e
+e
+o
+7
+r
+e
+t
+k
+s
+w
+n
+w
+]
+n
+d
+d
+t
+i
+o
+i
+c
+h
+t
+i
+s
+e
+h
+r
+t
+a
+e
+n
+i
+k
+n
+a
+o
+e
+t
+a
+n
+a
+t
+p
+o
+c
+e
+o
+c
+o
+t
+u
+d
+h
+d
+o
+l
+t
+e
+e
+i
+r
+p
+o
+c
+s
+e
+o
+u
+t
+n
+y
+t
+p
+h
+i
+n
+t
+e
+-
+m
+e
+b
+t
+t
+r
+w
+h
+a
+a
+t
+.
+h
+d
+s
+t
+e
+o
+e
+e
+e
+e
+r
+d
+t
+c
+k
+e
+t
+o
+h
+p
+r
+a
+t
+n
+m
+e
+a
+o
+n
+t
+r
+d
+i
+i
+t
+v
+n
+s
+n
+i
+e
+a
+a
+u
+i
+s
+s
+l
+l
+l
+i
+o
+e
+u
+t
+n
+i
+u
+c
+e
+o
+g
+c
+t
+s
+b
+l e
+f
+t
+s
+a
+u
+h
+-
+e
+p
+c
+a
+n
+e
+r
+t
+g
+o
+c
+v
+i
+a
+e
+o
+l
+t
+a
+i
+i
+c
+n
+n
+c
+t
+o
+t
+i
+t
+y
+,
+i
+n
+o
+o
+R
+.
+n
+t
+n
+h
+s
+L
+S
+e
+g
+a
+i
+r
+r
+n
+n
+w
+m
+e
+a
+d
+c
+d
+i
+e
+e
+i
+t
+i
+s
+t
+h
+u
+e
+h
+o
+s
+t
+n
+o
+n
+h
+e
+u
+t
+d
+o
+e
+s
+s
+t
+4; if 200(cid:20)d t need to discretize the action like the DQN method. The DDPG
+∑
+where d t = 1 n n i=1 d i;t is the average demand of all microgrids a re ls q o ui r f e o l a l o c w en s t r a al i d z i e s d tr E ib M ut S ed to t s ra c i h n e i d n u g le p m ar u a l d ti i p g l m e m th ic a r t o g d r o i e d s s. not
+and n is the number of microgrids in the power grid system.
+c) QMIX [46] is a value-based and multi-agent RL method
+The unit of energy price is defined as 100 yuan/unit energy
+which factors the joint value function into a monotonic combi-
+consumption. The reason behind above setting is that the util-
+nation of agents’ individual value function. It utilizes a mix-
+ity company needs to change the inherent behavior of energy
+ing network with non-negative weights to combine the indi-
+users through price incentives to achieve the objective of
+vidual value function for ensuring the monotonicity of the
+joint value function and individual value functions.
+d) MADDPG [39] is a policy-based and multi-agent RL
+)tinu(
+noitpmusnoc
+ygrenE
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1993
+Shopping mall I Shopping mall II Shopping mall III
+Hotel I Hotel II Residential area I
+Residential area II Residential area III College I
+College II Factory I Factory II
+450
+400
+350
+300
+250
+200
+150
+100
+50
+0
+0 500 1000 1500 2000
+Time (h)
+Fig. 5. The energy consumption data of each microgrid with the time scale
+of one hour in 20151.
+1 The data were provided by the State Grid Xi’an Electric Power Supply
+Company, Xi’an, Shaanxi, China.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 11 ===
+350
+300
+250
+200
+150
+method which utilizes the actor network to interact with the prices? The answer of this question will prove that the pro-
+environment and trains the critic with the global information. posed method will achieve good demand side management
+e) Greedy method [47] is a learning-based method which performance.
+draws on the idea of the robust optimization, denoted as Can the AB-MADDPG method achieve lower bill payment
+Greedy. At each time step t, each microgrid only cares about and higher satisfaction compared with the state-of-the-art RL-
+obtaining the maximum reward at current time step, and based methods? The answer of this question will clarify the
+ignores the future reward. effectiveness of the proposed method in the demand side man-
+f) Model-based DDPG method [48] is a learning-based agement scenario.
+method which draws on the idea of the model predictive con- Can the AB-MADDPG algorithm achieve similar perfor-
+trol, denoted as DDPG-AE. Differently from the typical mance compared with the AB-MADDPG algorithm without
+DDPG method, this method contains an auto-encoder (AE) to privacy protection? The answer of this question will clarify
+reconstruct the original observation from the observation fea- that the proposed privacy preserving method can mitigate the
+ture, which enhances the capability of feature extraction. damage caused by the privacy leakage while ensuring the
+3) Metrics: The following three metrics are utilized to eval- algorithm performance.
+uate the performance of the demand side management strat- How do the system parameter ξ and the algorithm parame-
+egy. ter γ affect the performance of the proposed AB-MADDPG
+a) Bill payment: Bill payment bp is the average expense of method?
+all microgrids for purchasing the energy in the entire evalua- 1) Demand Side Management Results: The intuitive demand
+tion process, which is denoted as side management results of the proposed method are pre-
+bp= 1
+∑n E∑
+test (cid:0)rb: (38)
+s
+d
+e
+e
+n
+m
+te
+a
+d
+n d
+in
+a
+F
+s
+i g
+w
+s
+e
+.
+l
+6
+l
+a
+a
+n
+s
+d
+t h
+7
+e
+. F
+a
+i
+c
+g
+tu
+.
+a
+6
+l
+s
+e
+h
+n
+o
+e
+w
+rg
+s
+y
+th
+p
+e
+u
+e
+rc
+n
+h
+e
+a
+rg
+se
+y c
+o
+o
+f
+n
+S
+su
+h
+m
+op
+p
+p
+t
+i
+i
+n
+o
+g
+n
+n(cid:2)E
+test i=1 t=1
+i;t
+mall II, Hotel I, and College II at each time step with differ-
+ent energy prices for 72 hours. Fig. 7 illustrates the energy
+b) Satisfaction: Satisfaction sa is derived from the situation
+consumption demand as well as the actual energy consump-
+that the purchased energy is sufficient for user’s energy con-
+tion of Shopping mall II, Hotel I, and College II at each time
+sumption demand. sa is calculated by the average satisfaction
+step for 72 hours.
+reward in the entire evaluation process, denoted as follows:
+From Fig. 6 we can see that, after the training finished, all
+1
+∑n ∑etest
+three microgrids have learned the ability of purchasing extra
+sa= n(cid:2)e test i=1 t=1 r i d ;t : (39) e
+a
+n
+n
+e
+d
+r g
+c
+y
+u t
+a
+ti
+t
+n
+t
+g
+h e
+t h
+ti
+e
+m
+e
+e
+n
+s
+e
+t
+r
+e
+g
+p
+y
+w
+c
+i
+o
+t
+n
+h
+s
+l
+u
+o
+m
+w
+p
+e
+t
+r
+i o
+e
+n
+ne
+d
+rg
+em
+y p
+an
+ri
+d
+ce
+a
+s
+t
+(
+t
+e
+h
+.g
+e
+. ,
+t i
+e
+m
+t
+e
+=
+s
+1
+t
+:
+e
+5
+p
+)
+c) Utility: Utility u is the average reward of all microgrids in with higher energy prices (e.g., e =4:0). From Fig. 7 we can
+t
+the entire evaluation process which reflects the training per- see that, with the help of equipped battery devises, although
+formance of the algorithm, denoted as microgrids will cut the energy consumption at the time step
+1
+∑n ∑etest with higher energy prices, the actual energy consumption is
+ds= rd +rb: (40) almost equal to the energy consumption demand. Simulation
+n(cid:1)e i;t i;t
+test i=1 t=1 results can answer the first question raised at the beginning of
+this subsection, i.e., the proposed demand side management
+B. Simulation Results method can help microgrids meet their demand for energy
+The experimental results will answer the following ques- consumption while endowing them the capability of cutting
+tions: the energy purchase during peak energy price periods and
+Can the AB-MADDPG method help microgrids cut the buying extra energy during valley energy price periods.
+energy consumption at time steps with higher energy prices 2) Reducing Users’ Payment and Discomfort: The average
+and purchase extra energy at time steps with lower energy bill payment, satisfaction and utility of all microgrids for the
+noitpmusnoc
+ygrenE
+ecirp
+ygrenE
+5.0 250
+4.5
+200
+4.0
+3.5 150
+3.0
+2.5 100
+100
+2.0
+50 1.5
+0 1.0
+noitpmusnoc
+ygrenE
+Energy demand Actual purchase
+ecirp
+ygrenE
+5.0 350
+4.5 300
+4.0
+250
+3.5 200
+3.0
+150 2.5
+2.0
+50
+1.5
+0 1.0
+noitpmusnoc
+ygrenE
+ecirp
+ygrenE
+1994 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+5.0
+4.5
+4.0
+3.5
+3.0
+2.5
+100
+2.0
+50 1.5
+0 1.0
+0 10 20 30 40 50 60 70 0 10 20 30 40 50 60 70
+Time (h) Time (h) Time (h)
+(a) Shopping mall II (b) Hotel I (c) College II
+Fig. 6. The energy consumption demand as well as the actual energy purchase of (a) Shopping mall II, (b) Hotel I, and (c) College II at each time step with
+different energy price for 72 hours. Red lines represent dynamic energy prices.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 12 ===
+Energy demand Actual purchase
+250 250 250
+200 200 200
+150 150 150
+100 100 100
+50 50 50
+0 0 0
+0 10 20 30 40 50 60 70 0 10 20 30 40 50 60 70 0 10 20 30 40 50 60 70
+Time (h) Time (h) Time (h)
+(a) Shopping mall II (b) Hotel I (c) College II
+AB-MADDPG method as well as four RL-based benchmarks
+TABLE IV
+are presented in Fig. 8, in which solid lines and shaded areas The Mean and Deviations of the B ill Payment, the Satis-
+illustrate the mean and standard deviation of three metrics, faction as Well as the Utility for Seven Different
+Algorithms in the Last 10 Evaluation Episodes. All
+respectively. In order to make the results more intuitive, the
+Methods are Run Ten Times With
+average simulation result and its deviations under different Different Random Seeds
+algorithms of the last 10 evaluation episodes are listed in
+Algorithm Bill payment Satisfaction Utility
+Table IV. From Fig. 8 and Table IV we can see that, the pro-
+AB-MADDPG 31.2 (±2.36) −0.04 (±0.019) −31.2 (±2.37)
+posed AB-MADDPG method achieves the lowest bill pay-
+ment, nearly the highest satisfaction and the highest utility MADDPG 59.2 (±16.41) −1.95 (±1.924) −61.2 (±16.17)
+compared with four widely utilized RL-based methods. IDDPG 86.3 (±>1.78) −0.02 (±0.010) −86.4 (±1.80)
+Specifically, the average bill payment of the AB-MADDPG IDQN 62.0 (±0.14) −1924.29 (±64.683) −1986.3 (±64.61)
+method reduces to about 31.2 after 2(cid:2)105 training episodes,
+QMIX 283.9 (±2.13) −37.39 (±8.572) −321.3 (±9.42)
+lower than the MADDPG method, the IDDPG method, the
+Greedy 269.1 (±10.88) −190.8 (±86.32) −459.9 (±76.06)
+IDQN method and the QMIX method by about 97.9%, 63.8%,
+DDPG-AE 125.0 (±7.68) −271.6 (±55.46) −396.6 (±53.44)
+49.7% and 89.0%, respectively. The satisfaction of the AB-
+MADDPG method reaches about −0.04 after 1(cid:2)105 training
+based methods in the demand side management scenario.
+episodes, higher than the MADDPG method, the IDQN
+The reason behind the better performance of policy-based
+method and the QMIX method by about 97.9%, 100.0% and
+MARL algorithms (i.e., the AB-MADDPG method and the
+99.9%, respectively. And the satisfaction obtained by the
+MADDPG method) than single-agent RL algorithms (i.e., the
+IDDPG method is similar to that by the AB-MADDPG
+DDPG method and the DQN method) is that the centralized
+method. Moreover, the utility of the AB-MADDPG method
+training and decentralized execution paradigm can effectively
+reaches −31.2 at the end of training, higher than the MAD-
+DPG method, the IDDPG method, the IDQN method and the address the issue of unstable training experience caused by the
+QMIX method by about 49.0%, 63.9%, 98.4% and 90.2%, dynamic environment and agents’ constantly changing strate-
+respectively. Simulation results can sufficiently answer the gies in the multi-agent setting. Since the QMIX method uti-
+second question raised at the beginning of this subsection, i.e., lizes the team reward to improve the performance of all agents
+the proposed AB-MADDPG method can obtain better algo- and can not endow each agent the ability of utilizing heteroge-
+rithm performance compared with four state-of-the-art RL- neous rewards for strategy learning, it achieves the lower
+noitpmusnoc
+ygrenE
+noitpmusnoc
+ygrenE
+noitpmusnoc
+ygrenE
+Fig. 7. The energy consumption demand as well as the actual energy consumption of (a) Shopping mall II, (b) Hotel I, and (c) College II at each time step for
+72 hours.
+AB-MADDPG MADDPG IDDPG IDQN QMIX Greedy AE-DDPG
+300 0 0
+250 −200 −200
+200 −400 −400
+150
+100 −1600 −1600
+50 −1800 −1800
+0 −2000 −2000
+0 40 000 80 000 120 000160 000200 000 0 40 000 80 000 120 000160 000200 000 0 40 000 80 000 120 000160 000200 000
+tnemyap
+lliB
+Training episode
+(a) Bill payment (b) Satisfaction
+noitcafsitaS
+Training episode
+(c) Utility
+ytilitU
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1995
+Training episode
+Fig. 8. Average (a) bill payment, (b) satisfaction, and (c) utility obtained by the AB-MADDPG algorithm (red), the MADDPG algorithm (blue), the IDDPG
+algorithm (green), the IDQN algorithm (purple), the QMIX algorithm (orange), the Greedy algorithm (yellow) and the AE-DDPG algorithm (cyan) under 10
+different random seeds. The solid lines and shaded regions show the mean and standard deviation over ten runs, respectively.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 13 ===
+0 0
+−100 −100
+−200 −200
+−300 −300
+−400 −400
+algorithm performance compared with the methods which can age satisfaction of the AB-MADDPG method after 1(cid:2)105
+endow each agent the ability of perceiving the individual training episodes is only lower than that of the AB-MAD-
+reward (e.g., the AB-MADDPG method, the MADDPG DPG-WP method by 0.02. Besides, the utility of the AB-
+method and the DDPG method). Due to the fact that the pro- MADDPG method after 1(cid:2)105 training episodes is only
+posed attention mechanism can let each microgrid adaptively lower than that of the AB-MADDPG-WP method by about
+determine which microgrid is more noteworthy, the AB- 4.3%. The results can clearly answer the third question raised
+MADDPG method can achieve better cooperation perfor- at the beginning of this section, i.e., the proposed encryptor-
+mance (i.e., obtains lower bill payment, higher satisfaction based privacy preserving method can effectively mitigate the
+and utility) compared with the MADDPG method in the damage caused by the privacy leakage while ensuring the
+multi-agent demand side management environment. algorithm performance.
+Besides, in order to further illustrate the effectiveness of the
+proposed method, we compare the proposed method with two TABLE V
+The Mean and Deviations of the B ill Payment, the Satis-
+learning-based methods which draw on the idea of typical
+faction as Well as the Utility for the AB-MADDPG
+optimization algorithms (i.e., the Greedy method and the AE- Algorithm and the AB-MADDPG-WP Algorithm in
+DDPG method). Simulation results are provided in Fig. 8 and the Last 10 Evaluation Episodes
+Table IV. Fig. 8 and Table IV show that the proposed AB-
+Algorithm Bill payment Satisfaction Utility
+MADDPG method achieves the lowest bill payment, the high-
+AB-MADDPG 31.2 (±2.36) −0.04 (±0.019) −31.2 (±2.37)
+est satisfaction and the highest utility compared with the
+AB-MADDPG-WP 29.8 (±3.16) −0.02 (±0.015) −29.9 (±3.17)
+Greedy method and the Model-based DDPG method. Specifi-
+cally, the average bill payment of the AB-MADDPG method
+is lower than those of the Greedy method and the AE-DDPG The reason behind simulation results is that transforming
+method by 88.4% and 75.0%, respectively. The satisfaction of the private information of microgrids from low-dimensional to
+the AB-MADDPG method is higher than those of the Greedy high-dimensional by the neural network with fixed parame-
+method and the AE-DDPG method by 99.98% and 99.99%, ters can ensure that the same state-action input can produce
+respectively. And the utility obtained by the AB-MADDPG the same output and thus will not affect the stability of the
+method is higher than those of the Greedy method and the training experience according to Theorem 1. Because the neu-
+AE-DDPG method by 92.3% and 92.1%, respectively. Simu- ral network can effectively extract features from both high-
+lation results prove that the proposed AB-MADDPG method dimensional and low-dimensional data, the AB-MADDPG
+is more effective than the learning-based methods that draw method can achieve the similar performance compared to the
+on the idea of typical optimization algorithms in the demand AB-MADDPG without the encryptor-based privacy protec-
+side management scenarios. tion method.
+3) Performance of Privacy Preserving: We compare the 4) Ablation Study: In order to answer the fourth problem at
+proposed AB-MADDPG algorithm and the AB-MADDPG the beginning of this section, the impact of maximum base
+algorithm without privacy protection (denoted as AB-MAD- demand ratio ξ on the algorithm performance is analyzed.
+DPG-WP) to prove that the proposed encryptor-based privacy Specifically, the maximum base demand ratio ξ is changed
+preserving method will not affect the training performance of using the values from the set [0:2;0:3;:::;0:9]. Simulation
+the algorithm. Simulation results are illustrated in Fig. 9 and results are illustrated in Fig. 10, in which the symbols and
+Table V. Results in Fig. 9 and Table V show that the pro- error bars show the mean and standard deviation over ten
+posed AB-MADDPG method can achieve similar demand runs, respectively. As shown in Fig. 10, the bill payment of
+side management performance compared to the AB-MAD- microgrids obtained by the AB-MADDPG method under low
+DPG-WP method. Specifically, the average bill payment of maximum base demand ratio ξ (e.g., (cid:24)=0:2;0:3;0:4) is lower
+the AB-MADDPG method at the end of training is only 4.7% than that under high maximum base demand ratio (e.g.,
+higher than that of the AB-MADDPG-WP method. The aver- (cid:24)=0:5;0:6;0:7;0:8;0:9). The satisfaction of microgrids obtai-
+tnemyap
+lliB
+AB-MADDPG AB-MADDPG-WP
+300
+250
+200
+150
+100
+50
+0
+0 20 000 40 000 60 000 80 000100 000 0 20 000 40 000 60 000 80 000100 000 0 20 000 40 000 60 000 80 000100 000
+Training episode
+(a) Bill payment (b) Satisfaction (c) Utility
+noitcafsitaS
+Training episode
+ytilitU
+1996 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+Training episode
+Fig. 9. Average (a) bill payment, (b) satisfaction, and (c) utility obtained by the AB-MADDPG algorithm (red), the AB-MADDPG-WP algorithm (navy). The
+solid lines and shaded regions show the mean and standard deviation over ten runs, respectively.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 14 ===
+ned by the AB-MADDPG method is not sensitive to the value design a neural network with fixed parameters as an encryp-
+of maximum base demand ratio ξ. And the utility of micro- tor to transform the energy users’ sensitive information from
+grids obtained by the AB-MADDPG method under low maxi- low-dimensional to high-dimensional for protecting the pri-
+mum base demand ratio ξ is higher than that under high maxi- vate information of microgrids. We utilize an attention mecha-
+mum base demand ratio. The reason behind the experimental nism to let each agent adaptively determine which agents are
+results is that smaller ξ will endow microgrids higher flexibil- more noteworthy for better cooperation. We verified the effec-
+ity to cut/improve the energy consumption demand according tiveness of the proposed demand side management scheme by
+to d i c ; o t n=(1(cid:0)(cid:24))(cid:2)d i;t , thus, the AB-MADDPG method with the real-world energy consumption data of Xi’an, Shaanxi,
+smaller ξ can achieve higher demand side management perfor- China. Simulation results show that the proposed AB-MAD-
+mance. DPG method achieves better demand side management per-
+Besides, we investigate the performance of the AB-MAD- formance in improving users’ satisfaction and reducing users’
+DPG method at different values of discount factor γ. Each γ in the bill payment compared with state-of-the-art reinforcement
+the collection [0;0:1;:::;1] is tested for ten times with differ- learning methods. The results also prove that the proposed pri-
+ent random seeds. Simulation results are illustrated in Fig. 11 vacy protection scheme can protect users’ privacy while
+which demonstrates an obvious impact of γ on the algorithm ensuring the performance of the algorithm.
+performance. As the value of γ increases, the bill payment of The proposed encryptor-based privacy protection method is
+microgrids will decrease and the satisfaction and the utility of suitable for the scenarios where energy users transmit private
+microgrids will increase. The main reason behind the experi- data directly. In the future work, motivated by the idea of fed-
+mental results is that higher γ means the more attention is paid erated learning methods [49], we will further investigate the
+to future rewards according to (20), as a consequence, the transmission method of parameters between the centralized
+algorithm will obtain higher cumulative rewards. network (server) and distributed networks (clients) in the sce-
+narios where energy users transmit network parameters
+VI. Conclusions and Future Work instead of private data to achieve the effect of privacy protec-
+In this paper, the demand side management problem of dis- tion. The advantage behind above design is that, on the one
+tributed microgrids is formulated as a decentralized partially hand, the size of private data is generally larger than the size
+observable Markov decision process. And a novel multi-agent of model parameters, and thus the method of federated learn-
+reinforcement learning algorithm (i.e., AB-MADDPG), which ing can effectively reduce the communication cost. On the
+adopts the centralized training and decentralized execution other hand, since there is no need to transmit the private data
+paradigm, is proposed to produce the demand side manage- directly, federated learning can also achieve an effective pri-
+ment control strategies for each microgrid. Moreover, we vacy protection.
+tnemyap
+lliB
+70 0.4 −10
+60 −20
+0
+50 −30
+40 −0.4 −40
+30 −50
+−0.8
+20
+−60
+10 −1.2 −70
+0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+Maximum ξ Maximum ξ Maximum ξ
+(a) Bill payment (b) Satisfaction (c) Utility
+noitcafsitaS
+ytilitU
+Fig. 10. The mean (a) bill payment, (b) satisfaction, and (c) utility obtained by the AB-MADDPG algorithm under different maximum ξ in the last 10 evalua-
+tion episodes. The symbols and error bars show the mean and standard deviation over ten runs, respectively.
+tnemyap
+lliB
+γ
+noitcafsitaS
+(a) Bill payment (b) Satisfaction (c) Utility
+ytilitU
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1997
+300 50 0
+0
+250 −100
+−50
+200 −200
+−100
+150 −150 −300
+100 −200 −400
+−250
+50 −500
+−300
+0 −350 −600
+0 0.2 0.4 0.6 0.8 1.0 0 0.2 0.4 0.6 0.8 1.0 0 0.2 0.4 0.6 0.8 1.0
+γ γ
+Fig. 11. The mean (a) bill payment, (b) satisfaction, and (c) utility obtained by the AB-MADDPG algorithm under different γ in the last 10 evaluation
+episodes.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 15 ===
+1998 IEEE/CAA JOURNAL OF AUTOMATICA SINICA, VOL. 10, NO. 10, OCTOBER 2023
+References “Demand response exchange in the stochastic day-ahead scheduling
+with variable renewable generation,” IEEE Trans. Sustainable Energy,
+[1] D. Li, Q. Yang, W. Yu, D. An, Y. Zhang, and W. Zhao, “Towards vol. 6, no. 2, pp. 516–525, 2015.
+differential privacy-based online double auction for smart grid,” IEEE
+[21] F. Elghitani and W. Zhuang, “Aggregating a large number of residential
+Trans. Information Forensics and Security, vol. 15, pp. 971–986, 2020.
+appliances for demand response applications,” IEEE Trans. Smart Grid,
+[2] V. C. Gungor, D. Sahin, T. Kocak, S. Ergut, C. Buccella, C. Cecati, and vol. 9, no. 5, pp. 5092–5100, 2018.
+G. Hancke, “Smart grid technologies: Communication technologies and
+[22] Y. Liu, D. Zhang, and H. B. Gooi, “Optimization strategy based on deep
+standards,” IEEE Trans. Industrial Informatics, vol. 7, no. 4, pp. 529–
+reinforcement learning for home energy management,” CSEE J. Power
+539, 2011.
+and Energy Systems, vol. 6, no. 3, pp. 572–582, 2020.
+[3] P. Palensky and D. Dietrich, “Demand side management: Demand
+[23] Y. Du and F. Li, “Intelligent multi-microgrid energy management based
+response, intelligent energy systems, and smart loads,” IEEE Trans.
+on deep neural network and model-free reinforcement learning,” IEEE
+Industrial Informatics, vol. 7, no. 3, pp. 381–388, 2011.
+Trans. Smart Grid, vol. 11, no. 2, pp. 1066–1076, 2020.
+[4] Z. Zhao, L. Wu, and G. Song, “Convergence of volatile power markets
+[24] L. Yu, W. Xie, D. Xie, Y. Zou, D. Zhang, Z. Sun, L. Zhang, Y. Zhang,
+with price-based demand response,” IEEE Trans. Power Systems,
+and T. Jiang, “Deep reinforcement learning for smart home energy
+vol. 29, no. 5, pp. 2107–2118, 2014.
+management,” IEEE Internet of Things J., vol. 7, no. 4, pp. 2751–2762,
+[5] M. Zhang, Y. Xiong, H. Cai, M. Bo, and J. Wang, “Study on the 2020.
+standard calculation model of power demand response incentive subsidy
+[25] X. Zhang, D. Biagioni, M. Cai, P. Graf, and S. Rahman, “An edge-cloud
+based on master-slave game,” in Proc. IEEE 5th Conf. Energy Internet
+integrated solution for buildings demand response using reinforcement
+and Energy System Integration, 2021, pp. 1923–1927.
+learning,” IEEE Trans. Smart Grid, vol. 12, no. 1, pp. 420–431, 2021.
+[6] N. Liu, X. Yu, C. Wang, C. Li, L. Ma, and J. Lei, “Energy-sharing
+[26] C. Zhang, S. R. Kuppannagari, C. Xiong, R. Kannan, and V. K.
+model with price-based demand response for microgrids of peer-to-peer
+Prasanna, “A cooperative multi-agent deep reinforcement learning
+prosumers,” IEEE Trans. Power Systems, vol. 32, no. 5, pp. 3569–3583,
+framework for real-time residential load scheduling,” in Proc. Int. Conf.
+2017.
+Internet of Things Design and Implementation, 2019, pp. 59–69.
+[7] N. H. Tran, T. Z. Oo, S. Ren, Z. Han, E.-N. Huh, and C. S. Hong,
+[27] L. Yu, Y. Sun, Z. Xu, C. Shen, D. Yue, T. Jiang, and X. Guan, “Multi-
+“Reward-to-reduce: An incentive mechanism for economic demand
+agent deep reinforcement learning for HVAC control in commercial
+response of colocation datacenters,” IEEE J. Selected Areas in
+buildings,” IEEE Trans. Smart Grid, vol. 12, no. 1, pp. 407–419, 2021.
+Commun., vol. 34, no. 12, pp. 3941–3953, 2016.
+[28] Y. Wan, J. Qin, X. Yu, T. Yang, and Y. Kang, “Price-based residential
+[8] F. Zhang, Q. Yang, and D. An, “CDDPG: A deep-reinforcement-
+demand response management in smart grids: A reinforcement learning-
+learning-based approach for electric vehicle charging control,” IEEE
+based approach,” IEEE/CAA J. Autom. Sinica, vol. 9, no. 1, pp. 123–134,
+Internet of Things J., vol. 8, no. 5, pp. 3075–3087, 2021.
+2021.
+[9] A. Kumari and S. Tanwar, “A reinforcement-learning-based secure
+[29] B. Wang, C. Zhang, and Z. Y. Dong, “Interval optimization based
+demand response scheme for smart grid system,” IEEE Internet of coordination of demand response and battery energy storage system
+Things J., vol. 9, no. 3, pp. 2180–2191, 2022. considering SOC management in a microgrid,” IEEE Trans. Sustainable
+[10] W. Hu, “Transforming thermal comfort model and control in the tro- Energy, vol. 11, no. 4, pp. 2922–2931, 2020.
+pics: A machine-learning approach,” Ph.D. dissertation, School of [30] Y. Li, R. Wang, and Z. Yang, “Optimal scheduling of isolated
+Computer Science and Engineering, Nanyang Technological University, microgrids using automated reinforcement learning-based multi-period
+Singapore, 2020. forecasting,” IEEE Trans. Sustainable Energy, vol. 13, no. 1, pp. 159–
+[11] L. Yu, S. Qin, M. Zhang, C. Shen, T. Jiang, and X. Guan, “A review of 169, 2022.
+deep reinforcement learning for smart building energy management,” [31] D. Xu, B. Zhou, K. W. Chan, C. Li, Q. Wu, B. Chen, and S. Xia,
+IEEE Internet of Things J., vol. 8, no. 15, pp. 12046–12063, 2021. “Distributed multienergy coordination of multimicrogrids with biogas-
+[12] R. Pal, H ui, and V. Prasanna, “Privacy engineering for the smart micro- solar-wind renewables,” IEEE Trans. Industrial Informatics, vol. 15,
+grid,” IEEE Trans. Knowledge and Data Engineering, vol. 31, no. 5, no. 6, pp. 3254–3266, 2019.
+pp. 965–980, 2019. [32] N. Priyadarshi, S. Padmanaban, M. S. Bhaskar, F. Blaabjerg, J. B.
+[13] Z. Bilgin, E. Tomur, M. A. Ersoy, and E. U. Soykan, “Statistical Holm-Nielsen, F. Azam, and A. K. Sharma, “A hybrid photovoltaic-fuel
+appliance inference in the smart grid by machine learning,” in Proc. cell-based single-stage grid integration with Lyapunov control scheme,”
+IEEE 30th Int. Symp. Personal, Indoor and Mobile Radio Commun. IEEE Systems J., vol. 14, no. 3, pp. 3334–3342, 2020.
+(PIMRC Workshops), 2019, pp. 1–7. [33] D. Bertsimas, D. B. Brown, and C. Caramanis, “Theory and
+[14] L. Lyu, K. Nandakumar, B. Rubinstein, J. Jin, J. Bedo, and M. applications of robust optimization,” SIAM Review, vol. 53, no. 3,
+Palaniswami, “PPFA: Privacy preserving fog-enabled aggregation in pp. 464–501, 2011.
+smart grid,” IEEE Trans. Industrial Informatics, vol. 14, no. 8, pp. 3733– [34] G. Shani, J. Pineau, and R. Kaplow, “A survey of point-based pomdp
+3744, 2018. solvers,” Autonomous Agents and Multi-Agent Systems, vol. 27, no. 1,
+[15] L. Zhu, M. Li, Z. Zhang, C. Xu, R. Zhang, X. Du, and N. Guizani, pp. 1–51, 2013.
+“Privacy-preserving authentication and data aggregation for fog-based [35] C. Szepesvári, “Algorithms for reinforcement learning,” Synthesis
+smart grid,” IEEE Commun. Magazine, vol. 57, no. 6, pp. 80–85, 2019. Lectures on Artificial Intelligence and Machine Learning, vol. 4, no. 1,
+[16] W. Han and Y. Xiao, “Privacy preservation for V2G networks in smart pp. 1–103, 2010.
+grid: A survey,” Computer Commun., vol. 91–92, pp. 17–28, 2016. [36] V. Mnih, K. Kavukcuoglu, D. Silver, et al., “Human-level control
+[17] S. Bahrami, Y. C. Chen, and V. W. S. Wong, “Deep reinforcement through deep reinforcement learning,” Nature, vol. 518, no. 7540,
+learning for demand response in distribution networks,” IEEE Trans. pp. 529–533, 2015.
+Smart Grid, vol. 12, no. 2, pp. 1496–1506, 2021. [37] T. P. Lillicrap, J. J. Hunt, A. Pritzel, N. Heess, T. Erez, Y. Tassa, D.
+[18] Z. Qin, D. Liu, H. Hua, and J. Cao, “Privacy preserving load control of Silver, and D. Wierstra, “Continuous control with deep reinforcement
+residential microgrid via deep reinforcement learning,” IEEE Trans. learning,” arXiv preprin arXiv: 1509.02971, 2019.
+Smart Grid, vol. 12, no. 5, pp. 4079–4089, 2021. [38] J. R. Vázquez-Canteli and Z. Nagy, “Reinforcement learning for
+[19] O. Erdinç, A. Taşcıkaraoğlu, N. G. Paterakis, Y. Eren, and J. S. Catalão, demand response: A review of algorithms and modeling techniques,”
+“End-user comfort oriented day-ahead planning for responsive Applied Energy, vol. 235, pp. 1072–1089, 2019.
+residential HVAC demand aggregation considering weather forecasts,” [39] R. Lowe, Y. Wu, A. Tamar, J. Harb, P. Abbeel, and I. Mordatch,
+IEEE Trans. Smart Grid, vol. 8, no. 1, pp. 362–372, 2017. “Multi-agent actor-critic for mixed cooperative-competitive environ-
+[20] H. Wu, M. Shahidehpour, A. Alabdulwahab, and A. Abusorrah, ments,” arXiv preprint arXiv: 1706.02275, 2020.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 16 ===
+ZHANG et al.: PRIVACY PRESERVING DSM METHOD VIA MULTI-AGENT REINFORCEMENT LEARNING 1999
+[40] D. W. Ruck, S. K. Rogers, and M. Kabrisky, “Feature selection using a Feiye Zhang received the B.S. degree in electronic
+science and technology from Xi’an Jiaotong Univer-
+multilayer perceptron,” J. Neural Network Computing, vol. 2, no. 2,
+sity in 2019. He is currently a Ph.D. degree candi-
+pp. 40–48, 1990.
+date in control science and engineering at the Fac-
+[41] H. Tang, R. Houthooft, D. Foote, A. Stooke, X. Chen, Y. Duan, J. ulty of Electronic and Information Engineering, Xi’
+Schulman, F. De Turck, and P. Abbeel, “exploration: A study of count- an Jiaotong University. His current research interests
+based exploration for deep reinforcement learning,” in Proc. 31st Conf. include multi-agent systems, reinforcement learning,
+Neural Information Processing Systems, vol. 30, 2017, pp. 1–18. and privacy preserving methods.
+[42] Y. LeCun, Y. Bengio, and G. Hinton, “Deep learning,” Nature, vol. 521,
+no. 7553, pp. 436–444, 2015.
+[43] R. Sutton and A. Barto, Reinforcement Learning: An Introduction.
+Cambridge, USA: MIT Press, 1998. Qingyu Yang (Member, IEEE) received the B.S. and
+M.S. degrees in mechatronics engineering and the
+[44] V. Konda and J. Tsitsiklis, “Actor-critic algorithms,” in Proc. 12th Ph.D. degree in control science and engineering from
+Conf. Neural Information Processing Systems, 1999, vol. 12, Xi’an Jiaotong University in 1996, 1999, and 2003,
+pp.1008–1014. respectively. He is a Professor with the Faculty of
+[45] J. Chorowski, D. Bahdanau, D. Serdyuk, K. Cho, and Y. Bengio, Electronic and Information Engineering, Xi’an Jiao-
+tong University, where he is also with the State Key
+“Attention-based models for speech recognition,” arXiv preprint arXiv:
+Laboratory for Manufacturing Systems Engineering,
+1506.07503, 2015.
+Xi’an Jiaotong University. His current research inter-
+[46] T. Rashid, M. Samvelyan, C. Schroeder, G. Farquhar, J. Foerster, and S. ests include cyber-physical systems, power grid secu-
+Whiteson, “QMIX: Monotonic value function factorisation for deep rity and privacy, control and diagnosis of mechatronic systems, and intelli-
+multi-agent reinforcement learning,” in Proc. Int. Conf. Machine gent control of industrial process.
+Learning, 2018, pp. 4295–4304.
+[47] H. Wang, T. Huang, X. Liao, H. Abu-Rub, and G. Chen, Dou An received the Ph.D. degree in control science
+“Reinforcement learning for constrained energy trading games with and engineering from Xi’an Jiaotong University in
+incomplete information,” IEEE Trans. Cyber., vol. 47, no. 10, pp. 3404– 2017. He is currently an Associate Professor with the
+3416, 2016. Faculty of Electronic and Information Engineering,
+Xi’an Jiaotong University, where he is also with the
+[48] T. Kurutach, I. Clavera, Y. Duan, A. Tamar, and P. Abbeel, “Model-
+MOE Key Laboratory for Intelligent Networks and
+ensemble trust-region policy optimization,” arXiv preprint arXiv:
+Network Security, Xi’an Jiaotong University. His
+1802.10592, 2018.
+current research interests include cyber-physical sys-
+[49] G. Hinton, O. Vinyals, and J. Dean, “Distilling the knowledge in a tems, IoT security and privacy, and incentive mecha-
+neural network,” arXiv preprint arXiv: 1503.02531, 2015. nism design for smart grid and IoT.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:15:41 UTC from IEEE Xplore. Restrictions apply.

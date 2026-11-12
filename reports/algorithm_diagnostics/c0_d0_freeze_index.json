@@ -1,0 +1,132 @@
+{
+ "timestamp_utc": "2026-11-09T14:57:02.266744+00:00",
+ "label": "NON_FORMAL_DIAGNOSTIC_PILOT",
+ "items": [
+  {
+   "path": "runs\\FORMAL_7834d0aa_seed11",
+   "exists": true,
+   "dir": true,
+   "files": 209
+  },
+  {
+   "path": "runs\\FORMAL_7834d0aa_seed23",
+   "exists": true,
+   "dir": true,
+   "files": 209
+  },
+  {
+   "path": "runs\\FORMAL_7834d0aa_seed11_best",
+   "exists": true,
+   "dir": true,
+   "files": 22
+  },
+  {
+   "path": "runs\\FORMAL_7834d0aa_seed23_best",
+   "exists": true,
+   "dir": true,
+   "files": 22
+  },
+  {
+   "path": "logs\\g2_formal_v4_seed11.log",
+   "exists": true,
+   "sha256_16": "3d959ebdace1a199",
+   "bytes": 50971
+  },
+  {
+   "path": "logs\\g2_formal_v4_seed23.log",
+   "exists": true,
+   "sha256_16": "94631f3cf8357272",
+   "bytes": 50976
+  },
+  {
+   "path": "reports\\v2_cy_jn_2025\\formal_training_v4\\training_readiness.md",
+   "exists": true,
+   "sha256_16": "4505f3ecc20e1c9a",
+   "bytes": 3715
+  },
+  {
+   "path": "reports\\v2_cy_jn_2025\\formal_training_v4\\phase25_v4_freeze.md",
+   "exists": true,
+   "sha256_16": "dcd90f9f4a8088fd",
+   "bytes": 5514
+  },
+  {
+   "path": "reports\\v2_cy_jn_2025\\formal_training_v4\\pretraining_validation_results.json",
+   "exists": true,
+   "sha256_16": "2db5cb2d83349632",
+   "bytes": 4972
+  },
+  {
+   "path": "b\\W9双分歧铰链_G1重测_2026-11-09.md",
+   "exists": true,
+   "sha256_16": "9c1112f8ca5af07f",
+   "bytes": 10605
+  },
+  {
+   "path": "b\\v4结项_证据包_2026-11-09.md",
+   "exists": true,
+   "sha256_16": "4b121a6170ef06fe",
+   "bytes": 4287
+  },
+  {
+   "path": "b\\文献对标_5篇_C0至C5_2026-11-09.md",
+   "exists": true,
+   "sha256_16": "9136100839632136",
+   "bytes": 9705
+  },
+  {
+   "path": "runs\\V4D_SHORT_seed11",
+   "exists": true,
+   "dir": true,
+   "files": 49
+  },
+  {
+   "path": "runs\\V4D_SHORT_seed23",
+   "exists": true,
+   "dir": true,
+   "files": 49
+  },
+  {
+   "path": "runs\\V4D_SHORT_seed11_best",
+   "exists": true,
+   "dir": true,
+   "files": 22
+  },
+  {
+   "path": "runs\\V4D_SHORT_seed23_best",
+   "exists": true,
+   "dir": true,
+   "files": 22
+  },
+  {
+   "path": "reports\\algorithm_diagnostics\\P2_v4_evidence.json",
+   "exists": true,
+   "sha256_16": "8b761b1c7e6e3e58",
+   "bytes": 15593
+  },
+  {
+   "path": "reports\\algorithm_diagnostics\\P1_v4_evidence.json",
+   "exists": true,
+   "sha256_16": "e0240bf61e6119ed",
+   "bytes": 340021
+  },
+  {
+   "path": "reports\\algorithm_diagnostics\\rankact_chunks_v4",
+   "exists": true,
+   "dir": true,
+   "files": 20
+  },
+  {
+   "path": "b\\C0任务书_草稿_2026-11-09.md",
+   "exists": true,
+   "sha256_16": "6f7cb8b74d5a6796",
+   "bytes": 6701
+  }
+ ],
+ "snapshots_v4": [
+  "snapshots\\FORMAL_7834d0aa_seed11",
+  "snapshots\\FORMAL_7834d0aa_seed23"
+ ],
+ "missing": [],
+ "verdict": "PASS"
+}

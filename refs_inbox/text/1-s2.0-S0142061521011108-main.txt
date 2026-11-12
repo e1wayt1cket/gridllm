@@ -1,0 +1,1077 @@
+=== page 1 ===
+ElectricalPowerandEnergySystems138(2022)107897
+Contents lists available at ScienceDirect
+International Journal of Electrical Power and Energy Systems
+journal homepage: www.elsevier.com/locate/ijepes
+Joint bidding and pricing for electricity retailers based on multi-task deep
+reinforcement learning
+Hongsheng Xua,b,*, Qiuwei Wuc, Jinyu Wenb,d, Zhihong Yanga
+aNARI Group Corporation (State Grid Electric Power Research Institute), Nanjing 211000, China
+bSchool of Electrical and Electronic Engineering, Huazhong University of Science and Technology, Wuhan 430074, China
+cCentre for Electric Power and Energy, Department of Electrical Engineering, Technical University of Denmark, Lyngby 2800, Denmark
+dState Key Laboratory of Advanced Electromagnetic Engineering and Technology, Huazhong University of Science and Technology, Wuhan 430074, China
+A R T I C L E I N F O A B S T R A C T
+Keywords: The single-task deep reinforcement learning (STDRL)-based methods solve the joint bidding and pricing problem
+Deep reinforcement learning for the electricity retailer in a hierarchical electricity market by defining a bidding policy and a pricing policy
+Multi-task learning separately, which may suffer from low learning efficiency, time-consuming training and local optimization. To
+Electricity market
+deal with these issues, this paper proposes a novel Multi-task Deep reinforcement learning approach for Joint
+Demand response
+Bidding and Pricing (MDJBP) optimization model. MDJBP can deal with the bidding and pricing tasks concur-
+Bidding
+rently through a shared long short-term memory (LSTM) representation network to distill meaningful temporal
+Pricing
+characteristics from high-dimensional environment states. Furthermore, we develop a deep neural network
+(DNN) structure consisting a regression branch for bidding task and a soft actor-critic (SAC) branch for pricing
+task with automating entropy adjustment and adaptive loss weighting to implement MDJBP. The proposed multi-
+task deep reinforcement learning (MTDRL)-based method is tested with the IEEE 30-bus system. Numerical re-
+sults show that the proposed methodology succeeds in giving an optimal joint bidding and pricing policy by fully
+exploiting commonalities and differences between bidding task and pricing task, and thereby boosts the profit,
+improves learning efficiency, reduces training time, and enhances stability.
+energy bids in WEMs, and the pricing problem—how to determine
+optimal real-time energy price in REMs [9]. Many retailers can be
+1. Introduction
+treated as “price-takers” which means that their bidding behavior would
+have little influence on the wholesale prices in WEMs, due to their
+Challenges such as continuing growth in energy demand, high
+limited shares in the markets [10–12].
+renewable energy penetrations, and increasing demand-side participa-
+Most of the existing studies only focus on either the bidding problem
+tion are the important driving force behind the continuous reforming of
+or the pricing problem. As for the bidding problems, some researches are
+the electricity market as well as the continuous development of the
+chiefly concerned with optimal bidding strategies in different types of
+demand response (DR) [1–3]. The deregulated electricity markets such
+markets, such as a performance-based regulation market [13], a
+as wholesale electricity markets (WEMs) and retail electricity markets
+wholesale energy and reserve market [14], a day-ahead and balancing
+(REMs) provide the market mechanisms for the success of the DR [4],
+market [15], a standalone balancing energy market [16], and a short-
+and in turn, various DR programs offer the essential means for the
+term market with joint demand and virtual bidding [17]. Bi-level opti-
+electricity market participants, yet also bring new challenges [5]–[6]. In
+mization model is widely used to solve the strategic bidding problems, in
+market circumstance, the electricity retailers act as the intermediaries
+which the proposed bi-level model is converted to a mathematic pro-
+between end use customers (EUCs) and the electricity markets [7]. As
+gram with equilibrium constraints (MPEC) by recasting the lower level
+profit-seeking entities, the electricity retailers need to consider the un-
+problem as its Karush-Kuhn-Tucher (KKT) optimality conditions, and is
+certainties from both WEMs and EUCs, and would expect to develop
+further transformed to solvable mixed-integer linear programming
+optimal bidding strategies in WEMs as well as optimal pricing strategies
+(MILP) problems [8,13,17]. Some authors also propose variant bi-level
+in REMs to maximize the expected payoff [8]. Hence, the retailers may
+models for specific applications, such as a two-stage nested bi-level
+face two problems: the bidding problem—how to determine the optimal
+* Corresponding author.
+E-mail address: xuhongsheng@sgepri.sgcc.com.cn (H. Xu).
+https://doi.org/10.1016/j.ijepes.2021.107897
+Received 17 September 2021; Received in revised form 13 November 2021; Accepted 15 December 2021
+Availableonline27December2021
+0142-0615/©2021ElsevierLtd.Allrightsreserved.
+
+=== page 2 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Nomenclature π* Optimal joint policy of bidding and pricing
+π’ Updated joint policy at next training step
+Abbreviation di Energy demand for EUC i at time interval t
+t
+ALW Adaptive loss weighing ei Actual energy consumption for EUC i at time interval t
+t
+DNN Deep neural network et Actual aggregate energy consumption for all EUCs
+DRL Deep reinforcement learning λ t Retail price determined by the electricity retailer
+EUC End use customer δi Random variable for generated incremental energy need
+t
+LSTM Long short-term memory qb Bid quantity of the electricity retailer
+MAE Mean absolute error ω t t Randomness inside state transition
+MAPE Mean absolute percentage error
+pt Uniform clearing wholesale price
+MDJBP Multi-task Deep reinforcement learning approach for Joint κπ State-action trajectory induced by policy π
+Bidding and Pricing
+MDP Markov decision process
+Ljoint Joint loss of MTJBP
+MSE Mean square error
+LP Loss of bid quantity prediction task
+MTL Multi-task learning
+LQ Loss of retail price determining task
+MTDRL Multi-task deep reinforcement learning
+l j,h Loss ratio of task j at training step h
+fb(⋅) bidding curve function of buyer
+REM Retail electricity market t
+ReLU Rectified linear unit f t g(⋅) bidding curve function of seller
+SAC Soft actor-critic φ(⋅) Benefit function of EUC
+SGD Stochastic gradient descent η t (⋅) Risk function of the electrical retailer
+SL Supervised learning H(⋅) Entropy function
+SLW Static loss weighing DKL (⋅) KL divergence
+STDRL Single-task deep reinforcement learning Z(⋅) Partition function
+STL Single-task learning
+Parameters
+WEM Wholesale electricity market
+emax Upper limits of the aggregated energy consumption
+Indices and Sets emin Lower limits of the aggregated energy consumption
+i Index of EUC λ max Upper limits of the retail price
+j Index of tasks λ min Lower limits of the retail price
+t Index of time interval ϕi t Extension rate for EUC i at time interval t
+mb Index of buyers in WEM νi
+t
+Backlog rate for EUC i at time interval t
+mg Index of sellers in WEM α Temperature parameter in SAC algorithm
+n Index of training step θc Parameters of the critic network
+B Set of all buyers in WEM θc Parameters of the target critic network
+G Set of all sellers in WEM θa Parameters of the actor network
+Q Feasible set of the decision variables in WEM θr Parameters of the LSTM representation network
+I Set of all EUCs served by the electricity retailer θr Parameters of the target LSTM representation network
+S Set of environment states in MDP τ Factor of exponential moving average
+A Set of actions in MDP ε Learning rate
+P Set of state transition probability in MDP γ Discount factor
+R Set of immediate reward in MDP NB Mini-batch size
+Variables ρ P Loss weight of bid quantity prediction task
+at Agent’s action in MDP ρ Q Loss weigh of retail price determining task
+ai Second-order coefficient in benefit function
+st Environment states in MDP t
+rt Immediate reward bi t First-order coefficient in benefit function
+Rt Cumulative return β Deviation constant in risk function
+π Joint policy of bidding and pricing H0 target entropy
+model in [18] and stochastic bi-level model in [19]. In regards of the which is a limiting and impractical assumption [26]. Moreover, the
+pricing problems, authors in [20] and [21] are focused on effective day- computation burden of these model-based methods may grow dramat-
+ahead hourly dynamic pricing model. Bi-level model and MILP are also ically with increasing control variables and constraints [27].
+used to solve the optimal pricing tariff for flexible loads in [22]. A ge- With the recent success in the field of video games [28] and the Go
+netic algorithm-based distributed pricing optimization method is pro- game [29], deep reinforcement learning (DRL) has received more and
+posed in [23]. A newsvendor model and a generic model are applied to more attention. DRL combines the advantages of deep learning (DL) in
+solve the pricing problem of a distributed aggregator considering perception and the advantages of reinforcement learning (RL) in
+differentiated load types in [24]. All the above methods can be classified decision-making [30], and has been applied to a wide range of complex
+as model-based methods, where the complex models of markets and real-world sequential decision-making optimization scenarios, such as
+EUCs are explicitly expressed by mathematical equations. Thus, it is robotic control, recommendation system, and power system [31]–[32].
+difficult for the model-based methods to deal with the non-convex In particular, DRL has a great potential to be applied for strategic
+optimization problem and the uncertainties in the environment [25]. decision-making in electricity market and DR area [33]. For example, Ye
+The model-based methods generally assume the market participants et al. [25] proposed a DRL-based method to solve the strategic bidding
+could access all knowledge and information from WEMs and EUCs, problem in electricity markets while Du et al. [26] resorted to multi-
+2
+
+=== page 3 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+agent DRL algorithm. Lu et al. [27] applied Q-learning to solve the dy- autonomous driving [51], smart transportation [52], and robotic
+namic pricing DR problem, and they further solved the optimal incentive manipulation [53]. However, few existing works on MTDRL application
+rates problem by using the deep Q network (DQN) in [34]. Kim et al. in power systems have been published [54]–[55].
+[35] also applied Q-learning to solve a dynamic pricing problem for the To address the aforementioned issues of STDRL, we propose the
+microgrid system, where the state transition probability was assumed to Multi-task Deep reinforcement learning for Joint Bidding and Pricing
+be known by the retailer. Lu et al. [36] developed an RL-based decision optimization model (MDJBP) by formulating the joint bidding and
+system for electricity pricing plan selection to minimize the electricity pricing problem as a Markov decision process (MDP), in which the bid
+payment and consumption dissatisfaction for individual end user. quantity and the retail price are generated at the same time from a joint
+Bharmi et al. [37] applied an actor-critic (AC) framework to design a policy when interacting with the environment. In our proposed MTDRL
+DRL-based load scheduling algorithm for residential households by method, a shared LSTM representation network is employed to deal with
+considering the uncertainty in the electricity price, load demand and bidding and pricing tasks concurrently by distilling meaningful temporal
+user’s discomfort cost. Liu et al. [38] applied an AC algorithm called characteristics from high-dimensional input states. We assume that the
+advantage actor-critic (A2C) to learn the retailer’s retail pricing strat- knowledge learned in bidding task can help the pricing task to be
+egy. Wen et al. [39] proposed an incentive-based DR model based on learned better and vice versa. MTL typically requires a proper loss
+modified DL and RL, which can maximize the profits of both energy weighting for multiple tasks. Yet, the weights of each task are either
+service providers and end use customers (EUCs). Kong et al. [40] applied manually set through prior intuition or tuned through additional
+RL with long short-term memory (LSTM) to solve the online pricing hyperparameters, which is tedious and heavily time-consuming. More-
+problem in an incentive-based DR program. Liang et al. [41] applied over, model-free DRL algorithms are often brittle with respect to their
+deep deterministic policy gradient (DDPG) algorithm to model the hyperparameters, especially when handling decision-making problems
+bidding strategies of generation companies. Lee and Choi [42] applied with high-dimensional continuous state and action spaces. To this end,
+the soft actor-critic (SAC) algorithm to determine the schedules of the an adaptive loss weighing (ALW) scheme is applied to optimally adjust
+profitable selling price and charging/discharging energy for electric the weight of each task online during the entire training process. In
+vehicle charging station. Zhang et al. [43] developed a distributed on- addition, we adopt the SAC algorithm with the automating entropy
+line multi-agent RL algorithm to solve for the optimal real-time pricing. adjustment method, which does not need meticulous hyperparameter
+Cao et al. [44] used another AC algorithm called asynchronous advan- tuning.
+tage actor-critic (A3C) method to investigate the bidding problem of a Most of the existing optimal decision-making problems in electricity
+wind power producer. Namalomba et al. [45] studied the strategic market or DR utilize STL methods. To the best of our knowledge, this is
+pricing and bidding of generation and retailers in double-sided auctions the first time that MTDRL has been applied to solve for the optimal joint
+of centralized transaction market by using Q-learning. bidding and pricing policy. The key contributions of this paper are
+The aforementioned papers either study the pricing problem or the outlined as follows:
+bidding problem with RL or DRL methods, yet few papers focus on joint (1) The formulated MDP contains a joint bidding and pricing policy,
+bidding and pricing problem such as [9] and [46]. Since the retailer which allows the bidding and pricing actions to be generated at the same
+purchases energy in WEMs by bidding and resells it at retail prices in time.
+REMs, its profit is highly dependent on both the bidding and pricing (2) A novel MDJBP framework combining two different kinds of loss
+strategies. Therefore, the bidding problem and the pricing problem are functions for bidding and pricing tasks is proposed for the electricity
+inherently coupled [46]. As the joint bidding and pricing for an elec- retailer to determine the optimal joint bidding and pricing policy.
+tricity retailer is a typical high-dimensional coordination decision- (3) A detailed network structure containing a shared LSTM repre-
+making problem, DRL is regarded as a promising solution for the re- sentation subnetwork, a regression subnetwork and a SAC-based sub-
+tailers to determine their bidding and pricing strategies. In [46], a joint network with automating entropy adjustment is developed.
+bidding and pricing model is built for a retailer in a hierarchical market, (4) The proposed MDJBP framework is implemented by two different
+however single task deep reinforcement learning (STDRL) is applied to MTDRL methods, one of which adopts static loss weighing (SLW) and
+solve this model by training the pricing policy in DRL with a pre-trained the other adopts ALW.
+bidding policy in supervised learning (SL). In other words, training of (5) A comprehensive simulation study is carried out by evaluating
+the bidding task and the pricing task is independent of each other, the proposed MTDRL methods and comparing them with STDRL method
+consequently, STDRL does not give a real optimal joint policy. Such as well as a baseline method.
+single-task methods have limited performance improvement, since their The remainder of this paper is organized as follows. Section 2 briefly
+abilities are not enough to fully exploit the abundant useful information describes the joint bidding and pricing problem and introduces the hi-
+among correlated tasks [47]. For example, in the joint bidding and erarchical electricity market model. In Section 3, the joint bidding and
+pricing model, the current quantity of energy consumption is not only pricing problem is formulated as an MDP, and the proposed MDJBP
+affected by the values from historical data, but also by the previous retail framework as well as its detailed network structure and pseudocode
+price. Furthermore, it is widely known in the RL community that the implementation are introduced. Section 4 illustrates simulation results
+training process can be time-consuming and resource-consuming. Thus, and conducts comparative analyses. Finally, Section 5 draws a
+it is less efficient to train each task one by one compared to train conclusion.
+correlated tasks concurrently. Generally speaking, there are three major
+drawbacks in STDRL: 1) low learning efficiency, 2) unsatisfactory total 2. Joint bidding and pricing problem in a hierarchical electricity
+training time and 3) limited optimization effects. market model
+Multi-task learning (MTL), which learns multiple tasks simulta-
+neously with the key idea of sharing the information among correlated 2.1. Problem description and assumption
+tasks [48], can make up for the deficiency of single-task learning (STL).
+MTL can take advantage of a more generalized feature extraction among The core business of an electricity retailer is to purchase energy by
+different tasks to improves learning efficiency and reduce the total bidding in the WEM and to resell the purchased energy to EUCs at a
+training time, compared to single-task learning. Therefore, in multi-task retail price in REM. In this paper, we consider a hierarchical market
+deep reinforcement learning (MTDRL), the agent’s objective is to model, consisting a WEM operated by an independent system operator
+generalize performance across all tasks rather than specialize on a single (ISO), a REM managed by the retailer itself, and a set of EUCs served by
+task [49]. We note that MTDRL has been widely applied in many the retailer as shown in Fig. 1. In Fig. 1., one day is divided into T time
+decision-making fields such as wireless communication [50], intervals indexed from 1 to T. Before time interval t, the retailer and all
+3
+
+=== page 4 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Fig. 1. Timeline for an electricity retailer to make decisions in the real-time market.
+other market participants need to submit energy offers/bids for time decision-making ability, it finds its optimal energy consumption ei to
+t
+interval t. Then, a wholesale price is announced to every market maximize its own benefits just for current time interval t. Then, a myopic
+participant after the WEM is cleared. Meanwhile, the retailer also de- EUC’s response is modelled [35,46]:
+termines a retail price for time interval t, at which it resells the pur- (cid:0) )
+chased energy to the EUCs it serves in the REM. And, the EUCs adjust ei t∈[ m em a in, x emin] φi ei t ,d t i (cid:0) λ t ei t (2a)
+their energy consumption behaviours in response to the retail price
+during time interval t. After this, the retailer evaluates its profit ac- subject to
+(cid:0) )
+cording to the actual situation of trading in both WEM and REM. The d t i +1 =ϕi t d t i+νi t d t i(cid:0) ei t +δi t (2b)
+above process is repeated for all the time intervals.
+Assuming the WEM is a uniform pricing market and ignoring the where φi(⋅)is the EUC’s benefit function, di denotes the energy de-
+t
+system loss and congestion of the grid, the clearing of the WEM is mand of EUC i at time interval t, ϕiis the extension rate which represents
+t
+formulated as the following social welfare maximization problem [46]: a portion of the energy demand in the current time interval continues to
+max ∑ ∫ qb t f t b(q)dq(cid:0) ∑ ∫ qg t f t g(q)dq (1a) r th em e n ai e n x i t n i g n e te n r e v r a g l y , ν d i t e i m s a th n e d b a a t c ti k m lo e g i n ra te te rv w al h t i c th h a i t n i d s i c c a a r t r e i s e d a f p o o r r w ti a o r n d o to f t t h h e e
+b∈B 0 g∈G 0 next time-interval, δi is a random variable modelling the newly gener-
+t
+subject to ated incremental energy need,emin and emax are the lower and upper
+∑ ∑ limits of the energy consumption. Furthermore, it is worth mentioning
+qb t = qg t ↔p t (1b) that the EUCs’ actual energy consumption is determined by solving a
+b∈B g∈G
+myopic optimization model in (2) instead of directly adopting an
+(cid:0) ) aggregated random variable, which results in a more accurate
+qg t 1,…,qg t G,qb t 1,…,qb t B ∈Q t (1c) responding load simulation [7].
+{ }
+where B={b1 ,…,bB }is the set of buyers and G= g1 ,…,gG is the
+set of the sellers in WEM, qband qgare the energy bid quantities of the 2.3. Model of electricity retailer’s profit
+t t
+buyers and sellers respectively, fb(⋅) and fg(⋅) are the bidding curve
+t t In the WEM, the retailer plays a role of a buyer which purchases
+function of the buyers and sellers respectively, pt is the uniform clearing
+price which is the dual variable associated with constraint (1b), and Qt is
+energy via bidding. As shown in Fig. 1., th(e b
+(cid:0)
+id
+)
+s sub)mitted by the
+the feasible set of the decision variables. retailer before time interval t is denoted as f t b qb t ,qb t , representing
+We assume that the WEM is competitive, thus the retailer is that the retailer is willing to buy energ(cid:0)y )during time interval t with a
+considered as a “price-taker”, which means it does not have the capa- quantity of qbat a maximum price of fb qb . Based on the assumption in
+t t t
+bility to influence the clearing price pt. Also, all market participants Section 2.1, the retailer can purchase energy with a quantity of qbif its
+r r e e c ta e i i l v e e r ’s a b u id n s if o w r i m ll g c e le t a c r l i e n a g r e p d r i a c s e l o in n g a a s u n it i s f o b r i m d p p r r i i c c e i n is g n m o a s r m ke a t l , l e s r o t h t a h n e bid price is set to the retail price λ t which needs to be determined b t y the
+retailer.
+the clearing price. In order to guarantee a desired quantity of the cleared
+As a profit-seeking entity, the retailer aims to maximize its accu-
+energy and minimize the loss caused by the imbalance of the purchased mulated profit earned within a certain period from time interval t to t+
+energy and the aggregate energy consumption, it is desirable to set the
+tΔ. Hence, the objective function of the retailer is formulated as follows:
+bid price equal to the retail price, and set the bid quantity equal to the [ ]
+estimated aggregate energy consumption. Therefore, the original bid- ∑t+tΔ [ (cid:0) )]
+ding task is reduced to a prediction task, which tries to predict the λt∈[ m λm a in, x λmax] E k=t γk(cid:0)t (λ t (cid:0) p t )e t (cid:0) η t e t ,qb t (3)
+aggregate energy consumption of EUCs as accurately as possible. As ∑
+mentioned before, the bidding and pricing strategies for an electricity where et = i∈I ei t is the aggregate energy consumption of all EUCs
+retailer are inherently coupled, however, they are defined separately in measured at time interval t, η(⋅)is a risk function that calculates the loss
+t
+[46]. from imbalance between the purchased energy qband actual aggregate
+t
+energy consumption et, λ min and λ max are the lower and upper limits of the
+retail price. We can see that the objective function consists of two parts.
+2.2. Model of end use customers’ response The first part is the profit earned by selling the purchased energy, while
+the second part is the loss incurred when the purchased energy qb de-
+We denote all EUCs served by the retailer as a set I = {1,2,…,N}. viates from the EUCs’ actual aggregate energy consumption et. t
+For an EUC i∈I, let ei denote the actual energy consumption at time
+t
+interval t, which responds to the retail price λ t. As EUCs are usually
+regarded as to be myopic due to asymmetric information and limited
+4
+
+=== page 5 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+3 m . et P h r o o d p o o l s o e g d y multi-task deep reinforcement learning-based Qπ(s t ,a t )=E[R t |s t ,a t ;π] (9)
+3.2. Soft actor-critic algorithm
+3.1. Markov decision process formulation
+Although model-free DRL algorithms have many advantages in
+MDP provides a fundamental mathematical architecture for RL,
+solving complex sequential decision problems with high-dimensional
+where an agent is trained to give optimal sequential actions through
+and continuous action space, they still suffer from unsatisfactory
+interacting with the environment, aiming at maximization of cumulative
+sample-efficiency and brittle hyperparameters. In order to design an
+returns. An MDP is usually defined as a four-tuple (S, A, P, R), where S is
+efficient and stable model-free DRL algorithm for continuous state and
+a set of environment states, A is a set of actions, P is the state transition
+action spaces, Haarnoja et al. [56]–[57] proposed an off-policy
+probability, and R is an immediate reward function. We formulate the
+maximum entropy actor-critic (AC) algorithm, named SAC, which pro-
+joint bidding and pricing problem as a finite MDP with discrete time
+vides for both sample-efficient learning and stability.
+step. The electricity retailer is regarded as an agent, which interacts with
+Standard DRL algorithms aim to maximize the expected cumulative
+the environment (WEM and EUCs) and tries to maximize its accumu-
+return as shown in (8), while the objective of SAC is to maximize both
+lated profit by trial-and-error. The details of the MDP formulation are
+the expected cumulative return and the expected entropy of the policy
+shown as follow.
+(1) State: The observable environment state st is defined as a 3 ×m- [57]:
+[ ]
+dimensional vector [pt(cid:0)m:t(cid:0)1 ,λ t(cid:0)m:t(cid:0)1 ,et(cid:0)m:t(cid:0)1 ]. This vector encapsu- ∑
+lates three types of information: (a) pt(cid:0)m:t(cid:0)1 denotes the past m-interval π∗=argmaxE (st,at)∼κπ R 1 + αH(π(⋅|s t )) (10)
+clearing price in WEM; (b) λ t(cid:0)m:t(cid:0)1 denotes the past m-interval retail π t
+price; (c) et(cid:0)m:t(cid:0)1 denotes the past m-interval responding aggregated where (st ,at )∼κ π is the state-action trajectory induced by a policy π,
+energy consumption. α is the temperature parameter used to balance the two terms in the
+(2) Actions: Based on the current state st, the action at is defined as objective function, and H(π(⋅|st ))is the entropy term [57] which can be
+the bid quantity qb t and retail price λ t to be determined. The action can be calculate as follows:
+written in the form of a joint policy as
+(cid:0) ) H(π(⋅|s t ))=E at∼κπ [(cid:0) log(π(a t |s t ))] (11)
+a t ≜ qb t ,λ t =π(s t ) (4) The introduced entropy term encourages the agent to explore the
+where the joint policy π is a mapping from states to actions π:S→A, policy space more widely by making the policy as random as possible,
+and the action at must follow the same constraint of qb
+t
+and λ t. which is good for avoiding premature convergence to suboptimal
+(3) State transition: The state transition from the state st to st+1 is policies.
+represented as The SAC is based on the principle of soft policy iteration, which is a
+general algorithm for learning optimal maximum entropy policies that
+s t+1 =f(s t ,a t ,ω t ) (5) alternates between policy evaluation and policy improvement. In the
+where the state transition is not only determined by the current state policy evaluation step of soft policy iteration, the soft bellman equation
+st and action at, but also influenced by the randomness ω t. To be specific, is used to compute the value function (soft Q-value) of a policy π iter-
+the random variables ϕ, ν, and δ in (2) affect the originally deterministic atively [56]:
+[ ]
+system dynamics. The transition probability P is affected by the sto-
+chastic event described in (2) and their likelihood. The detailed model of
+Qπ
+soft
+(s
+t
+,a
+t
+)=r(s
+t
+,a
+t
+)+γE
+st+1,at+1
+Qπ
+soft
+(s
+t+1
+,a
+t+1
+)(cid:0) αlog(π(a
+t+1
+|s
+t+1
+))
+the system dynamics is neither available nor required to the agent, (12)
+therefore the agent learns the optimal policy π* in the environment by
+Also, in the policy improvement step, the policy can be updated using
+trial-and-error, which is one of the key advantages offered by the model-
+the following equation [56]:
+free RL framework. ⎡ ( )⎤
+(4) Reward: The immediate reward at time interval t is designed as exp Qπ (s,⋅)/α
+the profit earned d (cid:0) uring ) the same interval as π′ =ar π g k m ∈Π inD KL ⎣π k (⋅|s t )‖ Z s s π o o ft ft (s t t ) ⎦ (13)
+r t =(λ t (cid:0) p t )e t (cid:0) η t e t ,qb t (6)
+where DKL is the Kullback-Leibler (KL) divergence, П is the set of
+ding
+(5
+a
+)
+n
+P
+d
+e
+p
+rf
+r
+o
+ic
+r
+i
+m
+ng
+an
+p
+c
+o
+e
+l i
+a
+c
+n
+y
+d
+π
+v
+t
+a
+o
+l
+i
+u
+n
+e
+t e
+f
+r
+u
+a
+n
+c
+c
+t
+t i
+w
+o
+i
+n
+t
+s
+h
+:
+t
+T
+h
+h
+e
+e
+e
+a
+n
+g
+v
+e
+ir
+n
+o
+t
+n
+u
+m
+ti
+e
+li
+n
+z
+t
+e
+,
+s
+a n
+a
+d
+jo
+r
+i
+e
+n
+c
+t
+e
+b
+iv
+i
+e
+d
+s
+- policies, Zπ
+soft
+(st ) is the partition function which normalizes the
+distribution.
+a sequence of states, actions, and rewards in an episode constituting a
+The SAC is implemented by approximating the soft Q-function and
+trajectory of the police. Furthermore, the cumulative return Rt is accu-
+the policy using DNNs in AC framework, therefore we train DNNs for
+mulated through every rollout of the policy as
+both the critic (the parameterized soft Q-function Qθc) and the actor (the
+R t = ∑t+tΔ γk(cid:0)tr k (7) a p n ar d a θ m a e . t T e h ri e z n e , d t h p e o l c ic r y it i π c θ ’ a s ) . p T ar h a e m p e a t r e a r m s c e a te n r s b e o f t r t a h i e n c e r d i t b ic y a m nd in a im ct i o z r in a g r e t h θ e c
+k=t
+following loss function (soft Bellman residual) [57]:
+The purpose of training the agent is to find an optimal joint policy π* [
+1
+that achieves the maximum expected cumulative return from the start J Q (θc)=E 2 (Q θc(s t ,a t )(cid:0) (r(s t ,a t )+γ(Q θc(s t+1 ,a t+1 )
+state s1: ]
+π∗=argmaxJ(π) (8) (cid:0) αlog(π(a t+1 |s t+1 )))))2 (14)
+π
+where J(π)=E[R 1 |π]is known as the performance function [56]. In where θ is the parameters of the target critic network, which is used
+addition, the state-action value function, also known as Q-value func- to stabilize the training. The actor’s parameters can be learned by
+tion, is widely used in many RL algorithms to evaluate the goodness of a directly minimizing the expected KL-divergence in (13), which means
+policy, which is defined as the expected cumulative return under the minimizing the following loss function [57]:
+policy π at state st and action at:
+5
+
+=== page 6 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+[ ]
+1 there are two kinds of loss functions in our model: 1) a temporal dif-
+J π (θa)=E log(π θa(a t |s t ))(cid:0) α Q θc(s t ,a t )+log(Z(s t )) (15) ference (TD) error for soft Q-value in RL and 2) a mean square error
+(MSE) for prediction in SL. Cues from one loss are used to regularize and
+where the action at in (15) is obtained by applying reparameteriza-
+improve the generalization of the other one, and take full advantage of
+tion trick [57]:
+feature extracting in the shared LSTM network. LSTM is essentially an
+a t =f θa(ε t ;s t )=f θ μ a (s t )+ε t ⊙f θ σ a (s t ) (16) improved recurrent neural network (RNN) [58], and has been widely
+used in many fields due to its strong ability to handle the long-range
+In (16), the action is updated by mean f θ μ a (st )and variance fθ σ a (st )of temporal dependencies of time-series data [59]. The classical structure
+samples where initialize by some fixed distribution, such as a standard of an LSTM cell is shown in Fig. 3. It includes three gate neural network
+normal distribution. structure: input gate, forget gate and output gate, which regulate the
+The temperature parameter α is the most important hyperparameter information removing or adding to the cell state. The bidding and
+of SAC, since it is crucial to balance exploration and exploitation and to pricing tasks cooperate and promote the shared LSTM encoder to learn
+control the stochasticity of the optimal policy. Choosing the optimal α is the most efficient expression of features, so that the model has a stronger
+non-trivial, and α needs to be tuned for each task. Therefore, we utilize generalization.
+the automating entropy adjustment method to learn the optimal α
+adaptively during the training process as described in [57], and the loss 3.4. Network structure and pseudocode implementation of MDJBP
+of temperature can be computed as follows:
+J(α)=E[(cid:0) αlog(π t (a t |π t ))(cid:0) αH 0 ] (17) Based on multi-task learning and SAC, the network structure of
+MDJBP proposed in this paper is shown in Fig. 4. Firstly, the high-
+where H0 is the target entropy which is set as the negative of the dimensional abstract temporal features of input state vector are
+action dimension, i.e., H0 =(cid:0) dim(A). extracted by a k-layers stacked LSTM encoder, and then they are
+transmitted to task-specific branch for decision-making by using RL and
+3.3. Proposed MDJBP framework
+for prediction by using SL. The original input states [pt(cid:0)m:t(cid:0)1 ,λ t(cid:0)m:t(cid:0)1 ,
+et(cid:0)m:t(cid:0)1 ]need to be pre-processed and reconstructed into a vector form
+to meet the input format requirements of LSTM. Inspired by the word-to-
+The existing DRL methods of solving the joint bidding and pricing
+vector method in natural language processing area, we concatenate the
+problem is based on STL [46], which trains the bidding task and pricing
+task separately. The bidding task is pre-trained by using supervised
+related features into a new vector as [pt(cid:0)m ,λ t(cid:0)m ,et(cid:0)m ,…,pt(cid:0)1 ,λ t(cid:0)1 ,et(cid:0)1 ].
+Thus, the input form after vector reconstruction is shown in Fig. 5.
+learning (SL) method, and the pricing task is trained by using DRL
+For pricing task branch, the abstraction output from the LSTM is fed
+method along with the pre-trained bidding policy. There are three main
+into the policy network and soft Q-network to get the selected action and
+shortcomings of the STL method: 1) The policy learned from STL is not
+soft Q-loss. Fully connected (FC) layers and activation functions are
+the real optimal joint bidding and pricing policy, as the bidding policy
+has been learned and remains unchanged when learning the optimal
+pricing policy. 2) The pre-training of bidding policy requires a long time
+which significantly increases the total training time. 3) The mutually
+isolated tasks cannot share the underlying abstraction, which limits the
+overall learning efficiency and easily suffers from local optimization.
+To this end, a novel multi-task joint bidding and pricing model,
+namely MDJBP, is proposed to fulfill an optimal joint bidding and
+pricing policy by solving the bidding and pricing tasks simultaneously,
+which can take the advantages of correlations between bid quantities
+prediction task and optimal retail pricing task. With the perspective of
+multi-task learning, the learning of one task is helpful to train the other
+correlated task, since the two tasks in the MDJBP interacts through in-
+formation sharing, e.g., the abstract temporal features hidden in elec-
+tricity price and load time series. The overview of the architecture of
+MDJBP is shown in Fig. 2.
+As indicated in Fig. 2., the proposed architecture takes a single state
+vector as input and outputs a retail price and a bid quantity (an estimate
+of aggregate energy consumption). The closely related bidding and
+pricing tasks are learned concurrently, where the training of pricing task
+Fig. 3. Classical structure of an LSTM cell [60].
+is based on RL, and the training of bidding task is based on SL. Hence,
+Fig. 2. Overview of the architecture of MDJBP.
+6
+
+=== page 7 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Fig. 4. Network structure of the proposed MDJBP.
+task should increase with the importance of that task, and it may change
+over during the learning process. Therefore, after comparing several
+ALW schemes [62–64] through practical experiments, we adopt the
+CoV-Weighting method proposed in [64]. The loss weights are based on
+the coefficient of variations [64]:
+(cid:0) )
+ρ j,n =∑ c j c l (cid:0)j,n l j,n ) (20)
+where the coefficient of variation c is defined as the relative standard
+deviation (SD) as
+(cid:0) )
+(cid:0) ) σ ℓ
+Fig. 5. The input form after vector reconstruction. c ℓ j,n = μ (cid:0) ℓ j,n) (21)
+j,n
+where μ and σ denote the mean and the SD of the loss-ratio, which is
+adopted to construct the policy network and soft Q-network. The soft Q- defined as
+loss LQ is calculated by soft Bellman residual in (14). For bidding task
+b re r g a r n e c s h s , i o t n h e n e a t b w st o r r a k c t c o fe m a p tu o r s e e s d e o x f t F ra C c l t a e y d e f r r s o a m n d t h a e c t L iv S a T t M io n a r f e u n in ct p i u o t n s i n a t f o te a r ℓ j,n = μ (cid:0) L L j j , , n n (cid:0)1 ) (22)
+flatten and get the predicted result of bid quantities and prediction loss.
+(cid:0) whe)re Lj,n is the observed loss value of task j at training step n, and
+The prediction loss LP is calculated by the mean squared error (MSE): μ Lj,n(cid:0)1 is the mean of the observed losses up to n
+∑
+-1 step. It is worth
+MSE = N 1 ∑n (̂y i (cid:0) y i )2 (18) m im e p n o ti r o ta n n in t g to t h d a e t c o th u i p s l A e L th W e s lo ch ss e m we e i g ca h n ti n e g n s f u ro re m t h th a e t lea j ρ rn j,n in = g r 1 a , t w e. h ich is
+i=1
+Finally, as all loss functions are available, the stochastic gradient
+where N is the total number of prediction results, yi and ̂y i are the descent (SGD) is used to compute the gradient and update the parame-
+actual and predicted values respectively. Then, the joint loss function of ters of each network with corresponding learning rates ε. When imple-
+MDJBP is designed as a weighted linear sum of the soft Q-loss LQ and the menting the proposed MDJBP algorithm, an experience replay buffer
+prediction loss LP: technique is utilized to further enhance the sampling efficiency, and a
+L joint =ρ P L P +ρ Q L Q (19) target network for the soft Q-network in the critic is applied to stabilize
+the training process [28]. The parameter θ of the target network is set to
+Apart from how to analyse the correlation among tasks and how to be the exponential moving average of θ with a step factor τ. The pseu-
+design the network structure, another big challenge for MDJBP is how to docode of the proposed MDJBP algorithm is shown in Algorithm 1. To
+determine the weighting of different tasks, since the performance of better illustrate the proposed MDJBP algorithm, a flowchart of the
+multi-task learning is highly dependent on an appropriate weighting overall training procedure is plotted in Fig. 6. The two blocks high-
+between each task’s loss. SLW is the most direct and simple method, lighted with light green background indicate the parameterized joint
+which use a naive weighted sum of losses, where the loss weights are set bidding and pricing policy as shown in Fig. 2. and how to train this joint
+using prior intuition, or manually tuned [61]. However, manual tuning policy by using the proposed MDJBP as shown in Fig. 4. respectively,
+is difficult and tedious to implement, and grid-searching is prohibitively
+expensive. From an agent’s perspective, the loss weight of a particular
+7
+
+=== page 8 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Fig. 6. Flowchart for implementing the proposed MDJBP algorithm.
+which are the key innovations in this paper. (continued)
+Algorithm 1: Pseudocode of MDJBP algorithm with automating entropy adjustment Algorithm 1: Pseudocode of MDJBP algorithm with automating entropy adjustment
+and adaptive loss weighting and adaptive loss weighting
+Input: Parameters of DNNs, hyperparameters, wholesale and retail prices, aggregate 19: θr←τθr+(1(cid:0) τ)θr
+energy consumption of EUCs 20: end for
+Output: Parameterized joint bidding and pricing policy 21: end for
+1: Initialize: Parameters of representation, actor, critic, and regression network;
+Experience replay buffer.
+2: for each episode do
+3: Obtain the starting state s1. 4. Numerical simulation and discussion
+4: for each state transition step do
+5: Select bidding and pricing actions as at =(qb t ,λ t )=π(st ). 4.1. Simulation setup and details of implementation
+6: Execute actions and sample transition from the environment.
+7: Store the transition (st, at, rt, st+1 )in experience replay buffer.
+8: end for IEEE 30-bus system with 6 generators and 20 loads is applied to
+9: Sample a mini-batch of NB transitions from experience replay buffer. construct the WEM model, where each generator corresponds to one
+10: Calculate the joint loss Ljoint and SAC alpha loss Jα. seller and each load corresponds to one buyer. The detailed generator
+11: for each gradient step do and load parameters can be found in [41]. For more convenient illus-
+12: Update the adaptive loss weights.
+tration, assume each offer/bid is a two-dimensional vector consisting a
+13: Update the parameters of each network by
+14: θc←θc+εc⋅∇ θcLjoint (θc) bid price (in $/MWh) and a bid quantity (in MW). The offering and
+15: θa←θa+εa⋅∇ θaLjoint (θa) bidding data are similar with that in [46]: each seller submit only one
+16: θr←θr+εr⋅∇ θrLjoint (θr) offering block such that the offer quantities are equal to the maximum
+17: α←α+εα⋅∇αJα(α) capacities of generators as listed in [41], and the offer prices are sampled
+18: θc←τθc+(1(cid:0) τ)θc uniformly from [10, 30] $/MWh. Each buyer’s bid quantity is taken
+(continued on next column) from the historical load profiles in PJM [65], with its peak value scaled
+8
+
+=== page 9 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+to the maximum loads in [41], and the bid prices are sampled uniformly i7-10510U CPU and 16 GB of RAM.
+from [20, 40] $/MWh. Furthermore, we ignore the system losses and
+line congestions, and only consider the generation capacity limits for the 4.2. Performance comparison of training process
+WEM clearing problem. Therefore, the system marginal price (SMP)
+clearing mode is adopted in the WEM, and the fast, simple and stable 4.2.1. Case I: 100-EUCs
+queuing method [66] is used to solve (1) and gives the wholesale price pt We first evaluate the training performance of our proposed MTDRL-
+as well as the cleared energy sales and purchases for each market ALW method by comparing it with that of MTDRL-SLW and STDRL
+participant. methods on the 100-EUCs case. The three DRL-based methods are also
+An electricity retailer with 100 EUCs is considered as the MTDRL benchmarked with a myopic optimization algorithm which uses the
+agent in the simulation, while another case study is performed by same bidding strategy as the STDRL method. In the myopic optimization
+considering an electricity retailer with 300 EUCs to further verify the algorithm, the retail price is decided by maximizing the profit at current
+proposed methodology. One day is divided into 24 time-intervals each of time interval, which implies that the myopic optimization algorithm
+which lasts for one hour, and different time scales, e.g., one day, one only focuses on the immediate profit and ignores the impact of the
+week and one month, are taken as complete optimization cycles. The current retail price on the future returns. Such concept is similar to
+historical data used in the simulation are from the hourly data of PJM in setting the discount factor γ =0 in DRL algorithms. We train 10 different
+U.S. from January 1st 2019 to January 1st 2021 [65]. The data during instances of each method with different random seeds for 600 episodes.
+July and December in 2020 are used for testing, while all the remaining Fig. 7 illustrates the learning curves of the examined methods. The solid
+data are used for training. curves and the shaded region depict the mean and SD of the average
+In the REM, the minimum retail price is 20 $/MWh and the profit over the 10 trials.
+maximum is 40 $/MWh. For each EUC, the demand extension rate ϕi is In Fig. 7, we can observe that although the average profit keeps
+t
+sampled uniformly among values in {0, 0.1, 0.2, 0.3, 0.4}, while the increasing, it does not exceed the baseline level during the initial phase
+backlog rate νiis uniform randomly determined from [0, 0.5]. The newly of learning. Since the DRL-based agents learn the optimal policies
+t
+generated load demand δi is simulated by using historical incremental through trial-and-error and interaction with the environment. As the
+t
+loads in PJM, which is scaled by a value sampled uniformly from [0.1, 3] agents accumulates more and more effective experience, the learning
+MW, and added with a zero-mean and 0.1 SD Gaussian noise. Moreover, speed is also increasing. The average profit continues to increase, then
+the benefit function of an EUC is defined as a quadratic form as [67]: exceed the baseline level, and eventually reach convergence, which is
+(cid:0) ) (cid:0) ) reflected in the stabilized mean and the decreased SD during the end
+φi ei t ,d t i =ai t ei t (cid:0) d t i 2+bi t ei t (23) phase of learning. We also observe that the MTDRL methods manifests a
+better performance with higher and more stable profit as well as faster
+where ai is sampled uniformly from [0.1, 0.5], and bi is uniform
+t t learning speed than the STDRL method. Moreover, the MTDRL-ALW
+randomly determined from [20, 35] $/MWh. In addition, the risk
+method significantly outperforms the other three methods, obtaining
+function of an EUC is given as [46]:
+the highest average profit with the smallest SD at convergence and
+η(e t ,ξ t )=β|e t (cid:0) ξ t | (24) exhibiting the fastest learning speed. In relative terms, the MTDRL-ALW
+method achieves 12.8%/22.3% higher average profit and 68.9%/77.8%
+where β is a constant, e.g., β =5 means that the retailer will loss $5
+lower SD over the MTDRL-SLW/STDRL method, respectively.
+for every 1 MW deviation between the purchased energy and the actual
+To explain the advantages of MTDRL-ALW more clearly, we calculate
+aggregate energy consumption.
+and plot the soft Q-loss, which is an evaluation metric reflecting the
+Next, we introduce the implementation details of the MTDRL
+performance of pricing policy directly. As shown in Fig. 8., MTDRL-ALW
+method.
+shows the fastest error convergence speed, and the most stable and
+Firstly, in the shared representation module, the target LSTM
+lowest error value, while STDRL shows the slowest error convergence
+encoder has the same structure as the primary LSTM encoder, and the
+speed, highest error value and strongest oscillation. The performance of
+number of LSTM layers k is set to 2 through practical experiment. The
+MTDRL-SLW is between MTDRL-ALW and STDRL. Furthermore, the
+hidden sizes of LSTM encoder are both 8 neurons, and a 256-dimension
+mean absolute error (MAE), the root mean squared error (RMSE) and the
+feature vector is extracted from the LSTM layers. Secondly, both the
+mean absolute percentage error (MAPE) are computed to evaluate the
+actor and critic network have three hidden layers with 256, 128, and 64
+prediction performance of the MTDRL-based methods comparing with
+neurons respectively. The critic network also has primary and target soft
+the SL method. These three evaluation metrics are defined as follows:
+Q-network, which use the rectified linear unit (ReLU) [68] as activation
+f v u a n ti c o t n io f n u s n c fo ti r o n al f l o l r a t y h e e r s o , u w tp h u i t le l a t y h e e r t a o c t b o o r u n n e d t w th o e r o k u e tp m u p t l a o c y t s i o a n s t . a T n h h i r a d c l t y i- , MAE = N 1 ∑ i= n 1 |̂y i (cid:0) y i | (26)
+the discount factor γ =0.99 in both MTDRL and STDRL, the factor τ =
+√̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅̅
+0.005 for updating the target LSTM and Soft Q-networks, and the size of 1 ∑n
+a mini-batch NB sampling from the experience replay buffer is set to 128. RMSE = N (̂y i (cid:0) y i )2 (27)
+i=1
+In implementing MTDRL-SLW method, the joint loss of MTL could be
+simplified as 1 ∑n |̂y (cid:0) y|
+L joint =ρL p +(1(cid:0) ρ)L Q (25) MAPE = N i=1 i y i i ×100% (28)
+Finally, all networks’ parameters are randomly initialized and The comparison of the prediction errors of the examined methods are
+updated by gradient descent during the training process. The Adam presented in Table 1 The results illustrate that the MTDRL-based
+optimizer [69] is adopted to train all the networks in MTDRL or STDRL. methods are aware of the changing of aggregated energy consumption
+We set different learning rates for representation network, actor and relies on the common abstraction to train the pricing task more
+network, critic network and automating entropy as εr =10-3, εa =10-4, efficiently through its powerful prediction capability. In addition, by
+εc =10-3 and εα =10-3 respectively. considering the influence of retail price on aggregated energy con-
+The proposed MTDRL and examined STDRL methods are imple- sumption, MTDRL-ALW method improves the prediction performance in
+mented based on Python with Pytorch, an open-source machine learning all the three evaluation metrics compared with the SL method. However,
+framework developed by Facebook AI Research (FAIR). The training is there is still a performance gap between MTDRL-ALW and MTDRL-SLW.
+conducted on a computer with a four-core 1.80 GHz Intel(R) Core(TM) We can conclude that the MTDRL-based methods coordinate its bidding
+9
+
+=== page 10 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Fig. 7. Comparison of MTDRL-ALW (red), MTDRL-SLW (green) and STDRL (blue) in terms of the average profit over 10 different random seeds on the myopic
+optimization (black) benchmark.
+Fig. 8. The Soft Q-loss during training.
+Table 1 Table 2
+Prediction errors of the bid quantities for the examined methods. Computational performance of the examined methods.
+Method MAE (MW) RMSE (MW) MAPE (%) Method Total computational Number of Average computational
+time (sec) episodes time per episode (sec)
+MTDRL-ALW 0.837 1.027 3.96
+MTDRL-SLW (ρ =0.3) 1.073 1.501 5.03 MTDRL-ALW 389 230 1.69
+SL 1.139 1.279 5.52 MTDRL-SLW 582 320 1.82
+(ρ =0.3)
+STDRL (only 621 520 1.19
+and pricing policies with the RL loss signal and the SL loss signal, and pricing
+therefore obtains a more profitable and stable coordinating strategy. task)
+We also compare the computational performance of the proposed
+MTDRL-ALW method against the MTDRL-SLW and STDRL methods. episodes and the fewest total computational time required to reach
+Table 2 presents the total computational time required to reach convergence, followed by MTDRL-SLW and STDRL. What should be
+convergence, the number of episodes required to reach convergence, noted is that, the total computational time of STDRL refers to the time of
+and the average computational time per episode for all three examined training pricing task in the way of DRL, since the bidding policy has been
+methods. It is found that MTDRL-ALW has the fewest number of trained in the manner of SL before the training of pricing policy. And,
+10
+
+=== page 11 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+this is the main reason why STDRL (only pricing task) has the lowest Table 4
+average computational time per episode. If we consider the time Comparison of the prediction errors of bid quantities between 100-EUCs and
+required to solve the complete bidding and pricing task, the advantage 300-EUCs cases.
+of MTDRL-ALW in reducing computational time will be more obvious. Case MAE (MW) RMSE (MW) MAPE (%)
+These results demonstrate that the common factors can be effectively
+100-EUCs 0.837 1.027 3.96
+abstracted through MTDRL-ALW, and they could play a vital role in 300-EUCs 0.765 0.829 3.51
+speeding up the entire learning process.
+All the above comparison results prove that MTDRL-ALW can
+effectively learn the correlation between RL-based pricing task and SL- depends on the difference of these two prices, and whether the price
+based bid quantities, and make good use of this knowledge when difference is too large or too small, it will reduce the profit.
+developing optimal joint bidding and pricing policy. We can conclude The bid quantities and the responding aggregate energy consump-
+that learning bidding and pricing tasks jointly while exploiting com- tion under the MTDRL-ALW policy and the baseline policy with a con-
+monalities and differences across tasks efficiently enables MTDRL-ALW stant price of 35 $/MWh during the same day are illustrated as bars in
+to boost the profit, improve learning efficiency, reduce training time, Fig. 9. and Fig. 10. We can observe that the aggregate energy con-
+and enhance stability. sumption under MTDRL-ALW policy has lower variance than that under
+the baseline policy, which means that the optimal joint policy obtained
+4.2.2. Case II: 300-EUCs from MTDRL-ALW can achieve the peak shaving and valley filling of
+We also implement the proposed MTDRL-ALW method to simulate EUCs’ aggregate energy consumption. In addition, we can also observe
+the MDJBP model on the 300-EUCs case. The daily profits, prediction that the difference between bid quantity (predicted aggregate energy
+errors of bid quantities and computational performance are compared consumption) and actual responding aggregate energy consumption in
+between 100-EUCs case and 300-EUCs case to illustrate the rationality of the peak period is larger than that in the valley period.
+the proposed methodology. Table 3 presents the average daily profits, To better illustrate the optimization ability of the proposed method,
+SD and average increment over baseline algorithm obtained by using the simulations are carried out continuously for consecutive days, and
+MTDRL-ALW method for different testing days (62 days) under a certain the joint optimal policies (optimal retail price and bid quantities) during
+random seed. As expected, the average daily profit of 300-EUCs case is a one week in summer and winter scenarios are plotted in Fig. 11. The
+little more than three times that of 100-EUCs, since the aggregated en- results show that our proposed method can be applied to the joint bid-
+ergy consumption is tripled and the wholesale price basically remains ding and pricing optimization problem with different time scales, hence
+unchanged when all other settings remain unchanged and the LSE agent it has the potential for practical applications.
+is still considered as “price-taker”. The average increments over baseline
+algorithm of these two cases are almost the same, which means that our 4.3.2. Comparison of different schemes
+proposed method works well for both cases. Table 4 shows the predic- We simulate the joint bidding and pricing process of two typical days
+tion errors of bid quantities of two cases by using MTDRL-ALW during in both summer and winter scenarios, and compare economic and
+the same testing days. We can observe that the 300-EUCs case is better technical indicators by considering the three following schemes:
+than 100-EUCs in all the three evaluation metrics. The reason is that the
+increase in the number of EUCs makes the aggregation effect more • Scheme 1 (S1): The LSE agent solve the joint bidding and pricing
+obvious, reduces the randomness of the aggregated energy consumption, process separately with a bidding policy learned from SL and a
+thereby reduces the difficulty of bid quantities forecasting. It also ex- constant pricing policy of 35 $/MWh.
+plains why 300-EUCs case is a little more than three times that of 100- • Scheme 2 (S2): The LSE agent solve the joint bidding and pricing
+EUCs. Finally, the computational performance of these two cases is lis- process separately with a bidding policy learned from SL and a dy-
+ted in table 5, and it can be observed that the computational perfor- namic pricing policy learned from STDRL.
+mance of these two cases is very close. Through this comparison, we find • Scheme 3 (S3): The LSE agent solve the joint biding and pricing
+that the total computational burden and the computational complexity process simultaneously with a joint policy learned from MTDRL-
+of our proposed method does not increase significantly with the increase ALW.
+of the number of EUCs. In addition, the convergent performance is
+slightly improved with the increase of the number of EUCs, as the dif- Table 6 shows that economic indicators are improved by imple-
+ficulty of bid quantity prediction task is reduced.Table 5. menting the proposed MTDRL-ALW method. The total bills of all EUCs
+are almost the same under these three schemes. However, the cost of
+purchasing energy from WEM is reduced and the profit is increased
+4.3. Optimization results compared to Scheme S1 and S2. The sum of profit and purchasing cost is
+not equal to EUCs’ bill due to the loss caused by the energy imbalance.
+4.3.1. Optimal joint policy and corresponding aggregated energy As can be seen in Table 7, both considered technical indicators are
+consumption improved for the proposed MTDRL-ALW method. Therefore, using the
+The wholesale and retail prices under the MTDRL-ALW policy during proposed method would realize a more efficient peak shaving and valley
+a typical day in summer and winter scenarios are illustrated as curves in filling.
+Fig. 9. and Fig. 10., respectively. Obviously, the optimal retail price has
+similar trend as the wholesale price, which makes sense since the profit 4.3.3. Comparison of optimized profits
+Profits earned by the LSE is the most critical performance index to
+Table 3 evaluate the optimization methods. In order to compare the optimiza-
+Comparison of the daily profits over different days between 100-EUCs and 300- tion performance of MTDRL method and STDRL method more clearly,
+EUCs cases. we plot the profit curves with different days by using MTDRL-ALW and
+STDRL during both summer and winter scenarios. Fig. 12 shows that the
+Case Average daily profit SD ($) Average increment over baseline
+($) algorithm (%) joint policy from MTDRL-ALW outperforms the separate policies from
+STDRL in both two scenarios. This justifies the motivation of modelling
+100- 4,953 1,015 46.3
+the joint bidding and pricing problem as the proposed MDJBP, and also
+EUCs
+300- 15,826 939 46.5 proves the superiority of the proposed MTDRL method over conven-
+EUCs tional STDRL methods.
+11
+
+=== page 12 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Table 5
+Comparison of the computational performance between 100-EUCs and 300-EUCs cases.
+Case Total computational time (sec) Number of episodes Average computational time per episode (sec)
+100-EUCs 389 230 1.69
+300-EUCs 400 220 1.81
+Fig. 9. Wholesale and optimal retail prices, aggregate energy consumptions and bid quantity during a typical day in summer scenario.
+Fig. 10. Wholesale and optimal retail prices, aggregate energy consumptions and bid quantity during a typical day in winter scenario.
+4.4. Selection of hyperparameters method show a stable convergence but the slowest learning speed, as
+the proportion of prediction loss is small which means that the contri-
+The aim of this subsection lies in illustrating the impact of two most bution from the bidding task is not enough. While, under a high
+critical hyperparameters on the performance of the proposed MTDRL weighing factor (ρ = 0.6), the learning speed is improved but the
+method by using the 100-EUCs case. As discussed in Section 3.4, the convergence stability is seriously damaged, which indicates that the loss
+proper loss weighting associated with the MTDRL method is a chal- weights are still inappropriate. Moreover, we can observe an obvious
+lenging task which has been addressed in this paper through the ALW phenomenon of local optimization from the learning curve in which the
+technique. In order to show the superiority of MTDRL-ALW and to profit at convergence is significantly lower than the profit in the learning
+analyse the influence of different values of ρ on the learning perfor- process. When ρ =0.3, the performance shows a faster learning speed
+mance of MTDRL-SLW, we compare the training performance of than that of ρ =0.1 but a lower learning speed than that of ρ =0.6, and
+MTDRL-ALW between MTDRL-SLW with different values of ρ, as shown its stability also lies between that of ρ =0.1 and ρ =0.6. The perfor-
+in Fig. 13. Under a low weighting factor (ρ = 0.1), the MTDRL-SLW mance of MTDRL-ALW presents both the fastest learning speed and most
+12
+
+=== page 13 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Fig. 11. Optimal retail prices and bid quantities during a week in a) summer scenario, b) winter scenario.
+Table 6
+Economic indicators for different schemes.
+Scheme Bidding policy Pricing policy LSE’s profit ($) LSE’s purchasing cost ($) EUCs’ bill ($)
+Summer Winter Summer Winter Summer Winter
+S1 SL Constant 3,557 3,005 13,891 12,682 17,883 16,108
+S2 SL Dynamic (STDRL) 4,599 4,187 12,805 11,419 17,831 16,054
+S3 Joint policy (MTDRL-ALW) 5,356 4,926 12,168 10,696 17,814 16,019
+algorithm, the most important of which is the temperature parameter α.
+Table 7 Fig. 15. presents the impact of the temperature parameter α on the
+Technical indicators for different schemes.
+performance of MTDRL. As discussed in Section 3.2, the temperature is
+Scheme Bidding Pricing Peak reduction Peak to valley responsible for balancing exploration and exploitation and controlling
+policy policy (MW) distance (MW)
+the stochasticity of the optimal policy. Typically, the temperature
+Summer Winter Summer Winter parameter α should be allowed to change over the entire training pro-
+S1 SL Constant — — 13.986 9.998 cess, since the policy should be more inclined to explore at the beginning
+S2 SL Dynamic 1.822 1.108 10.562 7.337 of learning where the optimal action is uncertain, but remain more
+(STDRL) deterministic in the later stage of learning to better exploit the learned
+S3 Joint policy (MTDRL- 2.463 2.011 8.285 6.341 experience. If α is a fixed and relatively low value (α = 0.1), it is
+ALW)
+vulnerable to local optimization due to the inadequate exploration in the
+initial stage of learning. However, if setting α as a relatively high value
+stable convergence, as well as the highest profit, which demonstrate the (α = 0.5), it also falls into the trap of local optimization with huge
+superiority of using the ALW method. Fig. 14 shows the values of the fluctuations due to excessive exploration. By using the automating en-
+adaptive loss weights calculated during the training process. tropy adjustment method, we obtain the highest profit with an efficient,
+Compared with other conventional DRL algorithms, SAC alleviates high-speed and stable learning curve since the optimal temperature
+the hyperparameters brittleness. However, there are still some hyper- parameter α is learned adaptively during the entire learning process.
+parameters that can dramatically affect the performance of the
+13
+
+=== page 14 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Fig. 12. Profits comparison between MTDRL-ALW and STDRL on different days in a) summer scenario, b) winter scenario.
+Fig. 13. Impact of loss weighting on the performance of MTDRL.
+14
+
+=== page 15 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Fig. 14. The adaptive loss weights during the training process by using the CoV-Weighting method.
+Fig. 15. Impact of temperature parameter α on the performance of MTDRL.
+5. Conclusion example, it would be interesting to extend the proposed MDJBP
+framework to handle the profit games between generation and demand
+In this paper, we first formulated the joint bidding and pricing sides in WEM, between different retailers, and between retailers and
+problem of an electricity retailer to a finite MDP with a joint policy. By EUCs in REM, by introducing multi-agent DRL. Another potential di-
+realizing the joint loss from both bidding and pricing tasks, we proposed rection would be a further study of the correlation among related tasks
+a novel MDJBP framework with a shared LSTM representation network such that more related tasks can be concurrently solved or treated as
+to carry out multi-task parallel training of joint bidding and pricing auxiliary tasks.
+policy, and to fully dig the coupling relations between bidding and
+pricing tasks. A multi-task end-to-end DNN network structure involving CRediT authorship contribution statement
+automating entropy adjustment and adaptive loss weighting is designed
+to implement the MDJBP framework. The performance of MTDRL was Hongsheng Xu: Conceptualization, Methodology, Software, Data
+evaluated by comparing with STDRL and a baseline method through curation, Writing – original draft, Writing – review & editing. Qiuwei
+numerical simulation in different cases. The results show that MTDRL Wu: Supervision, Conceptualization, Writing – review & editing. Jinyu
+increases learning efficiency, reduces training time, and enhance sta- Wen: Supervision. Zhihong Yang: Supervision.
+bility. Simulations for different days and different schemes are con-
+ducted in both summer and winter scenarios, which proves the
+feasibility of the proposed method in practice and uncovers the potential Declaration of Competing Interest
+of the proposed method in efficient collaborative learning of related
+tasks. Experimental data of hyperparameters selection also demonstrate The authors declare that they have no known competing financial
+the significance and superiority of automating entropy adjustment and interests or personal relationships that could have appeared to influence
+adaptive loss weighting. Thus, we can conclude that MTDRL achieves the work reported in this paper.
+excellent joint bidding and pricing policy by exploiting commonalities
+and differences between bidding task and pricing task. Acknowledgements
+There are a variety of interesting directions for future work. For
+This work was supported by Natural Science Foundation of Jiangsu
+15
+
+=== page 16 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+Province (grant number BK20210002) and State Grid Corporation of [30] Arulkumaran K, Deisenroth MP, Brundage M, Bharath AA. Deep reinforcement
+China (project number 1400-202140341A-0-0-00). learning: A brief survey. IEEE Signal Process Mag 2017;34(6):26–38.
+[31] Perera ATD, Kamalaruban P. Applications of reinforcement learning in energy
+systems. Renew Sustain Energy Rev 2021;137:110618. https://doi.org/10.1016/j.
+References rser.2020.110618.
+[32] Ibrahim MS, Dong W, Yang Q. Machine learning driven smart electric power
+[1] Shahidehpour M, Yamin H, Li ZY. Market, Market Operations in Electric Power systems: Current trends and new perspectives. Appl Energy 2020;272:115237.
+Systems: Forecasting, Scheduling, and Risk Management. New York: John Wiley & [33] h V t a´ t z p q s u :/ e / z d -C oi a .o n r te g l / i 1 J 0 R .1 , 0 N 1 a 6 g / y j .a Z p . e R n e e i r n g f y o . r 2 c 0 em 20 e . n 1 t 1 5 le 2 a 3 r 7 n . i ng for demand response: a
+Sons; 2002.
+review of algorithms and modeling techniques. Appl Energy 2019;235:1072–89.
+[2] Palensky P, Dietrich D. Demand side management: Demand response, intelligent
+[34] Lu R, Hong SH. Incentive-based demand response for smart grid with
+energy systems, and smart loads. IEEE Transaction on Industrial Informatics 2011;
+7(3):381–8. reinforcement learning and deep neural network. Appl Energy 2019;236:937–49.
+[35] Kim BG, Zhang Y, van der Schaar M, Lee JW. Dynamic pricing and energy
+[3] Samad T, Koch E, Stluka P. Automated Demand Response for Smart Buildings and
+consumption scheduling with reinforcement learning. IEEE Trans Smart Grid Sept.
+Microgrids: The State of the Practice and Research Challenges. Proceedings of the
+IEEE, Apr. 2016;104(4):726–44.
+2016;7(5):2187–98.
+[4] Wang F, Xu H, Xu Ti, Li K, Shafie-khah M, Catal˜ao JPS. The values of market-based [36] Lu T, Chen X, McElroy MB, Nielsen CP, Wu Q, Ai Q. A Reinforcement Learning-
+Based Decision System for Electricity Pricing Plan Selection by Smart Grid End
+demand response on improving power system reliability under extreme
+circumstances. Appl Energy 2017;193:220–31. Users. IEEE Trans Smart Grid May 2021;12(3):2176–87.
+[5] Kirschen DS. Demand-side view of electricity markets. IEEE Trans Power Syst 2003; [37] Bahrami S, Chen YC, Wong VWS. Deep Reinforcement Learning for Demand
+18(2):520–7. Response in Distribution Networks. IEEE Trans Smart Grid Mar. 2021;12(2):
+1496–506.
+[6] Vardakas JS, Zorba N, Verikoukis CV. A survey on demand response programs in
+[38] Liu Y, Zhang D, Gooi HB. Data-driven decision-making strategies for electricity
+smart grids: Pricing methods and optimization algorithms. IEEE Commun Surv
+Tutorials 2015;17(1):152–78. retailers: A deep reinforcement learning approach. CSEE J Power Energy Syst Mar.
+[7] Yang J, Zhao J, Luo F, Wen F, Dong ZY. Decision-making for electricity retailers: A
+2021;7(2):358–67.
+brief Survey. IEEE Trans Smart Grid Sep. 2018;9(5):4140–53. [39] Wen L, Zhou K, Li J, Wang S. Modified deep learning and reinforcement learning
+for an incentive-based demand response model. Energy 2020;205:118019. https://
+[8] Fang X, Hu Q, Li F, Wang B, Li Y. Coupon-based demand response considering wind
+doi.org/10.1016/j.energy.2020.118019.
+power uncertainty: A strategic bidding model for load serving entities. IEEE Trans
+Power Syst Mar. 2016;31(2):1025–37. [40] Kong X, Kong D, Yao J, Bai L, Xiao J. Online pricing of demand response based on
+long short-term memory and reinforcement learning. Appl Energy 2020;271:
+[9] Xu H, Zhang K, Zhang J. Optimal joint bidding and pricing of profit-seeking load
+serving entity. IEEE Trans Power Syst Sep. 2018;33(5):5427–36. 114945.
+[10] Song M, Amelin M. Purchase Bidding Strategy for a Retailer With Flexible Demands [41] Liang Y, Guo C, Ding Z, Hua H. Agent-Based Modeling in Electricity Market Using
+in Day-Ahead Electricity Market. IEEE Trans Power Syst May 2017;32(3):1839–50. Deep Deterministic Policy Gradient Algorithm. IEEE Trans Power Syst Nov. 2020;
+35(6):4180–92.
+[11] Saez-Gallego J, Kohansal M, Sadeghi-Mobarakeh A, Morales JM. Optimal Price-
+[42] Lee S, Choi D. Dynamic pricing and energy management for profit maximization in
+Energy Demand Bids for Aggregate Price-Responsive Loads. IEEE Trans Smart Grid
+Sep. 2018;9(5):5005–13. multiple smart electric vehicle charging stations: A privacy-preserving deep
+[12] J. C. do Prado and W. Qiao, “A Stochastic Decision-Making Model for an Electricity reinforcement learning approach. Appl Energy 2021;304:117754.
+Retailer With Intermittent Renewable Energy and Short-Term Demand Response,” [43] Zhang L, Gao Y, Zhu H, Tao L. Bi-level stochastic real-time pricing model in multi-
+energy generation system: A reinforcement learning approach. Energy 2022;239:
+IEEE Transactions on Smart Grid, vol. 10, no. 3, pp. 2581-2592, May 2019.
+121926.
+[13] Sadeghi-Mobarakeh A, Mohsenian-Rad H. Optimal Bidding in Performance-Based
+[44] Cao D, Hu W, Xu X, Dragicevic T, Huang Q, Liu Z, et al. Bidding strategy for trading
+Regulation Markets: An MPEC Analysis With System Dynamics. IEEE Trans Power
+Syst Mar. 2017;32(2):1282–92. wind energy and purchasing reserve of wind power producer–A DRL based
+[14] Bahramara S, Yazdani-Damavandi M, Contreras J, Shafie-Khah M, Catala˜o JPS. approach. Int J Electr Power Energy Syst 2020;117:105648.
+Modeling the strategic behavior of a distribution company in wholesale energy and [45] Namalomba E, Hu F, Shi H. Agent based simulation of centralized electricity
+reserve markets. IEEE Trans Smart Grid Jul. 2018;9(4):3857–70. transaction market using bi-level and Q-learning algorithm approach. Int J Electr
+[15] Rashidizadeh-Kermani H, Vahedipour-Dahraie M, Shafie-khah M, Catala˜o JPS. Power Energy Syst 2022;134:107415.
+[46] Xu H, Sun H, Nikovski D, Kitamura S, Mori K, Hashimoto H. Deep reinforcement
+A bi-level risk-constrained offering strategy of a wind power producer considering
+demand side resources. Int J Electr Power Energy Syst 2019;104:562–74. learning for joint bidding and pricing of load serving entity. IEEE Trans Smart Grid
+[16] Poplavskaya K, Lago J, de Vries L. Effect of market design on strategic bidding Nov. 2019;10(6):6366–75.
+[47] Xuan W, Wang S, Zhao Q, Wang S, Fu L. A multi-energy load prediction model
+behavior: Model-based analysis of European electricity balancing markets. Appl
+based on deep multi-task learning and ensemble approach for regional integrated
+Energy 2020;270:115130. https://doi.org/10.1016/j.apenergy.2020.115130.
+energy systems. Int J Electr Power Energy Syst 2021;126:106583.
+[17] Xiao D, do Prado JC, Qiao W. Optimal joint demand and virtual bidding for a
+[48] Caruana R. Multitask learning. Mach. Learn. 1997;28:41–75.
+strategic retailer in the short-term electricity market. Electr Power Syst Res 2021;
+[49] Taylor ME, Stone P. Transfer learning for reinforcement learning domains: A
+190:106855. https://doi.org/10.1016/j.epsr.2020.106855.
+survey. J. Mach. Learn. Res. 2009;10:1633–85.
+[18] Jia Y, Mi Z, Yu Y, Song Z, Liu L, Sun C. Purchase Bidding Strategy for Load Agent
+With the Incentive-Based Demand Response. IEEE Access 2019;7:58626–37. [50] Qian L, Wu Y, Jiang F, Yu N, Lu W, Lin B. NOMA Assisted Multi-Task Multi-Access
+Mobile Edge Computing via Deep Reinforcement Learning for Industrial Internet of
+[19] Gao X, Chan KW, Xia S, Zhang X, Zhang K, Zhou J. A Multiagent Competitive
+Things. IEEE Trans Ind Inf Aug. 2021;17(8):5688–98.
+Bidding Strategy in a Pool-Based Electricity Market With Price-Maker Participants
+of WPPs and EV Aggregators. IEEE Trans Ind Inf Nov. 2021;17(11):7256–68. [51] Qi Q, et al. Scalable Parallel Task Scheduling for Autonomous Driving Using Multi-
+Task Deep Reinforcement Learning. IEEE Trans Veh Technol Nov. 2020;69(11):
+[20] Anees A, Dillon T, Wallis S, Chen YP. Optimization of day-ahead and real-time
+prices for smart home community. Int J Electr Power Energy Syst 2021;124:
+13861–74.
+[52] Lei K, Liang Y, Li W. Congestion Control in SDN-Based Networks via Multi-Task
+106403.
+Deep Reinforcement Learning. IEEE Network 2020;34(4):28–34.
+[21] Chen L, Yang Y, Xu Q. Retail dynamic pricing strategy design considering the
+[53] Wang JP, Shi YK, Zhang WS, Thomas I, Duan SH. Multitask policy adversarial
+fluctuations in day-ahead market using integrated demand response. Int J Electr
+learning for human-level control with large state spaces. IEEE Trans Ind Inf April
+Power Energy Syst 2021;130:106983.
+[22] Nguyen DT, Nguyen HT, Le LB. Dynamic Pricing Design for Demand Response
+2019;15(4):2395–404.
+[54] Du Y, Li F, Munk J, Kurte K, Kotevska O, Amasyali K, et al. Multi-task deep
+Integration in Power Distribution Networks. IEEE Trans Power Syst Sep. 2016;31
+(5):3457–72. reinforcement learning for intelligent multi-zone residential HVAC control. Electr
+Power Syst Res 2021;192:106959.
+[23] Meng F, Zeng X. A Profit Maximization Approach to Demand Response
+[55] Yu L, Sun Yi, Xu Z, Shen C, Yue D, Jiang T, et al. Multi-Agent Deep Reinforcement
+Management with Customers Behavior Learning in Smart Grid. IEEE Trans Smart
+Grid May 2016;7(3):1516–29. Learning for HVAC Control in Commercial Buildings. IEEE Trans Smart Grid 2021;
+12(1):407–19.
+[24] Liang B, Yang J, Hou B, He Z. A Pricing Method for Distribution System
+Aggregators Considering Differentiated Load Types and Price Uncertainty. IEEE [56] T. Haarnoja, A. Zhou, P. Abbeel, and S. Levine, “Soft actor-critic: Off-policy
+Trans Power Syst May 2021;36(3):1973–83. maximum entropy deep reinforcement learning with a stochastic actor,” in Proc.
+35th Int. Conf. Mach. Learn., Stockholm Sweden, Jul. 2018, pp. 1861–1870.
+[25] Ye Y, Qiu D, Sun M, Papadaskalopoulos D, Strbac G. Deep Reinforcement Learning
+[57] T. Haarnoja, A. Zhou, K. Hartikainen, G. Tucker, S. Ha, J. Tan, et alet al., “Soft
+for Strategic Bidding in Electricity Markets. IEEE Trans Smart Grid Mar. 2020;11
+(2):1343–55. actor-critic algorithms and applications,” 2018, arXiv:1812.05905.
+[26] Du Y, Li F, Zandi H, Xue Y. Approximating Nash Equilibrium in Day-ahead [58] Hochreiter S, Schmidhuber J. Long short-term memory. Neural Comput 1997;9:
+1735–80.
+Electricity Market Bidding with Multi-agent Deep Reinforcement Learning. J Mod
+Power Syst Clean Energy May 2021;9(3):534–44. [59] Greff K, Srivastava RK, Koutnik J, Steunebrink BR, Schmidhuber J. LSTM: A search
+space Odyssey. IEEE Trans Neural Networks Learn Syst Oct. 2017;28(10):2222–32.
+[27] Lu R, Hong SH, Zhang X. A Dynamic pricing demand response algorithm for smart
+grid: Reinforcement learning approach. Appl Energy 2018;220:220–30. [60] C. Olah. Understanding LSTM networks. [Online]. Availabe: http://colah.github.
+io/posts/2015-08-Understanding-LSTMs.
+[28] Mnih V, et al. Human-level control through deep reinforcement learning. Nature
+Feb. 2015;518(7540):529–33. [61] X. Lin, H. S. Baweja, G. kantor and D. Held, “Adaptive auxiliary task weighting for
+[29] Silver D, et al. Mastering the game of Go with deep neural networks and tree reinforcement learning,” in Proc. 33rd Conf. on Neural Information Processing
+search. Nature Jan. 2016;529(7587):484–9. Systems (NeurIPS 2019), Vancouver, Canada, 2019.
+16
+
+=== page 17 ===
+H. Xu et al. I n t e r n a t i o n a l J o u r n a l o f E l e c t r i c a l P o w e r a n d E n e r g y S y s t e m s 138(2022)107897
+[62] Kendall A, Gal Y, Cipolla R. Multi-task learning using uncertainty to weigh losses [66] Wang J, Wu J, Che Y. Agent and system dynamics-based hybrid modeling and
+for scene geometry and semantics. In: In: Proc IEEE conf comput vis pattern recognit; simulation for multilateral bidding in electricity market. Energy 2019;180:444–56.
+2018. p. 7482–91. [67] Fahrioglu M, Alvarado FL. Using utility information to calibrate customer demand
+[63] Z. Chen, V. Badrinarayanan, C. Y. Lee and A. Rabinovich, “GradNorm: Gradient management behavior models. IEEE Trans Power Syst May 2001;16(2):317–22.
+normalization for adaptive loss balancing in deep multitask networks,” in Proc. [68] Krizhevsky A, Sutskever I, Hinton GE. ImageNet classification with deep
+35th Int. Conf. Mach. Learn., Stockholm Sweden, Jul. 2018. convolutional neural networks. Advances in neural information processing systems
+[64] R. Groenendijk, S. Karaoglu, T. Gevers and T. Mensink, “Multi-loss weighting with 2012;25:1097–105.
+coefficient of variations,” in Proc. 2021 IEEE Winter Conf. on Applications of [69] Kingma DP, Ba J. “Adam: A method for stochastic optimization”, in Proceedings of
+Computer Vision (WACV 2021), Jan. 2021. the 3rd International Conference Learning Represent (ICLR). Diego: CA, USA, May;
+[65] PJM Data Miner 2. Accessed: May 15, 2021. [Online]. Available: http:// 2015. p. 1–15.
+dataminer2.pjm.com.
+17

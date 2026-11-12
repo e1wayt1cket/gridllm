@@ -1,0 +1,102 @@
+{
+  "artifact_verification": "PASS",
+  "checks": {
+    "accounting": {
+      "detail": {
+        "mechanism": "24 blocks; each clears a 16-period rolling window and commits 4; windows ending at the true day end pin every storage unit's absolute SOC to 0.5; all four RL units truthful; no intermediate-window pin",
+        "note": "pilot/b1_daily_results.csv is the unpinned baseline and is not used",
+        "soc0": 0.5,
+        "terminal_soc_target": 0.5
+      },
+      "pass": true
+    },
+    "block_aggregation": {
+      "detail": {
+        "block_lengths": [
+          24
+        ],
+        "examples": [],
+        "extra_keys": 0,
+        "mismatches": 0,
+        "missing": 0
+      },
+      "pass": true
+    },
+    "config_matches_environment": {
+      "detail": {
+        "cycle_cost": 100.0,
+        "environment_config_hash": "5c6c93f16209203b61bfcc11436b110b80206fde5b2c2247a7ea29295b2c4162",
+        "manifest_config_hash": "5c6c93f16209203b61bfcc11436b110b80206fde5b2c2247a7ea29295b2c4162"
+      },
+      "pass": true
+    },
+    "day_completeness": {
+      "detail": {
+        "failures": [],
+        "manifest_days": 96,
+        "rows": 96,
+        "unique": 96
+      },
+      "pass": true
+    },
+    "input_output_hashes": {
+      "detail": {
+        "block_payoffs": {
+          "actual": "87cb7e9ddc2493b40479b2354ec4fcb266508c730582bb999b03c74f91483fed",
+          "expected": "87cb7e9ddc2493b40479b2354ec4fcb266508c730582bb999b03c74f91483fed",
+          "match": true,
+          "path": "data/processed/v2_cy_jn_2025/b1_terminal_neutral_block_payoffs.json"
+        },
+        "bus_loads": {
+          "actual": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078",
+          "expected": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078",
+          "match": true,
+          "path": "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz"
+        },
+        "near_pairing": {
+          "actual": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363",
+          "expected": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363",
+          "match": true,
+          "path": "data/processed/v2_cy_jn_2025/near/load_price_pairing.csv"
+        },
+        "pairing": {
+          "actual": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1",
+          "expected": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1",
+          "match": true,
+          "path": "data/processed/v2_cy_jn_2025/load_price_pairing.csv"
+        },
+        "price_curves": {
+          "actual": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1",
+          "expected": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1",
+          "match": true,
+          "path": "data/processed/v2_cy_jn_2025/price_curves.npz"
+        },
+        "results": {
+          "actual": "886ec54e6d553af3c5181bda6351ddef805437946c92a35c823a9a2300be50aa",
+          "expected": "886ec54e6d553af3c5181bda6351ddef805437946c92a35c823a9a2300be50aa",
+          "match": true,
+          "path": "data/processed/v2_cy_jn_2025/b1_terminal_neutral_results.csv"
+        }
+      },
+      "pass": true
+    },
+    "mechanism_matches_formal_run": {
+      "detail": {
+        "formal_run_mechanism_hash": "835d1a3a298483c491e83287844e5864de7fbbe9878478c323c82c42f6879141",
+        "manifest_mechanism_hash": "835d1a3a298483c491e83287844e5864de7fbbe9878478c323c82c42f6879141"
+      },
+      "pass": true
+    },
+    "terminal_and_feasibility": {
+      "detail": {
+        "fallbacks": 0,
+        "infeasible_days": [],
+        "manifest_terminal_target": 0.5,
+        "max_abs_terminal_err": 0.0
+      },
+      "pass": true
+    }
+  },
+  "solver_rerun_reproducibility": "NOT_TESTED",
+  "why_not_rerun": "Re-solving would overwrite the only copy of the artifact and would only demonstrate determinism."
+}

@@ -35,6 +35,10 @@ def _same_draw_update_and_execution(trainer, policy_out):
 def test_update_path_equals_execution_path_on_batched_open_gates():
     trainer = da.DAGateTrainer(
         _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
+    # Post-warmup (tau = 1): v4 caps the open probability at sigmoid(4), and
+    # at tau = 4 a logit of 10 only opens with p ~ 0.73; these tests assert
+    # map values, so they run at the evaluation temperature.
+    trainer._current_episode = 10 ** 9
     policy = torch.tensor([
         [10.0, 10.0, -5.0, -5.0],
         [10.0, 10.0, 0.0, 0.0],
@@ -54,6 +58,7 @@ def test_update_path_equals_execution_path_on_batched_open_gates():
 def test_closed_gate_is_exactly_zero_in_the_update_path():
     trainer = da.DAGateTrainer(
         _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
+    trainer._current_episode = 10 ** 9  # tau = 1; see above
     policy = torch.tensor([[-100.0, 100.0, 2.5, 2.5]])
     torch.manual_seed(0)
     quotes = trainer._actor_loss_quotes(policy)
@@ -80,6 +85,7 @@ def test_update_path_uses_the_scheduled_gate_temperature():
 def test_update_path_is_v3_not_v2():
     trainer = da.DAGateTrainer(
         _env(), da.DAExperimentConfig(), agent_names=list(NAMES))
+    trainer._current_episode = 10 ** 9  # tau = 1; see above
     policy = torch.tensor([[10.0, 10.0, 2.5, 2.5]])
     torch.manual_seed(0)
     got = trainer._actor_loss_quotes(policy)

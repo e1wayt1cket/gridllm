@@ -1,0 +1,91 @@
+{
+  "schema_version": "matd3-checkpoint-v2",
+  "level": "bundle",
+  "run_id": "NEAR_11_8th",
+  "dataset": "NEAR",
+  "seed": 11,
+  "code_revision": "rev",
+  "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "specs": {
+    "obs_spec": {
+      "name": "v6_12d",
+      "version": 6
+    },
+    "action_spec": {
+      "name": "storage_quote_v2",
+      "version": 2
+    }
+  },
+  "networks": {
+    "actors": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "actor_targets": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "critics": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "critic_targets": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ]
+  },
+  "optimizers": {
+    "actor": "adam",
+    "critic": "adam"
+  },
+  "counters": {
+    "total_steps": 480,
+    "episode": 20,
+    "updates": 417,
+    "buffer_len": 480
+  },
+  "rng": {
+    "python": 1,
+    "numpy": 2,
+    "torch_cpu": "state",
+    "torch_cuda": null,
+    "env": null
+  },
+  "buffer": {
+    "saved": true,
+    "path": "buffer/replay.npz",
+    "capacity": 20000,
+    "index": 480,
+    "count": 480
+  },
+  "reward": {
+    "definition": "C2_potential_soc_time",
+    "gamma": 0.99,
+    "scale": "fixed",
+    "potential": {
+      "form": "soc_time",
+      "kappa": 288.2,
+      "bound": 184.4,
+      "terminal": 0.0
+    },
+    "normalization": "none",
+    "terminal_rule": "settlement_pin",
+    "b1_source": "b1_table.json"
+  },
+  "data": {
+    "pairing": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bus_loads": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "price_curves": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "common_split": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "exposure_log": "exposure.csv",
+  "eval_provenance": "eval/provenance.json"
+}

@@ -291,8 +291,11 @@ class MATD3BC2Gate:
                            weight_decay=1e-5)
             for nm in self.agent_names}
         self.critic_opts = {
+            # weight_decay 0: with Q at O(1) or below, 1e-4 decays the very
+            # weights that carry the between-action differences the actor
+            # needs; the v3 audits trace the ranking failure partly here.
             nm: optim.Adam(self.critics[nm].parameters(), lr=experiment.lr,
-                           weight_decay=1e-4)
+                           weight_decay=0.0)
             for nm in self.agent_names}
 
         self.buffer = GateReplayBuffer(experiment.buffer_capacity)
@@ -629,15 +632,74 @@ class MATD3BC2Gate:
                                 .detach()))
 
         actor_losses = {}
+        anchor_logs = {}
+        hinge_adv_logs = {}
+        hinge_active_logs = {}
+        hinge_twin_logs = {}
+        anchor_weight = float(getattr(self.experiment, "anchor_weight", 0.0))
+        hinge_delta = float(getattr(self.experiment,
+                                    "advantage_hinge_delta", 0.0))
+        twin_weight = float(getattr(self.experiment,
+                                    "hinge_twin_gap_weight", 0.0))
+        highs = torch.as_tensor(LEG_HIGHS, dtype=torch.float32)
         if self.total_steps % max(self.experiment.policy_delay, 1) == 0:
             for i, nm in enumerate(self.agent_names):
                 actor = self.actors[nm]
                 critic = self.critics[nm]
                 policy_out = actor(obs[:, i, :])
+                quotes_i = self._actor_loss_quotes(policy_out)
                 replaced = act.clone()
-                replaced[:, i, :] = self._actor_loss_quotes(policy_out)
+                replaced[:, i, :] = quotes_i
                 q1, q2 = critic(obs_flat, replaced.reshape(batch_size, -1))
-                loss = -torch.min(q1, q2).mean()
+                q_policy = torch.min(q1, q2)
+                if hinge_delta > 0.0:
+                    # W7 advantage hinge: the econ term fires only where the
+                    # critic sees an advantage over the truthful quote that
+                    # clears the noise floor delta. The truthful
+                    # counterfactual reuses the batch's joint action with
+                    # this agent's quotes zeroed, the same reference the
+                    # anchor pulls toward. On flat-Q states (winter days,
+                    # G1c) the spurious sub-delta slope no longer moves the
+                    # actor; a genuinely better-than-delta edge still does.
+                    # Q(a_truthful) carries no gradient.
+                    with torch.no_grad():
+                        truthful = act.clone()
+                        truthful[:, i, :] = 0.0
+                        tq1, tq2 = critic(
+                            obs_flat, truthful.reshape(batch_size, -1))
+                        q_truth = torch.min(tq1, tq2)
+                        # W9 (b/W8标定暴露_G1重测_2026-11-09.md §5): never
+                        # trust an advantage smaller than the two critics'
+                        # own disagreement at the evaluated action. In the
+                        # acceptance-blind plateau the payoff signal cannot
+                        # differentiate quotes and the twins' extrapolation
+                        # diverges (measured twin_gap 0.12-0.17 there vs
+                        # 0.02-0.09 where payoff differentiates), so the
+                        # effective floor rises exactly where the critic is
+                        # underdetermined. weight 0 restores the W7 constant
+                        # floor.
+                        twin_gap = (q1 - q2).abs()
+                        delta_eff = torch.clamp(
+                            twin_weight * twin_gap, min=hinge_delta)
+                    advantage = q_policy - q_truth
+                    loss = -nn.functional.relu(
+                        advantage - delta_eff).mean()
+                    hinge_adv_logs[nm] = float(advantage.mean().detach())
+                    hinge_active_logs[nm] = float(
+                        (advantage > delta_eff).float().mean().detach())
+                    hinge_twin_logs[nm] = float(twin_gap.mean().detach())
+                else:
+                    loss = -q_policy.mean()
+                # Anchor toward the truthful quote (0, 0): box-normalised
+                # squared deviation of the executed quotes, exactly zero at
+                # the truthful point. On a flat or mis-ranked Q surface this
+                # is the only term that keeps the policy from drifting away
+                # from truthful; the v3 actor loss had no such term and the
+                # fleet drifted into corner collapse (phase 25).
+                if anchor_weight > 0.0:
+                    anchor = ((quotes_i / highs) ** 2).mean()
+                    loss = loss + anchor_weight * anchor
+                    anchor_logs[nm] = float(anchor.detach())
                 self.actor_opts[nm].zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(actor.parameters(), 1.0)
@@ -657,6 +719,12 @@ class MATD3BC2Gate:
             "actor_loss": (float(np.mean(list(actor_losses.values())))
                            if actor_losses else None),
             "actor_loss_by_agent": actor_losses,
+            "anchor_by_agent": anchor_logs,
+            "anchor_weight": anchor_weight,
+            "hinge_advantage_by_agent": hinge_adv_logs,
+            "hinge_active_fraction_by_agent": hinge_active_logs,
+            "hinge_twin_gap_by_agent": hinge_twin_logs,
+            "hinge_delta": hinge_delta,
             "q1_mean": float(np.mean(q1s)),
             "q2_mean": float(np.mean(q2s)),
             "q_gap": float(np.mean(q_gaps)),

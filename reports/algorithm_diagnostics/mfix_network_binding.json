@@ -1,0 +1,38 @@
+{
+  "label": "NON_FORMAL_DIAGNOSTIC_PILOT",
+  "days": {
+    "2022-07-23|2025-07-13": {
+      "periods": 96,
+      "lmp_spread_cny_mwh": {
+        "mean": 33.85864230632489,
+        "max": 109.06118675586085
+      },
+      "line_utilization_max": 0.5439453287915577,
+      "line_cells_over_95pct": 0,
+      "voltage_min": 0.9524110138787591,
+      "voltage_max": 1.0195654700030288,
+      "voltage_band": [
+        0.93,
+        1.05
+      ],
+      "voltage_cells_within_5e-3_of_band": 0
+    },
+    "2022-12-09|2025-12-09": {
+      "periods": 96,
+      "lmp_spread_cny_mwh": {
+        "mean": 101.71520474455893,
+        "max": 313.70746146153925
+      },
+      "line_utilization_max": 0.6119541699105591,
+      "line_cells_over_95pct": 0,
+      "voltage_min": 0.9402796443288655,
+      "voltage_max": 1.0225975814174857,
+      "voltage_band": [
+        0.93,
+        1.05
+      ],
+      "voltage_cells_within_5e-3_of_band": 0
+    }
+  },
+  "runtime_s": 13.7
+}

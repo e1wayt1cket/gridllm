@@ -364,6 +364,20 @@ ACTION_STORAGE_QUOTE_V3 = ActionSpec(
 )
 register_action_spec(ACTION_STORAGE_QUOTE_V3)
 
+# Same box, truthful point and quote map as v3; the change is that the gate
+# logits are bounded (`da_quote_map.bound_gate_logits`, B * tanh(raw / B)),
+# so a closed gate keeps a non-zero reopen probability and straight-through
+# gradient instead of being an absorbing state. A v3 actor's unbounded gate
+# logits mean something different and must not be reused.
+ACTION_STORAGE_QUOTE_V4 = ActionSpec(
+    name="storage_quote_v4",
+    version=4,
+    action_names=("charge_price", "discharge_price"),
+    bounds={"charge_price": (0.0, 150.0), "discharge_price": (0.0, 300.0)},
+    truthful={"charge_price": 0.0, "discharge_price": 0.0},
+)
+register_action_spec(ACTION_STORAGE_QUOTE_V4)
+
 
 def action_spec_for(agent, storage_spec: ActionSpec = None,
                     other_spec: ActionSpec = None) -> ActionSpec:

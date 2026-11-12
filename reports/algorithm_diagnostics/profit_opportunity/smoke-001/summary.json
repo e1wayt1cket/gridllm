@@ -1,0 +1,85 @@
+{
+  "b1_artifact_verification": "PASS",
+  "b1_solver_rerun_reproducibility": "NOT_TESTED",
+  "n_days": 1,
+  "request_id": "smoke-001",
+  "runtime_s": 59.78208255767822,
+  "units": {
+    "ESS14": {
+      "active_days": {
+        "mean_dG": 20.08453229303669,
+        "n": 1
+      },
+      "best_day_counts": {
+        "near_zero": 0,
+        "negative": 0,
+        "positive": 1
+      },
+      "best_point": {
+        "charge": 40.0,
+        "discharge": 40.0,
+        "max_dG": 20.08453229303669,
+        "mean_dG": 20.08453229303669,
+        "mean_payoff": -0.000224281333157657,
+        "median_dG": 20.08453229303669,
+        "min_dG": 20.08453229303669,
+        "n_days": 1
+      },
+      "curve": [
+        {
+          "charge": 0.0,
+          "discharge": 0.0,
+          "max_dG": 0.0,
+          "mean_dG": 0.0,
+          "mean_payoff": -20.084756574369848,
+          "median_dG": 0.0,
+          "min_dG": 0.0,
+          "n_days": 1
+        },
+        {
+          "charge": 0.0,
+          "discharge": 40.0,
+          "max_dG": 20.084431152894552,
+          "mean_dG": 20.084431152894552,
+          "mean_payoff": -0.0003254214752972729,
+          "median_dG": 20.084431152894552,
+          "min_dG": 20.084431152894552,
+          "n_days": 1
+        },
+        {
+          "charge": 40.0,
+          "discharge": 0.0,
+          "max_dG": -0.016542245019575574,
+          "mean_dG": -0.016542245019575574,
+          "mean_payoff": -20.101298819389424,
+          "median_dG": -0.016542245019575574,
+          "min_dG": -0.016542245019575574,
+          "n_days": 1
+        },
+        {
+          "charge": 40.0,
+          "discharge": 40.0,
+          "max_dG": 20.08453229303669,
+          "mean_dG": 20.08453229303669,
+          "mean_payoff": -0.000224281333157657,
+          "median_dG": 20.08453229303669,
+          "min_dG": 20.08453229303669,
+          "n_days": 1
+        }
+      ],
+      "n_days": 1,
+      "n_points": 4,
+      "physical": {
+        "fallbacks": 0,
+        "line_cells": 0,
+        "max_abs_terminal_err": 0.0,
+        "not_optimal": 0,
+        "voltage_cells": 0
+      },
+      "truthful_closure": {
+        "max_abs_error": 0.0,
+        "n": 1
+      }
+    }
+  }
+}
