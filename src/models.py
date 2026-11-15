@@ -47,7 +47,8 @@ class StorageConfig:
     soc_buffer: float = 0.05               # SOC buffer from min/max before forced action
     terminal_value: Optional[float] = None  # None = use day-ahead mean price
     cycle_cost: float = 100.0              # cycling degradation cost (CNY/MWh per ch+dis)
-    discount_factor: float = 0.997         # per-period discount on future storage revenue
+    discount_factor: float = 1.0           # per-period discount on future storage revenue;
+                                           # 1.0 because the settlement pays it undiscounted
     self_schedule: bool = False            # MPC pre-computes schedule, OPF treats as fixed.
                                            # Default False so storage is dispatched by the market
                                            # on declared bids (the RL path); MPC flows opt in.
@@ -249,6 +250,23 @@ YAML_KEYS_READ_ELSEWHERE = {
 }
 
 
+def check_market_design(config: "MarketConfig") -> None:
+    """Refuse a config that asks for two multi-objective methods at once.
+
+    The two methods add different terms to the same objective: a weighted sum
+    of carbon, renewable and curtailment prices, and slack penalties on hard
+    carbon and renewable caps. Both true is not a stronger objective, it is two
+    prices for the same quantity, and the clearing would report whichever
+    shadow price came out without saying the objective had two owners.
+    """
+    md = config.market_design
+    if md.enable_multi_objective and md.use_constraint_multi_obj:
+        raise ValueError(
+            "enable_multi_objective and use_constraint_multi_obj are both "
+            "true: the clearing would price carbon and renewables twice. "
+            "Pick one method.")
+
+
 @dataclass
 class MarketConfig:
     """Top-level configuration composing network, storage, market-design, and RT settings."""
@@ -267,6 +285,11 @@ class MarketConfig:
     storage: StorageConfig = field(default_factory=StorageConfig)
     market_design: MarketDesignConfig = field(default_factory=MarketDesignConfig)
     rt: RTConfig = field(default_factory=RTConfig)
+
+    def __post_init__(self):
+        # Construction is the one checkpoint every path passes; a config
+        # mutated afterwards is checked again where the clearing starts.
+        check_market_design(self)
 
     @classmethod
     def from_yaml(cls, **overrides) -> "MarketConfig":

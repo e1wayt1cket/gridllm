@@ -167,7 +167,10 @@ def _physics(result: dict, agents, config, T: int) -> dict:
         "unserved_mwh": float(unserved * money.DT_HOURS),
         "unserved_fraction_of_forecast": (float(unserved / forecast)
                                           if forecast else 0.0),
-        "served_covers_forecast": bool(abs(served + unserved - forecast) < 1e-6),
+        # Serving plus shedding equals the forecast by construction, so the
+        # balance cannot answer this; what the field asks is whether anything
+        # was left unserved.
+        "served_covers_forecast": bool(unserved <= 1e-6 * max(forecast, 1.0)),
         "curtailment_mwh": float(result.get("total_curtailment", 0.0)),
         "re_consumption_rate_pct": float(result.get("re_consumption_rate", 0.0)),
     }

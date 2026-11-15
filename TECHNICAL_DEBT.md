@@ -255,3 +255,31 @@ value, but not an operator who reads the values from the right place by hand.
 **Cleared by:** a `--resume` flag on the launcher that re-emits the frozen
 command with `--resume` appended. It is an edit to a pinned file and needs the
 next version directory.
+
+## TD-12 — the corrected radial tree invalidates the frozen price reference
+
+**Status:** open. Blocks any v5 protocol that keeps `OBS_V6` unchanged.
+
+**Where:** `src/dispatch_core._select_radial_lines`, now restricted to
+in-service lines; `src/rl_env.py`, `PRICE_REF_CNY_MWH = 288.19757259048833`
+and the `[-1, 3]` clip on the price-history features.
+
+**Evidence:** before the correction the selector admitted the four open tie
+lines of `case33bw` (32, 33, 34, 36) and dropped four main segments (6, 9, 13,
+26). On the in-service tree, `baseline` clears at SOCP price mean 1544.0
+against 726.7 before (LMP spatial spread 700.3 against 45.5). Both
+`last_lmp_norm` and `avg_lmp_hist_norm` are `lmp / 288.197...` clipped at 3.0,
+so the whole day now saturates and the observation carries no price level.
+`tests/test_rl_spec.py::test_a_blocks_realized_lmp_reaches_only_the_next_observation`
+is marked `xfail(strict=True)` for this reason.
+
+**Effect:** every clearing number produced before the correction — the
+`JN-Base` benchmark tables, `b1_terminal_neutral_results.csv`, the training
+readiness headroom — describes a network that is not the case's. The
+correction is right and the numbers have to be recomputed. The price reference
+cannot be recomputed in place: it is part of the frozen observation
+definition and needs a new candidate id and a new manifest.
+
+**Cleared by:** re-deriving `PRICE_REF_CNY_MWH` (and the clip) for the v5
+candidate, regenerating the benchmark and baseline tables on the corrected
+tree, and removing the `xfail` marker.

@@ -5,7 +5,7 @@ from copy import deepcopy
 import numpy as np
 
 import money
-from models import Agent
+from models import Agent, check_market_design
 from grid import build_base_network, day_ahead_price_china
 from dispatch import (
     solve_opf_gurobi, StorageConstraints, get_clearing_mechanism,
@@ -58,6 +58,9 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
     pinned (see dispatch_core.pins_terminal_soc). It is required: the horizon
     is a fact about the call, and the period count cannot stand in for it.
     """
+    # `config` may have been mutated after construction, so the method
+    # exclusivity is re-checked where the clearing actually starts.
+    check_market_design(config)
     if stage == "DA" and config.rt.da_rolling_enabled:
         return clear_da_rolling(agents, T, action_params, config, storage_units,
                                 wholesale=wholesale)
@@ -320,16 +323,17 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
         window_config.storage = dataclasses.replace(
             window_config.storage, terminal_value=continuation_price)
 
+        window_actions = _slice_action_params(action_params, idx, window_end, T)
         if config.opf_mode == "socp":
             from dispatch_socp import solve_socp_opf_batch
             result = solve_socp_opf_batch(
                 base_net, window_agents, window_T, "DA", window_config,
-                action_params, price_slice, window_storage_units,
+                window_actions, price_slice, window_storage_units,
                 horizon_type="window")
         else:
             result = solve_lindist_opf_batch(
                 base_net, window_agents, window_T, "DA", window_config,
-                action_params, price_slice, window_storage_units,
+                window_actions, price_slice, window_storage_units,
                 horizon_type="window")
 
         n_commit = min(step, window_T)
@@ -418,6 +422,28 @@ def clear_da_rolling(agents, T, action_params, config, storage_units=None,
                               fallback_periods,
                               "; ".join(sorted(fallback_causes))),
     }
+
+
+def _slice_action_params(action_params, t_start, t_end, n_periods):
+    """Cut every agent's declared quotes to the window they will be used in.
+
+    A window agent's array index 0 is period `t_start`, so the quotes it is
+    cleared against must start there too. Passing the full-day dict lets the
+    solver read period 0 for the first period of every window, which makes
+    every window after the first clear at 00:00's quotes.
+
+    Only day-length arrays are cut; a scalar quote means the same thing in
+    every period, and a caller that already sliced keeps its own slicing.
+    """
+    out = {}
+    for nm, act in (action_params or {}).items():
+        out[nm] = {}
+        for k, v in act.items():
+            if isinstance(v, np.ndarray) and v.ndim == 1 and len(v) == n_periods:
+                out[nm][k] = v[t_start:t_end].copy()
+            else:
+                out[nm][k] = v
+    return out
 
 
 def _make_window_agents(agents, t_start, t_end, prev_soc, action_params):
@@ -513,17 +539,19 @@ def clear_rt_rolling_mpc(agents, T, action_params_base, config, storage_units=No
                     su_copy.storage.soc0 = prev_soc[su.name]
                 window_storage_units.append(su_copy)
 
+        window_actions = _slice_action_params(action_params_base, idx,
+                                              window_end, T)
         if config.opf_mode == "socp":
             from dispatch_socp import solve_socp_opf_batch
             result = solve_socp_opf_batch(
                 base_net, window_agents, window_T, "RT", window_config,
-                action_params_base, forecast, window_storage_units,
+                window_actions, forecast, window_storage_units,
                 horizon_type="window",
             )
         else:
             result = solve_lindist_opf_batch(
                 base_net, window_agents, window_T, "RT", window_config,
-                action_params_base, forecast, window_storage_units,
+                window_actions, forecast, window_storage_units,
                 horizon_type="window",
             )
 

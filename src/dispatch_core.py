@@ -268,10 +268,20 @@ def _select_radial_lines(net):
     Avoids relying on line index ordering (e.g. list(net.line.index)[:n_buses-1])
     which breaks if the network is reordered or non-standard. Returns a list of
     line indices that form the radial spanning tree.
+
+    Only lines that are in service carry flow, so the open tie lines of a
+    normally-open mesh case are not part of the tree: admitting them lets BFS
+    reach a bus through a switch that the power flow leaves open, and the
+    solver then prices a network the case does not model.
+
+    The tree must span every bus in the case; a short tree would leave buses
+    unconnected while the solver reported "optimal".
     """
     slack_bus = net.ext_grid.at[0, 'bus']
     adj = {}
     for idx in net.line.index:
+        if not bool(net.line.at[idx, 'in_service']):
+            continue
         f = int(net.line.at[idx, 'from_bus'])
         t = int(net.line.at[idx, 'to_bus'])
         adj.setdefault(f, []).append((t, idx))
@@ -286,6 +296,14 @@ def _select_radial_lines(net):
                 visited.add(nb)
                 radial_lines.append(lidx)
                 queue.append(nb)
+    n_buses = int(net.bus['in_service'].sum()) if 'in_service' in net.bus \
+        else len(net.bus)
+    if len(radial_lines) != n_buses - 1:
+        raise ValueError(
+            f"radial selection found {len(radial_lines)} lines for "
+            f"{n_buses} in-service buses; expected {n_buses - 1}. The "
+            f"in-service network is not a spanning tree, so a clearing on it "
+            f"would leave buses unconnected.")
     return radial_lines
 
 

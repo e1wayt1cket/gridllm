@@ -202,24 +202,35 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * imp_aux * DT_HOURS
     m.setObjective(obj, GRB.MAXIMIZE)
 
-    # I2R loss iteration
+    # I2R loss iteration. The allocation is a fixed point, not a contraction:
+    # on a heavily loaded radial feeder the losses computed from one iterate can
+    # make the model infeasible at the next, so the last allocation that did
+    # solve is kept and the period is cleared against it rather than dropped.
+    applied = None
     for loss_iter in range(max(1, config.network.n_loss_iters)):
         m.optimize()
 
         if m.status != GRB.OPTIMAL:
-            return False, None, 0.0, {}, 0.0
+            if applied is None:
+                return False, None, 0.0, {}, 0.0
+            for b, val in applied.items():
+                p_loss[b].UB = val
+                p_loss[b].LB = val
+            m.optimize()
+            if m.status != GRB.OPTIMAL:
+                return False, None, 0.0, {}, 0.0
+            break
 
         if loss_iter < config.network.n_loss_iters - 1:
-            for b in buses:
-                p_loss[b].UB = 0
-                p_loss[b].LB = 0
+            applied = {b: 0.0 for b in buses}
             for l in lines:
                 p_val = P[l].X
                 q_val = Q[l].X
                 loss_val = r[l] * (p_val ** 2 + q_val ** 2)
-                to_bus = net.line.at[l, 'to_bus']
-                p_loss[to_bus].UB += loss_val
-                p_loss[to_bus].LB += loss_val
+                applied[net.line.at[l, 'to_bus']] += loss_val
+            for b, val in applied.items():
+                p_loss[b].UB = val
+                p_loss[b].LB = val
 
     lmp = np.zeros(len(buses))
     for i, b in enumerate(buses):
@@ -877,23 +888,36 @@ class _CachedOPFModel:
             for b in buses:
                 p_loss[t, b].UB = 0
                 p_loss[t, b].LB = 0
+        # The allocation is a fixed point, not a contraction: an iterate's own
+        # losses can make the model infeasible at the next pass. Keep the last
+        # allocation that solved and clear against it instead of reporting the
+        # whole day as a failed batch.
+        applied = None
         for loss_iter in range(max(1, config.network.n_loss_iters)):
             m.optimize()
             if m.status != GRB.OPTIMAL:
-                record_last_solve("lindistflow", gurobi_solver_record(m))
-                return None
+                if applied is None:
+                    record_last_solve("lindistflow", gurobi_solver_record(m))
+                    return None
+                for (t, b), val in applied.items():
+                    p_loss[t, b].UB = val
+                    p_loss[t, b].LB = val
+                m.optimize()
+                if m.status != GRB.OPTIMAL:
+                    record_last_solve("lindistflow", gurobi_solver_record(m))
+                    return None
+                break
             if loss_iter < config.network.n_loss_iters - 1:
+                applied = {(t, b): 0.0 for t in range(T) for b in buses}
                 for t in range(T):
-                    for b in buses:
-                        p_loss[t, b].UB = 0
-                        p_loss[t, b].LB = 0
                     for l in lines:
                         p_val = P_line[t, l].X
                         q_val = Q_line[t, l].X
                         loss_val = r[l] * (p_val ** 2 + q_val ** 2)
-                        to_bus = self.net.line.at[l, 'to_bus']
-                        p_loss[t, to_bus].UB += loss_val
-                        p_loss[t, to_bus].LB += loss_val
+                        applied[(t, self.net.line.at[l, 'to_bus'])] += loss_val
+                for (t, b), val in applied.items():
+                    p_loss[t, b].UB = val
+                    p_loss[t, b].LB = val
 
         # ---- Nodal price re-solve ----
         all_storage = storage_agents + su_list

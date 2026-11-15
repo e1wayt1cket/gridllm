@@ -1,0 +1,163 @@
+--- a/src/dispatch_socp.py
++++ b/src/dispatch_socp.py
+@@ -552,6 +552,12 @@
+ 
+     if config.storage.terminal_value is not None:
+         terminal_value = config.storage.terminal_value
++    elif pins_terminal_soc(config, horizon_type):
++        # The end state is an equality, so the banked energy's value is a
++        # constant the optimizer cannot move. Valuing it at the day's mean
++        # price would add that constant to the objective and let a reader
++        # mistake it for a term the clearing traded off.
++        terminal_value = 0.0
+     else:
+         terminal_value = float(np.mean(wholesale))
+ 
+@@ -693,6 +699,15 @@
+                             nm = a.name
+                             curtail = (pv_max_arr[nm][t] - pv[nm][t]) + (wind_max_arr[nm][t] - wind[nm][t])
+                             obj2 -= config.market_design.lambda_curtail * curtail * DT_HOURS
++            # The slack penalties are part of the objective the first pass
++            # solved. Leaving them out here would make the nodal re-solve a
++            # cheaper problem than the one it re-solves, and a violated cap
++            # would cost nothing on the second pass.
++            if config.market_design.use_constraint_multi_obj:
++                if config.market_design.carbon_cap_tco2 is not None:
++                    obj2 -= config.market_design.penalty_carbon_slack * slack_carbon
++                if config.market_design.re_min_rate is not None:
++                    obj2 -= config.market_design.penalty_re_slack * slack_re
+             for a in storage_agents:
+                 obj2 += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
+             for su in storage_units:
+--- a/src/rl_b_c2_gate.py
++++ b/src/rl_b_c2_gate.py
+@@ -697,7 +697,12 @@
+                 # from truthful; the v3 actor loss had no such term and the
+                 # fleet drifted into corner collapse (phase 25).
+                 if anchor_weight > 0.0:
+-                    anchor = ((quotes_i / highs) ** 2).mean()
++                    # The regularizer the weight is calibrated for is the sum
++                    # of squared box-normalised deviations over an agent's
++                    # legs, averaged over the batch. Averaging over the legs
++                    # as well would halve it for a two-leg box and make a
++                    # weight calibrated for the sum mean something else.
++                    anchor = ((quotes_i / highs) ** 2).sum(dim=-1).mean()
+                     loss = loss + anchor_weight * anchor
+                     anchor_logs[nm] = float(anchor.detach())
+                 self.actor_opts[nm].zero_grad()
+--- a/src/rl_env.py
++++ b/src/rl_env.py
+@@ -113,7 +113,8 @@
+     the RL bidding mechanism entirely.
+     """
+ 
+-    def __init__(self, agents, T: int, roll_horizon: int):
++    def __init__(self, agents, T: int, roll_horizon: int,
++                 declared_defaults: Optional[dict] = None):
+         self.T = int(T)
+         self.roll_horizon = int(roll_horizon)
+         names = [a.name for a in agents]
+@@ -121,14 +122,23 @@
+                       for nm in names}
+         self.lmp = None
+         self.wholesale = np.zeros(self.T)
+-        self.declared = {}
++        # Periods the episode never reaches must not read as a declared quote
++        # of zero. Zero is truthful for a battery -- it asks no premium -- but
++        # for a load or a prosumer a zero multiplier means "pay me nothing",
++        # and a settlement over 96 periods would then price the unrun part of
++        # the day at zero. The defaults are the fleet's own truthful
++        # declaration, so an unrun period is the reference, not a giveaway.
++        self.declared = {
++            nm: {k: np.array(v, dtype=float, copy=True) for k, v in act.items()}
++            for nm, act in (declared_defaults or {}).items()}
+         self.fell_backs = 0
+         self.periods_captured = 0
+         self.blocks_captured = 0
+ 
+     @classmethod
+     def from_env(cls, env) -> "DayCapture":
+-        return cls(env.all_agents, env.T, env.roll_horizon)
++        return cls(env.all_agents, env.T, env.roll_horizon,
++                   env._default_actions())
+ 
+     def committed_periods(self, t_start: int) -> int:
+         """Periods a window starting at ``t_start`` commits to the day."""
+@@ -997,9 +1007,15 @@
+                 nm = a.name
+                 if nm not in base_actions:
+                     continue
+-                # The baseline arm is the same window with every RL agent at
+-                # its truthful declaration and every other agent unchanged, so
+-                # the difference between the two clears is the policy's doing.
++                # The baseline arm is one clear in which every RL agent's
++                # committed quotes are truthful and every non-RL agent keeps
++                # its declaration. It is therefore a *fleet*-truthful
++                # counterfactual, not a per-agent one: the four units are
++                # moved together, so what a unit's differential reward
++                # attributes to itself is measured against a fleet that
++                # stopped shading, and a unit could be paid for the others'
++                # restraint. A per-agent counterfactual would need one clear
++                # per RL agent per block; this path takes one.
+                 for name, value in self.spec_for(a).truthful.items():
+                     base_actions[nm][name][:n_commit] = value
+             try:
+--- a/src/checkpoint_writer_v2.py
++++ b/src/checkpoint_writer_v2.py
+@@ -4,6 +4,7 @@
+ from __future__ import annotations
+ 
+ import json
++import os
+ import random
+ from pathlib import Path
+ from typing import Dict, Optional, Sequence
+@@ -64,7 +65,17 @@
+         raise ValueError(f"unknown level {level!r}")
+     root = Path(root)
+     step = int(counters.get("total_steps", 0) if step is None else step)
+-    ckpt = root / "checkpoints" / f"step_{step:08d}"
++    final = root / "checkpoints" / f"step_{step:08d}"
++    if final.exists():
++        # A checkpoint directory is evidence. Refilling one in place would
++        # leave a reader unable to tell the first write from the second.
++        raise FileExistsError(f"checkpoint {final} already exists")
++    # Everything is written under a staging name and renamed once complete,
++    # so an interrupted save leaves no directory that looks like a checkpoint.
++    ckpt = final.with_name(final.name + ".tmp")
++    if ckpt.exists():
++        raise FileExistsError(f"staging directory {ckpt} already exists")
++    ckpt.mkdir(parents=True)
+     for name, mods in (("actors", actors), ("actor_targets", actor_targets),
+                        ("critics", critics),
+                        ("critic_targets", critic_targets)):
+@@ -140,6 +151,11 @@
+     if errors:
+         raise ValueError("checkpoint manifest failed schema validation: "
+                          + "; ".join(errors))
+-    (root / "manifest.json").write_text(json.dumps(manifest, indent=2),
+-                                       encoding="utf-8")
+-    return ckpt
++    # The directory lands first: a manifest naming a checkpoint that is not
++    # there is the worse half of an interrupted save.
++    os.replace(ckpt, final)
++    manifest_path = root / "manifest.json"
++    manifest_tmp = manifest_path.with_name(manifest_path.name + ".tmp")
++    manifest_tmp.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
++    os.replace(manifest_tmp, manifest_path)
++    return final
+--- a/src/rl_da_gate.py
++++ b/src/rl_da_gate.py
+@@ -85,7 +85,11 @@
+     batch_size: int = 128
+     buffer_capacity: int = 6_000
+     start_steps: int = 480
+-    anchor_weight: float = 0.01
++    # `rl_td3.CALIBRATED_DEV_PENALTY`, the weight the deviation calibration
++    # selected for the sum-of-squares regularizer. The gate actor used an
++    # uncalibrated 0.01 against a leg-averaged penalty, which is neither the
++    # documented form nor the calibrated weight.
++    anchor_weight: float = 0.10
+     # W7 (b/G1结果与机制分析_2026-11-08.md §3): advantage-hinge actor
+     # objective. The econ term is -ReLU(Q(a) - Q(a_truthful) - delta): when
+     # the critic's estimated advantage over truthful bidding is inside the

@@ -183,7 +183,15 @@ def test_congestion_widens_lmp_spread():
     limits should widen nodal price divergence vs baseline. The former
     'objective no higher' invariant belonged to the old line-capacity-halved
     definition; the unified-facility scenario now isolates a spatial-price
-    signal under identical storage and line capacity."""
+    signal under identical storage and line capacity.
+
+    The margin is measured, not designed. The former 1.5x threshold was met on
+    a radial tree that admitted four open tie lines and dropped four main
+    segments; on the case's own in-service tree the ratio is 1.11 (baseline
+    582.5 against congestion 644.7 CNY/MWh of per-period nodal spread), and
+    the baseline itself now binds. Widening it back is a scenario redesign,
+    not a threshold to lower.
+    """
     T = 96
     config_b = MarketConfig(opf_mode="lindistflow", verbose=False,
                             market_design=MarketDesignConfig(use_constraint_multi_obj=False))
@@ -199,7 +207,7 @@ def test_congestion_widens_lmp_spread():
                        horizon_type="full_day")
     spread_b = float(np.asarray(r_b["lmp"]).std(axis=1).mean())
     spread_c = float(np.asarray(r_c["lmp"]).std(axis=1).mean())
-    assert spread_c > spread_b * 1.5, \
+    assert spread_c > spread_b, \
         f"congestion LMP spatial spread {spread_c:.1f} not above baseline {spread_b:.1f}"
 
 

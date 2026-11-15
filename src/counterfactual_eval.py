@@ -81,7 +81,11 @@ def summarize(values: Sequence[float]) -> dict:
     positive_rate near one half are different findings, and only the pair
     distinguishes them.
     """
+    # Non-finite entries are dropped rather than carried: `nan > 0` is False,
+    # so one NaN in the sample would both poison every percentile and count as
+    # a day the policy did not win, which is not what the data said.
     arr = np.asarray([v for v in values if v is not None], dtype=float)
+    arr = arr[np.isfinite(arr)]
     if arr.size == 0:
         return {c: float("nan") for c in STAT_COLUMNS}
     return {
@@ -637,7 +641,20 @@ def headline(result: dict) -> dict:
     earned more. It sits beside the mean on purpose: a mean lifted by two good
     days and a share near one half are different findings, and neither number
     alone distinguishes them.
+
+    A day dropped from the pair leaves the mean defined over the survivors,
+    which is a different quantity under the same name. Publishing it beside
+    `n_days_dropped` does not fix that: the number reads as the day set's mean
+    and nothing about a float carries its denominator. So a partial day set has
+    no headline; the caller either repairs the day set or reports the per-day
+    rows.
     """
+    dropped = list(result.get("seeds_dropped") or [])
+    if dropped:
+        raise ValueError(
+            f"headline refuses a partial day set: {len(dropped)} day(s) "
+            f"dropped ({dropped[:5]}). Report the per-day results, or clear "
+            f"the cause, rather than a mean over the survivors.")
     fleet = result["fleet"]["delta_pi"]
     rate = result["fleet"]["delta_pi_percent"]
     return {
@@ -645,7 +662,7 @@ def headline(result: dict) -> dict:
         "mean_delta_pi_percent": rate["mean"],
         "p_delta_pi_positive": fleet["positive_rate"],
         "n_days": result["n_days"],
-        "n_days_dropped": len(result["seeds_dropped"]),
+        "n_days_dropped": 0,
     }
 
 

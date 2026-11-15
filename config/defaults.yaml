@@ -250,7 +250,10 @@ storage:
   soc_buffer: 0.05
   terminal_value: null
   cycle_cost: 100.0
-  discount_factor: 0.997
+  # 1.0: the OPF objective must not discount revenue the settlement pays in
+  # full. A rate below 1 made late-day storage revenue worth less in the
+  # clearing than in its own payoff.
+  discount_factor: 1.0
   self_schedule: false
   mpc_horizon: 64
   mpc_price_noise_pct: 5.0

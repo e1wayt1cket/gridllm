@@ -468,7 +468,7 @@ def run_market_rung(rung: str, band_name: str, band, seed: int,
     means something against the counterfactual the rest of the study measures
     against.
     """
-    from counterfactual_eval import settle_day
+    from counterfactual_eval import settle_day, delta_pi_percent
     from rl_env import BiddingEnv
 
     agents, wholesale, config = build_rung_agents(rung, band, seed, opf_mode)
@@ -518,8 +518,7 @@ def run_market_rung(rung: str, band_name: str, band, seed: int,
         day["pi_ai"] = pi_ai
         day["pi_baseline"] = pi_baseline
         day["delta_pi"] = pi_ai - pi_baseline
-        day["delta_pi_percent"] = (
-            (pi_ai - pi_baseline) / (abs(pi_baseline) + 1e-6))
+        day["delta_pi_percent"] = delta_pi_percent(pi_ai, pi_baseline)
         day["baseline_settled_clean"] = bool(base_clean)
     return day
 

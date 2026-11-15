@@ -88,7 +88,7 @@ def test_paired_arms_must_share_the_price_day():
 # --------------------------------------------------------------------------
 def test_headline_leads_with_the_three_numbers_the_question_needs():
     result = {
-        "n_days": 3, "seeds_dropped": [9],
+        "n_days": 3, "seeds_dropped": [],
         "fleet": {"delta_pi": {"mean": 42.0, "positive_rate": 2 / 3},
                   "delta_pi_percent": {"mean": 0.25}},
     }
@@ -97,7 +97,18 @@ def test_headline_leads_with_the_three_numbers_the_question_needs():
     assert h["mean_delta_pi_percent"] == pytest.approx(0.25)
     # P(DeltaPi > 0): the share of days the assisted arm earned more.
     assert h["p_delta_pi_positive"] == pytest.approx(2 / 3)
-    assert h["n_days_dropped"] == 1
+    assert h["n_days_dropped"] == 0
+
+
+def test_headline_refuses_a_partial_day_set():
+    """A mean over the survivors is not the day set's mean."""
+    result = {
+        "n_days": 3, "seeds_dropped": [9],
+        "fleet": {"delta_pi": {"mean": 42.0, "positive_rate": 2 / 3},
+                  "delta_pi_percent": {"mean": 0.25}},
+    }
+    with pytest.raises(ValueError, match="partial day set"):
+        ce.headline(result)
 
 
 def test_write_csv_puts_the_headline_columns_first(tmp_path):

@@ -4,6 +4,7 @@ pandas
 openpyxl
 pandapower==2.14.1
 gurobipy
+clarabel==0.11.1
 ortools>=9.9.0
 dash>=2.14.0
 dash-bootstrap-components

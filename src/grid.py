@@ -28,11 +28,14 @@ def build_base_network(config: MarketConfig) -> pp.pandapowerNet:
     max_ka = get_default("network.max_line_ka", 0.80)
     line_overrides = config.network.line_capacity_overrides or get_default("network.line_capacity_overrides", {})
     z_scale = float(config.network.line_impedance_scale)
-    cache_key = (mult, base_ka, min_ka, max_ka,
+    # The case name belongs in the key: two cases can agree on every ampacity
+    # parameter and still be different networks, and a cache that compared only
+    # the parameters would return the first one built.
+    net_name = get_default("network.name", "case33bw")
+    cache_key = (net_name, mult, base_ka, min_ka, max_ka,
                  tuple(sorted(line_overrides.items())), z_scale)
     if _net_cache is not None and _net_cache_cfg == cache_key:
         return _net_cache
-    net_name = get_default("network.name", "case33bw")
     net = getattr(pn, net_name)()
     # Line ampacity from thermal limit: I_max ∝ sqrt(1/R), i.e. thinner
     # conductor → higher R → lower ampacity. The 1/sqrt(R) form follows
@@ -68,10 +71,17 @@ def _common_noise(T: int, sigma: float, seed: int) -> np.ndarray:
     return np.clip(1.0 + rng.normal(0.0, sigma, size=T), 0.0, None)
 
 
-def _noisy_load(x: np.ndarray, sigma: float = 0.1, seed: int = None) -> np.ndarray:
-    """Apply multiplicative Gaussian noise, clipped to non-negative."""
+def _noisy_load(x: np.ndarray, sigma: float = 0.1, seed: int = None,
+                cap: float = None) -> np.ndarray:
+    """Apply multiplicative Gaussian noise, clipped to [0, cap].
+
+    `cap` is the installed capacity in MW when the array is a generator
+    output. Noise multiplies the profile, so without the upper clip a bus can
+    be dispatched above its nameplate -- a physical impossibility that the
+    clearing would then price as real energy.
+    """
     rng = np.random.RandomState(seed) if seed is not None else np.random
-    return np.clip(x * (1 + rng.normal(0, sigma, size=x.shape)), 0, None)
+    return np.clip(x * (1 + rng.normal(0, sigma, size=x.shape)), 0, cap)
 
 
 def _make_load_profile(
@@ -361,8 +371,8 @@ def create_agents_from_network(
                 pv_fcast_noise = ps_cfg.get("pv_forecast_noise", 0.15)
                 pv_real_noise = ps_cfg.get("pv_real_noise", 0.20)
                 pv_cap_installed = pv_cap
-                pv_forecast = _noisy_load(_pv_base * pv_cap, pv_fcast_noise, seed=bus * 10 + 2)
-                pv_real = _noisy_load(_pv_base * pv_cap, pv_real_noise, seed=bus * 10 + 3)
+                pv_forecast = _noisy_load(_pv_base * pv_cap, pv_fcast_noise, seed=bus * 10 + 2, cap=pv_cap)
+                pv_real = _noisy_load(_pv_base * pv_cap, pv_real_noise, seed=bus * 10 + 3, cap=pv_cap)
 
             elif load_type == "industrial" and with_wind:
                 wind_cap = wind_bus_mw.get(bus, 0.0)
@@ -373,8 +383,8 @@ def create_agents_from_network(
                 bus_wind = wind_profile(hours, seed=wind_base_seed + bus,
                                         ar_coef=ar_coef, noise_std=noise_std,
                                         peak_hour=wind_peak_hour, dt_h=1.0)
-                wind_forecast = _noisy_load(bus_wind * wind_cap, wind_fcast_noise, seed=bus * 10 + 4)
-                wind_real = _noisy_load(bus_wind * wind_cap, wind_real_noise, seed=bus * 10 + 5)
+                wind_forecast = _noisy_load(bus_wind * wind_cap, wind_fcast_noise, seed=bus * 10 + 4, cap=wind_cap)
+                wind_real = _noisy_load(bus_wind * wind_cap, wind_real_noise, seed=bus * 10 + 5, cap=wind_cap)
 
             bus_ov = ps_cfg.get("bus_overrides", {}).get(bus, {})
             st_cfg = ps_cfg.get("storage", {})
@@ -418,8 +428,8 @@ def create_agents_from_network(
                 pv_fcast_noise = ps_cfg.get("pv_forecast_noise", 0.15)
                 pv_real_noise = ps_cfg.get("pv_real_noise", 0.20)
                 pv_cap_installed = pv_cap
-                pv_forecast = _noisy_load(_pv_base * pv_cap, pv_fcast_noise, seed=bus * 10 + 2)
-                pv_real = _noisy_load(_pv_base * pv_cap, pv_real_noise, seed=bus * 10 + 3)
+                pv_forecast = _noisy_load(_pv_base * pv_cap, pv_fcast_noise, seed=bus * 10 + 2, cap=pv_cap)
+                pv_real = _noisy_load(_pv_base * pv_cap, pv_real_noise, seed=bus * 10 + 3, cap=pv_cap)
 
             bid_val = ps_cfg.get("bid_value", 350.0)
             offer_cost = ps_cfg.get("offer_cost", 180.0)
