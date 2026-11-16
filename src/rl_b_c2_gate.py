@@ -46,9 +46,14 @@ from truthful_gate_actor_adapter import (LEG_HIGHS, POLICY_DIM, QUOTE_DIM,
                                          fleet_mode, forward_policy,
                                          target_quotes)
 
-B1_RESULTS = "data/processed/v2_cy_jn_2025/b1_terminal_neutral_results.csv"
-B1_BLOCKS = "data/processed/v2_cy_jn_2025/b1_terminal_neutral_block_payoffs.json"
-B1_MANIFEST = "data/processed/v2_cy_jn_2025/b1_terminal_neutral_manifest.json"
+# Cleared on the corrected radial tree. The earlier artifact beside them was
+# produced on a network that admitted the open tie lines, so it is not a
+# baseline for anything this code clears.
+B1_RESULTS = "data/processed/v2_cy_jn_2025_v6/b1_terminal_neutral_results.csv"
+B1_BLOCKS = ("data/processed/v2_cy_jn_2025_v6/"
+             "b1_terminal_neutral_block_payoffs.json")
+B1_MANIFEST = ("data/processed/v2_cy_jn_2025_v6/"
+               "b1_terminal_neutral_manifest.json")
 PAIRING = "data/processed/v2_cy_jn_2025/load_price_pairing.csv"
 
 
@@ -406,6 +411,13 @@ class MATD3BC2Gate:
             per_block = shaped.reward
         else:
             per_block = base.reward
+        # A non-finite payoff or reward is not a bad sample, it is a broken
+        # day; it is refused rather than written into the replay buffer.
+        for nm, series in per_block.items():
+            values = np.asarray(series, dtype=float)
+            if values.size and not np.all(np.isfinite(values)):
+                raise FloatingPointError(
+                    f"{pair_id} {nm}: non-finite reward in the episode")
         out["per_block"] = per_block
         return out
 
@@ -456,6 +468,12 @@ class MATD3BC2Gate:
                             if a.name == nm).storage.soc0)]
             for nm in self.agent_names}
         block_payoffs = {nm: [] for nm in self.agent_names}
+        # The anchor is the only term in the actor loss that is not the
+        # critic's advantage, so its size is what says whether the update was
+        # learning or being regularized. Summed over the episode and divided
+        # by the update count, because it is taken every update.
+        anchor_terms = {nm: 0.0 for nm in self.agent_names}
+        anchor_updates = 0
         pending = []
         done_flags = []
         checks = {"clears": 0, "fallbacks": 0, "lmp_fallbacks": 0,
@@ -543,7 +561,11 @@ class MATD3BC2Gate:
             self.total_steps += 1
             if len(self.buffer) >= self.experiment.batch_size \
                     and self.total_steps > self.experiment.start_steps:
-                self.update()
+                info = self.update()
+                for nm, value in (info.get("anchor_by_agent") or {}).items():
+                    if value is not None:
+                        anchor_terms[nm] += float(value)
+                anchor_updates += 1
             self._accumulate_gate_stats(diag_t)
         self.episodes += 1
         self.exposure[pair_id] += 1
@@ -565,6 +587,12 @@ class MATD3BC2Gate:
             "checks": checks,
             "soc_end": {nm: soc_path[nm][-1] for nm in self.agent_names},
             "gate": self.gate_stats_snapshot(),
+            "anchor_by_agent": {
+                nm: (anchor_terms[nm] / anchor_updates
+                     if anchor_updates else None)
+                for nm in self.agent_names},
+            "anchor_weight": float(getattr(self.experiment,
+                                           "anchor_weight", 0.0)),
         }
 
     def gate_stats_snapshot(self) -> dict:
@@ -697,7 +725,12 @@ class MATD3BC2Gate:
                 # from truthful; the v3 actor loss had no such term and the
                 # fleet drifted into corner collapse (phase 25).
                 if anchor_weight > 0.0:
-                    anchor = ((quotes_i / highs) ** 2).mean()
+                    # The regularizer the weight is calibrated for is the sum
+                    # of squared box-normalised deviations over an agent's
+                    # legs, averaged over the batch. Averaging over the legs
+                    # as well would halve it for a two-leg box and make a
+                    # weight calibrated for the sum mean something else.
+                    anchor = ((quotes_i / highs) ** 2).sum(dim=-1).mean()
                     loss = loss + anchor_weight * anchor
                     anchor_logs[nm] = float(anchor.detach())
                 self.actor_opts[nm].zero_grad()
@@ -714,6 +747,15 @@ class MATD3BC2Gate:
                     tp.data.copy_(self.experiment.tau * sp.data
                                   + (1.0 - self.experiment.tau) * tp.data)
         self.updates += 1
+        # A non-finite loss means the parameters this step just moved are
+        # already garbage; continuing would train on top of it and write a
+        # run that looks like it has a loss.
+        losses = [float(np.mean(critic_losses))] \
+            + [float(v) for v in actor_losses.values()]
+        if not np.all(np.isfinite(losses)):
+            raise FloatingPointError(
+                f"update {self.updates}: non-finite loss "
+                f"{[v for v in losses if not np.isfinite(v)]}")
         return {
             "critic_loss": float(np.mean(critic_losses)),
             "actor_loss": (float(np.mean(list(actor_losses.values())))

@@ -19,7 +19,7 @@ from typing import Any, Sequence
 
 import yaml
 
-DEFAULT_CONFIG_DIR = Path("reports/v2_cy_jn_2025/formal_training_v4")
+DEFAULT_CONFIG_DIR = Path("reports/v2_cy_jn_2025/formal_training_v6")
 EXPECTED_COUNTS = {"train": 53, "validation": 11, "test": 11,
                    "holiday_block": 5}
 

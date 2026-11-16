@@ -4,12 +4,19 @@ Applies to every formal-training launch, resume, re-freeze and audit.
 
 ## Live manifest
 
-- `reports/v2_cy_jn_2025/formal_training_v3/` is the only live formal manifest
-  set (config hash `1b47e0ed`, `protocol_version: 3`).
+- `reports/v2_cy_jn_2025/formal_training_v6/` is the only live formal manifest
+  set (config hash `ac0f78d2`, `protocol_version: 6`,
+  `V6_candidate_001`; re-freeze record in
+  `reports/audit_remediation_2026-11-15/REFREEZE_V6.md`).
+- `reports/v2_cy_jn_2025/formal_training_v5/` (`6e32398b`) is historical and
+  read-only, superseded on the same terms as v4 and v3 below.
+- `reports/v2_cy_jn_2025/formal_training_v4/` (`7834d0aa`) and
+  `reports/v2_cy_jn_2025/formal_training_v3/` (`1b47e0ed`) are historical and
+  read-only. Their runs remain frozen evidence. Their source pins are
+  superseded: a `src/` path can satisfy only the live manifest's hash, so
+  `--config-dir` against them reports `code_sources_match: false` by design.
 - `reports/v2_cy_jn_2025/formal_training_v2/` (`2148a577`) is historical and
-  read-only. Its runs remain frozen evidence. Its source pins are superseded:
-  a `src/` path can satisfy only the live manifest's hash, so `--config-dir`
-  against v2 reports `code_sources_match: false` by design.
+  read-only, superseded on the same terms.
 - `reports/v2_cy_jn_2025/formal_training_ready/` is `SUPERSEDED_READ_ONLY`
   (`b21a97c1`). It may be read for historical audit with an explicit
   `--config-dir`; it is never the default and never modified.
@@ -53,8 +60,8 @@ exact episode, so a partial round keeps its remaining days.
 - The v2 runs `FORMAL_2148a577_seed{11,23,37,53}` are read-only: never rerun,
   resume over, rename, migrate or overwrite. Seed 53 failed at episode 28; a
   failed run is still evidence.
-- v3 runs get new run ids (`FORMAL_1b47e0ed_seed<N>`) and do not overwrite
-  them.
+- v6 runs get new run ids (`FORMAL_ac0f78d2_seed<N>`) and do not overwrite
+  any earlier protocol's runs.
 - A new seed requires a new run directory. A populated run directory is a
   refusal, not a prompt to delete.
 - Best and final checkpoints are distinct artifacts. `best` is the highest

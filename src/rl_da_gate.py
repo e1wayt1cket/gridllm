@@ -85,7 +85,11 @@ class DAExperimentConfig:
     batch_size: int = 128
     buffer_capacity: int = 6_000
     start_steps: int = 480
-    anchor_weight: float = 0.01
+    # `rl_td3.CALIBRATED_DEV_PENALTY`, the weight the deviation calibration
+    # selected for the sum-of-squares regularizer. The gate actor used an
+    # uncalibrated 0.01 against a leg-averaged penalty, which is neither the
+    # documented form nor the calibrated weight.
+    anchor_weight: float = 0.10
     # W7 (b/G1结果与机制分析_2026-11-08.md §3): advantage-hinge actor
     # objective. The econ term is -ReLU(Q(a) - Q(a_truthful) - delta): when
     # the critic's estimated advantage over truthful bidding is inside the
@@ -398,6 +402,11 @@ class DAGateTrainer(base.MATD3BC2Gate):
         hinge_advantage_sum = {nm: 0.0 for nm in self.agent_names}
         hinge_twin_sum = {nm: 0.0 for nm in self.agent_names}
         hinge_updates = 0
+        # The anchor is the only term in the actor loss that is not the
+        # critic's advantage; its size is what says whether an update was
+        # learning or being regularized.
+        anchor_terms = {nm: 0.0 for nm in self.agent_names}
+        anchor_updates = 0
         for t, (obs_t, act_t, next_obs_t, done_t, diag_t) in enumerate(pending):
             nm_list = self.agent_names
             reward = np.array(
@@ -438,6 +447,11 @@ class DAGateTrainer(base.MATD3BC2Gate):
                         hinge_active_sum[nm] += fr.get(nm, 0.0)
                         hinge_advantage_sum[nm] += adv.get(nm, 0.0)
                         hinge_twin_sum[nm] += tw.get(nm, 0.0)
+                anchor = stats.get("anchor_by_agent") or {}
+                if anchor:
+                    anchor_updates += 1
+                    for nm in self.agent_names:
+                        anchor_terms[nm] += float(anchor.get(nm) or 0.0)
             self._accumulate_gate_stats(diag_t)
         self.episodes += 1
         self.exposure[pair_id] += 1
@@ -477,6 +491,12 @@ class DAGateTrainer(base.MATD3BC2Gate):
                      if hinge_updates else None)
                 for nm in self.agent_names},
             "sampler": dict(self.buffer.last_stats),
+            "anchor_by_agent": {
+                nm: (anchor_terms[nm] / anchor_updates
+                     if anchor_updates else None)
+                for nm in self.agent_names},
+            "anchor_weight": float(getattr(self.experiment,
+                                           "anchor_weight", 0.0)),
         }
 
     def update(self) -> dict:

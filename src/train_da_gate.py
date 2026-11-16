@@ -916,6 +916,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     row_out[f"hinge_active_{nm}"] = haf
                     htg = (out.get("hinge_twin_gap") or {}).get(nm)
                     row_out[f"hinge_twin_gap_{nm}"] = htg
+                    # The anchor's size relative to the loss says whether the
+                    # episode's updates were learning or regularization.
+                    row_out[f"anchor_{nm}"] = (
+                        out.get("anchor_by_agent") or {}).get(nm)
+                row_out["anchor_weight"] = out.get("anchor_weight")
                 for nm in trainer.agent_names:
                     row_out[f"delta_{nm}"] = float(b["delta"][nm])
                     row_out[f"G_policy_{nm}"] = float(

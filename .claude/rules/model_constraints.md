@@ -23,19 +23,19 @@ Applies to any change to the environment, action, reward, gate or trainer.
 ## Frozen interfaces
 
 - Observation `v6_12d`, 12 dimensions.
-- Action `storage_quote_v3`, 2 dimensions per unit, four ESS in order
+- Action `storage_quote_v4`, 2 dimensions per unit, four ESS in order
   ESS9, ESS14, ESS17, ESS27.
 - Gate: 8 total, straight-through Bernoulli estimator.
 - Quote map `linear_core_v1`.
 - Actor 256-128-4; centralized twin critic 256-256.
-- Reward mode `B_C2`, gamma 0.99, fixed scale 1000.
+- Reward mode `B_C2`, gamma 0.99, fixed scale 100.
 
 Any change to these requires a new candidate id and a new frozen manifest.
 Changing them in place is not a model improvement; it is a protocol change.
 
 ## Enforcement
 
-- The 15 pinned sources are hashed by the live code manifest.
+- The 22 pinned sources are hashed by the live code manifest.
 - `formal_training_code_manifest.json` includes the audit and test files that
   pin the interfaces.
 - Frozen-file edits are denied by `.claude/hooks/protect_frozen.py`.

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 from pathlib import Path
 from typing import Dict, Optional, Sequence
@@ -64,7 +65,17 @@ def save_checkpoint(root: str | Path, *, level: str, run_id: str,
         raise ValueError(f"unknown level {level!r}")
     root = Path(root)
     step = int(counters.get("total_steps", 0) if step is None else step)
-    ckpt = root / "checkpoints" / f"step_{step:08d}"
+    final = root / "checkpoints" / f"step_{step:08d}"
+    if final.exists():
+        # A checkpoint directory is evidence. Refilling one in place would
+        # leave a reader unable to tell the first write from the second.
+        raise FileExistsError(f"checkpoint {final} already exists")
+    # Everything is written under a staging name and renamed once complete,
+    # so an interrupted save leaves no directory that looks like a checkpoint.
+    ckpt = final.with_name(final.name + ".tmp")
+    if ckpt.exists():
+        raise FileExistsError(f"staging directory {ckpt} already exists")
+    ckpt.mkdir(parents=True)
     for name, mods in (("actors", actors), ("actor_targets", actor_targets),
                        ("critics", critics),
                        ("critic_targets", critic_targets)):
@@ -140,6 +151,11 @@ def save_checkpoint(root: str | Path, *, level: str, run_id: str,
     if errors:
         raise ValueError("checkpoint manifest failed schema validation: "
                          + "; ".join(errors))
-    (root / "manifest.json").write_text(json.dumps(manifest, indent=2),
-                                       encoding="utf-8")
-    return ckpt
+    # The directory lands first: a manifest naming a checkpoint that is not
+    # there is the worse half of an interrupted save.
+    os.replace(ckpt, final)
+    manifest_path = root / "manifest.json"
+    manifest_tmp = manifest_path.with_name(manifest_path.name + ".tmp")
+    manifest_tmp.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    os.replace(manifest_tmp, manifest_path)
+    return final

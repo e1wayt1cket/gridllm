@@ -23,9 +23,10 @@ import make_formal_training_manifests as mfm
 import training_contract as tc
 
 ROOT = Path.cwd()
-# Protocol v4 is the live frozen set; v3, v2 and `formal_training_ready` are
-# historical and must be requested explicitly with --config-dir.
-OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v4"
+# Protocol v6 is the live frozen set; v5, v4, v3, v2 and
+# `formal_training_ready` are historical and must be requested explicitly with
+# --config-dir.
+OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v6"
 RUNS = ROOT / "runs"
 SEEDS = (11, 23)
 

@@ -79,7 +79,10 @@ def test_v4_config_defaults():
     assert cfg.fixed_scale == 100.0
     assert cfg.buffer_capacity == 6_000
     assert cfg.start_steps == 480
-    assert cfg.anchor_weight == 0.01
+    # The calibrated weight for the sum-form anchor. v4 froze 0.01 against a
+    # leg-averaged anchor, which halved a two-leg box and so meant something
+    # else; the v4 record keeps that value and the v5 manifest keeps this one.
+    assert cfg.anchor_weight == 0.10
     assert cfg.gate_logit_bound == da_quote_map.GATE_LOGIT_BOUND == 4.0
     assert cfg.action_schema == "storage_quote_v4"
 

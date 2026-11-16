@@ -131,6 +131,19 @@ def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
     return lmp, n_fallback, fallback_periods
 
 
+def _assert_finite(label: str, values) -> None:
+    """Refuse to hand back a cleared day that carries a non-finite quantity.
+
+    A NaN reaching settlement or the reward reads as a very large or a zero
+    profit rather than as a failed solve, so it is caught at the boundary
+    instead of being learned from.
+    """
+    arr = np.asarray(values, dtype=float)
+    if arr.size and not np.all(np.isfinite(arr)):
+        count = int((~np.isfinite(arr)).sum())
+        raise FloatingPointError(f"{label}: {count} non-finite value(s)")
+
+
 def _needs_binaries(config, agent) -> bool:
     """Whether this storage unit gets an explicit exclusive-or.
 
@@ -552,6 +565,12 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
     if config.storage.terminal_value is not None:
         terminal_value = config.storage.terminal_value
+    elif pins_terminal_soc(config, horizon_type):
+        # The end state is an equality, so the banked energy's value is a
+        # constant the optimizer cannot move. Valuing it at the day's mean
+        # price would add that constant to the objective and let a reader
+        # mistake it for a term the clearing traded off.
+        terminal_value = 0.0
     else:
         terminal_value = float(np.mean(wholesale))
 
@@ -693,6 +712,15 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                             nm = a.name
                             curtail = (pv_max_arr[nm][t] - pv[nm][t]) + (wind_max_arr[nm][t] - wind[nm][t])
                             obj2 -= config.market_design.lambda_curtail * curtail * DT_HOURS
+            # The slack penalties are part of the objective the first pass
+            # solved. Leaving them out here would make the nodal re-solve a
+            # cheaper problem than the one it re-solves, and a violated cap
+            # would cost nothing on the second pass.
+            if config.market_design.use_constraint_multi_obj:
+                if config.market_design.carbon_cap_tco2 is not None:
+                    obj2 -= config.market_design.penalty_carbon_slack * slack_carbon
+                if config.market_design.re_min_rate is not None:
+                    obj2 -= config.market_design.penalty_re_slack * slack_re
             for a in storage_agents:
                 obj2 += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
             for su in storage_units:
@@ -856,6 +884,14 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
+    # The prices and the dispatched quantities are what settlement and the
+    # learning signal are built from, so a non-finite one stops the clear here.
+    _assert_finite("socp lmp", lmp)
+    for nm, sched in schedules.items():
+        for key in ("p_buy", "p_sell", "served", "unserved", "pv_used",
+                    "wind_used", "p_ch", "p_dis", "soc"):
+            if key in sched:
+                _assert_finite(f"socp {nm}.{key}", sched[key])
     result = {
         "price": lmp.mean(axis=1),
         "lmp": lmp,

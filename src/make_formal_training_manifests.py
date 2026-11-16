@@ -19,19 +19,22 @@ import yaml
 
 ROOT = Path(".")
 DATA = ROOT / "data/processed/v2_cy_jn_2025"
-OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v4"
-CANDIDATE = "V4_candidate_001"
+# The B1 baseline was recomputed on the corrected radial tree; the load and
+# price inputs are unchanged, so the two roots are named rather than merged.
+DATA_B1 = ROOT / "data/processed/v2_cy_jn_2025_v6"
+OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v6"
+CANDIDATE = "V6_candidate_001"
 INPUTS = (
-    "near/load_price_pairing.csv",
-    "bus_loads_96x33.npz",
-    "price_curves.npz",
-    "common_split.json",
-    "holdout_status.json",
-    "b1_terminal_neutral_manifest.json",
-    "b1_terminal_neutral_results.csv",
-    "b1_terminal_neutral_block_payoffs.json",
-    "terminal_soc_config.json",
-    "trainer_configs.json",
+    ("near/load_price_pairing.csv", DATA),
+    ("bus_loads_96x33.npz", DATA),
+    ("price_curves.npz", DATA),
+    ("common_split.json", DATA),
+    ("holdout_status.json", DATA),
+    ("b1_terminal_neutral_manifest.json", DATA_B1),
+    ("b1_terminal_neutral_results.csv", DATA_B1),
+    ("b1_terminal_neutral_block_payoffs.json", DATA_B1),
+    ("terminal_soc_config.json", DATA),
+    ("trainer_configs.json", DATA),
 )
 SOURCE_FILES = (
     "rl_da_gate.py", "rl_b_c2_gate.py", "train_da_gate.py", "da_quote_map.py",
@@ -121,7 +124,7 @@ def data_payload() -> dict:
         "all_disjoint": all(not v for v in overlaps.values()),
         "h2_opened": False,
         "input_sha256": {
-            name: sha(DATA / name) for name in INPUTS
+            name: sha(root / name) for name, root in INPUTS
         },
         "test_label": "LEGACY_SEEN_TEST",
         "independent_generalisation_claim": False,
@@ -132,7 +135,7 @@ def config_payload(data: dict, code: dict) -> dict:
     return {
         "formal_training": {
             "experiment_id": "FORMAL_NEAR_COMMON_B_C2_GATE",
-            "protocol_version": 4,
+            "protocol_version": 6,
             "accepted_candidate": CANDIDATE,
             "dataset": "JN-Base-NEAR / common_split near view",
             "split": data["split_file"],
@@ -168,8 +171,10 @@ def config_payload(data: dict, code: dict) -> dict:
                           "critic_weight_decay": 0.0,
                           "actor_weight_decay": 1e-5,
                           "calibration_interval": 8},
-            "anchor": {"weight": 0.01,
-                       "form": "quadratic on quotes scaled by leg highs",
+            "anchor": {"weight": 0.10,
+                       "form": "sum over an agent's legs of squared quotes "
+                               "scaled by each leg's high, averaged over the "
+                               "batch",
                        "calibrated_by":
                            "reports/algorithm_diagnostics/"
                            "v4_anchor_calibration.json",
@@ -218,13 +223,20 @@ def config_payload(data: dict, code: dict) -> dict:
                 "early_stop_patience": 3,
             },
             "compatibility": {
-                "supersedes": "reports/v2_cy_jn_2025/formal_training_v3",
-                "reward_scale": "fixed_scale 100 (v4) vs 1000 (v3): reward "
-                                "and delta-G magnitudes are NOT comparable "
-                                "across protocols; compare settlement-side "
-                                "G_policy/G_b1 in CNY only",
-                "checkpoints": "v4 runs refuse to load v3 checkpoints "
-                               "(action schema storage_quote_v4)",
+                "supersedes": "reports/v2_cy_jn_2025/formal_training_v5",
+                "reward_scale": "fixed_scale 100 (v4, v5 and v6) vs 1000 "
+                                "(v3): reward and delta-G magnitudes are NOT "
+                                "comparable across protocols; compare "
+                                "settlement-side G_policy/G_b1 in CNY only",
+                "checkpoints": "v6 runs refuse to load a checkpoint from any "
+                               "earlier protocol: the source hashes are part "
+                               "of the frozen manifest, so an earlier "
+                               "checkpoint does not describe the v6 clearing "
+                               "(F4 nodal slack penalties, F6 terminal value "
+                               "under a pinned endpoint, the v6 non-finite "
+                               "guards). The B1 baseline moves to the "
+                               "recomputed artifact, so a v5 run's delta G was "
+                               "measured against a different network",
             },
             "boundaries": {
                 "train_only_in_replay": True,

@@ -113,7 +113,8 @@ class DayCapture:
     the RL bidding mechanism entirely.
     """
 
-    def __init__(self, agents, T: int, roll_horizon: int):
+    def __init__(self, agents, T: int, roll_horizon: int,
+                 declared_defaults: Optional[dict] = None):
         self.T = int(T)
         self.roll_horizon = int(roll_horizon)
         names = [a.name for a in agents]
@@ -121,14 +122,23 @@ class DayCapture:
                       for nm in names}
         self.lmp = None
         self.wholesale = np.zeros(self.T)
-        self.declared = {}
+        # Periods the episode never reaches must not read as a declared quote
+        # of zero. Zero is truthful for a battery -- it asks no premium -- but
+        # for a load or a prosumer a zero multiplier means "pay me nothing",
+        # and a settlement over 96 periods would then price the unrun part of
+        # the day at zero. The defaults are the fleet's own truthful
+        # declaration, so an unrun period is the reference, not a giveaway.
+        self.declared = {
+            nm: {k: np.array(v, dtype=float, copy=True) for k, v in act.items()}
+            for nm, act in (declared_defaults or {}).items()}
         self.fell_backs = 0
         self.periods_captured = 0
         self.blocks_captured = 0
 
     @classmethod
     def from_env(cls, env) -> "DayCapture":
-        return cls(env.all_agents, env.T, env.roll_horizon)
+        return cls(env.all_agents, env.T, env.roll_horizon,
+                   env._default_actions())
 
     def committed_periods(self, t_start: int) -> int:
         """Periods a window starting at ``t_start`` commits to the day."""
@@ -997,9 +1007,15 @@ class BiddingEnv:
                 nm = a.name
                 if nm not in base_actions:
                     continue
-                # The baseline arm is the same window with every RL agent at
-                # its truthful declaration and every other agent unchanged, so
-                # the difference between the two clears is the policy's doing.
+                # The baseline arm is one clear in which every RL agent's
+                # committed quotes are truthful and every non-RL agent keeps
+                # its declaration. It is therefore a *fleet*-truthful
+                # counterfactual, not a per-agent one: the four units are
+                # moved together, so what a unit's differential reward
+                # attributes to itself is measured against a fleet that
+                # stopped shading, and a unit could be paid for the others'
+                # restraint. A per-agent counterfactual would need one clear
+                # per RL agent per block; this path takes one.
                 for name, value in self.spec_for(a).truthful.items():
                     base_actions[nm][name][:n_commit] = value
             try:

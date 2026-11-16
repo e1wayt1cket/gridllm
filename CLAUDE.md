@@ -4,18 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CC engineering framework
 
-- Live formal manifest: `reports/v2_cy_jn_2025/formal_training_v4/`
-  (config hash `7834d0aa`, `protocol_version: 4`; see
-  `phase25_v4_freeze.md`). `formal_training_v3/` (`1b47e0ed`),
+- Live formal manifest: `reports/v2_cy_jn_2025/formal_training_v6/`
+  (config hash `ac0f78d2`, `protocol_version: 6`,
+  `V6_candidate_001`). `formal_training_v5/` (`6e32398b`),
+  `formal_training_v4/` (`7834d0aa`), `formal_training_v3/` (`1b47e0ed`),
   `formal_training_v2/` (`2148a577`) and `formal_training_ready/`
   (`b21a97c1`, `SUPERSEDED_READ_ONLY`) are historical and never the default.
+  v6 carries the re-freeze record in
+  `reports/audit_remediation_2026-11-15/REFREEZE_V6.md`; v5's is
+  `REFREEZE_V5.md` beside it.
 - Frozen set: the 22 `source_sha256` entries and 7 pinned tests/audits in the
-  live code manifest, all four manifest directories, and every
+  live code manifest, all six manifest directories, and every
   `runs/FORMAL_<config>_seed<N>` / `snapshots/FORMAL_<config>_seed<N>` tree.
   `.claude/hooks/protect_frozen.py` denies Edit/Write on them. Only the live
-  manifest's source pins are checked; the v2 pins are superseded.
+  manifest's source pins are checked; older pins are superseded.
 - Formal launch gate: `src/run_formal_training.py --check` must report
-  `all_pass: true`, `budget_contract_ok: true`, `status: GO_FORMAL_TRAINING`.
+  `all_pass: true` and `budget_contract_ok: true`, and `status` must be
+  `GO_FORMAL_TRAINING`. v6 currently verifies `all_pass: true` with
+  `status: null`: its `training_readiness_status` is written only by
+  `--finalize`, from a `pretraining_validation_results.json` produced on the
+  v6 sources. A protocol change invalidates the previous protocol's
+  validation, so no launch is authorized until that file is regenerated.
   The budget invariants live in `src/training_contract.py`.
 - Rules: [training contract](.claude/rules/training_contract.md),
   [data governance](.claude/rules/data_governance.md),
