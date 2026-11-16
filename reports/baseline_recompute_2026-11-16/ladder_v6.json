@@ -1,0 +1,550 @@
+{
+  "band_sensitivity": {
+    "B0": {
+      "applicable": false,
+      "reason": "no market clearing at this rung"
+    },
+    "B1": {
+      "applicable": true,
+      "delta_curtailment_95_vs_93": 0.0,
+      "delta_lmp_95_vs_93": 156.5725327372279,
+      "delta_profit_95_vs_93": null,
+      "delta_shed_95_vs_93": 0.9812296746815363
+    },
+    "B2": {
+      "applicable": true,
+      "delta_curtailment_95_vs_93": -0.904429938764963,
+      "delta_lmp_95_vs_93": 66.12154409003955,
+      "delta_profit_95_vs_93": null,
+      "delta_shed_95_vs_93": 0.21101615331834117
+    },
+    "B3": {
+      "applicable": true,
+      "delta_curtailment_95_vs_93": -2.706139244068595e-05,
+      "delta_lmp_95_vs_93": 0.12118198405670455,
+      "delta_profit_95_vs_93": -4.314314243250209,
+      "delta_shed_95_vs_93": 5.345456288142384e-07
+    }
+  },
+  "engine": "socp",
+  "policy": "rule",
+  "rungs": [
+    {
+      "convergence": true,
+      "engine": "power_flow",
+      "ess": [],
+      "market": null,
+      "network": {
+        "buses_below_0_93": 14,
+        "buses_below_0_95": 21,
+        "curtailment": null,
+        "max_line_utilization": 0.525566275624929,
+        "max_line_utilization_rating_used": "derived_ampacity_x1.0",
+        "max_line_utilization_vs_native_rating": 2.1036645362992474e-06,
+        "native_line_rating_is_unbounded": true,
+        "native_line_rating_ka": 99999.0,
+        "shed": 0.0,
+        "shed_mechanism": "absent",
+        "vmax": 1.0,
+        "vmax_bus": 0,
+        "vmin": 0.9130904806845325,
+        "vmin_bus": 17,
+        "voltage_binding": false,
+        "voltage_violation_bus_periods": 0
+      },
+      "reference": "native_benchmark",
+      "rung": "B0",
+      "scenario_id": "ieee33_native",
+      "seed": 123,
+      "system": {
+        "energy_load": null,
+        "metric_not_applicable": true,
+        "n_buses": 33,
+        "n_lines": 37,
+        "peak_load": null,
+        "pv_energy": null,
+        "renewable_consumption": null,
+        "total_p_mw": 3.715,
+        "total_q_mvar": 2.3,
+        "wind_energy": null
+      },
+      "voltage_band": "primary",
+      "voltage_band_bounds": [
+        0.93,
+        1.05
+      ]
+    },
+    {
+      "convergence": true,
+      "engine": "power_flow",
+      "ess": [],
+      "market": null,
+      "network": {
+        "buses_below_0_93": 14,
+        "buses_below_0_95": 21,
+        "curtailment": null,
+        "max_line_utilization": 0.525566275624929,
+        "max_line_utilization_rating_used": "derived_ampacity_x1.0",
+        "max_line_utilization_vs_native_rating": 2.1036645362992474e-06,
+        "native_line_rating_is_unbounded": true,
+        "native_line_rating_ka": 99999.0,
+        "shed": 0.0,
+        "shed_mechanism": "absent",
+        "vmax": 1.0,
+        "vmax_bus": 0,
+        "vmin": 0.9130904806845325,
+        "vmin_bus": 17,
+        "voltage_binding": false,
+        "voltage_violation_bus_periods": 0
+      },
+      "reference": "native_benchmark",
+      "rung": "B0",
+      "scenario_id": "ieee33_native",
+      "seed": 123,
+      "system": {
+        "energy_load": null,
+        "metric_not_applicable": true,
+        "n_buses": 33,
+        "n_lines": 37,
+        "peak_load": null,
+        "pv_energy": null,
+        "renewable_consumption": null,
+        "total_p_mw": 3.715,
+        "total_q_mvar": 2.3,
+        "wind_energy": null
+      },
+      "voltage_band": "strict",
+      "voltage_band_bounds": [
+        0.95,
+        1.05
+      ]
+    },
+    {
+      "convergence": true,
+      "engine": "socp",
+      "ess": [],
+      "ess_fleet": {
+        "active_units": 0,
+        "charge_energy_mwh": 0.0,
+        "discharge_energy_mwh": 0.0,
+        "equivalent_cycles": 0.0,
+        "inactive_buses": [],
+        "n_units": 0,
+        "profit": 0.0
+      },
+      "market": {
+        "clearing_objective": 18836.05832666226,
+        "lmp_max": 2410.357851197296,
+        "lmp_mean": 287.47985159753165,
+        "lmp_min": 153.54708529356697,
+        "voltage_band": [
+          0.93,
+          1.05
+        ]
+      },
+      "network": {
+        "curtailment": 0.0,
+        "max_line_utilization": 0.30981518729515267,
+        "shed": 0.10071122457722438,
+        "shed_mechanism": "market_clearing",
+        "vmax": 1.0,
+        "vmin": 0.930000000035376,
+        "vmin_bus": 17,
+        "voltage_binding": true,
+        "voltage_violation_bus_periods": 0
+      },
+      "policy": null,
+      "reference": "project_scenario",
+      "rung": "B1",
+      "scenario_id": "typical_day",
+      "seed": 123,
+      "settled_clean": true,
+      "system": {
+        "energy_load": 47.040413145102704,
+        "metric_not_applicable": false,
+        "peak_load": 3.7150000000000007,
+        "pv_energy": 0.0,
+        "renewable_consumption": 0.0,
+        "wind_energy": 0.0
+      },
+      "voltage_band": "primary",
+      "voltage_band_bounds": [
+        0.93,
+        1.05
+      ]
+    },
+    {
+      "convergence": true,
+      "engine": "socp",
+      "ess": [],
+      "ess_fleet": {
+        "active_units": 0,
+        "charge_energy_mwh": 0.0,
+        "discharge_energy_mwh": 0.0,
+        "equivalent_cycles": 0.0,
+        "inactive_buses": [],
+        "n_units": 0,
+        "profit": 0.0
+      },
+      "market": {
+        "clearing_objective": 16129.08400354072,
+        "lmp_max": 2673.7908617831595,
+        "lmp_mean": 444.05238433475955,
+        "lmp_min": 153.54708056701156,
+        "voltage_band": [
+          0.95,
+          1.05
+        ]
+      },
+      "network": {
+        "curtailment": 0.0,
+        "max_line_utilization": 0.26440515356926675,
+        "shed": 1.0819408992587607,
+        "shed_mechanism": "market_clearing",
+        "vmax": 1.0,
+        "vmin": 0.9500000000724551,
+        "vmin_bus": 32,
+        "voltage_binding": true,
+        "voltage_violation_bus_periods": 0
+      },
+      "policy": null,
+      "reference": "project_scenario",
+      "rung": "B1",
+      "scenario_id": "typical_day",
+      "seed": 123,
+      "settled_clean": true,
+      "system": {
+        "energy_load": 47.040413145102704,
+        "metric_not_applicable": false,
+        "peak_load": 3.7150000000000007,
+        "pv_energy": 0.0,
+        "renewable_consumption": 0.0,
+        "wind_energy": 0.0
+      },
+      "voltage_band": "strict",
+      "voltage_band_bounds": [
+        0.95,
+        1.05
+      ]
+    },
+    {
+      "convergence": true,
+      "engine": "socp",
+      "ess": [],
+      "ess_fleet": {
+        "active_units": 0,
+        "charge_energy_mwh": 0.0,
+        "discharge_energy_mwh": 0.0,
+        "equivalent_cycles": 0.0,
+        "inactive_buses": [],
+        "n_units": 0,
+        "profit": 0.0
+      },
+      "market": {
+        "clearing_objective": 19544.118297279485,
+        "lmp_max": 650.4084599732013,
+        "lmp_mean": 249.43774868343604,
+        "lmp_min": 153.54708657005844,
+        "voltage_band": [
+          0.93,
+          1.05
+        ]
+      },
+      "network": {
+        "curtailment": 13.134074965097986,
+        "max_line_utilization": 0.2492450525621735,
+        "shed": 2.9001535176278506e-08,
+        "shed_mechanism": "market_clearing",
+        "vmax": 1.002334809433619,
+        "vmin": 0.9313624211599663,
+        "vmin_bus": 17,
+        "voltage_binding": false,
+        "voltage_violation_bus_periods": 0
+      },
+      "policy": null,
+      "reference": "project_scenario",
+      "rung": "B2",
+      "scenario_id": "typical_day",
+      "seed": 123,
+      "settled_clean": true,
+      "system": {
+        "energy_load": 47.040413145102704,
+        "metric_not_applicable": false,
+        "peak_load": 3.7150000000000007,
+        "pv_energy": 4.099028065212193,
+        "renewable_consumption": 3.176928974343808,
+        "wind_energy": 12.897559426641262
+      },
+      "voltage_band": "primary",
+      "voltage_band_bounds": [
+        0.93,
+        1.05
+      ]
+    },
+    {
+      "convergence": true,
+      "engine": "socp",
+      "ess": [],
+      "ess_fleet": {
+        "active_units": 0,
+        "charge_energy_mwh": 0.0,
+        "discharge_energy_mwh": 0.0,
+        "equivalent_cycles": 0.0,
+        "inactive_buses": [],
+        "n_units": 0,
+        "profit": 0.0
+      },
+      "market": {
+        "clearing_objective": 18952.176889729573,
+        "lmp_max": 2595.2193395395925,
+        "lmp_mean": 315.5592927734756,
+        "lmp_min": 153.54708460388716,
+        "voltage_band": [
+          0.95,
+          1.05
+        ]
+      },
+      "network": {
+        "curtailment": 12.229645026333023,
+        "max_line_utilization": 0.2237010123268789,
+        "shed": 0.21101618231987634,
+        "shed_mechanism": "market_clearing",
+        "vmax": 1.0023348186271177,
+        "vmin": 0.9500000000152264,
+        "vmin_bus": 17,
+        "voltage_binding": true,
+        "voltage_violation_bus_periods": 0
+      },
+      "policy": null,
+      "reference": "project_scenario",
+      "rung": "B2",
+      "scenario_id": "typical_day",
+      "seed": 123,
+      "settled_clean": true,
+      "system": {
+        "energy_load": 47.040413145102704,
+        "metric_not_applicable": false,
+        "peak_load": 3.7150000000000007,
+        "pv_energy": 4.099028065212193,
+        "renewable_consumption": 4.081358913108783,
+        "wind_energy": 12.897559426641262
+      },
+      "voltage_band": "strict",
+      "voltage_band_bounds": [
+        0.95,
+        1.05
+      ]
+    },
+    {
+      "baseline_settled_clean": true,
+      "convergence": true,
+      "delta_pi": -13.303980010890768,
+      "delta_pi_percent": -0.06992830853431593,
+      "engine": "socp",
+      "ess": [
+        {
+          "bus": 9,
+          "charge_energy": 0.6033313314489932,
+          "cycles": 0.34812217826403413,
+          "degradation_cost": 111.39909704449093,
+          "discharge_energy": 0.5106596389959162,
+          "profit": 49.6264036672863,
+          "purchase_cost": 112.77544218122404,
+          "revenue": 273.80094289300126
+        },
+        {
+          "bus": 14,
+          "charge_energy": 0.5506798269192965,
+          "cycles": 0.3177422600960212,
+          "degradation_cost": 101.67752323072678,
+          "discharge_energy": 0.46609540538797134,
+          "profit": 40.36136250764524,
+          "purchase_cost": 106.18782864517836,
+          "revenue": 248.22671438355036
+        },
+        {
+          "bus": 17,
+          "charge_energy": 0.4369286836241356,
+          "cycles": 0.2521078504082876,
+          "degradation_cost": 80.67451213065205,
+          "discharge_energy": 0.36981643768238487,
+          "profit": 31.216166203084654,
+          "purchase_cost": 85.31264651992342,
+          "revenue": 197.20332485366012
+        },
+        {
+          "bus": 27,
+          "charge_energy": 0.590737323768999,
+          "cycles": 0.34085543580189326,
+          "degradation_cost": 109.07373945660586,
+          "discharge_energy": 0.5000000707970595,
+          "profit": 55.74379281906036,
+          "purchase_cost": 106.5854708076666,
+          "revenue": 271.4030030833328
+        }
+      ],
+      "ess_fleet": {
+        "active_units": 4,
+        "charge_energy_mwh": 2.1816771657614242,
+        "discharge_energy_mwh": 1.846571552863332,
+        "equivalent_cycles": 1.2588277245702364,
+        "inactive_buses": [],
+        "n_units": 4,
+        "profit": 176.94772519707655
+      },
+      "market": {
+        "clearing_objective": 19697.47047091634,
+        "lmp_max": 603.2375472930614,
+        "lmp_mean": 248.51564343054562,
+        "lmp_min": 153.54715101459516,
+        "voltage_band": [
+          0.93,
+          1.05
+        ]
+      },
+      "network": {
+        "curtailment": 13.138421098217867,
+        "max_line_utilization": 0.2789621353932874,
+        "shed": 2.671443488367437e-07,
+        "shed_mechanism": "market_clearing",
+        "vmax": 1.0133400021607093,
+        "vmin": 0.9300000088045575,
+        "vmin_bus": 17,
+        "voltage_binding": true,
+        "voltage_violation_bus_periods": 0
+      },
+      "pi_ai": 176.94772519707655,
+      "pi_baseline": 190.25170520796732,
+      "policy": "rule",
+      "reference": "project_scenario",
+      "rung": "B3",
+      "scenario_id": "typical_day",
+      "seed": 123,
+      "settled_clean": true,
+      "system": {
+        "energy_load": 47.040413145102704,
+        "metric_not_applicable": false,
+        "peak_load": 3.7150000000000007,
+        "pv_energy": 4.099028065212193,
+        "renewable_consumption": 3.17258284122393,
+        "wind_energy": 12.897559426641262
+      },
+      "voltage_band": "primary",
+      "voltage_band_bounds": [
+        0.93,
+        1.05
+      ]
+    },
+    {
+      "baseline_settled_clean": true,
+      "convergence": true,
+      "delta_pi": -12.03221719779657,
+      "delta_pi_percent": -0.06515677688952777,
+      "engine": "socp",
+      "ess": [
+        {
+          "bus": 9,
+          "charge_energy": 0.6032558307018194,
+          "cycles": 0.34807861436549914,
+          "degradation_cost": 111.38515659695973,
+          "discharge_energy": 0.5105957352677779,
+          "profit": 49.00084196528202,
+          "purchase_cost": 113.66556227761124,
+          "revenue": 274.051560839853
+        },
+        {
+          "bus": 14,
+          "charge_energy": 0.5433663288533089,
+          "cycles": 0.3135223718060163,
+          "degradation_cost": 100.32715897792522,
+          "discharge_energy": 0.45990526092594314,
+          "profit": 39.02450995779816,
+          "purchase_cost": 106.10316916678082,
+          "revenue": 245.4548381025042
+        },
+        {
+          "bus": 17,
+          "charge_energy": 0.409793131178799,
+          "cycles": 0.23645063673923772,
+          "degradation_cost": 75.66420375655608,
+          "discharge_energy": 0.34684890638676164,
+          "profit": 29.135619043106146,
+          "purchase_cost": 80.84789844998261,
+          "revenue": 185.64772124964483
+        },
+        {
+          "bus": 27,
+          "charge_energy": 0.5907367177893251,
+          "cycles": 0.34085508621806215,
+          "degradation_cost": 109.07362758977987,
+          "discharge_energy": 0.4999995581084738,
+          "profit": 55.47243998764,
+          "purchase_cost": 106.96709737443257,
+          "revenue": 271.51316495185245
+        }
+      ],
+      "ess_fleet": {
+        "active_units": 4,
+        "charge_energy_mwh": 2.1471520085232525,
+        "discharge_energy_mwh": 1.8173494606889564,
+        "equivalent_cycles": 1.2389067091288153,
+        "inactive_buses": [],
+        "n_units": 4,
+        "profit": 172.63341095382634
+      },
+      "market": {
+        "clearing_objective": 19695.27748683168,
+        "lmp_max": 603.2353467416468,
+        "lmp_mean": 248.63682541460233,
+        "lmp_min": 153.54714660652067,
+        "voltage_band": [
+          0.95,
+          1.05
+        ]
+      },
+      "network": {
+        "curtailment": 13.138394036825426,
+        "max_line_utilization": 0.26642857261101766,
+        "shed": 8.016899776509821e-07,
+        "shed_mechanism": "market_clearing",
+        "vmax": 1.0131872767029095,
+        "vmin": 0.9500000339533529,
+        "vmin_bus": 15,
+        "voltage_binding": true,
+        "voltage_violation_bus_periods": 0
+      },
+      "pi_ai": 172.63341095382634,
+      "pi_baseline": 184.6656281516229,
+      "policy": "rule",
+      "reference": "project_scenario",
+      "rung": "B3",
+      "scenario_id": "typical_day",
+      "seed": 123,
+      "settled_clean": true,
+      "system": {
+        "energy_load": 47.040413145102704,
+        "metric_not_applicable": false,
+        "peak_load": 3.7150000000000007,
+        "pv_energy": 4.099028065212193,
+        "renewable_consumption": 3.1726099026163697,
+        "wind_energy": 12.897559426641262
+      },
+      "voltage_band": "strict",
+      "voltage_band_bounds": [
+        0.95,
+        1.05
+      ]
+    }
+  ],
+  "seed": 123,
+  "voltage_band": {
+    "primary": [
+      0.93,
+      1.05
+    ],
+    "strict": [
+      0.95,
+      1.05
+    ]
+  }
+}

@@ -1,0 +1,611 @@
+{
+  "scenario": {
+    "name": "typical_day_industry",
+    "load_scale_mode": "ledger",
+    "load_shape": "native",
+    "n_load_agents": 32,
+    "n_storage_agents": 4,
+    "storage_names": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "storage_buses": [
+      9,
+      14,
+      17,
+      27
+    ],
+    "storage_power_mw": [
+      0.4,
+      0.4,
+      0.4,
+      0.4
+    ],
+    "storage_energy_mwh": [
+      1.6,
+      1.6,
+      1.6,
+      1.6
+    ],
+    "pv_mw": 0.6,
+    "wind_mw": 1.0,
+    "mapping_is_simulation": true,
+    "mapping_excluded": [
+      "分布式光伏",
+      "5G基站",
+      "电解铝"
+    ],
+    "mapping_industries": [
+      "化工业",
+      "印刷业",
+      "商业综合体",
+      "数据中心",
+      "机械",
+      "水泥制造",
+      "汽车制造业",
+      "电制氢",
+      "电动汽车（充换电）",
+      "电子设备制造业",
+      "纺织业",
+      "通用设备制造业",
+      "钢铁"
+    ]
+  },
+  "T": 96,
+  "industry_shapes": {
+    "path": "data/processed/industry_typical_profiles.csv",
+    "n_industries": 16,
+    "n_slots": 96,
+    "industries_failing_96_finite": [],
+    "reliable": [
+      "分布式光伏",
+      "化工业",
+      "印刷业",
+      "商业综合体",
+      "数据中心",
+      "机械",
+      "水泥制造",
+      "汽车制造业",
+      "电制氢",
+      "电动汽车（充换电）",
+      "电子设备制造业",
+      "纺织业",
+      "通用设备制造业",
+      "钢铁"
+    ],
+    "limited": [
+      "5G基站",
+      "电解铝"
+    ]
+  },
+  "price_curves": {
+    "curves": {
+      "261009": {
+        "role": "single_day_spatial_mean",
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "temporal_statistic": "single_day",
+        "window_days": 1,
+        "is_single_day": true,
+        "externally_confirmed": false,
+        "is_measured": true,
+        "header_label": "日前均值（CNY/MWh）",
+        "workbook_sha256": "5fc8f9a8461b680fd38a6d2fefb3d2ff99f239c8bd13a6c77df27de3bb9612f3",
+        "interval_convention": "label_is_interval_end",
+        "units": "CNY/MWh",
+        "min": 225.9,
+        "max": 445.0,
+        "mean": 386.8302083333333,
+        "n_slots": 96,
+        "valid": true
+      },
+      "7days": {
+        "role": "trailing_7_day_mean",
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "temporal_statistic": "window_mean",
+        "window_days": 7,
+        "is_single_day": false,
+        "externally_confirmed": true,
+        "is_measured": true,
+        "header_label": "日前均价",
+        "workbook_sha256": "5fc8f9a8461b680fd38a6d2fefb3d2ff99f239c8bd13a6c77df27de3bb9612f3",
+        "interval_convention": "label_is_interval_end",
+        "units": "CNY/MWh",
+        "min": 257.5,
+        "max": 477.871,
+        "mean": 395.54803125000007,
+        "n_slots": 96,
+        "valid": true
+      },
+      "30days": {
+        "role": "trailing_30_day_mean",
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "temporal_statistic": "window_mean",
+        "window_days": 30,
+        "is_single_day": false,
+        "externally_confirmed": true,
+        "is_measured": true,
+        "header_label": "日前均价",
+        "workbook_sha256": "5fc8f9a8461b680fd38a6d2fefb3d2ff99f239c8bd13a6c77df27de3bb9612f3",
+        "interval_convention": "label_is_interval_end",
+        "units": "CNY/MWh",
+        "min": 333.077,
+        "max": 450.857,
+        "mean": 407.82115625000006,
+        "n_slots": 96,
+        "valid": true
+      },
+      "halfyear": {
+        "role": "trailing_180_day_mean",
+        "source_kind": "real_market_data",
+        "spatial_statistic": "spatial_mean",
+        "temporal_statistic": "window_mean",
+        "window_days": 180,
+        "is_single_day": false,
+        "externally_confirmed": true,
+        "is_measured": true,
+        "header_label": "日前均价",
+        "workbook_sha256": "5fc8f9a8461b680fd38a6d2fefb3d2ff99f239c8bd13a6c77df27de3bb9612f3",
+        "interval_convention": "label_is_interval_end",
+        "units": "CNY/MWh",
+        "min": 284.927,
+        "max": 393.855,
+        "mean": 346.3266354166667,
+        "n_slots": 96,
+        "valid": true
+      }
+    },
+    "n_slots": 96,
+    "describe": {
+      "source": "dianyicha",
+      "units": "CNY/MWh",
+      "n_slots": 96,
+      "interval_convention": "label_is_interval_end",
+      "source_kind": "real_market_data",
+      "spatial_statistics_present": [
+        "spatial_mean"
+      ],
+      "temporal_statistics_present": [
+        "single_day",
+        "window_mean"
+      ],
+      "contains_single_day_curve": true,
+      "contains_multi_day_series": false,
+      "contains_confirmed_daily_series": false,
+      "contains_confirmed_daily_series_semantics": "Whether any curve's SINGLE-DAY reading is confirmed from outside the project. False here: 261009 is read as a single day by project ruling and the workbook cannot confirm it. It does NOT mean no single-day curve is present; use `contains_single_day_curve` for that, and `externally_confirmed` per curve for the confirmation itself.",
+      "contains_measured_daily_series": false,
+      "contains_measured_daily_series_semantics": "Whether the set holds a per-day sample series spanning MULTIPLE real dates. False here, and unaffected by `261009` -- one day is not a series. It does NOT say whether a real single-day 96-period curve is present; use `contains_single_day_curve` for that.",
+      "deprecated": {
+        "is_measured": "True when the curve's underlying source is real market measured data. It does NOT mean the curve is a single day, and it does NOT mean it is free of spatial averaging -- it is True for all four curves here. Use `temporal_statistic` for single-day identity.",
+        "aggregation": "Legacy single-axis label, superseded by `temporal_statistic`. It could not express that a curve is both spatially averaged and a single day, which is why `261009` no longer reads `unresolved`.",
+        "mean_window_days": "Legacy name for `window_days` that also encodes the temporal statistic: it is None unless the curve is a window mean. Read `window_days` with `temporal_statistic` instead.",
+        "contains_measured_daily_series": "Whether the set holds a per-day sample series spanning MULTIPLE real dates. False here, and unaffected by `261009` -- one day is not a series. It does NOT say whether a real single-day 96-period curve is present; use `contains_single_day_curve` for that.",
+        "contains_confirmed_daily_series": "Whether any curve's SINGLE-DAY reading is confirmed from outside the project. False here: 261009 is read as a single day by project ruling and the workbook cannot confirm it. It does NOT mean no single-day curve is present; use `contains_single_day_curve` for that, and `externally_confirmed` per curve for the confirmation itself."
+      },
+      "note": "All four curves derive from real measured market data and all four are SPATIAL means -- no bus or zone is represented by any of them, and the spatial extent and weighting are not recorded in the workbook. They differ in their TEMPORAL statistic: 261009 is a single day and 7days, 30days and halfyear are means over 7, 30 and 180 days. 261009's single-day reading is a PROJECT RULING reading its header's 均值 as a spatial mean, not an external confirmation. One day plus three window means is not a series of daily prices, so results built on these curves are price-scenario comparisons, not evidence about day-to-day behaviour, volatility or generalisation across days.",
+      "curves": {
+        "261009": {
+          "role": "single_day_spatial_mean",
+          "source_kind": "real_market_data",
+          "spatial_statistic": "spatial_mean",
+          "temporal_statistic": "single_day",
+          "window_days": 1,
+          "is_single_day": true,
+          "externally_confirmed": false,
+          "declared_by": "project ruling 2026-10-12",
+          "reference_period": "26/10/09",
+          "window_end": null,
+          "header_label": "日前均值（CNY/MWh）",
+          "is_measured": true,
+          "aggregation": "single_day",
+          "mean_window_days": null,
+          "min_cny_mwh": 225.9,
+          "max_cny_mwh": 445.0,
+          "mean_cny_mwh": 386.8302083333333,
+          "peak_slot": 64,
+          "trough_slot": 45
+        },
+        "7days": {
+          "role": "trailing_7_day_mean",
+          "source_kind": "real_market_data",
+          "spatial_statistic": "spatial_mean",
+          "temporal_statistic": "window_mean",
+          "window_days": 7,
+          "is_single_day": false,
+          "externally_confirmed": true,
+          "declared_by": "the workbook's own column header (日前均价)",
+          "reference_period": null,
+          "window_end": null,
+          "header_label": "日前均价",
+          "is_measured": true,
+          "aggregation": "trailing_mean",
+          "mean_window_days": 7,
+          "min_cny_mwh": 257.5,
+          "max_cny_mwh": 477.871,
+          "mean_cny_mwh": 395.54803125000007,
+          "peak_slot": 71,
+          "trough_slot": 46
+        },
+        "30days": {
+          "role": "trailing_30_day_mean",
+          "source_kind": "real_market_data",
+          "spatial_statistic": "spatial_mean",
+          "temporal_statistic": "window_mean",
+          "window_days": 30,
+          "is_single_day": false,
+          "externally_confirmed": true,
+          "declared_by": "the workbook's own column header (日前均价)",
+          "reference_period": null,
+          "window_end": null,
+          "header_label": "日前均价",
+          "is_measured": true,
+          "aggregation": "trailing_mean",
+          "mean_window_days": 30,
+          "min_cny_mwh": 333.077,
+          "max_cny_mwh": 450.857,
+          "mean_cny_mwh": 407.82115625000006,
+          "peak_slot": 9,
+          "trough_slot": 47
+        },
+        "halfyear": {
+          "role": "trailing_180_day_mean",
+          "source_kind": "real_market_data",
+          "spatial_statistic": "spatial_mean",
+          "temporal_statistic": "window_mean",
+          "window_days": 180,
+          "is_single_day": false,
+          "externally_confirmed": true,
+          "declared_by": "the workbook's own column header (日前均价)",
+          "reference_period": null,
+          "window_end": null,
+          "header_label": "日前均价",
+          "is_measured": true,
+          "aggregation": "trailing_mean",
+          "mean_window_days": 180,
+          "min_cny_mwh": 284.927,
+          "max_cny_mwh": 393.855,
+          "mean_cny_mwh": 346.3266354166667,
+          "peak_slot": 8,
+          "trough_slot": 39
+        }
+      }
+    }
+  },
+  "declared_curve": {
+    "wholesale_curve_index": 0,
+    "resolved_sheet": "261009",
+    "declared_source": "dianyicha",
+    "declared_by": "config/scenarios.yaml:typical_day_industry.wholesale_curve_index",
+    "global_day_id_used": false
+  },
+  "load_check": {
+    "coincident_peak_mw": 526.208541288,
+    "network_nominal_demand_mw": 3.715,
+    "absolute_error_mw": 522.493541288,
+    "daily_energy_mwh": 10995.6394652765,
+    "all_finite": true,
+    "all_non_negative": true,
+    "uses_pv_industry_as_load": false
+  },
+  "price_check": {
+    "resolved_sheet": "261009",
+    "wholesale_matches_declared_curve": true,
+    "min": 225.9,
+    "max": 445.0,
+    "mean": 386.8302083333333,
+    "matches_workbook_min": true,
+    "matches_workbook_max": true,
+    "matches_workbook_mean": true
+  },
+  "settlement_path_a": {
+    "entry": "counterfactual_eval.settle_day",
+    "clean": true,
+    "per_unit_profit": {
+      "ESS9": -5.471394144128372e-06,
+      "ESS14": -5.7878316674929135e-06,
+      "ESS17": -5.9285909626366955e-06,
+      "ESS27": -5.139312559536458e-06
+    },
+    "fleet_profit": -2.232712933379444e-05
+  },
+  "settlement_path_b": {
+    "entry": "eval_agents.run_episode + settle_capture",
+    "capture_usable": true,
+    "clean": true,
+    "per_unit_profit": {
+      "ESS9": -5.471394144128372e-06,
+      "ESS14": -5.7878316674929135e-06,
+      "ESS17": -5.9285909626366955e-06,
+      "ESS27": -5.139312559536458e-06
+    },
+    "rolling_reward": {
+      "ESS9": 1358.5435658944518,
+      "ESS14": 1328.1255035389759,
+      "ESS17": 1359.7592943628347,
+      "ESS27": 1156.497199548377
+    }
+  },
+  "paths_agree": {
+    "prices_identical": true,
+    "per_unit_max_abs_diff": 0.0,
+    "agree": true
+  },
+  "physics": {
+    "bus_voltage": {
+      "min": 0.9300000000005102,
+      "max": 1.0,
+      "band": [
+        0.93,
+        1.05
+      ],
+      "periods_below_min": 0,
+      "periods_above_max": 0,
+      "worst_bus": 22
+    },
+    "line_utilization": {
+      "max": 0.9999999999980822,
+      "lines_over_1": 0,
+      "periods_over_1": 0,
+      "worst_line": 1
+    },
+    "grid": {
+      "import_mwh": 334.4694432682281,
+      "export_mwh": 0.0,
+      "periods_importing": 96,
+      "periods_exporting": 0,
+      "simultaneous_import_export": 0
+    },
+    "energy": {
+      "da_basis": "load_forecast",
+      "forecast_mwh": 10995.639465276501,
+      "realized_mwh": 10995.639465276501,
+      "forecast_error_mwh": 0.0,
+      "forecast_error_pct": 0.0,
+      "served_mwh": 332.4973703904766,
+      "unserved_mwh": 10663.14209500362,
+      "unserved_fraction_of_forecast": 0.969760979220637,
+      "served_covers_forecast": false,
+      "curtailment_mwh": 7.3098088796835525e-09,
+      "re_consumption_rate_pct": 99.99999996692388
+    },
+    "prices": {
+      "lmp_fallbacks": 0,
+      "nodal_min": 225.90000340245552,
+      "nodal_max": 2936.705539338426,
+      "clearing_objective": -26565403.576422818,
+      "carbon_tco2": 193.99227709557226
+    },
+    "solver": {
+      "present": true,
+      "engine": "socp",
+      "primary_name": "gurobi",
+      "primary_status_code": 2,
+      "primary_status_name": "OPTIMAL",
+      "primary_termination": "optimal",
+      "used_fallback": false,
+      "fallback": null,
+      "final_name": "gurobi",
+      "final_status_name": "OPTIMAL",
+      "final_is_primary": true,
+      "duals_available": true,
+      "fallback_key_present": false
+    },
+    "storage": {
+      "ESS9": {
+        "n_boundary_states": 97,
+        "transitions_expected": 96,
+        "transitions_checked": 96,
+        "all_transitions_checked": true,
+        "max_recursion_residual": 8.863351404533115e-11,
+        "worst_transition_slot": 1,
+        "worst_transition_residual": 8.863351404533115e-11,
+        "tolerance": 1e-06,
+        "all_transitions_verified": true,
+        "soc0_boundary": 0.5,
+        "soc0_configured": 0.5,
+        "soc_terminal_target": 0.5,
+        "soc_terminal_actual": 0.5,
+        "terminal_actual_is_the_boundary_end": true,
+        "within_bounds": true,
+        "charge_mwh": 5.193672890607471e-09,
+        "discharge_mwh": 4.677375932025037e-09,
+        "periods_charging": 0,
+        "periods_discharging": 0
+      },
+      "ESS14": {
+        "n_boundary_states": 97,
+        "transitions_expected": 96,
+        "transitions_checked": 96,
+        "all_transitions_checked": true,
+        "max_recursion_residual": 8.859532837845073e-11,
+        "worst_transition_slot": 1,
+        "worst_transition_residual": 8.859532837845073e-11,
+        "tolerance": 1e-06,
+        "all_transitions_verified": true,
+        "soc0_boundary": 0.5,
+        "soc0_configured": 0.5,
+        "soc_terminal_target": 0.5,
+        "soc_terminal_actual": 0.5,
+        "terminal_actual_is_the_boundary_end": true,
+        "within_bounds": true,
+        "charge_mwh": 5.463328088144129e-09,
+        "discharge_mwh": 4.906735738038953e-09,
+        "periods_charging": 0,
+        "periods_discharging": 0
+      },
+      "ESS17": {
+        "n_boundary_states": 97,
+        "transitions_expected": 96,
+        "transitions_checked": 96,
+        "all_transitions_checked": true,
+        "max_recursion_residual": 8.853212618503059e-11,
+        "worst_transition_slot": 1,
+        "worst_transition_residual": 8.853212618503059e-11,
+        "tolerance": 1e-06,
+        "all_transitions_verified": true,
+        "soc0_boundary": 0.5,
+        "soc0_configured": 0.5,
+        "soc_terminal_target": 0.5,
+        "soc_terminal_actual": 0.5,
+        "terminal_actual_is_the_boundary_end": true,
+        "within_bounds": true,
+        "charge_mwh": 5.53449578403348e-09,
+        "discharge_mwh": 4.966639018284533e-09,
+        "periods_charging": 0,
+        "periods_discharging": 0
+      },
+      "ESS27": {
+        "n_boundary_states": 97,
+        "transitions_expected": 96,
+        "transitions_checked": 96,
+        "all_transitions_checked": true,
+        "max_recursion_residual": 8.867356836442241e-11,
+        "worst_transition_slot": 1,
+        "worst_transition_residual": 8.867356836442241e-11,
+        "tolerance": 1e-06,
+        "all_transitions_verified": true,
+        "soc0_boundary": 0.5,
+        "soc0_configured": 0.5,
+        "soc_terminal_target": 0.5,
+        "soc_terminal_actual": 0.5,
+        "terminal_actual_is_the_boundary_end": true,
+        "within_bounds": true,
+        "charge_mwh": 4.581627058619682e-09,
+        "discharge_mwh": 4.161141147734194e-09,
+        "periods_charging": 0,
+        "periods_discharging": 0
+      }
+    }
+  },
+  "breakdown": {
+    "ESS9": {
+      "revenue": 1.1758734859386467e-06,
+      "purchase_cost": 5.6601627478037675e-06,
+      "generation_cost": 0.0,
+      "degradation_cost": 9.871048822632506e-07,
+      "other_cost": 0.0,
+      "penalty": 0.0,
+      "total": -5.471394144128372e-06,
+      "reconciles": true,
+      "matches_settlement": true
+    },
+    "ESS14": {
+      "revenue": 1.240733874502282e-06,
+      "purchase_cost": 5.991559159376887e-06,
+      "generation_cost": 0.0,
+      "degradation_cost": 1.0370063826183083e-06,
+      "other_cost": 0.0,
+      "penalty": 0.0,
+      "total": -5.7878316674929135e-06,
+      "reconciles": true,
+      "matches_settlement": true
+    },
+    "ESS17": {
+      "revenue": 1.1810148386127706e-06,
+      "purchase_cost": 6.0594923210176655e-06,
+      "generation_cost": 0.0,
+      "degradation_cost": 1.0501134802318013e-06,
+      "other_cost": 0.0,
+      "penalty": 0.0,
+      "total": -5.9285909626366955e-06,
+      "reconciles": true,
+      "matches_settlement": true
+    },
+    "ESS27": {
+      "revenue": 8.134296298517009e-07,
+      "purchase_cost": 5.078465368752771e-06,
+      "generation_cost": 0.0,
+      "degradation_cost": 8.742768206353875e-07,
+      "other_cost": 0.0,
+      "penalty": 0.0,
+      "total": -5.139312559536458e-06,
+      "reconciles": true,
+      "matches_settlement": true
+    }
+  },
+  "fleet_reconciliation": {
+    "sum_of_settled_unit_profits": -2.232712933379444e-05,
+    "sum_of_independent_breakdowns": -2.232712933379444e-05,
+    "agree": true,
+    "every_unit_reconciles": true,
+    "every_unit_matches_settlement": true
+  },
+  "arbitrage": {
+    "cycle_cost_per_leg": 100.0,
+    "required_margin": 200.69565217391303,
+    "units": [
+      {
+        "unit": "ESS9",
+        "bus": 9,
+        "lmp_min": 2531.3612758766685,
+        "lmp_max": 2830.319365170403,
+        "trough_slot": 37,
+        "peak_slot": 62,
+        "round_trip_margin": -147.58583173525994,
+        "required": 200.69565217391303,
+        "shortfall": -348.28148390917295
+      },
+      {
+        "unit": "ESS14",
+        "bus": 14,
+        "lmp_min": 2615.177894425114,
+        "lmp_max": 2877.564660626176,
+        "trough_slot": 37,
+        "peak_slot": 62,
+        "round_trip_margin": -195.22518007730287,
+        "required": 200.69565217391303,
+        "shortfall": -395.92083225121587
+      },
+      {
+        "unit": "ESS17",
+        "bus": 17,
+        "lmp_min": 2670.8245927068724,
+        "lmp_max": 2907.622716281596,
+        "trough_slot": 37,
+        "peak_slot": 62,
+        "round_trip_margin": -228.05731048492316,
+        "required": 200.69565217391303,
+        "shortfall": -428.75296265883617
+      },
+      {
+        "unit": "ESS27",
+        "bus": 27,
+        "lmp_min": 2624.5911133154104,
+        "lmp_max": 2890.430436656179,
+        "trough_slot": 17,
+        "peak_slot": 62,
+        "round_trip_margin": -193.6204257930658,
+        "required": 200.69565217391303,
+        "shortfall": -394.3160779669788
+      }
+    ],
+    "all_below_threshold": true
+  },
+  "provenance": {
+    "workbook_sha256": "5fc8f9a8461b680fd38a6d2fefb3d2ff99f239c8bd13a6c77df27de3bb9612f3",
+    "shapes_file_sha256": "0a19913e7d068390b02783b7934c1376c7067dd3bc20a68b47bebf853fbb8f56",
+    "curve_sheet": "261009",
+    "curve_role": "single_day_spatial_mean",
+    "curve_source_kind": "real_market_data",
+    "curve_spatial_statistic": "spatial_mean",
+    "curve_temporal_statistic": "single_day",
+    "curve_window_days": 1,
+    "curve_is_single_day": true,
+    "curve_externally_confirmed": false,
+    "curve_is_measured": true,
+    "dt_hours": 0.25,
+    "units": "CNY/MWh",
+    "profit_definition": "modelled storage day-ahead energy profit: settlement revenue less purchase, degradation and penalty; no out-of-model charges"
+  },
+  "repeatability": {
+    "n_runs": 2,
+    "prices_identical": true,
+    "peak_identical": true,
+    "profits_identical": true,
+    "all_clean": true
+  }
+}

@@ -256,30 +256,170 @@ value, but not an operator who reads the values from the right place by hand.
 command with `--resume` appended. It is an edit to a pinned file and needs the
 next version directory.
 
-## TD-12 — the corrected radial tree invalidates the frozen price reference
+## TD-12 — the corrected radial tree invalidates every pre-correction clearing number
 
-**Status:** open. Blocks any v5 protocol that keeps `OBS_V6` unchanged.
+**Status:** partially closed. The B1 baseline, the B0-B3 ladder and the
+typical-day acceptance are recomputed on the corrected tree; the benchmark
+table is `BLOCKED` on a missing producer. Evidence and the before/after tables
+are in `reports/baseline_recompute_2026-11-16/RECOMPUTE.md`.
+
+Recomputed:
+
+- `data/processed/v2_cy_jn_2025_v6/b1_terminal_neutral_results.csv` replaces the
+  pre-correction B1 artifact; `rl_b_c2_gate.B1_RESULTS` and the v6 data manifest
+  point at it. Mean `G_total` 165.3858 → 179.6571 CNY/day.
+- `reports/baseline_recompute_2026-11-16/ladder_v6.json`, against a tree that
+  differs from the live one in `dispatch_core.py` alone
+  (`ladder_pre_f1.json`). The primary voltage band is now reached on every
+  market rung (`vmin` 0.9459-0.9547 → 0.9300-0.9314) and the market declines to
+  buy load it previously served (B1 shed 0.0000 → 0.1007 MWh).
+- `reports/baseline_recompute_2026-11-16/typical_day_acceptance_v6.json`, same
+  A/B pair: served 354.81 → 332.50 MWh, fleet profit −0.5213 →
+  −2.2e-05 CNY/day.
+
+Still stale:
+
+- `reports/v2_cy_jn_2025/results.csv` B1 = JN-Base rows (96 whole-day clears
+  carrying `served_mwh`, `pcc_import_max_mw`, `reverse_within_limit`), and the
+  training-readiness headroom read from them. No maintained script writes those
+  rows; `run_benchmarks.py` writes `benchmark_raw.csv`, whose B0/B2A/B2B columns
+  are a different set. `BLOCKED` until a JN-Base producer and a `results.csv`
+  writer exist.
 
 **Where:** `src/dispatch_core._select_radial_lines`, now restricted to
-in-service lines; `src/rl_env.py`, `PRICE_REF_CNY_MWH = 288.19757259048833`
-and the `[-1, 3]` clip on the price-history features.
+in-service lines.
 
 **Evidence:** before the correction the selector admitted the four open tie
 lines of `case33bw` (32, 33, 34, 36) and dropped four main segments (6, 9, 13,
 26). On the in-service tree, `baseline` clears at SOCP price mean 1544.0
-against 726.7 before (LMP spatial spread 700.3 against 45.5). Both
-`last_lmp_norm` and `avg_lmp_hist_norm` are `lmp / 288.197...` clipped at 3.0,
-so the whole day now saturates and the observation carries no price level.
-`tests/test_rl_spec.py::test_a_blocks_realized_lmp_reaches_only_the_next_observation`
-is marked `xfail(strict=True)` for this reason.
+against 726.7 before (LMP spatial spread 700.3 against 45.5; per-node maximum
+2797.8).
 
 **Effect:** every clearing number produced before the correction — the
 `JN-Base` benchmark tables, `b1_terminal_neutral_results.csv`, the training
 readiness headroom — describes a network that is not the case's. The
-correction is right and the numbers have to be recomputed. The price reference
-cannot be recomputed in place: it is part of the frozen observation
-definition and needs a new candidate id and a new manifest.
+correction is right and the numbers have to be recomputed.
 
-**Cleared by:** re-deriving `PRICE_REF_CNY_MWH` (and the clip) for the v5
-candidate, regenerating the benchmark and baseline tables on the corrected
-tree, and removing the `xfail` marker.
+**Not an effect:** the frozen price reference stays usable. Measured on all 53
+`near/train` pairs, truthful quotes, `socp`, whole day (the committed periods
+of all 24 blocks): day-mean LMP 76.3 / 224.8 / 490.4 (min / median / max),
+day-mean over `PRICE_REF_CNY_MWH` median 0.78, nodal-maximum over the
+reference median 1.54, and 198 of 160,908 price cells over the `+3.0` clip on
+2 days of 53. The reference was calibrated on the synthetic `fam_a` family and
+lands within a factor of ~1.3 of the median real training day, so the price
+features carry a level on this population. An earlier reading of this entry
+claimed the whole day saturates; that was measured on `baseline`, an
+`explicit_peak` 10 MW legacy scenario, and it does not extend to the training
+scenario.
+
+The `xfail(strict=True)` this entry used to justify on
+`tests/test_rl_spec.py::test_a_blocks_realized_lmp_reaches_only_the_next_observation`
+was a harness artifact, not a protocol problem: `_make_env` built the env from
+`baseline`, whose corrected price mean is 5.4x the reference. The helper now
+uses `typical_day` and the test passes (`32 passed`,
+`PYTHONPATH=src python -m pytest tests/test_rl_spec.py -q`).
+
+**Remaining question:** whether a reference fitted on the synthetic family
+should keep standing in for the real curves. That is a provenance question
+about the frozen candidate, not a saturation finding, and it does not block a
+v5 protocol that keeps `OBS_V6` unchanged.
+
+**Cleared by:** a producer for the `results.csv` B1 rows and the benchmark
+table regenerated through it; the baseline and ladder halves are already done.
+The frozen price reference continues to stand, with the measurement above
+recorded rather than a re-derivation.
+
+## TD-13 — the diagnostics still read the B1 baseline cleared on the wrong tree
+
+**Status:** open. Does not block v6 or a launch; blocks quoting any of these
+diagnostics against the live baseline.
+
+**Where:** `src/audit_holdout_exposure.py` (`B1_RESULTS`),
+`src/diagnose_profit_opportunity.py` (`B1_*`), and through
+`diagnose_critic_long_horizon.DATA`
+`src/audit_winter_15min_quote_acceptance.py` — all rooted at
+`data/processed/v2_cy_jn_2025/`.
+
+**Evidence:** that directory holds the artifact produced before the radial-tree
+correction. The live baseline is
+`data/processed/v2_cy_jn_2025_v6/b1_terminal_neutral_results.csv`, which
+`src/rl_b_c2_gate.py` reads and the v6 data manifest hashes.
+
+**Effect:** each of the three answers a question about a baseline, so against
+the live protocol its answer is about a different network. They are not
+repointed here because each compares that baseline to a specific frozen run
+(e.g. `FORMAL_7834d0aa_seed11`); moving one side alone would make the
+comparison meaningless, and moving both is a recompute with its own report.
+
+**Cleared by:** repointing each reader and recomputing the run it compares
+against, in one change per reader.
+
+---
+
+## TD-14 — the two training loops disagree on which blocks may be learned from
+
+**Status:** open. Deliberate asymmetry, recorded so it is not read as a bug in
+one of them.
+
+**Where:** `src/train_rl.py` (refuses `_last_result is None` or
+`fell_back`), `src/rl_b_c2_gate.py` / `src/rl_da_gate.py` (refuse only
+`_last_result is None`).
+
+**Evidence:** the formal environment returns a fallback result whose bids were
+not the policy's, so a reward built from it is a difference of two clears only
+one of which used the actor's quotes. The legacy loop refuses that block; the
+formal loop admits it and lets the gate's own replay filter decide.
+
+**Effect:** a fallback block contributes to the formal training reward but not
+to the legacy one. Not a numerical defect in either, and not resolvable inside
+a pinned source without a new candidate id.
+
+**Cleared by:** deciding the rule once in `rl_env`, where both paths would read
+it, and re-freezing.
+
+---
+
+## TD-15 — the loss iterate stops at its cap before reaching the tolerance
+
+**Status:** open. The residual exit exists; the default cap fires first.
+
+**Where:** `src/dispatch_ldf.py` (`n_loss_iters`, default 3),
+`config/defaults.yaml`.
+
+**Evidence:** on the fixed day 2022-10-20 / 2025-10-20 the relative residual of
+the loss allocation after each pass is 4.490e-02, 1.430e-03, 4.823e-05
+(`tmp/trace_ldf_residual.py`). At `n_loss_iters=3` the iterate is stopped by the
+cap at a 1.43e-03 residual, i.e. before the 1e-4 tolerance; raising the cap lets
+the residual exit fire and moves the clearing objective from 66246.220563 to
+66246.198860 CNY (2.2e-2, 3.3e-7 relative).
+
+**Effect:** `lindistflow` results carry a small allocation error. Every reported
+result is cleared with `socp`, so nothing published depends on it; the
+`lindistflow` numbers are auxiliary and differ from a converged iterate at the
+7th significant digit.
+
+**Cleared by:** raising the cap in a version that accepts the numeric change,
+or leaving `n_loss_iters` as the documented accuracy knob.
+
+---
+
+## TD-16 — an evaluation CSV does not record the clearing engine
+
+**Status:** open. The training summary names the engine; the evaluation table
+cannot.
+
+**Where:** `src/eval_agents.py` (the per-scenario row and the per-agent CSV
+header).
+
+**Evidence:** `make_training_summary` now carries `opf_mode` per training run
+from the run's own `config.json`, and renders a missing value as `—`. An
+evaluation row has no such column in any generation of `eval.csv`, so every
+entry reads `not recorded`, including ones written after the correction.
+
+**Effect:** `eval_agents.default_eval_config` clears with `socp`, so a current
+CSV's engine is known from the code but not from the file. An older CSV's is
+not knowable at all, and `dc` does not model the storage fleet, so the
+distinction matters for anyone reading old results.
+
+**Cleared by:** writing `opf_mode` into the evaluation row and its header, then
+reading it in `experiment_table`.
