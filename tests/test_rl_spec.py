@@ -21,7 +21,7 @@ def _make_env(**kwargs):
     config.market_design.enable_multi_objective = False
     config.storage.self_schedule = False
     config.storage.use_nodal_price = False
-    agents, _ = get_scenario("baseline", T=96, config=config)
+    agents, _ = get_scenario("typical_day", T=96, config=config)
     rl_names = [a.name for a in agents if a.storage is not None]
     return BiddingEnv(agents, config, rl_agent_names=rl_names, **kwargs)
 
@@ -664,13 +664,6 @@ def test_the_price_history_is_one_cross_node_mean_per_committed_period():
     assert list(env2.hist_lmp) == pytest.approx(exp1 + exp2)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "The in-service radial tree puts this scenario's cleared LMP above "
-    "3 * PRICE_REF_CNY_MWH, so last_lmp_norm and avg_lmp_hist_norm both "
-    "saturate at their +3.0 clip and a shift in the realized LMP is not "
-    "observable. The causality contract is not measurable again until the "
-    "price reference is re-derived for the protocol that adopts the corrected "
-    "tree; remove this marker with that re-freeze."))
 def test_a_blocks_realized_lmp_reaches_only_the_next_observation(monkeypatch):
     """The LMP realized by block k's clearing may shape block k+1's
     observation and nothing earlier. Twin envs clear identically through

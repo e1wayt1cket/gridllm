@@ -11,9 +11,14 @@ into it; nothing is relaxed and no day is dropped.
 
 Outputs (existing rolling results are left untouched):
 
-- data/processed/v2_cy_jn_2025/b1_terminal_neutral_results.csv
-- data/processed/v2_cy_jn_2025/b1_terminal_neutral_manifest.json
+- data/processed/v2_cy_jn_2025_v6/b1_terminal_neutral_results.csv
+- data/processed/v2_cy_jn_2025_v6/b1_terminal_neutral_manifest.json
 - reports/v2_cy_jn_2025/b1_terminal_neutral_audit.md
+
+The default output directory is the one the live protocol's data manifest hashes.
+The earlier artifact in `data/processed/v2_cy_jn_2025/` was cleared on a network
+that admitted the open tie lines, so it is not a baseline for this code; rerun
+with `--out-dir data/processed/v2_cy_jn_2025` only to reproduce that artifact.
 """
 
 from __future__ import annotations
@@ -34,7 +39,7 @@ PAIRING = screen.PAIRING
 NEAR_PAIRING = "data/processed/v2_cy_jn_2025/near/load_price_pairing.csv"
 BUS_LOADS = screen.BUS_LOADS
 PRICE_CURVES = screen.PRICE_CURVES
-OUT = "data/processed/v2_cy_jn_2025"
+OUT = "data/processed/v2_cy_jn_2025_v6"
 RESULTS = f"{OUT}/b1_terminal_neutral_results.csv"
 BLOCK_PAYOFFS = f"{OUT}/b1_terminal_neutral_block_payoffs.json"
 MANIFEST = f"{OUT}/b1_terminal_neutral_manifest.json"
@@ -164,8 +169,19 @@ def _audit(rows: Sequence[dict], near_check: dict, failures: list) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=0)
+    # A rerun after a change to the clearing writes to a new path: the
+    # published artifact is evidence and is never replaced in place.
+    parser.add_argument("--out-dir", default=OUT,
+                        help="Directory for the results, payoffs and manifest")
+    parser.add_argument("--audit", default=AUDIT,
+                        help="Path of the audit markdown")
     args = parser.parse_args(argv)
     root = Path.cwd()
+    out = root / args.out_dir
+    results = out / Path(RESULTS).name
+    payoffs_path = out / Path(BLOCK_PAYOFFS).name
+    manifest_path = out / Path(MANIFEST).name
+    audit_path = root / args.audit
     full = _read_pairs(PAIRING)
     near = _read_pairs(NEAR_PAIRING)
     full_ids = {_pair_id(r) for r in full}
@@ -192,8 +208,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{idx}/{len(work)} {row['pair_id']} feasible={row['feasible']} "
               f"fallbacks={row['fallbacks']}", flush=True)
 
-    _write_csv(root / RESULTS, rows)
-    (root / BLOCK_PAYOFFS).write_text(
+    _write_csv(results, rows)
+    payoffs_path.write_text(
         json.dumps(block_payoffs, indent=2), encoding="utf-8")
     config = screen.build_config(100.0)
     manifest = {
@@ -221,21 +237,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                              "sha256": b._sha(root / PRICE_CURVES)},
         },
         "outputs": {
-            "results": {"path": RESULTS,
-                        "sha256": b._sha(root / RESULTS)},
-            "block_payoffs": {"path": BLOCK_PAYOFFS,
-                              "sha256": b._sha(root / BLOCK_PAYOFFS)},
+            "results": {"path": str(results.relative_to(root)),
+                        "sha256": b._sha(results)},
+            "block_payoffs": {"path": str(payoffs_path.relative_to(root)),
+                              "sha256": b._sha(payoffs_path)},
         },
         "days": len(rows),
         "feasible_days": sum(1 for r in rows if r["feasible"]),
         "near": near_check,
         "failures": failures,
     }
-    (root / MANIFEST).write_text(json.dumps(manifest, indent=2),
-                                 encoding="utf-8")
-    (root / AUDIT).write_text(_audit(rows, near_check, failures),
-                              encoding="utf-8")
-    print(f"wrote {RESULTS}\nwrote {MANIFEST}\nwrote {AUDIT}")
+    manifest_path.write_text(json.dumps(manifest, indent=2),
+                             encoding="utf-8")
+    audit_path.write_text(_audit(rows, near_check, failures),
+                          encoding="utf-8")
+    print(f"wrote {results}\nwrote {manifest_path}\nwrote {audit_path}")
     return 0
 
 

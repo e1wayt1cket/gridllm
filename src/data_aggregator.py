@@ -826,6 +826,11 @@ def run_summary(root: Optional[str] = None):
             "date": (meta["timestamp"] or "")[:16].replace("T", " "),
             "algo": meta["algo"],
             "seed": meta["seed"],
+            # The clearing engine decides what the numbers mean: `dc` has no
+            # voltage variables and does not model the storage fleet at all.
+            # Read from the run's own config; a run written before the field
+            # existed reports blank rather than an assumed default.
+            "opf_mode": load_config(meta["run_id"], root).get("opf_mode"),
             "scenarios": meta["scenarios"],
             "episodes": meta["n_episodes"],
             "best_episode": meta["best_episode"],
@@ -839,7 +844,8 @@ def run_summary(root: Optional[str] = None):
             "tb_link": meta["tb_link"],
             "save_dir": meta["save_dir"],
         })
-    cols = ["run_id", "date", "algo", "seed", "scenarios", "episodes",
+    cols = ["run_id", "date", "algo", "seed", "opf_mode", "scenarios",
+            "episodes",
             "best_episode", "final_mean_reward", "best_mean_reward",
             "critic_first", "critic_last", "critic_max", "critic_trend",
             "has_econ", "tb_link", "save_dir"]

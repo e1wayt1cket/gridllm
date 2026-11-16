@@ -14,7 +14,7 @@ from dispatch import (
 from dispatch_core import (empty_schedules, fallback_solver_record,
                            grid_carbon_tco2, last_solve_metadata,
                            pins_terminal_soc, solver_metadata, split_power,
-                           LMP_FALLBACK_UNSOLVED, lmp_fallback_report)
+                           LMP_FALLBACK_UNSOLVED, DT_HOURS, lmp_fallback_report)
 from strategies import adaptive_bidding  # noqa: F401 — re-export
 
 
@@ -137,7 +137,11 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
                         e_max = a.storage.e_max
                         eta_ch = a.storage.eta_ch
                         eta_dis = a.storage.eta_dis
-                        schedules[a.name]['soc'][t] = soc0 + (eta_ch * ch - dis / eta_dis) * 0.25 / e_max
+                        # Same conversion the engines write: a period's
+                        # charge and discharge moved into SOC units by the
+                        # period length and the nameplate energy.
+                        schedules[a.name]['soc'][t] = soc0 + (
+                            eta_ch * ch - dis / eta_dis) * DT_HOURS / e_max
             continue
 
         lmp[t] = lmp_t
@@ -154,7 +158,7 @@ def clear_market(agents, T, stage, action_params, config, storage_units=None,
             if a.storage:
                 soc0 = prev_soc.get(a.name, a.storage.soc0) if t > 0 else a.storage.soc0
                 ch_val, dis_val, new_soc = StorageConstraints.execute_dispatch(
-                    a.storage, soc0, res['p_ch'], res['p_dis'], dt=0.25
+                    a.storage, soc0, res['p_ch'], res['p_dis'], dt=DT_HOURS
                 )
                 sched['p_ch'][t] = ch_val
                 sched['p_dis'][t] = dis_val

@@ -278,8 +278,6 @@ class MarketConfig:
     # economic term against the already-correct carbon, RE and terminal-SOC
     # terms. Verification and historical reproduction only.
     dt_scaled_money: bool = True
-    opf_tolerance: float = 1e-6
-    opf_max_iter: int = 100
     verbose: bool = False
     network: NetworkConfig = field(default_factory=NetworkConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)

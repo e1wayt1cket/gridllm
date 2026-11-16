@@ -155,8 +155,7 @@ baseline | high_re | peak_load | congestion | re_ramp_drop | re_ramp_surge
         """Extract default values from MarketConfig dataclass fields.
         Excludes internal/debug fields that users should not control via NL.
         """
-        exclude = {"verbose", "opf_tolerance",
-                   "opf_max_iter", "base_mva", "base_kv"}
+        exclude = {"verbose", "base_mva", "base_kv"}
         result = {}
         for f in dataclasses.fields(MarketConfig):
             if f.name in exclude:

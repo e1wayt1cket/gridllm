@@ -49,6 +49,23 @@ from dispatch_core import (
     lmp_fallback_report,
 )
 
+# The I2R loss iterate is a fixed point, so it is stopped when the allocation
+# stops moving rather than only when `n_loss_iters` runs out. The cap stays:
+# on a heavily loaded feeder the iterate can oscillate instead of converging.
+LOSS_ALLOCATION_TOL = 1e-4
+
+
+def loss_allocation_residual(prev: dict, new: dict) -> float:
+    """Total change in the loss allocation, relative to that allocation.
+
+    A statement about the iterate, not about the power flow: it says the
+    allocation stopped moving, which is the question the loop asks.
+    """
+    scale = sum(abs(v) for v in new.values())
+    if scale <= 0.0:
+        return 0.0
+    return sum(abs(new[k] - prev.get(k, 0.0)) for k in new) / scale
+
 
 # ===========================================================================
 # LinDistFlow (single-period, for fallback or RT rolling)
@@ -222,13 +239,19 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
             break
 
         if loss_iter < config.network.n_loss_iters - 1:
-            applied = {b: 0.0 for b in buses}
+            new = {b: 0.0 for b in buses}
             for l in lines:
                 p_val = P[l].X
                 q_val = Q[l].X
                 loss_val = r[l] * (p_val ** 2 + q_val ** 2)
-                applied[net.line.at[l, 'to_bus']] += loss_val
-            for b, val in applied.items():
+                new[net.line.at[l, 'to_bus']] += loss_val
+            # Break before touching the bounds, so the model keeps the
+            # allocation it actually solved.
+            if applied is not None \
+                    and loss_allocation_residual(applied, new) <= LOSS_ALLOCATION_TOL:
+                break
+            applied = new
+            for b, val in new.items():
                 p_loss[b].UB = val
                 p_loss[b].LB = val
 
@@ -908,14 +931,20 @@ class _CachedOPFModel:
                     return None
                 break
             if loss_iter < config.network.n_loss_iters - 1:
-                applied = {(t, b): 0.0 for t in range(T) for b in buses}
+                new = {(t, b): 0.0 for t in range(T) for b in buses}
                 for t in range(T):
                     for l in lines:
                         p_val = P_line[t, l].X
                         q_val = Q_line[t, l].X
                         loss_val = r[l] * (p_val ** 2 + q_val ** 2)
-                        applied[(t, self.net.line.at[l, 'to_bus'])] += loss_val
-                for (t, b), val in applied.items():
+                        new[(t, self.net.line.at[l, 'to_bus'])] += loss_val
+                # Break before touching the bounds, so the model keeps the
+                # allocation it actually solved.
+                if applied is not None \
+                        and loss_allocation_residual(applied, new) <= LOSS_ALLOCATION_TOL:
+                    break
+                applied = new
+                for (t, b), val in new.items():
                     p_loss[t, b].UB = val
                     p_loss[t, b].LB = val
 

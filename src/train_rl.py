@@ -376,20 +376,28 @@ def _train_matd3(args, env, action_bounds, rl_agent_names,
                 next_obs.get(nm, np.zeros(obs_dim, dtype=np.float32))
                 for nm in rl_agent_names])
             done_arr = np.full(len(rl_agent_names), done, dtype=np.float32)
-            matd3.remember(obs_arr, act_arr, rew_arr, next_obs_arr, done_arr)
-            matd3.total_steps += 1
+            # A block the env could not clear has no reward to learn from: the
+            # differential reward is a difference of two clears, and with one
+            # of them missing the reward is a placeholder, not a signal. The
+            # formal path refuses these blocks the same way.
+            cleared = (env._last_result is not None
+                       and not env._last_result.get("fell_back"))
+            if cleared:
+                matd3.remember(obs_arr, act_arr, rew_arr, next_obs_arr,
+                               done_arr)
+                matd3.total_steps += 1
+                for nm in rl_agent_names:
+                    ep_rewards[nm] += rewards.get(nm, 0.0)
+                    ep_raw_profit[nm] += info.get("raw_profit", {}) \
+                        .get(nm, 0.0)
+                    ep_local_base[nm] += info.get("local_baseline_profit", {}) \
+                        .get(nm, 0.0)
+                ep_clearing_objective = info.get("clearing_objective", 0.0)
+                ep_re_rate = info.get("re_rate", 0.0)
 
             cap_rl.add_block(env._last_result, t_start, env._last_wholesale)
             cap_base.add_block(env._last_base_result, t_start,
                                env._last_wholesale)
-
-            for nm in rl_agent_names:
-                ep_rewards[nm] += rewards.get(nm, 0.0)
-                ep_raw_profit[nm] += info.get("raw_profit", {}).get(nm, 0.0)
-                ep_local_base[nm] += info.get("local_baseline_profit", {}) \
-                    .get(nm, 0.0)
-            ep_clearing_objective = info.get("clearing_objective", 0.0)
-            ep_re_rate = info.get("re_rate", 0.0)
             obs = next_obs
 
         # Post-episode updates
@@ -895,22 +903,28 @@ def main():
 
             next_obs, rewards, done, info = env.step(actions)
 
-            for name, td3 in td3s.items():
-                r = rewards.get(name, 0.0)
-                ep_rewards[name] += r
-                ep_raw_profit[name] += info.get("raw_profit", {}).get(name, 0.0)
-                ep_local_base[name] += info.get(
-                    "local_baseline_profit", {}).get(name, 0.0)
-                nxt = next_obs.get(name, np.zeros(obs_dim, dtype=np.float32))
-                td3.buffer.add(obs[name], actions[name], r, nxt, done)
-                td3.total_steps += 1
+            # Same rule as in the shared loop: a block the env could not clear
+            # has no reward to learn from.
+            cleared = (env._last_result is not None
+                       and not env._last_result.get("fell_back"))
+            if cleared:
+                for name, td3 in td3s.items():
+                    r = rewards.get(name, 0.0)
+                    ep_rewards[name] += r
+                    ep_raw_profit[name] += info.get("raw_profit", {}) \
+                        .get(name, 0.0)
+                    ep_local_base[name] += info.get(
+                        "local_baseline_profit", {}).get(name, 0.0)
+                    nxt = next_obs.get(
+                        name, np.zeros(obs_dim, dtype=np.float32))
+                    td3.buffer.add(obs[name], actions[name], r, nxt, done)
+                    td3.total_steps += 1
+                ep_clearing_objective = info.get("clearing_objective", 0.0)
+                ep_re_rate = info.get("re_rate", 0.0)
 
             cap_rl.add_block(env._last_result, t_start, env._last_wholesale)
             cap_base.add_block(env._last_base_result, t_start,
                                env._last_wholesale)
-
-            ep_clearing_objective = info.get("clearing_objective", 0.0)
-            ep_re_rate = info.get("re_rate", 0.0)
             obs = next_obs
 
         # Post-episode updates and loss stats per agent

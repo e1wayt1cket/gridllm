@@ -127,8 +127,8 @@ def test_the_reward_is_not_a_payoff():
     It is a per-block differential against an in-window truthful
     counterfactual, holding the other agents at their learned bids -- a
     different quantity on a different horizon from the day's settled profit.
-    The training log names it `mean_reward`, and the profit columns are
-    separate ones.
+    The training log names it `mean_reward`, and the profit lives in its own
+    table keyed by episode.
     """
     import run_artifacts as ra
 
@@ -140,11 +140,11 @@ def test_the_reward_is_not_a_payoff():
                            re_rate=56.0, raw_profit=-151.8,
                            local_baseline_profit=-20.0,
                            profit_delta_local=-131.8)
-        row = art.metrics[0]
-        # The reward and the profit are distinct columns with distinct values.
+        row, money = art.metrics[0], art.economics[0]
+        # The reward and the profit are distinct quantities, in distinct tables.
         assert row["mean_reward"] == -480.0
-        assert row["raw_profit_mean"] == -151.8
-        assert row["mean_reward"] != row["raw_profit_mean"]
+        assert money["raw_profit_mean"] == -151.8
+        assert "raw_profit_mean" not in row
         # The clearing objective is not either of them.
         assert row["clearing_objective"] == 7695.0
     finally:
