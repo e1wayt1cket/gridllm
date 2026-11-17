@@ -1,0 +1,1255 @@
+{
+  "checks": {
+    "band_library_only": true,
+    "curve_preservation": true,
+    "determinism": true,
+    "month_coverage": true,
+    "one_meter_per_bus": true,
+    "reactive_proportionality": true,
+    "split_integrity": true
+  },
+  "passed": true,
+  "report": {
+    "concentration": {
+      "median_realized_over_target": 2.888901235,
+      "per_day": {
+        "2021-06-04": {
+          "d_final": 19.348644238,
+          "d_init": 19.348644238,
+          "excluded_native_share": 0.157469717,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.392390691,
+          "target_max_share": 0.134185304
+        },
+        "2021-06-13": {
+          "d_final": 21.912791232,
+          "d_init": 21.912791232,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.3743279,
+          "target_max_share": 0.131661442
+        },
+        "2021-06-17": {
+          "d_final": 19.194478337,
+          "d_init": 19.194478337,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.323722639,
+          "target_max_share": 0.129230769
+        },
+        "2021-06-18": {
+          "d_final": 18.558723253,
+          "d_init": 18.558723253,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.400877981,
+          "target_max_share": 0.129230769
+        },
+        "2021-06-23": {
+          "d_final": 20.010262268,
+          "d_init": 20.010262268,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.336493491,
+          "target_max_share": 0.129230769
+        },
+        "2021-06-24": {
+          "d_final": 19.93120346,
+          "d_init": 19.93120346,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.340896439,
+          "target_max_share": 0.129230769
+        },
+        "2021-06-29": {
+          "d_final": 18.8635872,
+          "d_init": 18.8635872,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.344211606,
+          "target_max_share": 0.129230769
+        },
+        "2021-07-02": {
+          "d_final": 18.984444501,
+          "d_init": 18.984444501,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.367952046,
+          "target_max_share": 0.131661442
+        },
+        "2021-07-18": {
+          "d_final": 21.302962571,
+          "d_init": 21.302962571,
+          "excluded_native_share": 0.157469717,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.465046145,
+          "target_max_share": 0.134185304
+        },
+        "2021-07-19": {
+          "d_final": 14.657990318,
+          "d_init": 14.657990318,
+          "excluded_native_share": 0.157469717,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.405949617,
+          "target_max_share": 0.134185304
+        },
+        "2021-07-21": {
+          "d_final": 14.564459361,
+          "d_init": 14.564459361,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.344011088,
+          "target_max_share": 0.131661442
+        },
+        "2021-07-26": {
+          "d_final": 17.135384233,
+          "d_init": 17.135384233,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.353887311,
+          "target_max_share": 0.129230769
+        },
+        "2021-07-27": {
+          "d_final": 16.65237383,
+          "d_init": 16.65237383,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.324719327,
+          "target_max_share": 0.131661442
+        },
+        "2021-07-28": {
+          "d_final": 15.563459954,
+          "d_init": 15.563459954,
+          "excluded_native_share": 0.157469717,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.289928141,
+          "target_max_share": 0.134185304
+        },
+        "2021-07-30": {
+          "d_final": 14.871660974,
+          "d_init": 14.871660974,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.341141399,
+          "target_max_share": 0.131661442
+        },
+        "2021-08-01": {
+          "d_final": 17.845240817,
+          "d_init": 17.845240817,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.440331078,
+          "target_max_share": 0.131661442
+        },
+        "2021-08-06": {
+          "d_final": 21.954153574,
+          "d_init": 21.954153574,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.523725092,
+          "target_max_share": 0.129230769
+        },
+        "2021-08-07": {
+          "d_final": 20.04130684,
+          "d_init": 20.04130684,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.496536651,
+          "target_max_share": 0.129230769
+        },
+        "2021-08-13": {
+          "d_final": 25.972746617,
+          "d_init": 25.972746617,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.606260399,
+          "target_max_share": 0.131661442
+        },
+        "2021-08-14": {
+          "d_final": 26.234901858,
+          "d_init": 26.234901858,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.573299563,
+          "target_max_share": 0.129230769
+        },
+        "2021-08-16": {
+          "d_final": 17.458842873,
+          "d_init": 17.458842873,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.454531445,
+          "target_max_share": 0.131661442
+        },
+        "2021-08-24": {
+          "d_final": 28.090487388,
+          "d_init": 28.090487388,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.630684245,
+          "target_max_share": 0.131661442
+        },
+        "2021-09-02": {
+          "d_final": 26.387061756,
+          "d_init": 26.387061756,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.609084195,
+          "target_max_share": 0.131661442
+        },
+        "2021-09-11": {
+          "d_final": 17.599366582,
+          "d_init": 17.599366582,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.281969543,
+          "target_max_share": 0.129230769
+        },
+        "2021-09-16": {
+          "d_final": 17.975030125,
+          "d_init": 17.975030125,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.357317973,
+          "target_max_share": 0.126888218
+        },
+        "2021-09-18": {
+          "d_final": 17.931868481,
+          "d_init": 17.931868481,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.32824978,
+          "target_max_share": 0.129230769
+        },
+        "2021-09-19": {
+          "d_final": 21.080356994,
+          "d_init": 21.080356994,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.388203971,
+          "target_max_share": 0.129230769
+        },
+        "2021-09-20": {
+          "d_final": 19.789306038,
+          "d_init": 19.789306038,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.29663166,
+          "target_max_share": 0.126888218
+        },
+        "2021-09-23": {
+          "d_final": 18.223830803,
+          "d_init": 18.223830803,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.386950628,
+          "target_max_share": 0.131661442
+        },
+        "2021-09-30": {
+          "d_final": 20.302730055,
+          "d_init": 20.302730055,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.39918574,
+          "target_max_share": 0.131661442
+        },
+        "2021-10-01": {
+          "d_final": 20.527336134,
+          "d_init": 20.527336134,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.366049737,
+          "target_max_share": 0.126888218
+        },
+        "2021-10-02": {
+          "d_final": 18.904656732,
+          "d_init": 18.904656732,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.370762021,
+          "target_max_share": 0.129230769
+        },
+        "2021-10-03": {
+          "d_final": 21.337273504,
+          "d_init": 21.337273504,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.441110782,
+          "target_max_share": 0.126888218
+        },
+        "2021-10-04": {
+          "d_final": 17.67272789,
+          "d_init": 17.67272789,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.333529125,
+          "target_max_share": 0.126888218
+        },
+        "2021-10-05": {
+          "d_final": 18.524498187,
+          "d_init": 18.524498187,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.350431817,
+          "target_max_share": 0.126888218
+        },
+        "2021-10-06": {
+          "d_final": 25.214418441,
+          "d_init": 25.214418441,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.564070245,
+          "target_max_share": 0.131661442
+        },
+        "2021-10-08": {
+          "d_final": 19.536871131,
+          "d_init": 19.536871131,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.39432858,
+          "target_max_share": 0.129230769
+        },
+        "2021-10-09": {
+          "d_final": 17.08895225,
+          "d_init": 17.08895225,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.325732304,
+          "target_max_share": 0.131661442
+        },
+        "2021-10-14": {
+          "d_final": 17.553776237,
+          "d_init": 17.553776237,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.324287359,
+          "target_max_share": 0.129230769
+        },
+        "2021-10-17": {
+          "d_final": 20.413798531,
+          "d_init": 20.413798531,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.339347683,
+          "target_max_share": 0.126888218
+        },
+        "2021-10-18": {
+          "d_final": 18.936107738,
+          "d_init": 18.936107738,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.340050452,
+          "target_max_share": 0.126888218
+        },
+        "2021-10-20": {
+          "d_final": 18.869106919,
+          "d_init": 18.869106919,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.353071673,
+          "target_max_share": 0.129230769
+        },
+        "2021-10-22": {
+          "d_final": 20.559328577,
+          "d_init": 20.559328577,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.385958036,
+          "target_max_share": 0.129230769
+        },
+        "2021-10-23": {
+          "d_final": 22.392779846,
+          "d_init": 22.392779846,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.440632368,
+          "target_max_share": 0.129230769
+        },
+        "2021-10-24": {
+          "d_final": 22.62110673,
+          "d_init": 22.62110673,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.378844205,
+          "target_max_share": 0.129230769
+        },
+        "2021-10-25": {
+          "d_final": 20.980032422,
+          "d_init": 20.980032422,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.37386228,
+          "target_max_share": 0.129230769
+        },
+        "2021-11-05": {
+          "d_final": 32.715451157,
+          "d_init": 32.715451157,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.625291622,
+          "target_max_share": 0.126888218
+        },
+        "2021-11-07": {
+          "d_final": 24.427158633,
+          "d_init": 24.427158633,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.412475564,
+          "target_max_share": 0.126888218
+        },
+        "2021-11-12": {
+          "d_final": 33.876917011,
+          "d_init": 33.876917011,
+          "excluded_native_share": 0.125168237,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.675260137,
+          "target_max_share": 0.129230769
+        },
+        "2021-11-16": {
+          "d_final": 37.165889919,
+          "d_init": 37.165889919,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.686103432,
+          "target_max_share": 0.126888218
+        },
+        "2021-11-18": {
+          "d_final": 32.167164091,
+          "d_init": 32.167164091,
+          "excluded_native_share": 0.092866756,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.604920465,
+          "target_max_share": 0.12462908
+        },
+        "2021-11-19": {
+          "d_final": 31.622757713,
+          "d_init": 31.622757713,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.609096949,
+          "target_max_share": 0.126888218
+        },
+        "2021-11-20": {
+          "d_final": 36.068012776,
+          "d_init": 36.068012776,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.628607316,
+          "target_max_share": 0.12244898
+        },
+        "2021-11-29": {
+          "d_final": 41.806053512,
+          "d_init": 41.806053512,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.713604877,
+          "target_max_share": 0.12244898
+        },
+        "2021-12-02": {
+          "d_final": 18.680148857,
+          "d_init": 18.680148857,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.310190348,
+          "target_max_share": 0.12244898
+        },
+        "2021-12-04": {
+          "d_final": 17.06304695,
+          "d_init": 17.06304695,
+          "excluded_native_share": 0.092866756,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.250297015,
+          "target_max_share": 0.12462908
+        },
+        "2021-12-05": {
+          "d_final": 30.028214411,
+          "d_init": 30.028214411,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.634939221,
+          "target_max_share": 0.131661442
+        },
+        "2021-12-06": {
+          "d_final": 29.00210953,
+          "d_init": 29.00210953,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.540950857,
+          "target_max_share": 0.12244898
+        },
+        "2021-12-07": {
+          "d_final": 17.519496698,
+          "d_init": 17.519496698,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.291405781,
+          "target_max_share": 0.126888218
+        },
+        "2021-12-08": {
+          "d_final": 18.169354777,
+          "d_init": 18.169354777,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.259992181,
+          "target_max_share": 0.12244898
+        },
+        "2021-12-10": {
+          "d_final": 31.379294153,
+          "d_init": 31.379294153,
+          "excluded_native_share": 0.092866756,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.59520613,
+          "target_max_share": 0.12462908
+        },
+        "2021-12-14": {
+          "d_final": 32.515478404,
+          "d_init": 32.515478404,
+          "excluded_native_share": 0.109017497,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.646823617,
+          "target_max_share": 0.126888218
+        },
+        "2021-12-18": {
+          "d_final": 21.887989627,
+          "d_init": 21.887989627,
+          "excluded_native_share": 0.092866756,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.45046887,
+          "target_max_share": 0.12462908
+        },
+        "2021-12-21": {
+          "d_final": 33.021413105,
+          "d_init": 33.021413105,
+          "excluded_native_share": 0.092866756,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.641788723,
+          "target_max_share": 0.12462908
+        },
+        "2021-12-22": {
+          "d_final": 14.559600537,
+          "d_init": 14.559600537,
+          "excluded_native_share": 0.141318977,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.300328389,
+          "target_max_share": 0.131661442
+        },
+        "2021-12-24": {
+          "d_final": 34.710917704,
+          "d_init": 34.710917704,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.645817208,
+          "target_max_share": 0.12244898
+        },
+        "2021-12-25": {
+          "d_final": 24.340575204,
+          "d_init": 24.340575204,
+          "excluded_native_share": 0.092866756,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.525459384,
+          "target_max_share": 0.12462908
+        },
+        "2021-12-26": {
+          "d_final": 24.778783117,
+          "d_init": 24.778783117,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.473118568,
+          "target_max_share": 0.12244898
+        },
+        "2021-12-27": {
+          "d_final": 21.747260376,
+          "d_init": 21.747260376,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.480424977,
+          "target_max_share": 0.12244898
+        },
+        "2021-12-30": {
+          "d_final": 33.848197896,
+          "d_init": 33.848197896,
+          "excluded_native_share": 0.092866756,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.648298064,
+          "target_max_share": 0.12462908
+        },
+        "2022-06-03": {
+          "d_final": 42.059039438,
+          "d_init": 42.059039438,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.67051698,
+          "target_max_share": 0.118309859
+        },
+        "2022-06-04": {
+          "d_final": 34.772816405,
+          "d_init": 34.772816405,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.598120317,
+          "target_max_share": 0.12034384
+        },
+        "2022-06-05": {
+          "d_final": 35.050540594,
+          "d_init": 35.050540594,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.613581589,
+          "target_max_share": 0.12034384
+        },
+        "2022-06-12": {
+          "d_final": 27.348517885,
+          "d_init": 27.348517885,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.531533195,
+          "target_max_share": 0.12034384
+        },
+        "2022-06-18": {
+          "d_final": 27.310768977,
+          "d_init": 27.310768977,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.514042129,
+          "target_max_share": 0.12244898
+        },
+        "2022-06-21": {
+          "d_final": 25.118856646,
+          "d_init": 25.118856646,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.479941574,
+          "target_max_share": 0.12244898
+        },
+        "2022-06-22": {
+          "d_final": 24.595285159,
+          "d_init": 24.595285159,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.478265299,
+          "target_max_share": 0.12244898
+        },
+        "2022-07-03": {
+          "d_final": 39.163299325,
+          "d_init": 39.163299325,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.673461919,
+          "target_max_share": 0.12244898
+        },
+        "2022-07-10": {
+          "d_final": 42.939835654,
+          "d_init": 42.939835654,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.70216945,
+          "target_max_share": 0.12034384
+        },
+        "2022-07-12": {
+          "d_final": 29.702214519,
+          "d_init": 29.702214519,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.567900964,
+          "target_max_share": 0.12244898
+        },
+        "2022-07-17": {
+          "d_final": 31.82464133,
+          "d_init": 31.82464133,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.544678683,
+          "target_max_share": 0.12244898
+        },
+        "2022-07-26": {
+          "d_final": 20.75782231,
+          "d_init": 20.75782231,
+          "excluded_native_share": 0.076716016,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.351495426,
+          "target_max_share": 0.12244898
+        },
+        "2022-07-28": {
+          "d_final": 20.307584399,
+          "d_init": 20.307584399,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.248355246,
+          "target_max_share": 0.12034384
+        },
+        "2022-07-31": {
+          "d_final": 22.942593593,
+          "d_init": 22.942593593,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.313374941,
+          "target_max_share": 0.12034384
+        },
+        "2022-08-01": {
+          "d_final": 22.993477357,
+          "d_init": 22.993477357,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.282373551,
+          "target_max_share": 0.12034384
+        },
+        "2022-08-02": {
+          "d_final": 20.357069036,
+          "d_init": 20.357069036,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.242650153,
+          "target_max_share": 0.12034384
+        },
+        "2022-08-05": {
+          "d_final": 22.204529967,
+          "d_init": 22.204529967,
+          "excluded_native_share": 0.060565276,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.349625914,
+          "target_max_share": 0.12034384
+        },
+        "2022-08-12": {
+          "d_final": 21.230708421,
+          "d_init": 21.230708421,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.207706037,
+          "target_max_share": 0.118309859
+        },
+        "2022-08-14": {
+          "d_final": 22.427724801,
+          "d_init": 22.427724801,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.240915839,
+          "target_max_share": 0.118309859
+        },
+        "2022-08-17": {
+          "d_final": 23.488032791,
+          "d_init": 23.488032791,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.386683635,
+          "target_max_share": 0.118309859
+        },
+        "2022-08-28": {
+          "d_final": 23.967094804,
+          "d_init": 23.967094804,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.370673306,
+          "target_max_share": 0.118309859
+        },
+        "2022-09-02": {
+          "d_final": 22.531739627,
+          "d_init": 22.531739627,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.289340335,
+          "target_max_share": 0.118309859
+        },
+        "2022-09-07": {
+          "d_final": 21.847753813,
+          "d_init": 21.847753813,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.276564037,
+          "target_max_share": 0.118309859
+        },
+        "2022-09-08": {
+          "d_final": 22.032216007,
+          "d_init": 22.032216007,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.295384836,
+          "target_max_share": 0.118309859
+        },
+        "2022-09-12": {
+          "d_final": 24.89615558,
+          "d_init": 24.89615558,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.290510183,
+          "target_max_share": 0.118309859
+        },
+        "2022-09-18": {
+          "d_final": 25.53052142,
+          "d_init": 25.53052142,
+          "excluded_native_share": 0.044414536,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.298351099,
+          "target_max_share": 0.118309859
+        },
+        "2022-09-20": {
+          "d_final": 23.905992345,
+          "d_init": 23.905992345,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.302952262,
+          "target_max_share": 0.11634349
+        },
+        "2022-09-24": {
+          "d_final": 27.023300701,
+          "d_init": 27.023300701,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.355959692,
+          "target_max_share": 0.11634349
+        },
+        "2022-09-26": {
+          "d_final": 26.704513345,
+          "d_init": 26.704513345,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.388508777,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-01": {
+          "d_final": 27.953100174,
+          "d_init": 27.953100174,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.422657872,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-02": {
+          "d_final": 27.461761662,
+          "d_init": 27.461761662,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.423472956,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-03": {
+          "d_final": 28.287272743,
+          "d_init": 28.287272743,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.445909732,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-04": {
+          "d_final": 47.393085551,
+          "d_init": 47.393085551,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.687719344,
+          "target_max_share": 0.114441417
+        },
+        "2022-10-05": {
+          "d_final": 30.540706525,
+          "d_init": 30.540706525,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.476708466,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-07": {
+          "d_final": 27.224954395,
+          "d_init": 27.224954395,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.389124678,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-08": {
+          "d_final": 25.844125884,
+          "d_init": 25.844125884,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.35729723,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-09": {
+          "d_final": 25.427129014,
+          "d_init": 25.427129014,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.328101238,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-10": {
+          "d_final": 24.657024633,
+          "d_init": 24.657024633,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.342523473,
+          "target_max_share": 0.11634349
+        },
+        "2022-10-11": {
+          "d_final": 27.684221234,
+          "d_init": 27.684221234,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.240177655,
+          "target_max_share": 0.114441417
+        },
+        "2022-10-14": {
+          "d_final": 25.479616219,
+          "d_init": 25.479616219,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.26108697,
+          "target_max_share": 0.114441417
+        },
+        "2022-10-27": {
+          "d_final": 25.756562726,
+          "d_init": 25.756562726,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.334777547,
+          "target_max_share": 0.114441417
+        },
+        "2022-10-28": {
+          "d_final": 27.256560125,
+          "d_init": 27.256560125,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.282424899,
+          "target_max_share": 0.114441417
+        },
+        "2022-10-30": {
+          "d_final": 27.379657618,
+          "d_init": 27.379657618,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.307632937,
+          "target_max_share": 0.114441417
+        },
+        "2022-10-31": {
+          "d_final": 23.726585382,
+          "d_init": 23.726585382,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.324490387,
+          "target_max_share": 0.114441417
+        },
+        "2022-11-02": {
+          "d_final": 25.649950093,
+          "d_init": 25.649950093,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.305049171,
+          "target_max_share": 0.114441417
+        },
+        "2022-11-04": {
+          "d_final": 25.096436646,
+          "d_init": 25.096436646,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.324387236,
+          "target_max_share": 0.114441417
+        },
+        "2022-11-11": {
+          "d_final": 25.964117289,
+          "d_init": 25.964117289,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.259743228,
+          "target_max_share": 0.114441417
+        },
+        "2022-11-16": {
+          "d_final": 25.824942609,
+          "d_init": 25.824942609,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.302301773,
+          "target_max_share": 0.114441417
+        },
+        "2022-11-18": {
+          "d_final": 25.700720912,
+          "d_init": 25.700720912,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.316652467,
+          "target_max_share": 0.114441417
+        },
+        "2022-11-23": {
+          "d_final": 26.63206602,
+          "d_init": 26.63206602,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.272644527,
+          "target_max_share": 0.114441417
+        },
+        "2022-11-27": {
+          "d_final": 26.374987672,
+          "d_init": 26.374987672,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.229575797,
+          "target_max_share": 0.114441417
+        },
+        "2022-12-02": {
+          "d_final": 24.123219624,
+          "d_init": 24.123219624,
+          "excluded_native_share": 0.028263795,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.324079045,
+          "target_max_share": 0.11634349
+        },
+        "2022-12-06": {
+          "d_final": 22.986711075,
+          "d_init": 22.986711075,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.297538448,
+          "target_max_share": 0.114441417
+        },
+        "2022-12-10": {
+          "d_final": 23.643797704,
+          "d_init": 23.643797704,
+          "excluded_native_share": -0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.342236362,
+          "target_max_share": 0.113055182
+        },
+        "2022-12-13": {
+          "d_final": 21.265291439,
+          "d_init": 21.265291439,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.273091666,
+          "target_max_share": 0.114441417
+        },
+        "2022-12-14": {
+          "d_final": 20.922536176,
+          "d_init": 20.922536176,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.305662604,
+          "target_max_share": 0.114441417
+        },
+        "2022-12-15": {
+          "d_final": 21.06319172,
+          "d_init": 21.06319172,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.302428813,
+          "target_max_share": 0.114441417
+        },
+        "2022-12-16": {
+          "d_final": 19.818163717,
+          "d_init": 19.818163717,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.319766778,
+          "target_max_share": 0.114441417
+        },
+        "2022-12-18": {
+          "d_final": 22.530891942,
+          "d_init": 22.530891942,
+          "excluded_native_share": 0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.309150564,
+          "target_max_share": 0.113055182
+        },
+        "2022-12-20": {
+          "d_final": 20.000878043,
+          "d_init": 20.000878043,
+          "excluded_native_share": 0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.264842638,
+          "target_max_share": 0.113055182
+        },
+        "2022-12-21": {
+          "d_final": 20.380916628,
+          "d_init": 20.380916628,
+          "excluded_native_share": 0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.280123744,
+          "target_max_share": 0.113055182
+        },
+        "2022-12-24": {
+          "d_final": 22.064799014,
+          "d_init": 22.064799014,
+          "excluded_native_share": -0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.306304957,
+          "target_max_share": 0.113055182
+        },
+        "2022-12-25": {
+          "d_final": 23.274753851,
+          "d_init": 23.274753851,
+          "excluded_native_share": -0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.311791212,
+          "target_max_share": 0.113055182
+        },
+        "2022-12-27": {
+          "d_final": 21.693063684,
+          "d_init": 21.693063684,
+          "excluded_native_share": 0.012113055,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.348661177,
+          "target_max_share": 0.114441417
+        },
+        "2022-12-30": {
+          "d_final": 24.17182966,
+          "d_init": 24.17182966,
+          "excluded_native_share": 0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.323368021,
+          "target_max_share": 0.113055182
+        },
+        "2022-12-31": {
+          "d_final": 23.357803364,
+          "d_init": 23.357803364,
+          "excluded_native_share": -0.0,
+          "native_max_share": 0.113055182,
+          "realized_max_share": 0.318574949,
+          "target_max_share": 0.113055182
+        }
+      },
+      "warning": {
+        "code": "M_A_QUALITY_WARNING",
+        "dates": [
+          "2021-06-04",
+          "2021-06-13",
+          "2021-06-17",
+          "2021-06-18",
+          "2021-06-23",
+          "2021-06-24",
+          "2021-06-29",
+          "2021-07-02",
+          "2021-07-18",
+          "2021-07-19",
+          "2021-07-21",
+          "2021-07-26",
+          "2021-07-27",
+          "2021-07-28",
+          "2021-07-30",
+          "2021-08-01",
+          "2021-08-06",
+          "2021-08-07",
+          "2021-08-13",
+          "2021-08-14",
+          "2021-08-16",
+          "2021-08-24",
+          "2021-09-02",
+          "2021-09-11",
+          "2021-09-16",
+          "2021-09-18",
+          "2021-09-19",
+          "2021-09-20",
+          "2021-09-23",
+          "2021-09-30",
+          "2021-10-01",
+          "2021-10-02",
+          "2021-10-03",
+          "2021-10-04",
+          "2021-10-05",
+          "2021-10-06",
+          "2021-10-08",
+          "2021-10-09",
+          "2021-10-14",
+          "2021-10-17",
+          "2021-10-18",
+          "2021-10-20",
+          "2021-10-22",
+          "2021-10-23",
+          "2021-10-24",
+          "2021-10-25",
+          "2021-11-05",
+          "2021-11-07",
+          "2021-11-12",
+          "2021-11-16",
+          "2021-11-18",
+          "2021-11-19",
+          "2021-11-20",
+          "2021-11-29",
+          "2021-12-02",
+          "2021-12-04",
+          "2021-12-05",
+          "2021-12-06",
+          "2021-12-07",
+          "2021-12-08",
+          "2021-12-10",
+          "2021-12-14",
+          "2021-12-18",
+          "2021-12-21",
+          "2021-12-22",
+          "2021-12-24",
+          "2021-12-25",
+          "2021-12-26",
+          "2021-12-27",
+          "2021-12-30",
+          "2022-06-03",
+          "2022-06-04",
+          "2022-06-05",
+          "2022-06-12",
+          "2022-06-18",
+          "2022-06-21",
+          "2022-06-22",
+          "2022-07-03",
+          "2022-07-10",
+          "2022-07-12",
+          "2022-07-17",
+          "2022-07-26",
+          "2022-07-28",
+          "2022-07-31",
+          "2022-08-01",
+          "2022-08-02",
+          "2022-08-05",
+          "2022-08-12",
+          "2022-08-14",
+          "2022-08-17",
+          "2022-08-28",
+          "2022-09-02",
+          "2022-09-07",
+          "2022-09-08",
+          "2022-09-12",
+          "2022-09-18",
+          "2022-09-20",
+          "2022-09-24",
+          "2022-09-26",
+          "2022-10-01",
+          "2022-10-02",
+          "2022-10-03",
+          "2022-10-04",
+          "2022-10-05",
+          "2022-10-07",
+          "2022-10-08",
+          "2022-10-09",
+          "2022-10-10",
+          "2022-10-11",
+          "2022-10-14",
+          "2022-10-27",
+          "2022-10-28",
+          "2022-10-30",
+          "2022-10-31",
+          "2022-11-02",
+          "2022-11-04",
+          "2022-11-11",
+          "2022-11-16",
+          "2022-11-18",
+          "2022-11-23",
+          "2022-11-27",
+          "2022-12-02",
+          "2022-12-06",
+          "2022-12-10",
+          "2022-12-13",
+          "2022-12-14",
+          "2022-12-15",
+          "2022-12-16",
+          "2022-12-18",
+          "2022-12-20",
+          "2022-12-21",
+          "2022-12-24",
+          "2022-12-25",
+          "2022-12-27",
+          "2022-12-30",
+          "2022-12-31"
+        ]
+      }
+    },
+    "counts": {
+      "holiday": 10,
+      "test": 18,
+      "train": 90,
+      "validation": 18
+    },
+    "library_size": 136
+  }
+}
