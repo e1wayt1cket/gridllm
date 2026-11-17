@@ -1,0 +1,2 @@
+# Archived solver arrays are regenerable from the command in RESULTS.md.
+*.npz
