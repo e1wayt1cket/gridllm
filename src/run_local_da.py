@@ -95,15 +95,20 @@ def build_day(date):
     if len(pairs) != 1:
         raise ValueError("The requested date is not a unique member of the v3 library")
     metadata = json.loads((V3 / "manifest.json").read_text(encoding="utf-8"))
-    if sha(V3 / "bus_active_load_mw.npz") != metadata["outputs"]["bus_active_load_mw.npz"]["sha256"]:
-        raise ValueError("Changed frozen v3 load output")
+    for name in ["bus_active_load_mw.npz", "bus_reactive_load_mvar.npz"]:
+        if sha(V3 / name) != metadata["outputs"][name]["sha256"]:
+            raise ValueError(f"Changed frozen v3 load output: {name}")
     with np.load(V3 / "bus_active_load_mw.npz", allow_pickle=False) as archive:
         p = archive[date].copy()
+    with np.load(V3 / "bus_reactive_load_mvar.npz", allow_pickle=False) as archive:
+        reactive = archive[date].copy()
     price_date = pairs[0].split("|")[1]
     with np.load(PRICE_CURVES, allow_pickle=False) as archive:
         price = archive[f"south/{price_date}"].copy()
     return _assemble_day(p, price, {"load_date": date, "price_date": price_date,
-                                    "library": "candidate_days_v3_2026-11-17"})
+                                    "library": "candidate_days_v3_2026-11-17",
+                                    "q_basis": "Library's own Q = 0.6190 P at PF 0.8503"},
+                         reactive)
 
 
 def build_legacy_day(date):
@@ -127,11 +132,16 @@ def build_legacy_day(date):
                                     "pair_key": pairs[0]})
 
 
-def _assemble_day(p, price, context):
+def _assemble_day(p, price, context, reactive=None):
     net = networks.case33bw()
     ratio = np.zeros(33)
     for _, row in net.load.iterrows():
         ratio[int(row.bus)] = row.q_mvar / row.p_mw
+    # Without a declared reactive curve the day uses the v1 historical basis:
+    # each bus keeps case33bw's own Q0/P0 ratio.
+    reactive = p * ratio[None, :] if reactive is None else np.asarray(reactive, dtype=float)
+    if reactive.shape != p.shape:
+        raise ValueError("Declared reactive curve must match the active load shape")
     opened = set(int(row.element) for _, row in net.switch.iterrows()
                  if row.et == "l" and not row.closed)
     available = [(int(idx), int(row.from_bus), int(row.to_bus)) for idx, row in net.line.iterrows()
@@ -161,13 +171,14 @@ def _assemble_day(p, price, context):
     storage = tuple(StorageUnit(f"ESS{bus}", bus) for bus in [9, 14, 17, 27])
     bids = {unit.name: StorageBid(np.full(96, .4), np.full(96, .4), np.zeros(96), np.zeros(96))
             for unit in storage}
-    day = DayAheadInput(network, p, p * ratio[None, :], price, storage,
+    day = DayAheadInput(network, p, reactive, price, storage,
                         production_renewable_curves(), bids, 0., 600.)
     context.update({
                  "scenario_kind": "Cross-year perfect-forecast research diagnostic",
                  "bid_price_bounds": "0..600 CNY/MWh research interval, not verified Jiangsu formal limits",
                  "price_unit_status": "Historical inferred CNY/MWh; not externally confirmed",
-                 "q_basis": "Native bus Q0/P0 assumption, no ideal compensation",
+                 "q_basis": context.get("q_basis",
+                                        "Native bus Q0/P0 assumption, no ideal compensation"),
                  "renewables": "Existing synthetic profile formulas; PV .3 MW at 21/23, wind 1 MW at 30; clipped to declared nameplate",
                  "generator_q_limits_mvar": 0., "thermal_limits_qualified": False,
                  "network": "Native case33bw R/X, slack 1.0 pu, no thermal rating inference",
