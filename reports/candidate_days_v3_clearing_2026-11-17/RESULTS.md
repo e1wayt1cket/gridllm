@@ -85,6 +85,31 @@ The same pattern predates this library: the v1 screen recorded `NOT_TESTED`
 for 102 of 106 rows. It is a property of the price path on this network, not a
 consequence of the v3 reactive basis.
 
+## LMP sanity
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/lmp_sanity.py
+```
+
+| Claim | Verdict | Evidence |
+| --- | --- | --- |
+| The slack bus reproduces the exogenous price | PASS | 132 priced days; median `|LMP_slack - external|` 0.0000, max 0.0005 CNY/MWh |
+| No negative prices | PASS | 0 of 418,176 bus-periods |
+| The ordinary level is anchored | PASS | LMP median 306.51 against an external median of 300; mean bus markup over the slack runs 0.00% - 5.86%, rising with distance from the slack |
+| Prices stay inside the declared 0-600 CNY/MWh research interval | FAIL | max 1621.85; 26 days carry a price above 600 and 16 above 800 |
+| The extreme tail is a voltage rent, not an energy price | PASS | 654 of 12,672 periods carry a bus above 3x the external price (1.94% of bus-periods), and 100% of those periods have a bus exactly on 0.93; 95.6% of them sit where the external price is at or below 60 CNY/MWh |
+| The duals are internally consistent | PASS | 41 of 405,504 branch-periods show a price fall above 20 CNY across a branch; the worst is -28.10, a 2% step between two buses both above 1,400 |
+| Those prices are certified optimal duals | NOT_TESTED | 108 of the 132 day sets come from a pricing solve with status 13 (SUBOPTIMAL). The above-3x share is the same in the 24 optimal ones (1.92% against 1.94%), so the pattern belongs to the mechanism, not to the status |
+| The four unservable days | n/a | no pricing dict exists for 2021-12-24, 2022-08-02, 2022-10-11, 2022-10-14 |
+
+Read together: the price is anchored at the slack, positive everywhere, and
+its ordinary variation is the loss markup of a radial feeder. Its extreme tail
+is the lower voltage bound. With `generator_q_limits_mvar = 0`, no load
+shedding and a storage fleet bidding zero, the only relief from the far-end
+0.93 limit is more import, and at the 30 CNY/MWh price floor that relief is
+worth 20-40x the energy price. The maxima therefore land on floor-price
+periods, i.e. exactly the periods an arbitraging agent wants to charge in.
+
 ## Decision point
 
 1. **Train days.** 3 of 90 train days cannot be served. The RL design permits
@@ -98,6 +123,10 @@ consequence of the v3 reactive basis.
    serve as a training-day admission criterion until the SUBOPTIMAL status and
    the smoothness failures are settled as their own question. Both are market
    model decisions, not library decisions.
+4. **Price level.** Cleared LMP reaches 1,621.85 CNY/MWh on voltage-bound
+   periods at the price floor, outside the declared 0-600 research interval.
+   Any consumer of the price signal, the RL observation included, will read
+   those spikes as the cheapest hours of the day.
 
 ## Notes on the artifacts
 
