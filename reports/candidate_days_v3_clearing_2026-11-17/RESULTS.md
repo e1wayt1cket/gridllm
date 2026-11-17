@@ -34,17 +34,19 @@ this directory.
 
 ## The four infeasible days
 
-| Date | Block | Solver status | Solutions |
-| --- | --- | --- | --- |
-| 2021-12-24 | train | 3 (INFEASIBLE) | 0 |
-| 2022-08-02 | validation | 3 (INFEASIBLE) | 0 |
-| 2022-10-11 | train | 3 (INFEASIBLE) | 0 |
-| 2022-10-14 | train | 3 (INFEASIBLE) | 0 |
+| Date | Block | Solver status | Solutions | Peak MW | Peak rank (1 = highest of 136) |
+| --- | --- | --- | --- | --- | --- |
+| 2021-12-24 | train | 3 (INFEASIBLE) | 0 | 4.0779 | 6 |
+| 2022-08-02 | validation | 3 (INFEASIBLE) | 0 | 4.0333 | 33 |
+| 2022-10-11 | train | 3 (INFEASIBLE) | 0 | 4.0718 | 9 |
+| 2022-10-14 | train | 3 (INFEASIBLE) | 0 | 4.0847 | 1 |
 
 All four are exact-dispatch infeasibilities, not voltage-band failures: the
-solver proves no feasible dispatch exists at all. Feasibility is otherwise
-uniform across months and load years (2021: 69/70, 2022: 63/66; the worst month
-is 2022-10 at 13/15).
+solver proves no feasible dispatch exists at all. Three sit in the top 7% of
+the library's peaks and the fourth at rank 33, all within 0.06 MW of the
+declared band ceiling (4.0865 MW), while the library's median day peaks at
+3.91 MW and clears. Feasibility is otherwise uniform across months and load
+years (2021: 69/70, 2022: 63/66; the worst month is 2022-10 at 13/15).
 
 ## Voltage
 
