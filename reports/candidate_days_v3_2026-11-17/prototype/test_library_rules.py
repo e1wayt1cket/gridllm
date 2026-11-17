@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 
 from library_rules import (HIGH_MW, MAX_METERS, POWER_FACTOR, REACTIVE_RATIO,
-                           assign_buses, native_p0, reactive_from_active,
-                           select_day)
+                           assign_buses, draw_split, native_p0,
+                           reactive_from_active, select_day)
 
 
 def flat(peak):
@@ -93,6 +93,47 @@ class AssignBusesTest(unittest.TestCase):
 
     def test_declared_ratio_matches_the_power_factor(self):
         self.assertAlmostEqual(np.tan(np.arccos(POWER_FACTOR)), REACTIVE_RATIO, places=3)
+
+
+class DrawSplitTest(unittest.TestCase):
+    def _dates(self, months, n, year=2022):
+        """Round-robin the months so every generated day number stays valid."""
+        return [f"{year}-{months[i % len(months)]:02d}-{i // len(months) + 1:02d}"
+                for i in range(n)]
+
+    def _prices(self):
+        return {f"{m:02d}": tuple(f"2025-{m:02d}-{d:02d}" for d in range(1, 32))
+                for m in range(6, 13)}
+
+    def test_126_days_give_90_18_18(self):
+        plan = draw_split(self._dates([6, 7, 8, 9, 11, 12], 126), self._prices())
+        self.assertEqual(plan.library_size, 126)
+        self.assertEqual(plan.counts, {"train": 90, "validation": 18, "test": 18, "holiday": 0})
+
+    def test_holiday_block_is_the_national_day_window(self):
+        plan = draw_split(self._dates([10], 31), self._prices())
+        self.assertEqual(plan.blocks["holiday"],
+                         tuple(f"2022-10-0{d}" for d in range(1, 6)))
+
+    def test_month_over_price_count_draws_and_records_discards(self):
+        prices = {"06": tuple(f"2025-06-{d:02d}" for d in range(1, 15))}
+        plan = draw_split(self._dates([6], 30), prices)
+        self.assertEqual(plan.library_size, 14)
+        self.assertEqual(len(plan.discarded["06"]), 16)
+        self.assertEqual(sum(plan.counts.values()), 14)
+
+    def test_blocks_are_disjoint_by_date_and_by_price(self):
+        plan = draw_split(self._dates([6, 7, 8, 9, 10, 11, 12], 140), self._prices())
+        loads = [p.split("|")[0] for pair in plan.pairs.values() for p in pair]
+        prices_used = [p.split("|")[1] for pair in plan.pairs.values() for p in pair]
+        self.assertEqual(len(set(loads)), len(loads))
+        self.assertEqual(len(set(prices_used)), len(prices_used))
+        self.assertEqual(len(loads), plan.library_size)
+
+    def test_same_seed_gives_the_same_split(self):
+        dates = self._dates([9], 20)
+        self.assertEqual(draw_split(dates, self._prices()),
+                         draw_split(dates, self._prices()))
 
 
 if __name__ == "__main__":

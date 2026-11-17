@@ -112,6 +112,135 @@ def reactive_from_active(active):
 
 
 @dataclass(frozen=True)
+class SplitPlan:
+    blocks: dict
+    counts: dict
+    pairs: dict
+    discarded: dict
+    library_size: int
+    holiday_shortfall: int
+
+
+SPLIT_SEED = 20261117
+BLOCKS = ("train", "validation", "test", "holiday")
+HOLIDAY_MONTH_DAYS = {f"10-0{d}" for d in range(1, 6)}
+
+
+def draw_split(in_band_dates, price_dates_by_month, seed=SPLIT_SEED):
+    """Prepare the month-and-year stratified split, outcome-blind and seeded.
+
+    Every month draws as many load dates as its 2025 price pool can pair with;
+    the rest are recorded as discarded rather than silently dropped.
+    """
+    dates = sorted(set(in_band_dates))
+    holiday_window = [d for d in dates if d[5:] in HOLIDAY_MONTH_DAYS]
+    holiday = tuple(holiday_window[:10])
+
+    by_month = {}
+    for date in dates:
+        if date in holiday:
+            continue
+        by_month.setdefault(int(date[5:7]), []).append(date)
+
+    kept_by_month = {}
+    discarded = {}
+    holiday_by_month = {}
+    for date in holiday:
+        month = int(date[5:7])
+        holiday_by_month[month] = holiday_by_month.get(month, 0) + 1
+    for month in sorted(by_month):
+        by_year = {}
+        for date in by_month[month]:
+            by_year.setdefault(int(date[:4]), []).append(date)
+        supply = len(by_month[month])
+        # A holiday day consumes one of its month's price dates, so the draw
+        # leaves room for it: every library day keeps a unique price date.
+        available = len(price_dates_by_month.get(f"{month:02d}", ()))
+        keep = min(supply, max(0, available - holiday_by_month.get(month, 0)))
+        quota = _largest_remainder({year: len(v) for year, v in by_year.items()}, keep)
+        kept = []
+        rejected = []
+        for year in sorted(by_year):
+            candidates = sorted(by_year[year])
+            order = np.random.default_rng(seed + 100 * month + year).permutation(len(candidates))
+            picked = {candidates[i] for i in order[:quota[year]]}
+            kept.extend(sorted(picked))
+            rejected.extend(candidates[i] for i in order[quota[year]:])
+        kept_by_month[month] = sorted(kept)
+        discarded[f"{month:02d}"] = tuple(sorted(rejected))
+
+    groups = {}
+    for month in sorted(kept_by_month):
+        for date in kept_by_month[month]:
+            groups.setdefault((month, int(date[:4])), []).append(date)
+    for key in sorted(groups):
+        values = sorted(groups[key])
+        index = np.random.default_rng(seed + 100 * key[0] + key[1]).permutation(len(values))
+        groups[key] = [values[i] for i in index]
+
+    order = []
+    keys = sorted(groups)
+    for position in range(max((len(v) for v in groups.values()), default=0)):
+        for key in keys:
+            if position < len(groups[key]):
+                order.append(groups[key][position])
+
+    pattern = ["train"] * 5 + ["validation", "test"]
+    labels = [pattern[i % len(pattern)] for i in range(len(order))]
+
+    blocks = {label: [] for label in BLOCKS}
+    for date, label in zip(order, labels):
+        blocks[label].append(date)
+    blocks["holiday"] = list(holiday)
+    blocks = {label: tuple(sorted(blocks[label])) for label in BLOCKS}
+
+    price_of = _price_of(blocks, price_dates_by_month)
+    pairs = {}
+    for label in BLOCKS:
+        pairs[label] = tuple(f"{date}|{price_of[date]}" for date in blocks[label])
+
+    counts = {label: len(blocks[label]) for label in BLOCKS}
+    return SplitPlan(
+        blocks=blocks,
+        counts=counts,
+        pairs=pairs,
+        discarded=discarded,
+        library_size=len(order) + len(holiday),
+        holiday_shortfall=max(0, 10 - len(holiday)),
+    )
+
+
+def _largest_remainder(weights, total):
+    """Split `total` over integer keys; ties go to the smaller key."""
+    weight_sum = sum(weights.values())
+    if weight_sum == 0 or total <= 0:
+        return {key: 0 for key in weights}
+    share = {key: total * weights[key] / weight_sum for key in weights}
+    quota = {key: int(np.floor(share[key])) for key in weights}
+    remainder = total - sum(quota.values())
+    for key in sorted(weights, key=lambda k: (-(share[k] - quota[k]), k))[:remainder]:
+        quota[key] += 1
+    return quota
+
+
+def _price_of(blocks, price_dates_by_month):
+    """Give every library day its month's next unused price date, in date order."""
+    by_month = {}
+    for label in BLOCKS:
+        for date in blocks[label]:
+            by_month.setdefault(date[5:7], []).append(date)
+    mapping = {}
+    for month in sorted(by_month):
+        prices = sorted(price_dates_by_month.get(month, ()))
+        for load, price in zip(sorted(by_month[month]), prices):
+            mapping[load] = price
+    missing = [date for dates in by_month.values() for date in dates if date not in mapping]
+    if missing:
+        raise ValueError(f"{len(missing)} library days have no same-month price date")
+    return mapping
+
+
+@dataclass(frozen=True)
 class DaySelection:
     date: str
     sources: tuple[str, ...]
