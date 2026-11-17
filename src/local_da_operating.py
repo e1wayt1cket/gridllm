@@ -12,7 +12,7 @@ import numpy as np
 from local_da_accounting import ac_replay, physical_audit
 from local_da_clearing import ClearingModel, choose_directions, probe_prices
 from local_da_contracts import Generator
-from run_local_da import ROOT, build_day, sha
+from run_local_da import ROOT, build_legacy_day, sha
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ def remap_sources(active_load, selected, historical):
 
 
 def build_historical_day(date="2022-12-22"):
-    day, context = build_day(date)
+    day, context = build_legacy_day(date)
     selected_path = ROOT / "reports/multi_user_load_2026-11-13/evidence/source_bus_mapping.csv"
     historical_path = ROOT / "data/processed/industry_meter_bus_map_v2.csv"
     historical_manifest = ROOT / "data/processed/industry_meter_bus_map_v2_manifest.json"

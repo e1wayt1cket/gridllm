@@ -19,6 +19,8 @@ from local_da_accounting import settle_day
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "reports/multi_user_load_2026-11-13/evidence"
+V3 = ROOT / "reports/candidate_days_v3_2026-11-17/evidence"
+PRICE_CURVES = ROOT / "data/processed/v2_cy_jn_2025/price_curves.npz"
 
 
 def sha(path):
@@ -81,6 +83,31 @@ def production_renewable_curves():
 
 
 def build_day(date):
+    """Read one v3 library day at its own native-share bus assignment.
+
+    The v3 library places one meter on each load bus by native share, so the
+    columns are already the market's nodal load and no historical destination
+    remapping applies.
+    """
+    split = json.loads((V3 / "split.json").read_text(encoding="utf-8"))
+    pairs = [p for rows in split["pairs"].values() for p in rows
+             if p.split("|")[0] == date]
+    if len(pairs) != 1:
+        raise ValueError("The requested date is not a unique member of the v3 library")
+    metadata = json.loads((V3 / "manifest.json").read_text(encoding="utf-8"))
+    if sha(V3 / "bus_active_load_mw.npz") != metadata["outputs"]["bus_active_load_mw.npz"]["sha256"]:
+        raise ValueError("Changed frozen v3 load output")
+    with np.load(V3 / "bus_active_load_mw.npz", allow_pickle=False) as archive:
+        p = archive[date].copy()
+    price_date = pairs[0].split("|")[1]
+    with np.load(PRICE_CURVES, allow_pickle=False) as archive:
+        price = archive[f"south/{price_date}"].copy()
+    return _assemble_day(p, price, {"load_date": date, "price_date": price_date,
+                                    "library": "candidate_days_v3_2026-11-17"})
+
+
+def build_legacy_day(date):
+    """The v1 remapped library, kept for the historical reproduction path."""
     split = json.loads((ROOT / "data/processed/v2_cy_jn_2025/common_split.json").read_text())
     pairs = [p for p in split["near"]["train"] if p.split("|")[0] == date]
     if len(pairs) != 1:
@@ -94,9 +121,13 @@ def build_day(date):
     with np.load(DATA / "bus_active_load_mw.npz", allow_pickle=False) as archive:
         p = archive[date].copy()
     price_date = pairs[0].split("|")[1]
-    price_path = ROOT / "data/processed/v2_cy_jn_2025/price_curves.npz"
-    with np.load(price_path, allow_pickle=False) as archive:
+    with np.load(PRICE_CURVES, allow_pickle=False) as archive:
         price = archive[f"south/{price_date}"].copy()
+    return _assemble_day(p, price, {"load_date": date, "price_date": price_date,
+                                    "pair_key": pairs[0]})
+
+
+def _assemble_day(p, price, context):
     net = networks.case33bw()
     ratio = np.zeros(33)
     for _, row in net.load.iterrows():
@@ -132,7 +163,7 @@ def build_day(date):
             for unit in storage}
     day = DayAheadInput(network, p, p * ratio[None, :], price, storage,
                         production_renewable_curves(), bids, 0., 600.)
-    return day, {"load_date": date, "price_date": price_date, "pair_key": pairs[0],
+    context.update({
                  "scenario_kind": "Cross-year perfect-forecast research diagnostic",
                  "bid_price_bounds": "0..600 CNY/MWh research interval, not verified Jiangsu formal limits",
                  "price_unit_status": "Historical inferred CNY/MWh; not externally confirmed",
@@ -140,12 +171,13 @@ def build_day(date):
                  "renewables": "Existing synthetic profile formulas; PV .3 MW at 21/23, wind 1 MW at 30; clipped to declared nameplate",
                  "generator_q_limits_mvar": 0., "thermal_limits_qualified": False,
                  "network": "Native case33bw R/X, slack 1.0 pu, no thermal rating inference",
-                 "terminal_soc": "free", "quote_reference": "zero-price, full-quantity reference"}
+                 "terminal_soc": "free", "quote_reference": "zero-price, full-quantity reference"})
+    return day, context
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--date", default="2022-12-22")
+    parser.add_argument("--date", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--seconds", type=float, default=120)
     args = parser.parse_args()
@@ -187,10 +219,8 @@ def main():
         archive_result(output / "continuous_relaxation_diagnostic", relaxed)
     inputs = [ROOT / "src" / f for f in ["local_da_contracts.py", "local_da_clearing.py",
               "local_da_accounting.py", "run_local_da.py", "grid.py"]]
-    inputs += [DATA / "manifest.json", DATA / "bus_active_load_mw.npz",
-               ROOT / "data/processed/v2_cy_jn_2025/common_split.json",
-               ROOT / "data/processed/v2_cy_jn_2025/price_curves.npz",
-               ROOT / "docs/2026-11-13-local-da-clearing-spec.md"]
+    inputs += [V3 / "manifest.json", V3 / "bus_active_load_mw.npz", V3 / "split.json",
+               PRICE_CURVES, ROOT / "docs/2026-11-13-local-da-clearing-spec.md"]
     status = {"qualified_for_settlement": result["qualified_for_settlement"],
               "dispatch_status": result["dispatch"]["solver_status"],
               "price_qualification": result["price_qualification"],
