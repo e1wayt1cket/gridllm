@@ -32,6 +32,86 @@ array_sha256 = _array_sha256
 
 
 @dataclass(frozen=True)
+class BusAssignment:
+    bus_of_source: dict
+    target_share: dict
+    d_init: float
+    d_final: float
+    excluded_native_share: float
+    target_max_share: float
+
+
+def native_p0():
+    """Native `case33bw` active load per bus, indexed from the slack at 0."""
+    import pandapower.networks
+
+    net = pandapower.networks.case33bw()
+    p0 = np.zeros(BUS_COUNT, dtype=np.float64)
+    for row in net.load.itertuples():
+        p0[int(row.bus)] += float(row.p_mw)
+    return p0
+
+
+def assign_buses(pi, p0):
+    """Map the day's meters onto the `len(pi)` heaviest native buses.
+
+    One meter per bus, so the assignment is a permutation; the local step
+    exchanges the meters on two target buses and only accepts an exchange that
+    lowers the squared relative deviation from the target shares.
+    """
+    sources = sorted(pi, key=lambda k: (-pi[k], k))
+    n = len(sources)
+    buses = sorted(range(BUS_COUNT), key=lambda b: (-p0[b], b))[:n]
+    target_total = float(sum(p0[b] for b in buses))
+    share = {b: float(p0[b]) / target_total for b in buses}
+    assigned = {bus: float(pi[sources[i]]) for i, bus in enumerate(buses)}
+
+    contrib = {b: (assigned[b] / share[b] - 1.0) ** 2 for b in buses}
+    d_init = current = float(sum(contrib.values()))
+    while True:
+        best = None
+        best_value = None
+        for i in range(n - 1):
+            bi = buses[i]
+            for j in range(i + 1, n):
+                bj = buses[j]
+                value = (current - contrib[bi] - contrib[bj]
+                         + (assigned[bj] / share[bi] - 1.0) ** 2
+                         + (assigned[bi] / share[bj] - 1.0) ** 2)
+                if best is None or value < best_value:
+                    best, best_value = (bi, bj), value
+        if best is None or current - best_value <= 1e-12:
+            break
+        bi, bj = best
+        assigned[bi], assigned[bj] = assigned[bj], assigned[bi]
+        contrib[bi] = (assigned[bi] / share[bi] - 1.0) ** 2
+        contrib[bj] = (assigned[bj] / share[bj] - 1.0) ** 2
+        current = best_value
+
+    return BusAssignment(
+        bus_of_source={sources[i]: bus for i, bus in enumerate(buses)},
+        target_share=share,
+        d_init=d_init,
+        d_final=current,
+        excluded_native_share=1.0 - target_total / float(p0.sum()),
+        target_max_share=max(share.values()),
+    )
+
+
+def bus_matrix(bus_of_source, curves):
+    """Lay each source's curve on its bus; unspecified buses carry no load."""
+    matrix = np.zeros((PERIODS, BUS_COUNT), dtype=np.float64)
+    for source, bus in bus_of_source.items():
+        matrix[:, bus] = curves[source]
+    return matrix
+
+
+def reactive_from_active(active):
+    """One declared power factor for every meter; zeros stay zero."""
+    return REACTIVE_RATIO * np.asarray(active, dtype=np.float64)
+
+
+@dataclass(frozen=True)
 class DaySelection:
     date: str
     sources: tuple[str, ...]
