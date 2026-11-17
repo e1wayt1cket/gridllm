@@ -110,6 +110,29 @@ shedding and a storage fleet bidding zero, the only relief from the far-end
 worth 20-40x the energy price. The maxima therefore land on floor-price
 periods, i.e. exactly the periods an arbitraging agent wants to charge in.
 
+## Why the lower bound binds
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/voltage_bound_cause.py
+```
+
+| Claim | Verdict | Evidence |
+| --- | --- | --- |
+| The benchmark itself sits below the band with no market at all | PASS | `case33bw` at its own 3.715 MW / 2.300 MVAr gives Vmin 0.9131 pu; the band's lower edge is 0.93 |
+| The network carries no reactive source | PASS | 0 shunts, 0 generators, 0 transformers (no tap changer), slack fixed at 1.00 pu; the market declares `generator_q_limits_mvar = 0` |
+| The declared reactive basis is not the cause | PASS | Uniform Q = 0.619 P is the benchmark's own aggregate ratio (2.300 / 3.715). At the peak period it differs from the native per-bus basis by at most 0.005 pu, and by 0.0000 on 2021-10-14 |
+| The library's own load puts the tail under the band | PASS | Peaks of 3.55 - 4.09 MW give Vmin 0.881 - 0.939 with no storage; the benchmark's own scale already gives 0.9131 |
+| Storage charging is the largest term the market controls | PASS | 1.6 MW charging lowers Vmin by 0.04 - 0.05 pu (2022-10-14: 0.9048 to 0.8592); discharging raises it by 0.03 pu |
+| The band is not masking an infeasible day | PASS | With the band opened to 0.80 the market's own Vmin is 0.8607 / 0.8749 / 0.9230 / 0.9296 on the four sampled days, so the sag is the network's, not the bound's |
+
+The chain is therefore: the feeder's own load sits below 0.93 nearly always,
+nothing in the model can inject reactive power, and the market has no reason to
+clear above the band once it is met. So the optimum parks the tail exactly on
+0.93, and the dual of that constraint — not the energy price — sets the LMP at
+those hours. Storage makes it worse in the direction the market already wants to
+go: it charges at the cheapest hours, which deepens the sag exactly when the
+constraint is the price-setting one.
+
 ## Decision point
 
 1. **Train days.** 3 of 90 train days cannot be served. The RL design permits
