@@ -21,6 +21,7 @@ POWER_FACTOR = 0.8503
 REACTIVE_RATIO = 0.6190
 LOW_MW = ANCHOR_MW * (1.0 - TOLERANCE)
 HIGH_MW = ANCHOR_MW * (1.0 + TOLERANCE)
+LIBRARY_MONTHS = ("06", "07", "08", "09", "10", "11", "12")
 
 
 def _array_sha256(array) -> str:
