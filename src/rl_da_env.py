@@ -25,7 +25,7 @@ from collections import deque
 import numpy as np
 
 from da_quote_map_v5 import TRUTHFUL
-from local_da_clearing import ClearingModel, choose_directions
+from local_da_clearing import ClearingModel, choose_directions, clear_day
 from local_da_days import STORAGE_BUSES, window_day
 from models import Agent, StorageSpec
 from rl_env import PRICE_REF_CNY_MWH, BiddingEnv
@@ -161,6 +161,19 @@ def inventory_value(day, clearing, *, e0_mwh):
             * price for unit in day.storage}
 
 
+def abort_count(records):
+    """Aborted episodes in a round, and whether that round is degraded.
+
+    A round is degraded at the boundary of one abort in twenty episodes: the
+    share is compared with a non-strict >= because 1/20 is exactly 0.05, and a
+    strict > would call that boundary clean.
+    """
+    episodes = len(records)
+    aborts = sum(1 for record in records if record.get("abort"))
+    return {"episodes": episodes, "aborts": aborts,
+            "degraded": episodes > 0 and aborts / episodes >= 0.05}
+
+
 def storage_agents():
     """The four independent batteries the local market clears, with no load."""
     return [Agent(name=f"ESS{bus}", bus=bus, is_prosumer=False,
@@ -236,6 +249,33 @@ class LocalDABiddingEnv(BiddingEnv):
             self.bus_lmp_history[a.name].extend(
                 float(p) for p in prices[:, a.bus])
 
+    def probe_block(self, block=PROBE_BLOCK):
+        """Probe one block's prices and return the record, never an abort.
+
+        The window is rebuilt from the quotes the day has committed for that
+        block so the probe measures the quotes training actually clears, and
+        the carried SOC is the block's own. A probe that fails is evidence
+        about the day, not a reason to abort it: it is recorded and counted.
+        """
+        t_start = block * BLOCK_SIZE
+        t_end = min(t_start + self.roll_horizon, self.T)
+        quotes = {a.name: np.array([self.current_actions[a.name][name][t_start]
+                                    for name in self.spec_for(a).action_names])
+                  for a in self.rl_agents}
+        day = window_day(self.pair, t_start, t_end, soc=self.prev_soc,
+                         quotes=quotes)
+        try:
+            output = clear_day(day, seconds=self.seconds, price_probes=True)
+        except Exception:
+            output = {}
+        qualified = bool(output.get("qualified_for_settlement", False))
+        return {"date": self.pair["load_date"],
+                "block": block,
+                "price_qualification": output.get("price_qualification"),
+                "idle_direction_stable": output.get("idle_direction_stable"),
+                "qualified_for_settlement": qualified,
+                "failure": None if qualified else "PROBE_FAILED"}
+
     def step(self, actions):
         block = self.block_idx
         t_start = block * BLOCK_SIZE
@@ -261,6 +301,11 @@ class LocalDABiddingEnv(BiddingEnv):
             self._prev_block_actions[a.name] = {
                 name: np.full(self.T, quotes[a.name][i])
                 for i, name in enumerate(spec.action_names)}
+            # The day's committed quotes, the same record the parent env keeps,
+            # so the probe samples this block's bids rather than the defaults.
+            for i, name in enumerate(spec.action_names):
+                self.current_actions[a.name][name][t_start:t_end] = \
+                    quotes[a.name][i]
         self._prev_block_index = block
 
         day = window_day(self.pair, t_start, t_end, soc=self.prev_soc,
@@ -280,6 +325,9 @@ class LocalDABiddingEnv(BiddingEnv):
         if baseline["failure"] is not None:
             raise EpisodeClearingError("BASELINE_INFEASIBLE",
                                        self.pair["load_date"], block)
+
+        if block == PROBE_BLOCK:
+            self.probe_records.append(self.probe_block(block))
 
         pricing = result["pricing"]
         payoffs = block_payoffs(day, pricing, n_commit)
