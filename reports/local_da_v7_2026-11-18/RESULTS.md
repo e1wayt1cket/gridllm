@@ -25,8 +25,13 @@ declares. `summarize(record)` is the source of each row; the values are read
 from `smoke.json`. The `soc_min`/`soc_max` values in `smoke.json` are the
 post-clamp carried states (`env.prev_soc`) as measured at run time; the harness
 now records `info["soc_raw"]`, the raw energy-derived SOC before the clamp, so
-`soc_in_band` can fail on a solve outside the band. The audited values above
-are unchanged by that switch.
+`soc_in_band` can fail on a solve outside the band. That the audited values
+above are unchanged by the switch is INFERRED from `smoke.json`, not
+re-measured: `smoke.json` was produced before the switch and was not
+regenerated, no truthful episode's recorded extreme sits exactly on a band
+edge, so no clamp fired on those walks. The shaded arm did clamp at 0.1 and a
+rerun would record a raw value below the band for it; that arm is not
+summarized for acceptance, so no flag above depends on the inference.
 
 ## Latency
 
