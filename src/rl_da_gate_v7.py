@@ -1,11 +1,16 @@
 """MATD3_DA_GATE_v7: the v5 storage quote as a price and a quantity per leg.
 
-The economic core is inherited unchanged from `rl_b_c2_gate`: whole-day
-differential B, the C2 potential, gamma=0.99, terminal SOC 0.5, twin
-centralised critics and the existing clearing engine. The action box is the
-v5 one -- four entries, `charge_price, charge_quantity, discharge_price,
-discharge_quantity` -- so what this module replaces is everything the parent
-sizes from the two-dimension box:
+What the reward is: each block's settled payoff minus the same window
+re-cleared at the truthful declaration, with the inherited C2 potential on a
+complete day, gamma=0.99, twin centralised critics and the existing clearing
+engine. Terminal SOC is free -- the market does not pin it -- and the closing
+stock is valued once, at block 23, at the day's last external price. This is
+not the parent's `daily_reward_b` whole-day B, which pays one B1-cache
+differential at the last block.
+
+The action box is the v5 one -- four entries, `charge_price, charge_quantity,
+discharge_price, discharge_quantity` -- so what this module replaces is
+everything the parent sizes from the two-dimension box:
 
 * the actor head, six logits instead of four;
 * the centralised critics, one input per quote entry;
@@ -543,7 +548,7 @@ class DAGateTrainerV7(base.MATD3BC2Gate):
             "potential": (C2Config(gamma=self.experiment.gamma).__dict__
                           if self.experiment.uses_c2 else None),
             "normalization": "fixed_scale_only",
-            "terminal_rule": "soc_end_0.5_settlement",
+            "terminal_rule": "terminal_soc_free_inventory_at_last_external_price",
             "b1_source": "local_da_env_truthful_window",
             "gate": {
                 "policy_dim": POLICY_DIM,

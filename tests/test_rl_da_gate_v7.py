@@ -1,5 +1,7 @@
 """The v7 trainer: the four-dimension quote, its anchor and its checkpoint."""
 
+import json
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -27,6 +29,7 @@ def test_the_actor_emits_six_logits_with_a_four_wide_box():
     assert isinstance(trainer.actors["ESS9"], GateActorV5)
     assert trainer.action_spec.name == "storage_quote_v5"
     assert trainer.obs_spec.name == "v7_12d"
+    assert trainer.critics["ESS9"].critic_in == 12 * 4 + 4 * 4
 
 
 def test_the_anchor_is_zero_at_the_declared_point_and_one_at_the_far_corner():
@@ -86,6 +89,20 @@ def test_the_train_mode_map_keeps_the_quotes_in_the_box_and_the_gate_hard():
     assert set(np.unique(diag["gates"])) <= {0.0, 1.0}
     probs = np.asarray(diag["probs"], dtype=float)
     assert np.all((probs > 0.0) & (probs < 1.0))
+    # Episode 0 runs the warmup at tau=4, so the bounded +/-(4) logits read
+    # sigmoid(+/-1). At the evaluation tau=1 the same logits would read
+    # sigmoid(+/-4), so these pins are what make the temperature visible.
+    assert abs(probs[0] - 0.7310586) < 1e-6
+    assert abs(probs[1] - 0.2689414) < 1e-6
+
+
+def test_a_checkpoint_states_the_terminal_treatment_the_day_uses(tmp_path):
+    t, _ = trainer()
+    t.save(tmp_path, level="inference", dataset="d", seed=1,
+           config_hash_value=HEX64)
+    manifest = json.loads((tmp_path / "manifest.json").read_text("utf-8"))
+    assert manifest["reward"]["terminal_rule"] == \
+        "terminal_soc_free_inventory_at_last_external_price"
 
 
 def test_a_v4_checkpoint_is_refused(tmp_path):
