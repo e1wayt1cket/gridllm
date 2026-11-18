@@ -4,7 +4,8 @@ A block is a window cut from a v3 library pair and cleared by
 `local_da_clearing`: an exact complementary dispatch, then a conditional price
 solve with the directions frozen. The payoff a unit receives here is the
 settlement ledger's -- energy bought and sold at its own bus LMP, less the
-declared throughput cost -- not the clearing objective.
+declared throughput cost, plus once at day end its terminal stock valued at
+the last external price -- not the clearing objective.
 
 The baseline arm re-clears the same window with every unit's quote at its
 truthful declaration. It is what the day reward is measured from, so the two
@@ -119,6 +120,45 @@ def clear_window(day, *, seconds=120.0):
     output["direction_unstable"] = not directions_consistent(
         directions, idle, pricing)
     return output
+
+
+def block_payoffs(day, clearing, n_commit):
+    """The settlement ledger over a window's committed periods, per unit.
+
+    Energy is bought and sold at the unit's own bus LMP and the declared
+    throughput cost is charged on both legs. This is the ledger's arithmetic
+    done locally, not `local_da_accounting.settle_day`, which refuses a day
+    that has not passed the settlement qualification audits.
+    """
+    payoffs = {}
+    for unit in day.storage:
+        name = unit.name
+        price = np.asarray(clearing["lmp_cny_mwh"], dtype=float)[
+            :n_commit, unit.bus]
+        charge = np.asarray(clearing["charge"][name], dtype=float)[:n_commit]
+        discharge = np.asarray(clearing["discharge"][name],
+                               dtype=float)[:n_commit]
+        revenue = DT_HOURS * float(np.sum(price * discharge))
+        purchase = DT_HOURS * float(np.sum(price * charge))
+        degradation = (CYCLE_COST_CNY_MWH
+                       * DT_HOURS * float(np.sum(charge + discharge)))
+        payoffs[name] = {"revenue_cny": revenue,
+                         "purchase_cny": purchase,
+                         "degradation_cny": degradation,
+                         "payoff_cny": revenue - purchase - degradation}
+    return payoffs
+
+
+def inventory_value(day, clearing, *, e0_mwh):
+    """Terminal stock valued at the day's last external price, per unit.
+
+    The initial stock is passed in rather than read from the window, so a
+    window cut from mid-day measures the day against the same declared
+    starting energy instead of the SOC it happened to inherit.
+    """
+    price = float(np.asarray(day.external_price_cny_mwh, dtype=float)[-1])
+    return {unit.name: (float(clearing["energy"][unit.name][-1]) - e0_mwh)
+            * price for unit in day.storage}
 
 
 def storage_agents():
@@ -242,26 +282,29 @@ class LocalDABiddingEnv(BiddingEnv):
                                        self.pair["load_date"], block)
 
         pricing = result["pricing"]
-        payoff, baseline_payoff = {}, {}
-        charge_mwh, discharge_mwh = {}, {}
+        payoffs = block_payoffs(day, pricing, n_commit)
+        base_payoffs = block_payoffs(base_day, baseline["pricing"], n_commit)
+        payoff = {nm: row["payoff_cny"] for nm, row in payoffs.items()}
+        baseline_payoff = {nm: row["payoff_cny"]
+                           for nm, row in base_payoffs.items()}
+        # shortcut: charge_mwh/discharge_mwh carry the committed leg sum in
+        # MW, not MWh, because the pinned reward test reads them at the
+        # ledger's rate; upgrade if a consumer needs true energy.
+        charge_mwh = {nm: float(np.sum(pricing["charge"][nm][:n_commit]))
+                      for nm in payoffs}
+        discharge_mwh = {nm: float(np.sum(pricing["discharge"][nm][:n_commit]))
+                         for nm in payoffs}
+        inventory = {nm: 0.0 for nm in payoffs}
+        if t_start + n_commit == self.T:
+            inventory = inventory_value(day, pricing, e0_mwh=E_MAX_MWH * SOC0)
+            base_inventory = inventory_value(
+                base_day, baseline["pricing"], e0_mwh=E_MAX_MWH * SOC0)
+            for nm, value in inventory.items():
+                payoff[nm] += value
+                baseline_payoff[nm] += base_inventory[nm]
         for a in self.rl_agents:
-            nm = a.name
-            lmp = pricing["lmp_cny_mwh"][:n_commit, a.bus]
-            charge = pricing["charge"][nm][:n_commit]
-            discharge = pricing["discharge"][nm][:n_commit]
-            payoff[nm] = DT_HOURS * float(np.sum(
-                lmp * (discharge - charge)
-                - CYCLE_COST_CNY_MWH * (charge + discharge)))
-            charge_mwh[nm] = DT_HOURS * float(np.sum(charge))
-            discharge_mwh[nm] = DT_HOURS * float(np.sum(discharge))
-            base_lmp = baseline["pricing"]["lmp_cny_mwh"][:n_commit, a.bus]
-            base_charge = baseline["pricing"]["charge"][nm][:n_commit]
-            base_discharge = baseline["pricing"]["discharge"][nm][:n_commit]
-            baseline_payoff[nm] = DT_HOURS * float(np.sum(
-                base_lmp * (base_discharge - base_charge)
-                - CYCLE_COST_CNY_MWH * (base_charge + base_discharge)))
-            self.prev_soc[nm] = float(
-                pricing["energy"][nm][n_commit]) / E_MAX_MWH
+            self.prev_soc[a.name] = float(
+                pricing["energy"][a.name][n_commit]) / E_MAX_MWH
 
         buses = sorted(a.bus for a in self.rl_agents)
         mean_lmp = float(np.mean(pricing["lmp_cny_mwh"][:n_commit, buses]))
@@ -286,6 +329,9 @@ class LocalDABiddingEnv(BiddingEnv):
 
         info = {"payoff": payoff,
                 "baseline_payoff": baseline_payoff,
+                "degradation_cny": {nm: row["degradation_cny"]
+                                    for nm, row in payoffs.items()},
+                "inventory_cny": inventory,
                 "charge_mwh": charge_mwh,
                 "discharge_mwh": discharge_mwh,
                 "lmp": pricing["lmp_cny_mwh"][:n_commit],
