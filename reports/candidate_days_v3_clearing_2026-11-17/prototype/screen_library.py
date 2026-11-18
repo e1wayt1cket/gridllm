@@ -94,6 +94,8 @@ def main():
                         help="Substation voltage the market holds, in pu.")
     parser.add_argument("--capacitors", nargs="+", default=[], metavar="BUS:MVAR",
                         help="Fixed compensation the feeder declares, as BUS:MVAR pairs.")
+    parser.add_argument("--generator-q", type=float, default=0., metavar="MVAR",
+                        help="Reactive capability the market declares for every generator.")
     parser.add_argument("--no-probes", dest="probes", action="store_false",
                         help="Skip the price probes; qualification then stays NOT_TESTED.")
     args = parser.parse_args()
@@ -101,6 +103,8 @@ def main():
         raise ValueError("A finite positive solve budget is required")
     if not np.isfinite(args.slack) or not .9 < args.slack <= 1.07:
         raise ValueError("The declared substation voltage must lie inside the band")
+    if not np.isfinite(args.generator_q) or args.generator_q < 0:
+        raise ValueError("The declared reactive capability must be finite and non-negative")
     try:
         capacitors = tuple((int(bus), float(mvar))
                            for bus, mvar in (item.split(":") for item in args.capacitors))
@@ -125,7 +129,10 @@ def main():
         day, context = build_day(date)
         day = dataclasses.replace(day, network=dataclasses.replace(day.network,
                                                                   slack_vm_pu=args.slack,
-                                                                  shunts=capacitors))
+                                                                  shunts=capacitors),
+                                  generators=tuple(dataclasses.replace(
+                                      g, reactive_limit_mvar=args.generator_q)
+                                      for g in day.generators))
         if band is None:
             band = [day.network.voltage_min, day.network.voltage_max]
             # Declared before the first solve, so the rule cannot follow the result.
@@ -136,6 +143,9 @@ def main():
                 "band": band,
                 "slack_vm_pu": args.slack,
                 "shunts_mvar": [list(shunt) for shunt in day.network.shunts],
+                "generator_q_mvar": args.generator_q,
+                "generators": [[g.name, g.bus, g.reactive_limit_mvar]
+                               for g in day.generators],
                 "qualified_for_settlement": ("separate and stricter: physical audits, "
                                              "idle-direction stability and smooth prices"),
                 "clearing": f"clear_day(price_probes={args.probes}) on build_day(date)"})

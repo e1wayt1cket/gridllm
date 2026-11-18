@@ -5,6 +5,7 @@ period, so the slack bus must reproduce the exogenous price and no price may
 be negative; those two are checked. The rest is reported, not gated.
 """
 
+import argparse
 import csv
 from pathlib import Path
 
@@ -16,11 +17,11 @@ from run_local_da import PRICE_CURVES, ROOT, build_day
 EVIDENCE = ROOT / "reports/candidate_days_v3_clearing_2026-11-17/evidence"
 
 
-def load():
+def load(evidence=EVIDENCE):
     prices = np.load(PRICE_CURVES)
     records = []
-    for row in csv.DictReader((EVIDENCE / "summary.csv").open(encoding="utf-8")):
-        with np.load(EVIDENCE / f"{row['date']}.npz") as archive:
+    for row in csv.DictReader((Path(evidence) / "summary.csv").open(encoding="utf-8")):
+        with np.load(Path(evidence) / f"{row['date']}.npz") as archive:
             if "result/pricing/lmp_cny_mwh" not in archive:
                 records.append((row, None, None, None))
                 continue
@@ -31,7 +32,9 @@ def load():
 
 
 def main():
-    records = load()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", default=str(EVIDENCE))
+    records = load(parser.parse_args().evidence)
     priced = [(r, l, p, v) for r, l, p, v in records if l is not None]
     print(f"days {len(records)}, with prices {len(priced)}, without "
           f"{[r['date'] for r, l, _, _ in records if l is None]}")
@@ -62,6 +65,16 @@ def main():
           f"({100 * hot.mean():.2f}%); periods {hot_period.sum()} of {hot_period.size} "
           f"({100 * hot_period.mean():.2f}%)")
     print(f"hot periods with a bus on 0.93: {100 * (hot_period & bound_period).sum() / hot_period.sum():.1f}%")
+    pinned = volts <= 0.93 + 1e-6
+    print(f"bus-periods on 0.93: {pinned.sum()} of {pinned.size} "
+          f"({100 * pinned.mean():.2f}%); periods {bound_period.sum()} of "
+          f"{bound_period.size} ({100 * bound_period.mean():.2f}%)")
+    ratio = (lmp / external).max(axis=2)
+    for label, mask in (("pinned", bound_period), ("free", ~bound_period)):
+        values = ratio[mask]
+        print(f"{label}: periods {mask.sum()}, markup median {np.median(values):.2f}, "
+              f"p90 {np.percentile(values, 90):.2f}, max {values.max():.2f}, "
+              f"share above 1.5x {100 * (values > 1.5).mean():.1f}%")
     hot_ext = external[hot]
     print(f"external at hot cells: median {np.median(hot_ext):.0f}, p90 "
           f"{np.percentile(hot_ext, 90):.0f}; share at or below 60 CNY/MWh "

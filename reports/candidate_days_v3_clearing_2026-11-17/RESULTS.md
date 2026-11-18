@@ -71,6 +71,11 @@ equal `split.json`. Excluding 2022-08-02 breaks that rule by construction. The
 artifact records it as a validation exclusion rather than hiding it, and the
 design sentence has to change before the acceptance check can pass.
 
+The list describes the zero-capability screen only. Under a declared reactive
+capability all four days clear, so a market that declares one needs no drop
+list at all; the conflict above disappears with the exclusions rather than
+being resolved by them.
+
 ## Voltage
 
 | Quantity | Value | Source |
@@ -309,6 +314,59 @@ barrier-convergence noise, not a loose relaxation, and it is why
 `clear_day`'s pricing model runs at `BarQCPConvTol = 1e-8`; the audit tolerance
 and that parameter need to agree before any day can be qualified.
 
+### Declared reactive capability
+
+The market can declare how much reactive power its generators may supply.
+`Generator.reactive_limit_mvar` already bounds the reactive variable in both
+the dispatch and the pricing model, the reactive balance already carries it at
+the generator's bus, and it has no cost in the objective, so the clearing uses
+it whenever it relieves a binding constraint. `run_local_da` leaves the limit
+at zero; a screen declares it.
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/screen_library.py \
+    --out reports/candidate_days_v3_clearing_2026-11-17/evidence_q0.30_slack1.00 \
+    --generator-q 0.3 --no-probes
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/lmp_sanity.py \
+    --evidence reports/candidate_days_v3_clearing_2026-11-17/evidence_q0.30_slack1.00
+```
+
+| Quantity | plain feeder | 0.3 MVAr per unit |
+| --- | --- | --- |
+| Days the exact dispatch clears inside the band (SOCP) | 132/136 | 136/136 |
+| Bus-periods pinned at 0.93 | 2,326 (0.56%) | 1,807 (0.42%) |
+| Periods with at least one bus pinned | 1,582 (12.48%) | 1,393 (10.67%) |
+| Pinned-period markup to the external price, median / max | 2.19 / 41.42 | 2.48 / 41.08 |
+| Unpinned-period markup, max, and share above 1.5x | 1.15, 0.0% | 1.16, 0.0% |
+| Day-max LMP | 1,621.85 | 1,619.99 |
+| Days with a price above 600 / 800 | 26 / 16 | 20 / 11 |
+| Days the four previously unservable days clear | 0/4 | 4/4 |
+
+Reactive capability fixes feasibility completely: all 136 days clear, no bus
+touches 1.07, and the four days that needed a drop list clear without one. It
+does not fix the price tail. The generators sit at their declared limit in
+51.1% of generator-periods, so every remaining pinned bus-period is limited by
+declared capability, and where the constraint binds the price is still the
+constraint's dual rather than the energy price. On the same five days the
+markup maxima move from 41.1x to 11.9x between 0.3 and 3.0 MVAr per unit, and
+at 3.0 the day-max LMP falls to 362.5 - 431.8 CNY/MWh, inside the declared
+0-600 interval, with 63 of 15,840 bus-periods pinned and the limit reached in
+1-15% of periods.
+
+| Claim | Verdict | Evidence |
+| --- | --- | --- |
+| Declaring reactive capability makes every library day clear | PASS | `evidence_q0.30_slack1.00/summary.csv`: 136 of 136 `feasible`, 0 touching 1.07 |
+| It removes the need for the four-day drop list | PASS | the four named dates clear; `excluded_days.json` describes the zero-capability screen only |
+| Capability at nameplate scale fixes the price tail | FAIL | day-max LMP 1,619.99 against 1,621.85 plain; 20 days above 600 |
+| The residual tail is capability-limited | PASS | 20,004 of 39,168 generator-periods sit at the declared limit |
+| 3.0 MVAr per unit brings the five hardest days inside 0-600 | PASS | day-max LMP 362.5 - 431.8 on the five days ranked by markup |
+| The other 131 days at 3.0 MVAr | NOT_TESTED | only five days were screened; no full run exists |
+
+Both capability levels are declared research parameters, not Jiangsu rules and
+not equipment data: PV21 and PV23 carry 0.3 MW nameplate and WIND30 1.0 MW, so
+0.3 MVAr is one unit of reactive per unit of active for the PVs and 3.0 MVAr is
+ten times nameplate. Adopting either needs its own line in the protocol.
+
 ### Load level or reactive draw?
 
 ```bash
@@ -355,14 +413,18 @@ reproduces the benchmark's own aggregate ratio.
    periods at the price floor, outside the declared 0-600 research interval.
    Any consumer of the price signal, the RL observation included, will read
    those spikes as the cheapest hours of the day.
-5. **No remedy is adoptable yet.** Both measured levers (a higher substation
-   voltage and fixed compensation) remove the four unservable days and most of
-   the price tail by pushing solutions against the upper band edge, and there
-   the convex relaxation stops being exact: cone gaps of 18 to 32 MW2 and
-   nonlinear replay voltages 2.5% above the cleared one. The blocking question
-   is therefore the model's exactness at the upper bound, not which parameter to
-   pick. Until it is settled, the delivered library remains the 1.00 screen with
-   its four unservable days.
+5. **The network levers are not adoptable; the market lever is.** A higher
+   substation voltage and fixed compensation both remove the four unservable
+   days and part of the price tail by pushing solutions against the upper band
+   edge, where the convex relaxation stops being exact: cone gaps of 18 to 32
+   MW2 and nonlinear replay voltages 2.5% above the cleared one. Declared
+   generator reactive capability does the same job without touching the network
+   and without breaking the relaxation: all 136 days clear and no bus reaches
+   1.07. It fixes feasibility, not the tail — at nameplate scale the day-max
+   LMP is unchanged, and only a declared capability ten times nameplate brings
+   the five hardest days inside 0-600. The open decision is therefore how much
+   reactive capability the market declares, and whether reactive power is
+   compensated at all; neither is a network parameter.
 6. **Audit tolerance.** The cone-tightness gate at 1e-6 rejects 61 plain days
    that miss by 2e-6, while the pricing model runs at a barrier tolerance of
    1e-8. Either the gate or the parameter has to move; today the gate rejects

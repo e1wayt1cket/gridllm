@@ -184,6 +184,18 @@ class SolverTests(unittest.TestCase):
         self.assertGreater(compensated["voltage_sq"][0, 1], uncompensated["voltage_sq"][0, 1])
         self.assertLess(compensated["qcc_mvar"][0], uncompensated["qcc_mvar"][0])
 
+    def test_declared_reactive_capability_relieves_the_slack_and_holds_its_limit(self):
+        net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))
+        day = replace(small_day(storage=False), network=net,
+                      active_load_mw=np.array([[0., .5], [0., .5]]),
+                      reactive_load_mvar=np.array([[0., .1], [0., .1]]))
+        bare = clear_day(day, seconds=15)["dispatch"]
+        generator = Generator("G", 1, np.full(2, .5), reactive_limit_mvar=.2)
+        capable = clear_day(replace(day, generators=(generator,)), seconds=15)["dispatch"]
+        self.assertGreater(capable["voltage_sq"][0, 1], bare["voltage_sq"][0, 1])
+        self.assertLess(capable["qcc_mvar"][0], bare["qcc_mvar"][0])
+        self.assertLessEqual(float(np.abs(capable["generator_q"]["G"]).max()), .2 + 1e-6)
+
     def test_native_q_network_losses_and_nonlinear_ac_replay(self):
         day = small_day(storage=False)
         net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))
