@@ -31,6 +31,28 @@ def test_a_failed_probe_is_recorded_and_does_not_abort(monkeypatch):
     assert env.probe_records == []
 
 
+def test_a_qualified_probe_reaches_clear_day_and_records_success(monkeypatch):
+    env = LocalDABiddingEnv()
+    env.reset(load_pair("2021-06-04"))
+    calls = []
+
+    def fake(day, **kw):
+        calls.append(kw)
+        return {"price_qualification": "SMOOTH_PASS",
+                "idle_direction_stable": True,
+                "qualified_for_settlement": True}
+
+    monkeypatch.setattr(rl_da_env, "clear_day", fake)
+    record = env.probe_block()
+    assert record["failure"] is None
+    assert record["qualified_for_settlement"] is True
+    # The record must carry the pipeline's own verdicts, not stand-ins.
+    assert record["price_qualification"] == "SMOOTH_PASS"
+    assert record["idle_direction_stable"] is True
+    assert len(calls) == 1
+    assert calls[0]["price_probes"] is True
+
+
 def test_more_than_five_percent_aborts_degrade_the_round():
     assert abort_count([{"abort": False}] * 19 + [{"abort": True}])["degraded"] is True
     assert abort_count([{"abort": False}] * 20 + [{"abort": True}])["degraded"] is False
