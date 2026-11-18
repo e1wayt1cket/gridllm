@@ -139,12 +139,16 @@ def _walk(pair, *, seconds: float, quote, roll_horizon: int = ROLL_HORIZON):
             break
     record["episode_seconds"] = time.perf_counter() - start
 
-    begun = time.perf_counter()
-    # An aborted day has no probe to take: its carried SOC is the state that
-    # made the last window invalid, so the probe would raise the same error.
-    record["probe"] = None if record["abort"] else env.probe_block()
-    record["probe_seconds"] = (None if record["abort"]
-                               else time.perf_counter() - begun)
+    # The recorded outcome is the walk's own block-11 probe, the same record
+    # the environment keeps. The timed call repeats that shape only to price a
+    # probe; its result is not the evidence.
+    record["probe"] = env.probe_records[0] if env.probe_records else None
+    if record["abort"]:
+        record["probe_seconds"] = None
+    else:
+        begun = time.perf_counter()
+        env.probe_block()
+        record["probe_seconds"] = time.perf_counter() - begun
     return record
 
 
@@ -159,15 +163,8 @@ def projected_hours(seconds_per_block: float) -> dict:
             for bound, steps in zip(("min", "max"), BLOCK_STEPS_PER_SEED)}
 
 
-def smoke(days: Sequence[str], *, seconds: float = 120.0) -> dict:
-    """Walk each day truthfully, time its solves, and add the two side arms."""
-    pairs = [load_pair(day) for day in days]
-    episodes = []
-    for pair in pairs:
-        record = _walk(pair, seconds=seconds, quote=TRUTHFUL)
-        record.update(_timed_block(pair, seconds=seconds))
-        episodes.append(record)
-
+def _report(episodes, fallback, shaded) -> dict:
+    """Assemble one report from whichever arms ran."""
     latency = {
         "exact": _mean(record["exact"] for record in episodes),
         "price": _mean(record["price"] for record in episodes),
@@ -177,28 +174,52 @@ def smoke(days: Sequence[str], *, seconds: float = 120.0) -> dict:
     }
     block_seconds = _mean(step for record in episodes
                           for step in record["block_seconds"])
-
-    fallback = _walk(pairs[0], seconds=seconds, quote=TRUTHFUL,
-                     roll_horizon=FALLBACK_HORIZON)
-    fallback_block_seconds = _mean(fallback["block_seconds"])
-    shaded = _walk(pairs[0], seconds=seconds, quote=SHADED)
-
+    fallback_seconds = fallback["block_seconds"] if fallback else None
     return {
-        "days": [pair["load_date"] for pair in pairs],
+        "days": [record["date"] for record in episodes],
         "episodes": episodes,
         "latency": latency,
         "block_seconds": block_seconds,
         "roll_horizon": ROLL_HORIZON,
         "fallback_horizon": FALLBACK_HORIZON,
-        "fallback": {"episode_seconds": fallback["episode_seconds"],
-                     "block_seconds": fallback_block_seconds},
+        "fallback": fallback,
         "projected_hours": {
-            f"horizon_{ROLL_HORIZON}": projected_hours(block_seconds),
-            f"horizon_{FALLBACK_HORIZON}": projected_hours(
-                fallback_block_seconds) if fallback_block_seconds else None,
+            f"horizon_{ROLL_HORIZON}": (projected_hours(block_seconds)
+                                        if block_seconds else None),
+            f"horizon_{FALLBACK_HORIZON}": (
+                projected_hours(fallback_seconds) if fallback_seconds else None),
         },
         "shaded": shaded,
     }
+
+
+def smoke(days: Sequence[str], *, seconds: float = 120.0,
+          side_arms: bool = True) -> dict:
+    """Walk each day truthfully, time its solves, and add the two side arms."""
+    pairs = [load_pair(day) for day in days]
+    episodes = []
+    for pair in pairs:
+        record = _walk(pair, seconds=seconds, quote=TRUTHFUL)
+        record.update(_timed_block(pair, seconds=seconds))
+        episodes.append(record)
+    fallback = shaded = None
+    if side_arms:
+        walked = _walk(pairs[0], seconds=seconds, quote=TRUTHFUL,
+                       roll_horizon=FALLBACK_HORIZON)
+        fallback = {"episode_seconds": walked["episode_seconds"],
+                    "block_seconds": _mean(walked["block_seconds"])}
+        shaded = _walk(pairs[0], seconds=seconds, quote=SHADED)
+    return _report(episodes, fallback, shaded)
+
+
+def merge_reports(reports) -> dict:
+    """Combine per-day reports into the single report the brief names."""
+    episodes = [record for report in reports for record in report["episodes"]]
+    fallback = next((report["fallback"] for report in reports
+                     if report["fallback"]), None)
+    shaded = next((report["shaded"] for report in reports
+                   if report["shaded"]), None)
+    return _report(episodes, fallback, shaded)
 
 
 def main(argv=None) -> int:
@@ -208,19 +229,29 @@ def main(argv=None) -> int:
                              "three train pairs in manifest order")
     parser.add_argument("--seconds", type=float, default=120.0)
     parser.add_argument("--out", default="reports/local_da_v7_2026-11-18")
+    parser.add_argument("--no-side-arms", action="store_true",
+                        help="skip the fallback and shaded walks")
+    parser.add_argument("--merge", nargs="+", default=None,
+                        help="per-day smoke.json paths to combine")
     args = parser.parse_args(argv)
 
-    if args.days:
-        days = [day.strip() for day in args.days.split(",") if day.strip()]
+    if args.merge:
+        report = merge_reports([json.loads(Path(path).read_text("utf-8"))
+                                for path in args.merge])
     else:
-        pairs, _ = train_pairs(SCREEN)
-        days = [pair["load_date"] for pair in pairs[:3]]
+        if args.days:
+            days = [day.strip() for day in args.days.split(",") if day.strip()]
+        else:
+            pairs, _ = train_pairs(SCREEN)
+            days = [pair["load_date"] for pair in pairs[:3]]
+        report = smoke(days, seconds=args.seconds,
+                       side_arms=not args.no_side_arms)
 
-    report = smoke(days, seconds=args.seconds)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "smoke.json").write_text(json.dumps(report, indent=2) + "\n",
                                     encoding="utf-8")
+    shaded = report["shaded"]
     print(json.dumps({
         "days": report["days"],
         "acceptance": [summarize(record) for record in report["episodes"]],
@@ -231,12 +262,11 @@ def main(argv=None) -> int:
         "probes": [record["probe"] for record in report["episodes"]],
         "fallback": report["fallback"],
         "projected_hours": report["projected_hours"],
-        "shaded": {"date": report["shaded"]["date"],
-                   "abort": report["shaded"]["abort"],
-                   "clears": report["shaded"]["clears"],
-                   "none_clears": report["shaded"]["none_clears"],
-                   "episode_seconds": report["shaded"]["episode_seconds"],
-                   "blocks": report["shaded"]["blocks"]},
+        "shaded": None if shaded is None else {
+            "date": shaded["date"], "abort": shaded["abort"],
+            "clears": shaded["clears"], "none_clears": shaded["none_clears"],
+            "episode_seconds": shaded["episode_seconds"],
+            "blocks": shaded["blocks"]},
     }, indent=2))
     return 0
 
