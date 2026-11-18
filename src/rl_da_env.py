@@ -11,6 +11,10 @@ truthful declaration. It is what the day reward is measured from, so the two
 arms must describe identical bids: both quote exact Python floats, never the
 float32 values a policy or `truthful_array()` hands over (a float32 0.4 is
 greater than the device rating and the market refuses it).
+
+The payoff here is a training signal, never a settlement claim: the physical
+audits, AC replay and price probes that `local_da_clearing.clear_day` requires
+before settlement are not run per block.
 """
 
 from __future__ import annotations
@@ -56,6 +60,10 @@ def directions_consistent(directions, idle, pricing, *, tolerance=1e-6):
 
     On an idle period the exact dispatch used neither leg, so the priced one
     must too; on an active period it must open the leg the direction names.
+
+    This is a leg-integrity check on this block's own quotes, not the
+    accounting layer's `idle_direction_stable`, which re-solves the idle
+    direction and compares the two price vectors.
     """
     for name, direction in directions.items():
         charge = np.asarray(pricing["charge"][name], dtype=float)
@@ -98,6 +106,14 @@ def clear_window(day, *, seconds=120.0):
         pricing_model.close()
     output["pricing"] = pricing
     if not pricing["optimal"] or "lmp_cny_mwh" not in pricing:
+        output["failure"] = "PRICE_SOLVE_FAILED"
+        return output
+    # The conditional solve must reproduce the exact objective, on the same
+    # tolerance `clear_day` uses; otherwise its prices describe another
+    # dispatch. Both objectives are already in hand, so this costs no solve.
+    tolerance = max(.01, abs(dispatch["clearing_objective"]) * 1e-6)
+    if (abs(pricing["clearing_objective"] - dispatch["clearing_objective"])
+            > tolerance):
         output["failure"] = "PRICE_SOLVE_FAILED"
         return output
     output["direction_unstable"] = not directions_consistent(

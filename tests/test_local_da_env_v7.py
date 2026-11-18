@@ -14,6 +14,30 @@ def truthful(env):
     return {nm: TRUTHFUL.copy() for nm in env.agent_names}
 
 
+class DriftingClearingModel:
+    """Fixed results whose conditional objective does not reproduce the exact one."""
+
+    def __init__(self, day, *, directions=None, exact=True, seconds=120.0):
+        self.day = day
+        self.exact = exact
+
+    def solve(self, prices=False):
+        names = [unit.name for unit in self.day.storage]
+        periods = self.day.periods
+        result = {"optimal": True,
+                  "clearing_objective": 0.0 if self.exact else 1.0,
+                  "charge": {nm: np.zeros(periods) for nm in names},
+                  "discharge": {nm: np.zeros(periods) for nm in names},
+                  "energy": {nm: np.full(periods + 1, 0.8) for nm in names}}
+        if prices:
+            result["lmp_cny_mwh"] = np.zeros(
+                (periods, self.day.network.buses))
+        return result
+
+    def close(self):
+        pass
+
+
 def test_a_truthful_block_returns_finite_rewards_and_committed_lmps():
     env = LocalDABiddingEnv()
     env.reset(load_pair(PAIR))
@@ -57,6 +81,15 @@ def test_an_unpriced_block_names_its_failure(monkeypatch):
     env.reset(load_pair(PAIR))
     monkeypatch.setattr(rl_da_env, "clear_window",
                         lambda day, **kw: {"failure": "PRICE_SOLVE_FAILED"})
+    with pytest.raises(EpisodeClearingError) as caught:
+        env.step(truthful(env))
+    assert caught.value.failure_code == "PRICE_SOLVE_FAILED"
+
+
+def test_a_conditional_objective_that_drifts_names_the_price_failure(monkeypatch):
+    env = LocalDABiddingEnv()
+    env.reset(load_pair(PAIR))
+    monkeypatch.setattr(rl_da_env, "ClearingModel", DriftingClearingModel)
     with pytest.raises(EpisodeClearingError) as caught:
         env.step(truthful(env))
     assert caught.value.failure_code == "PRICE_SOLVE_FAILED"
