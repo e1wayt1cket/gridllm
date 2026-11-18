@@ -46,8 +46,8 @@ def test_the_degradation_is_throughput_times_the_declared_rate():
     _, _, _, info = env.step(truthful(env))
     for nm in env.agent_names:
         assert abs(info["degradation_cny"][nm]
-                   - 100. * 0.25 * (info["charge_mwh"][nm]
-                                    + info["discharge_mwh"][nm])) < 1e-6
+                   - 100. * (info["charge_mwh"][nm]
+                             + info["discharge_mwh"][nm])) < 1e-6
 
 
 def test_a_carried_soc_on_the_band_edge_keeps_the_band():

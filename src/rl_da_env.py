@@ -287,13 +287,10 @@ class LocalDABiddingEnv(BiddingEnv):
         payoff = {nm: row["payoff_cny"] for nm, row in payoffs.items()}
         baseline_payoff = {nm: row["payoff_cny"]
                            for nm, row in base_payoffs.items()}
-        # shortcut: charge_mwh/discharge_mwh carry the committed leg sum in
-        # MW, not MWh, because the pinned reward test reads them at the
-        # ledger's rate; upgrade if a consumer needs true energy.
-        charge_mwh = {nm: float(np.sum(pricing["charge"][nm][:n_commit]))
-                      for nm in payoffs}
-        discharge_mwh = {nm: float(np.sum(pricing["discharge"][nm][:n_commit]))
-                         for nm in payoffs}
+        charge_mwh = {nm: DT_HOURS * float(
+            np.sum(pricing["charge"][nm][:n_commit])) for nm in payoffs}
+        discharge_mwh = {nm: DT_HOURS * float(
+            np.sum(pricing["discharge"][nm][:n_commit])) for nm in payoffs}
         inventory = {nm: 0.0 for nm in payoffs}
         if t_start + n_commit == self.T:
             inventory = inventory_value(day, pricing, e0_mwh=E_MAX_MWH * SOC0)
