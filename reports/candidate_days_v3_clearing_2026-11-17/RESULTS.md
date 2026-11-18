@@ -406,6 +406,34 @@ scarcity price. On 2022-06-12 no bus touches either edge and the day's highest
 LMP is 1,595 against an external 1,500 — a 1.06x markup. The markup, not the
 absolute price, is what the mechanism contributes.
 
+**Adopted.** This asset is now the market's own declaration, not a screen
+variant: `run_local_da.REACTIVE_SUPPORT_MVAR` is
+`((17, 1.0), (31, 0.5), (32, 1.0))`, `local_da_contracts.condenser` names the
+structure, and both `run_local_da.build_day` and
+`local_da_days.window_day` carry it, so a library day and a training window
+clear against the same feeder. The library files, the network parameters and
+the load curves are unchanged; the legacy/historical reproduction path
+(`build_legacy_day`, `build_historical_day`) deliberately does not gain it.
+`tests/test_local_da_v3_inputs.py` pins the roster and
+`tests/test_local_da_v7_days.py` pins the window. Verification that the
+adopted default reproduces this table, not a different case:
+`evidence_qbus_adopted_check/` was produced by the command above with no
+`--reactive-bus` flag, and its rows for `2022-10-11` and `2021-09-30` give
+`clearing_objective`
+8,935.059671003673 and 12,601.810703781099, `pcc_peak_mw`
+4.868355225508268 and 3.9117163383343385, and `voltage_max_pu`
+1.0558306390754162 and 1.07 — identical to the two rows quoted above from
+`evidence_qbus_slack1.00_d` and `_a`. `2022-10-11`, one of the four days the
+plain feeder cannot serve, now clears.
+
+Three limits of the declaration are stated rather than settled: the size was
+chosen by measuring these same 136 days, so it is in-sample; reactive power
+carries no price in the declaration objective; and the residual recorded above
+(101 days touching 0.93, 2 touching 1.07, worst day-worst markup 9.5x,
+`2021-09-30` a cone gap of 8.5e-6 MW2 against the exploratory 1e-6 gate) is
+unchanged by adoption. Decision record:
+`docs/project_context/10_DECISION_LOG.md` D-011.
+
 ### Larger storage capacity
 
 The four units carry 0.4 MW and 1.6 MWh. A screen can declare a larger energy
@@ -469,7 +497,13 @@ reproduces the benchmark's own aggregate ratio.
 
 ## Decision point
 
-1. **Train days.** 3 of 90 train days cannot be served; all three are named in
+0. **The sited reactive asset is adopted** (D-011), so items 1 and 2 below no
+   longer describe the market: all 136 days clear, none is dropped, and
+   `excluded_days.json` is the record of the zero-capability screen only. What
+   remains open from this list is the price signal itself (items 3, 4 and 6),
+   which the asset does not repair.
+1. **Train days.** 3 of 90 train days cannot be served under the plain feeder;
+   all three are named in
    `excluded_days.json` with their block, price date and solver status. The RL
    design permits dropping train days for feasibility and requires them to be
    named, so this part needs no library edit.

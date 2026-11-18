@@ -93,6 +93,23 @@
 - **影响**：修改 `docs/2026-11-13-local-da-clearing-spec.md` 中"Slack1.0 不变"的表述；
   测量结果见 `reports/candidate_days_v3_clearing_2026-11-17/RESULTS.md`。
 
+## D-011 市场声明 2.5 MVAr 可控无功资产（母线 17/31/32）
+
+- **日期**：2026-11-19
+- **决定**：市场在建日时声明一个零有功出力的可控无功资产：母线 17 为 1.0 MVAr、
+  31 为 0.5 MVAr、32 为 1.0 MVAr（`run_local_da.REACTIVE_SUPPORT_MVAR`），
+  结构由 `local_da_contracts.condenser` 表达，`build_day` 与
+  `local_da_days.window_day` 都携带它，并写入产物的 `context.reactive_support_mvar`。
+  库文件、网络参数与负荷曲线不变；历史复现路径（`build_legacy_day`、
+  `build_historical_day`）不携带该资产。
+- **来源**：用户口述（"做1吧"，采纳筛选报告按可行性、价格尾部与松弛紧性排序的第一项）
+- **影响**：v3 库 136 天全部可清出，不再需要按可行性剔除训练日或验证日
+  （`excluded_days.json` 仅描述零能力屏幕）。该容量是在同一 136 天上测量选取的
+  样本内参数，不是设备数据；无功在申报目标中无价格。残余：101 天仍触及 0.93、
+  2 天触及 1.07、最差日markup 9.5x；2021-09-30 的锥间隙 8.5e-6 MW2 仍高于
+  1e-6 探索性门槛。测量与等价性验证见
+  `reports/candidate_days_v3_clearing_2026-11-17/RESULTS.md`。
+
 ---
 
 ## 历史决定的索引（不在此重复内容）

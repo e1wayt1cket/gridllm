@@ -13,7 +13,7 @@ import numpy as np
 import pandapower.networks as networks
 
 from local_da_contracts import (DayAheadInput, Generator, RadialNetwork, StorageBid,
-                                StorageUnit)
+                                StorageUnit, condenser)
 from local_da_clearing import ClearingModel, clear_day
 from local_da_accounting import settle_day
 
@@ -21,6 +21,19 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "reports/multi_user_load_2026-11-13/evidence"
 V3 = ROOT / "reports/candidate_days_v3_2026-11-17/evidence"
 PRICE_CURVES = ROOT / "data/processed/v2_cy_jn_2025/price_curves.npz"
+
+# The feeder's controllable reactive asset, declared by the market itself:
+# (bus, MVAr limit) of a reactive-only unit. The library days sag at these
+# buses under the native 1.0 pu substation, so the market places the asset
+# where the sag is instead of raising the substation voltage or carrying fixed
+# compensation. The size is a declared research parameter chosen by measuring
+# the library, not equipment data; see RESULTS.md in the v3 clearing screen.
+REACTIVE_SUPPORT_MVAR = ((17, 1.), (31, .5), (32, 1.))
+
+
+def declared_reactive_support(periods):
+    """One reactive-only unit per declared bus; the market's own asset."""
+    return tuple(condenser(bus, mvar, periods) for bus, mvar in REACTIVE_SUPPORT_MVAR)
 
 
 def sha(path):
@@ -108,7 +121,7 @@ def build_day(date):
     return _assemble_day(p, price, {"load_date": date, "price_date": price_date,
                                     "library": "candidate_days_v3_2026-11-17",
                                     "q_basis": "Library's own Q = 0.6190 P at PF 0.8503"},
-                         reactive)
+                         reactive, REACTIVE_SUPPORT_MVAR)
 
 
 def build_legacy_day(date):
@@ -163,7 +176,7 @@ def radial_network():
     return RadialNetwork(33, 0, tuple((start, end) for _, start, end in ordered), r, x)
 
 
-def _assemble_day(p, price, context, reactive=None):
+def _assemble_day(p, price, context, reactive=None, reactive_support=()):
     net = networks.case33bw()
     ratio = np.zeros(33)
     for _, row in net.load.iterrows():
@@ -177,8 +190,9 @@ def _assemble_day(p, price, context, reactive=None):
     storage = tuple(StorageUnit(f"ESS{bus}", bus) for bus in [9, 14, 17, 27])
     bids = {unit.name: StorageBid(np.full(96, .4), np.full(96, .4), np.zeros(96), np.zeros(96))
             for unit in storage}
-    day = DayAheadInput(network, p, reactive, price, storage,
-                        production_renewable_curves(), bids, 0., 600.)
+    generators = production_renewable_curves() + tuple(
+        condenser(bus, mvar, p.shape[0]) for bus, mvar in reactive_support)
+    day = DayAheadInput(network, p, reactive, price, storage, generators, bids, 0., 600.)
     context.update({
                  "scenario_kind": "Cross-year perfect-forecast research diagnostic",
                  "bid_price_bounds": "0..600 CNY/MWh research interval, not verified Jiangsu formal limits",
@@ -187,6 +201,9 @@ def _assemble_day(p, price, context, reactive=None):
                                         "Native bus Q0/P0 assumption, no ideal compensation"),
                  "renewables": "Existing synthetic profile formulas; PV .3 MW at 21/23, wind 1 MW at 30; clipped to declared nameplate",
                  "generator_q_limits_mvar": 0., "thermal_limits_qualified": False,
+                 "reactive_support_mvar": [list(pair) for pair in reactive_support],
+                 "reactive_support_price": ("No price is declared for reactive power, so the "
+                                            "clearing objective treats it as free"),
                  "network": "Native case33bw R/X, slack 1.0 pu, no thermal rating inference",
                  "terminal_soc": "free", "quote_reference": "zero-price, full-quantity reference"})
     return day, context

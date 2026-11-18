@@ -34,6 +34,15 @@ def test_a_window_slices_the_day_and_carries_the_soc():
     assert day.network.branches == day_of.network.branches
 
 
+def test_a_window_carries_the_declared_reactive_asset():
+    soc = {f"ESS{b}": 0.55 for b in (9, 14, 17, 27)}
+    day = window_day(load_pair(PAIR), 44, 64, soc=soc, quotes={})
+    support = [g for g in day.generators if g.name.startswith("SC")]
+    assert [(g.bus, g.reactive_limit_mvar) for g in support] == [(17, 1.), (31, .5), (32, 1.)]
+    assert all(g.available_mw.shape == (20,) and not g.available_mw.any()
+               for g in support)
+
+
 def test_the_window_clears_against_the_committed_case33bw_topology():
     # Literals read off the committed radial_network(), not re-derived here, so a
     # change to that builder fails this test instead of being copied into it.

@@ -9,8 +9,8 @@ from pathlib import Path
 import numpy as np
 
 from local_da_contracts import DayAheadInput, StorageBid, StorageUnit
-from run_local_da import (PRICE_CURVES, V3, production_renewable_curves,
-                          radial_network, sha)
+from run_local_da import (PRICE_CURVES, V3, declared_reactive_support,
+                          production_renewable_curves, radial_network, sha)
 
 LIBRARY = V3
 DT_HOURS = 0.25
@@ -72,8 +72,11 @@ def window_day(pair, t_start, t_end, *, soc, quotes):
             discharge_quantity_mw=np.full(periods, discharge_quantity),
             charge_price_cny_mwh=np.full(periods, charge_price),
             discharge_price_cny_mwh=np.full(periods, discharge_price))
-    generators = tuple(replace(g, available_mw=g.available_mw[t_start:t_end])
-                       for g in production_renewable_curves())
+    # The window carries the same declared reactive asset as the whole day, so a
+    # training window and a library-day screen clear against the same feeder.
+    generators = (tuple(replace(g, available_mw=g.available_mw[t_start:t_end])
+                        for g in production_renewable_curves())
+                  + declared_reactive_support(periods))
     return DayAheadInput(radial_network(), pair["active"][t_start:t_end],
                          pair["reactive"][t_start:t_end],
                          pair["external_price"][t_start:t_end], storage, generators, bids,

@@ -32,6 +32,21 @@ class InputTests(unittest.TestCase):
         day, _ = build_day("2021-06-04")
         self.assertEqual(day.network.shunts, ())
 
+    def test_library_day_carries_the_declared_reactive_asset(self):
+        day, context = build_day("2021-06-04")
+        support = [(g.name, g.bus, g.reactive_limit_mvar) for g in day.generators
+                   if g.name.startswith("SC")]
+        self.assertEqual(support, [("SC17", 17, 1.), ("SC31", 31, .5), ("SC32", 32, 1.)])
+        self.assertEqual(context["reactive_support_mvar"],
+                         [[17, 1.], [31, .5], [32, 1.]])
+        for unit in day.generators:
+            if unit.name.startswith("SC"):
+                self.assertFalse(np.asarray(unit.available_mw).any())
+
+    def test_legacy_day_carries_no_declared_reactive_asset(self):
+        day, _ = build_legacy_day("2022-12-22")
+        self.assertEqual([g.name for g in day.generators], ["PV21", "PV23", "WIND30"])
+
     def test_v3_day_reads_its_own_curves_and_declared_price_date(self):
         date = "2021-06-04"
         price_date = v3_pair(date)

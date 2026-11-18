@@ -29,6 +29,16 @@ class Generator:
     reactive_limit_mvar: float = 0.
 
 
+def condenser(bus: int, reactive_limit_mvar: float, periods: int) -> Generator:
+    """A reactive-only asset: no active availability, a declared reactive limit.
+
+    This is the synchronous-condenser / STATCOM structure: it can move reactive
+    power either way at its bus and cannot inject or absorb active power.
+    """
+    return Generator(f"SC{bus}", bus, np.zeros(periods),
+                     reactive_limit_mvar=reactive_limit_mvar)
+
+
 @dataclass(frozen=True)
 class StorageBid:
     charge_quantity_mw: np.ndarray

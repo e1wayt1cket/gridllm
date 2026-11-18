@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from local_da_contracts import (DayAheadInput, Generator, RadialNetwork, StorageBid,
-                                StorageUnit, validate_day)
+                                StorageUnit, condenser, validate_day)
 from local_da_accounting import ac_replay, physical_audit, settle_day
 from local_da_clearing import ClearingModel, choose_directions, clear_day
 
@@ -195,6 +195,18 @@ class SolverTests(unittest.TestCase):
         self.assertGreater(capable["voltage_sq"][0, 1], bare["voltage_sq"][0, 1])
         self.assertLess(capable["qcc_mvar"][0], bare["qcc_mvar"][0])
         self.assertLessEqual(float(np.abs(capable["generator_q"]["G"]).max()), .2 + 1e-6)
+
+    def test_a_condenser_relieves_the_sag_without_active_output(self):
+        net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))
+        day = replace(small_day(storage=False), network=net,
+                      active_load_mw=np.array([[0., .5], [0., .5]]),
+                      reactive_load_mvar=np.array([[0., .1], [0., .1]]))
+        bare = clear_day(day, seconds=15)["dispatch"]
+        unit = condenser(1, .2, 2)
+        capable = clear_day(replace(day, generators=(unit,)), seconds=15)["dispatch"]
+        self.assertGreater(capable["voltage_sq"][0, 1], bare["voltage_sq"][0, 1])
+        self.assertLessEqual(float(np.abs(capable["generation"]["SC1"]).max()), 1e-9)
+        self.assertLessEqual(float(np.abs(capable["generator_q"]["SC1"]).max()), .2 + 1e-6)
 
     def test_declared_storage_energy_caps_the_throughput(self):
         day = small_day()

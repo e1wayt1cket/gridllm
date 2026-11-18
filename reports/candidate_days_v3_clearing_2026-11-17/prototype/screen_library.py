@@ -140,11 +140,14 @@ def main():
     rows = []
     for date in dates:
         day, context = build_day(date)
+        # --generator-q sizes the renewable units; an already-declared asset
+        # keeps its own limit, or re-running a variant would resize the asset.
         day = dataclasses.replace(day, network=dataclasses.replace(day.network,
                                                                   slack_vm_pu=args.slack,
                                                                   shunts=capacitors),
                                   generators=tuple(dataclasses.replace(
                                       g, reactive_limit_mvar=args.generator_q)
+                                      if g.reactive_limit_mvar == 0 else g
                                       for g in day.generators)
                                   + tuple(Generator(f"Q{bus}", bus,
                                                     np.zeros(day.active_load_mw.shape[0]),

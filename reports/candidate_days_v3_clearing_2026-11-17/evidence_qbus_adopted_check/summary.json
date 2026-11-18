@@ -1,0 +1,67 @@
+{
+  "cells": "one clearing per library day, price probes enabled",
+  "counts": {
+    "holiday": {
+      "band_ok": 0,
+      "days": 0,
+      "feasible": 0,
+      "optimal": 0,
+      "price_qualification": {},
+      "qualified_for_settlement": 0
+    },
+    "test": {
+      "band_ok": 1,
+      "days": 1,
+      "feasible": 1,
+      "optimal": 1,
+      "price_qualification": {
+        "NOT_TESTED": 1
+      },
+      "qualified_for_settlement": 0
+    },
+    "train": {
+      "band_ok": 1,
+      "days": 1,
+      "feasible": 1,
+      "optimal": 1,
+      "price_qualification": {
+        "NOT_TESTED": 1
+      },
+      "qualified_for_settlement": 0
+    },
+    "validation": {
+      "band_ok": 0,
+      "days": 0,
+      "feasible": 0,
+      "optimal": 0,
+      "price_qualification": {},
+      "qualified_for_settlement": 0
+    }
+  },
+  "inputs": {
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\bus_active_load_mw.npz": "f5a6fddf538928db62b208da47745b26ba1476fb7ae8736ae11f149bd1591897",
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\bus_reactive_load_mvar.npz": "8ff8bd5ed8687aa0c8d3a3ee34e810f063da94479877535d2ef9001b5927b365",
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\manifest.json": "07b9fdf920e6916ec39f35109626c3dceccd5251c9c4cbbe6478ffe849dffc11",
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\split.json": "582a4a22380073f4b1dd5c8ed20791311398b7521f487078615e0617a91edf38",
+    "src\\local_da_clearing.py": "ded5531be313961b620e451f836255bbd3b03c4e96ed8707bbe3277d71de5716",
+    "src\\local_da_contracts.py": "3da106c1c2ee7dbbf0adcf854bd9cc36a173c129e717fcbb9e541621d99f721e",
+    "src\\run_local_da.py": "2f26325dc7bb8aaa21c5dafc618c86a72bf51adf3e00ae6670a24a3aa929440c"
+  },
+  "library_hashes_after": {
+    "bus_active_load_mw.npz": "f5a6fddf538928db62b208da47745b26ba1476fb7ae8736ae11f149bd1591897",
+    "bus_reactive_load_mvar.npz": "8ff8bd5ed8687aa0c8d3a3ee34e810f063da94479877535d2ef9001b5927b365",
+    "day_selection.csv": "fdf2f98dd886c5b4ad4f3373efd6f684856d54bb47649ddd0648daec6bb99d84",
+    "source_bus_mapping.csv": "6183f15f4151603012494f28d2c21c19c14f6518208e054920ff4af3052394a9",
+    "split.json": "582a4a22380073f4b1dd5c8ed20791311398b7521f487078615e0617a91edf38"
+  },
+  "library_hashes_before": {
+    "bus_active_load_mw.npz": "f5a6fddf538928db62b208da47745b26ba1476fb7ae8736ae11f149bd1591897",
+    "bus_reactive_load_mvar.npz": "8ff8bd5ed8687aa0c8d3a3ee34e810f063da94479877535d2ef9001b5927b365",
+    "day_selection.csv": "fdf2f98dd886c5b4ad4f3373efd6f684856d54bb47649ddd0648daec6bb99d84",
+    "source_bus_mapping.csv": "6183f15f4151603012494f28d2c21c19c14f6518208e054920ff4af3052394a9",
+    "split.json": "582a4a22380073f4b1dd5c8ed20791311398b7521f487078615e0617a91edf38"
+  },
+  "library_unchanged": true,
+  "rule_file": "rule.json",
+  "runtime_seconds_total": 11.576999999997497
+}
