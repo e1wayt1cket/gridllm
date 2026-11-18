@@ -27,7 +27,13 @@ class ClearingModel:
         m.Params.TimeLimit = seconds
         m.Params.FeasibilityTol = 1e-8
         m.Params.OptimalityTol = 1e-8
-        m.Params.BarQCPConvTol = 1e-10
+        # The exact model's quadratics are the exclusivity products and need the
+        # tight barrier. The fixed-direction pricing model has no product left to
+        # converge, and at 1e-10 Gurobi returns SUBOPTIMAL with a solution whose
+        # objective is ~0.005 CNY off the exact one. 1e-8 certifies OPTIMAL and
+        # keeps the returned cone inside the 1e-6 physical audit on the reference
+        # day; Gurobi's default 1e-6 leaves that cone gap at 1.8e-6.
+        m.Params.BarQCPConvTol = 1e-10 if exact else 1e-8
         m.Params.NumericFocus = 1
         m.Params.SoftMemLimit = 2
         m.Params.NonConvex = 2 if exact else 0
