@@ -92,6 +92,8 @@ def main():
     parser.add_argument("--seconds", type=float, default=120.)
     parser.add_argument("--slack", type=float, default=1.,
                         help="Substation voltage the market holds, in pu.")
+    parser.add_argument("--capacitors", nargs="+", default=[], metavar="BUS:MVAR",
+                        help="Fixed compensation the feeder declares, as BUS:MVAR pairs.")
     parser.add_argument("--no-probes", dest="probes", action="store_false",
                         help="Skip the price probes; qualification then stays NOT_TESTED.")
     args = parser.parse_args()
@@ -99,6 +101,11 @@ def main():
         raise ValueError("A finite positive solve budget is required")
     if not np.isfinite(args.slack) or not .9 < args.slack <= 1.07:
         raise ValueError("The declared substation voltage must lie inside the band")
+    try:
+        capacitors = tuple((int(bus), float(mvar))
+                           for bus, mvar in (item.split(":") for item in args.capacitors))
+    except ValueError:
+        raise ValueError("A capacitor must be declared as BUS:MVAR") from None
     output = Path(args.out).resolve()
     if not output.is_relative_to(ROOT):
         raise ValueError("Evidence output must stay within the repository")
@@ -117,7 +124,8 @@ def main():
     for date in dates:
         day, context = build_day(date)
         day = dataclasses.replace(day, network=dataclasses.replace(day.network,
-                                                                  slack_vm_pu=args.slack))
+                                                                  slack_vm_pu=args.slack,
+                                                                  shunts=capacitors))
         if band is None:
             band = [day.network.voltage_min, day.network.voltage_max]
             # Declared before the first solve, so the rule cannot follow the result.
@@ -127,6 +135,7 @@ def main():
                              "inside the network's own voltage band"),
                 "band": band,
                 "slack_vm_pu": args.slack,
+                "shunts_mvar": [list(shunt) for shunt in day.network.shunts],
                 "qualified_for_settlement": ("separate and stricter: physical audits, "
                                              "idle-direction stability and smooth prices"),
                 "clearing": f"clear_day(price_probes={args.probes}) on build_day(date)"})

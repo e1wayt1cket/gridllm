@@ -49,6 +49,9 @@ class RadialNetwork:
     voltage_max: float = 1.07
     # The substation voltage the market holds; a tap changer sets it in practice.
     slack_vm_pu: float = 1.
+    # Fixed shunt compensation carried by the feeder, not by a participant:
+    # (bus, injected MVAr) pairs, positive when capacitive.
+    shunts: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -93,6 +96,11 @@ def validate_day(day):
             or not net.voltage_min < net.slack_vm_pu <= net.voltage_max
             or len(net.branches) != net.buses - 1):
         raise ValueError("A connected radial network and a voltage band containing the slack are required")
+    for shunt in net.shunts:
+        if (not isinstance(shunt, tuple) or len(shunt) != 2
+                or not isinstance(shunt[0], (int, np.integer)) or not 0 <= shunt[0] < net.buses
+                or not np.isfinite(shunt[1])):
+            raise ValueError("A shunt must name one bus inside the network with a finite MVAr")
     reached = {net.slack}
     pending = list(net.branches)
     while pending:

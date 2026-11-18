@@ -1,0 +1,14 @@
+{
+  "dispatch": {
+    "declared_binary_variables": 0,
+    "declared_integer_variables": 0,
+    "optimal": false,
+    "runtime_seconds": 2.9059999999954016,
+    "solution_count": 0,
+    "solver_status": 3
+  },
+  "failure": "Exact complementary dispatch was not optimal",
+  "price_qualification": "NOT_TESTED",
+  "qualified_for_settlement": false,
+  "thermal_limits_qualified": false
+}

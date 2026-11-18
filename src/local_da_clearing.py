@@ -119,6 +119,9 @@ class ClearingModel:
                     if generator.bus == bus:
                         active += self.generation[generator.name][t]
                         reactive += self.generator_q[generator.name][t]
+                for shunt_bus, mvar in net.shunts:
+                    if shunt_bus == bus:
+                        reactive += float(mvar)
                 if bus in incoming:
                     line = incoming[bus]
                     active += self.p[t, line] - net.r_mw_base[line] * self.i[t, line]

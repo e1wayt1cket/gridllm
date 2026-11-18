@@ -1,0 +1,387 @@
+{
+  "ac_replay": {
+    "converged_periods": 96,
+    "passed": true,
+    "pcc_difference_max_mw": 7.618725872404752e-09,
+    "voltage_difference_max_pu": 2.0309742776447592e-10,
+    "voltage_max_pu": 1.059041512889965,
+    "voltage_min_pu": 0.9300000000289147
+  },
+  "conditional_objective_difference_cny": 6.860823850729503e-05,
+  "conditional_schedule_difference_mw": 0.00017960814632925204,
+  "dispatch": {
+    "branch_p": {
+      "npz_key": "result/dispatch/branch_p",
+      "shape": [
+        96,
+        32
+      ]
+    },
+    "branch_q": {
+      "npz_key": "result/dispatch/branch_q",
+      "shape": [
+        96,
+        32
+      ]
+    },
+    "charge": {
+      "ESS14": {
+        "npz_key": "result/dispatch/charge/ESS14",
+        "shape": [
+          96
+        ]
+      },
+      "ESS17": {
+        "npz_key": "result/dispatch/charge/ESS17",
+        "shape": [
+          96
+        ]
+      },
+      "ESS27": {
+        "npz_key": "result/dispatch/charge/ESS27",
+        "shape": [
+          96
+        ]
+      },
+      "ESS9": {
+        "npz_key": "result/dispatch/charge/ESS9",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "clearing_objective": 19803.778708801015,
+    "current_sq": {
+      "npz_key": "result/dispatch/current_sq",
+      "shape": [
+        96,
+        32
+      ]
+    },
+    "declared_binary_variables": 0,
+    "declared_integer_variables": 0,
+    "discharge": {
+      "ESS14": {
+        "npz_key": "result/dispatch/discharge/ESS14",
+        "shape": [
+          96
+        ]
+      },
+      "ESS17": {
+        "npz_key": "result/dispatch/discharge/ESS17",
+        "shape": [
+          96
+        ]
+      },
+      "ESS27": {
+        "npz_key": "result/dispatch/discharge/ESS27",
+        "shape": [
+          96
+        ]
+      },
+      "ESS9": {
+        "npz_key": "result/dispatch/discharge/ESS9",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "energy": {
+      "ESS14": {
+        "npz_key": "result/dispatch/energy/ESS14",
+        "shape": [
+          97
+        ]
+      },
+      "ESS17": {
+        "npz_key": "result/dispatch/energy/ESS17",
+        "shape": [
+          97
+        ]
+      },
+      "ESS27": {
+        "npz_key": "result/dispatch/energy/ESS27",
+        "shape": [
+          97
+        ]
+      },
+      "ESS9": {
+        "npz_key": "result/dispatch/energy/ESS9",
+        "shape": [
+          97
+        ]
+      }
+    },
+    "generation": {
+      "PV21": {
+        "npz_key": "result/dispatch/generation/PV21",
+        "shape": [
+          96
+        ]
+      },
+      "PV23": {
+        "npz_key": "result/dispatch/generation/PV23",
+        "shape": [
+          96
+        ]
+      },
+      "WIND30": {
+        "npz_key": "result/dispatch/generation/WIND30",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "generator_q": {
+      "PV21": {
+        "npz_key": "result/dispatch/generator_q/PV21",
+        "shape": [
+          96
+        ]
+      },
+      "PV23": {
+        "npz_key": "result/dispatch/generator_q/PV23",
+        "shape": [
+          96
+        ]
+      },
+      "WIND30": {
+        "npz_key": "result/dispatch/generator_q/WIND30",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "objective_bound": 19803.778708801005,
+    "optimal": true,
+    "optimality_gap": 0.0,
+    "pcc_mw": {
+      "npz_key": "result/dispatch/pcc_mw",
+      "shape": [
+        96
+      ]
+    },
+    "qcc_mvar": {
+      "npz_key": "result/dispatch/qcc_mvar",
+      "shape": [
+        96
+      ]
+    },
+    "runtime_seconds": 4.514999999999418,
+    "solution_count": 1,
+    "solver_status": 2,
+    "voltage_sq": {
+      "npz_key": "result/dispatch/voltage_sq",
+      "shape": [
+        96,
+        33
+      ]
+    }
+  },
+  "exact_physical_audit": {
+    "bound_violation_max": 0.0,
+    "complementarity_product_max_mw2": 0.0,
+    "cone_tightness_max_mw2": 1.3989603830921737e-07,
+    "p_balance_max_mw": 1.3322676295501878e-15,
+    "passed": true,
+    "q_balance_max_mvar": 1.5907414274707321e-15,
+    "simultaneous_max_mw": 0.0,
+    "soc_energy_recursion_max_mwh": 6.730727086790012e-16,
+    "voltage_drop_max_pu2": 5.692859088667588e-08
+  },
+  "idle_direction_alternative": {
+    "clearing_objective": 19803.778827216505,
+    "optimal": true,
+    "solver_status": 2
+  },
+  "idle_direction_price_max_difference_cny_mwh": 0.0027966240709815793,
+  "idle_direction_stable": true,
+  "physical_audit": {
+    "bound_violation_max": 1.580657826849574e-10,
+    "complementarity_product_max_mw2": 0.0,
+    "cone_tightness_max_mw2": 3.2183558811495016e-07,
+    "p_balance_max_mw": 1.734412613529912e-10,
+    "passed": true,
+    "q_balance_max_mvar": 1.125768367415958e-10,
+    "simultaneous_max_mw": 0.0,
+    "soc_energy_recursion_max_mwh": 5.335229619207738e-10,
+    "voltage_drop_max_pu2": 8.503391882706715e-11
+  },
+  "price_qualification": "NOT_TESTED",
+  "pricing": {
+    "branch_p": {
+      "npz_key": "result/pricing/branch_p",
+      "shape": [
+        96,
+        32
+      ]
+    },
+    "branch_q": {
+      "npz_key": "result/pricing/branch_q",
+      "shape": [
+        96,
+        32
+      ]
+    },
+    "charge": {
+      "ESS14": {
+        "npz_key": "result/pricing/charge/ESS14",
+        "shape": [
+          96
+        ]
+      },
+      "ESS17": {
+        "npz_key": "result/pricing/charge/ESS17",
+        "shape": [
+          96
+        ]
+      },
+      "ESS27": {
+        "npz_key": "result/pricing/charge/ESS27",
+        "shape": [
+          96
+        ]
+      },
+      "ESS9": {
+        "npz_key": "result/pricing/charge/ESS9",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "clearing_objective": 19803.778777409254,
+    "current_sq": {
+      "npz_key": "result/pricing/current_sq",
+      "shape": [
+        96,
+        32
+      ]
+    },
+    "declared_binary_variables": 0,
+    "declared_integer_variables": 0,
+    "discharge": {
+      "ESS14": {
+        "npz_key": "result/pricing/discharge/ESS14",
+        "shape": [
+          96
+        ]
+      },
+      "ESS17": {
+        "npz_key": "result/pricing/discharge/ESS17",
+        "shape": [
+          96
+        ]
+      },
+      "ESS27": {
+        "npz_key": "result/pricing/discharge/ESS27",
+        "shape": [
+          96
+        ]
+      },
+      "ESS9": {
+        "npz_key": "result/pricing/discharge/ESS9",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "energy": {
+      "ESS14": {
+        "npz_key": "result/pricing/energy/ESS14",
+        "shape": [
+          97
+        ]
+      },
+      "ESS17": {
+        "npz_key": "result/pricing/energy/ESS17",
+        "shape": [
+          97
+        ]
+      },
+      "ESS27": {
+        "npz_key": "result/pricing/energy/ESS27",
+        "shape": [
+          97
+        ]
+      },
+      "ESS9": {
+        "npz_key": "result/pricing/energy/ESS9",
+        "shape": [
+          97
+        ]
+      }
+    },
+    "generation": {
+      "PV21": {
+        "npz_key": "result/pricing/generation/PV21",
+        "shape": [
+          96
+        ]
+      },
+      "PV23": {
+        "npz_key": "result/pricing/generation/PV23",
+        "shape": [
+          96
+        ]
+      },
+      "WIND30": {
+        "npz_key": "result/pricing/generation/WIND30",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "generator_q": {
+      "PV21": {
+        "npz_key": "result/pricing/generator_q/PV21",
+        "shape": [
+          96
+        ]
+      },
+      "PV23": {
+        "npz_key": "result/pricing/generator_q/PV23",
+        "shape": [
+          96
+        ]
+      },
+      "WIND30": {
+        "npz_key": "result/pricing/generator_q/WIND30",
+        "shape": [
+          96
+        ]
+      }
+    },
+    "lmp_cny_mwh": {
+      "npz_key": "result/pricing/lmp_cny_mwh",
+      "shape": [
+        96,
+        33
+      ]
+    },
+    "optimal": true,
+    "pcc_mw": {
+      "npz_key": "result/pricing/pcc_mw",
+      "shape": [
+        96
+      ]
+    },
+    "qcc_mvar": {
+      "npz_key": "result/pricing/qcc_mvar",
+      "shape": [
+        96
+      ]
+    },
+    "runtime_seconds": 0.4680000000007567,
+    "solution_count": 1,
+    "solver_status": 2,
+    "voltage_sq": {
+      "npz_key": "result/pricing/voltage_sq",
+      "shape": [
+        96,
+        33
+      ]
+    }
+  },
+  "qualified_for_settlement": false,
+  "thermal_limits_qualified": false
+}

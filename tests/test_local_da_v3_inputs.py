@@ -24,6 +24,10 @@ class InputTests(unittest.TestCase):
         day, _ = build_day("2021-06-04")
         self.assertEqual(day.network.slack_vm_pu, 1.)
 
+    def test_library_day_carries_no_implicit_compensation(self):
+        day, _ = build_day("2021-06-04")
+        self.assertEqual(day.network.shunts, ())
+
     def test_v3_day_reads_its_own_curves_and_declared_price_date(self):
         date = "2021-06-04"
         price_date = v3_pair(date)

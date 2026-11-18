@@ -232,6 +232,60 @@ feasible and the row is a budget artifact. The screen treats a time limit as not
 feasible, which is the honest reading; it has no retry pass, so a status 9 row is
 `NOT_TESTED` rather than `FAIL`.
 
+### Fixed compensation
+
+The feeder can also declare fixed shunt compensation. `RadialNetwork.shunts`
+takes `(bus, injected MVAr)` pairs, the clearing's reactive balance gains that
+injection, and both physical checks account for it. The default stays the
+uncompensated feeder: `build_day` declares no compensation and
+`tests/test_local_da_v3_inputs.py` locks that, so no library day carries an
+implicit asset and every earlier screen keeps measuring what it measured. A
+screen declares it.
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/screen_library.py \
+    --out reports/candidate_days_v3_clearing_2026-11-17/evidence_caps_slack1.00 \
+    --capacitors 17:0.5 32:0.5 --no-probes
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/screen_library.py \
+    --out reports/candidate_days_v3_clearing_2026-11-17/evidence_audits_slack1.00 --no-probes
+```
+
+0.5 MVAr at each of the two lateral ends that carry the sag lifts the benchmark
+at its own rated load from 0.9131 to 0.9360 pu (`prototype/capacitor_placement.py`,
+a power flow, not a cleared day). `prototype/voltage_levers.py` is the same
+measurement for every other input that moves that number.
+
+| Quantity | plain feeder | 1 MVAr compensation |
+| --- | --- | --- |
+| Days the exact dispatch clears inside the band (SOCP) | 132/136 | 136/136 |
+| Days pinned at the lower bound | 119 | 65 |
+| Days pinned at the upper bound | 0 | 79 |
+| Worst day-max LMP / day-max external | 3.17 | 2.28 |
+| Bus-periods above 3x external | 8,100 | 3,290 |
+| Days with a negative LMP | 0 | 0 |
+| Days the nonlinear replay reproduces | 132/132 | 107/136 |
+| Days with a cone gap above 1e-3 MW2 | 0 | 29 |
+| Largest cone gap | 2.3e-6 | 31.98 MW2 |
+
+Compensation buys feasibility and halves the price tail, and it breaks the
+model where the solution touches the upper bound. On 29 days the cleared
+solution sits exactly at 1.07 pu while the nonlinear replay puts the same
+dispatch at up to 1.0950 pu. The discrepancy sits in the current variable:
+`v * i - p**2 - q**2` reaches 25 to 32 MW2, so the cleared voltage is not the
+AC voltage. Those days are `NOT_TESTED` for settlement, not PASS.
+
+The raised-slack screens carry the same defect on the days they pin 1.07.
+Measured on two days re-solved with the audits on: 2021-09-30 has a gap of 17.85
+MW2 at slack 1.02 and 28.55 at 1.03; 2022-10-07 has 0 at 1.02 and 24.71 at 1.03.
+The table in the previous section therefore counts SOCP feasibility, and its
+1.03 row overstates what the model verifies.
+
+Separate and smaller: 61 plain days and 36 compensated days fail the cone
+tightness gate by 1.9e-6 to 2.3e-6 against a 1e-6 audit tolerance. That is
+barrier-convergence noise, not a loose relaxation, and it is why
+`clear_day`'s pricing model runs at `BarQCPConvTol = 1e-8`; the audit tolerance
+and that parameter need to agree before any day can be qualified.
+
 ### Load level or reactive draw?
 
 ```bash
@@ -275,19 +329,34 @@ reproduces the benchmark's own aggregate ratio.
    periods at the price floor, outside the declared 0-600 research interval.
    Any consumer of the price signal, the RL observation included, will read
    those spikes as the cheapest hours of the day.
-5. **Declared substation voltage.** The mechanism now exists and is measured at
-   1.02 and 1.03. Choosing a value is a market-rule decision with a real
-   trade-off: a higher slack removes the four unservable days and most of the
-   price tail, and moves the binding constraint to the upper band edge on 46 to
-   76 days. Until a value is adopted, the delivered library is the 1.00 screen
-   with its four unservable days.
+5. **No remedy is adoptable yet.** Both measured levers (a higher substation
+   voltage and fixed compensation) remove the four unservable days and most of
+   the price tail by pushing solutions against the upper band edge, and there
+   the convex relaxation stops being exact: cone gaps of 18 to 32 MW2 and
+   nonlinear replay voltages 2.5% above the cleared one. The blocking question
+   is therefore the model's exactness at the upper bound, not which parameter to
+   pick. Until it is settled, the delivered library remains the 1.00 screen with
+   its four unservable days.
+6. **Audit tolerance.** The cone-tightness gate at 1e-6 rejects 61 plain days
+   that miss by 2e-6, while the pricing model runs at a barrier tolerance of
+   1e-8. Either the gate or the parameter has to move; today the gate rejects
+   solutions the model considers converged.
 
 ## Notes on the artifacts
 
-- `evidence/` holds `rule.json`, `summary.csv`, `summary.json`, one
-  `{date}.json` / `{date}.npz` / `{date}.log` triple per day, 411 files and
-  32 MB. It is regenerable by the command above and is not versioned
-  (`*.csv` and `*.npz` are ignored repository-wide).
+- Each `evidence*/` directory holds `rule.json`, `summary.csv`, `summary.json`,
+  one `{date}.json` / `{date}.npz` / `{date}.log` triple per day. They are
+  regenerable by the commands above and are not versioned (`*.csv` and `*.npz`
+  are ignored repository-wide).
+- `evidence/` is the first 1.00 screen, produced before `clear_day` archived its
+  audits, so its daily records carry no `physical_audit` or `ac_replay`.
+  `evidence_audits_slack1.00/` is the same rule cleared by the current code and
+  is the one to read for physical verification; its feasibility counts match
+  `evidence/` day for day.
+- `evidence_caps_slack1.00/` is the compensated variant; `rule.json` in it names
+  both declared inputs (`slack_vm_pu: 1.0`, `shunts_mvar: [[17, 0.5], [32, 0.5]]`).
+- `evidence_slack1.02/` and `evidence_slack1.03/` predate the audit fields and
+  are read only for the voltage and price columns.
 - `dry_run/` holds the three-day timing run, `rerun_check/` the determinism
   rerun.
 - `run.log` is the full-run console output.

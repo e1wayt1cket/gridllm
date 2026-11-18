@@ -37,6 +37,12 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_day(replace(day, network=replace(day.network, slack_vm_pu=value)))
 
+    def test_shunt_must_name_a_finite_bus_inside_the_network(self):
+        day = small_day()
+        for shunt in [(1, .5), (0.0, .5), (0, np.nan), (0, .5, 1)]:
+            with self.assertRaises(ValueError):
+                validate_day(replace(day, network=replace(day.network, shunts=(shunt,))))
+
     def test_explicit_quantity_and_price_bounds(self):
         day = small_day()
         for bid in [replace(day.bids["ESS"], charge_quantity_mw=np.full(2, .401)),
@@ -159,6 +165,24 @@ class SolverTests(unittest.TestCase):
             charge = result["pricing"]["charge"]["ESS"]
             expected = .2 if bid.discharge_price_cny_mwh[0] == 100 else 0
             self.assertAlmostEqual(float(charge.sum()), expected, places=5)
+
+    def test_declared_slack_voltage_passes_both_physical_checks(self):
+        day = small_day(storage=False)
+        day = replace(day, network=replace(day.network, slack_vm_pu=1.02))
+        result = clear_day(day, seconds=15)
+        self.assertTrue(result["physical_audit"]["passed"], result["physical_audit"])
+        self.assertTrue(result["ac_replay"]["passed"], result["ac_replay"])
+
+    def test_fixed_compensation_raises_the_cleared_voltage(self):
+        net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))
+        day = replace(small_day(storage=False), network=net,
+                      active_load_mw=np.array([[0., .5], [0., .5]]),
+                      reactive_load_mvar=np.array([[0., .1], [0., .1]]))
+        uncompensated = clear_day(day, seconds=15)["dispatch"]
+        compensated = clear_day(replace(day, network=replace(net, shunts=((1, .1),))),
+                                seconds=15)["dispatch"]
+        self.assertGreater(compensated["voltage_sq"][0, 1], uncompensated["voltage_sq"][0, 1])
+        self.assertLess(compensated["qcc_mvar"][0], uncompensated["qcc_mvar"][0])
 
     def test_native_q_network_losses_and_nonlinear_ac_replay(self):
         day = small_day(storage=False)

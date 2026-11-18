@@ -9,6 +9,8 @@ def physical_audit(day, result, tolerance=1e-6):
     q = -np.asarray(day.reactive_load_mvar, dtype=float).copy()
     p[:, net.slack] += result["pcc_mw"]
     q[:, net.slack] += result["qcc_mvar"]
+    for bus, mvar in net.shunts:
+        q[:, bus] += mvar
     bound, recursion, simultaneous, product = 0., 0., 0., 0.
     for unit in day.storage:
         name, bid = unit.name, day.bids[unit.name]
@@ -48,7 +50,7 @@ def physical_audit(day, result, tolerance=1e-6):
             bound = max(bound, float((current - net.current_sq_limit[line]).max()))
     v = np.sqrt(np.maximum(result["voltage_sq"], 0))
     bound = max(bound, float((net.voltage_min - v).max()), float((v - net.voltage_max).max()),
-                float(abs(v[:, net.slack] - 1).max()))
+                float(abs(v[:, net.slack] - net.slack_vm_pu).max()))
     if day.import_limit_mw is not None:
         bound = max(bound, float((result["pcc_mw"] - day.import_limit_mw).max()))
     if day.export_limit_mw is not None:
@@ -73,6 +75,8 @@ def ac_replay(day, result):
         power[:, unit.bus] += result["charge"][unit.name] - result["discharge"][unit.name]
     for generator in day.generators:
         power[:, generator.bus] -= result["generation"][generator.name] + 1j * result["generator_q"][generator.name]
+    for bus, mvar in net.shunts:
+        power[:, bus] -= 1j * mvar
     order, reached = [], {net.slack}
     while len(order) < len(net.branches):
         for line, (start, end) in enumerate(net.branches):
@@ -81,7 +85,7 @@ def ac_replay(day, result):
                 reached.add(end)
     voltages, imports, converged = [], [], []
     for period in range(day.periods):
-        voltage = np.ones(net.buses, dtype=complex)
+        voltage = np.full(net.buses, net.slack_vm_pu, dtype=complex)
         success = False
         for _ in range(500):
             if (abs(voltage) < 1e-8).any():
@@ -92,7 +96,7 @@ def ac_replay(day, result):
                 start, end = net.branches[line]
                 branch[line] = currents[end]
                 currents[start] += branch[line]
-            updated = np.ones(net.buses, dtype=complex)
+            updated = np.full(net.buses, net.slack_vm_pu, dtype=complex)
             for line in order:
                 start, end = net.branches[line]
                 updated[end] = updated[start] - complex(net.r_mw_base[line], net.x_mw_base[line]) * branch[line]
@@ -103,7 +107,8 @@ def ac_replay(day, result):
                 break
         converged.append(success)
         voltages.append(abs(voltage))
-        imports.append(float(currents[net.slack].real))
+        # The sweep solves currents; the substation's power is its voltage times that current.
+        imports.append(float(currents[net.slack].real) * net.slack_vm_pu)
     values = np.array(voltages)
     voltage_difference = float(abs(values - np.sqrt(result["voltage_sq"])).max())
     import_difference = float(abs(np.array(imports) - result["pcc_mw"]).max())
