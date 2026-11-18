@@ -133,6 +133,33 @@ those hours. Storage makes it worse in the direction the market already wants to
 go: it charges at the cheapest hours, which deepens the sag exactly when the
 constraint is the price-setting one.
 
+### Would generator reactive power fix it?
+
+The capability is already wired: `Generator.reactive_limit_mvar` exists, the
+model declares `generator_q` within it and the reactive balance already adds it
+at the generator's bus. Only `run_local_da.production_renewable_curves` leaves
+the limit at its zero default.
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/reactive_support_probe.py
+```
+
+| Day | Q = 0 (now) | PF 0.95 | PF 0.85 |
+| --- | --- | --- | --- |
+| 2022-10-14 | infeasible | feasible, peak LMP 1088, 38 bus-periods pinned | feasible, peak 799, 32 pinned |
+| 2021-09-20 | peak 1284, 6 pinned | peak 998, 2 pinned | peak 924, 2 pinned |
+| 2021-06-04 | peak 396, 6 pinned | 396, 3 pinned | 395, 3 pinned |
+| 2021-10-14 | peak 414, 3 pinned | 414, 0 pinned, Vmin 0.9331 | 414, 0 pinned, Vmin 0.9333 |
+
+Verdict `PASS` for the mechanism and `FAIL` for sufficiency: enabling it turns
+the previously infeasible day into a cleared one, cuts the peak price by about a
+quarter and removes the bound from the mild day, but on the stressed days the
+tail still sits exactly on 0.93. The reason is size: at PF 0.95 the three units
+offer about +/-0.53 MVAr in total (PV 0.3 MW at two buses, wind 1.0 MW at one)
+against 2.2 - 2.5 MVAr of load, so the relief is a fifth of what the feeder
+needs. A remedy that reaches the corner needs shunt reactive plant of the order
+of the load's reactive demand, or a slack voltage the operator can raise.
+
 ## Decision point
 
 1. **Train days.** 3 of 90 train days cannot be served. The RL design permits
