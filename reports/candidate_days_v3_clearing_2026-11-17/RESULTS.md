@@ -232,6 +232,32 @@ feasible and the row is a budget artifact. The screen treats a time limit as not
 feasible, which is the honest reading; it has no retry pass, so a status 9 row is
 `NOT_TESTED` rather than `FAIL`.
 
+### Load level or reactive draw?
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/voltage_attribution_probe.py
+```
+
+Vmin at the hardest hour, moving one input at a time, generators at available
+output:
+
+| Day | base | P and Q -10% | P -10% | Q -50% | Q = 0 |
+| --- | --- | --- | --- | --- | --- |
+| 2022-10-14 (4.085 MW, 2.528 MVAr) | 0.9048 | 0.9157 | 0.9124 | 0.9210 | 0.9365 |
+| 2021-09-20 (3.551 MW, 2.198 MVAr) | 0.9102 | 0.9227 | 0.9188 | 0.9296 | 0.9478 |
+
+The reactive draw costs about 0.013 pu per MVAr; the active draw about 0.019 pu
+per MW. Fully removing the reactive load is worth +0.032 and +0.038 pu, which is
+roughly the whole gap to 0.93, and it is the only remedy that does not cut
+service. Cutting all load by 10% buys +0.011 and +0.013 pu, so a load-only
+remedy needs a reduction near 25% on the stressed day.
+
+The decomposition is therefore: the load level against this network is the root
+cause (the benchmark violates the band at its own nominal load), and the
+uncompensated reactive draw is the decisive lever (it is what a capacitor bank
+or a tap changer buys back). The declared Q = 0.619 P is not a mis-setting: it
+reproduces the benchmark's own aggregate ratio.
+
 ## Decision point
 
 1. **Train days.** 3 of 90 train days cannot be served. The RL design permits
