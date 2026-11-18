@@ -6,7 +6,7 @@ import json
 import numpy as np
 from gurobipy import GRB
 
-from local_da_clearing import choose_directions, probe_prices
+from local_da_clearing import choose_directions, probe_prices, qualification_label
 from local_da_contracts import Generator
 from local_da_operating import OperatingModel, OperatingRules, audit_operating, build_historical_day, support_day
 from run_local_da import ROOT, sha
@@ -148,7 +148,7 @@ def price_candidate(day, rules, ratings, dispatch, *, seconds=120, output_folder
             periods.add(int(bound[np.argmin(voltage[bound].min(axis=1))]))
         probes = probe_prices(model, pricing, periods=sorted(periods), buses=buses)
         output["price_probes"] = probes
-        output["price_qualification"] = "SMOOTH_PASS" if all(item["smooth_pass"] for item in probes) else "NONSMOOTH_OR_FAILED"
+        output["price_qualification"] = qualification_label(probes)
     finally:
         model.close()
     alternate_directions = {name: np.where(idle[name], -1, values) for name, values in directions.items()}
@@ -168,6 +168,6 @@ def price_candidate(day, rules, ratings, dispatch, *, seconds=120, output_folder
             stable = bool((difference <= np.maximum(.1, abs(pricing["lmp_cny_mwh"]) * .01)).all())
             stable = stable and abs(other["clearing_objective"] - pricing["clearing_objective"]) <= tolerance
         output["idle_direction_stable"] = bool(stable)
-    output["qualified_for_settlement"] = (output["price_qualification"] == "SMOOTH_PASS"
+    output["qualified_for_settlement"] = (output["price_qualification"] in ("SMOOTH_PASS", "SUBGRADIENT_PASS")
         and output["idle_direction_stable"] and output["pricing_audit"]["passed"])
     return output

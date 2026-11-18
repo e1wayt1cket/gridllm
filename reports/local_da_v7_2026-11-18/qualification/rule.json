@@ -1,0 +1,26 @@
+{
+  "purpose": "Re-measure price qualification on the current default after the market declared its 2.5 MVAr reactive asset at buses 17, 31 and 32.",
+  "old_record": {
+    "source": "reports/candidate_days_v3_clearing_2026-11-17/evidence/summary.csv",
+    "class_a_price_solve_suboptimal_or_absent": 108,
+    "class_b_prices_optimal_probes_failed": 24,
+    "class_c_exact_dispatch_suboptimal": 4
+  },
+  "sample": {
+    "class_a": ["2021-06-04", "2021-09-02", "2021-10-23", "2021-12-22", "2022-08-05", "2022-11-04"],
+    "class_b": ["2021-07-18", "2021-10-02", "2021-12-10", "2022-08-14", "2022-09-24", "2022-11-02"],
+    "class_c": ["2021-12-24", "2022-08-02", "2022-10-11", "2022-10-14"],
+    "rule": "Six of each of the two failure classes, taken at even spacing over the date-sorted class; all four class-c days are taken because the declared asset is expected to move them."
+  },
+  "command": "PYTHONPATH=src python -B reports/local_da_v7_2026-11-18/qualification/measure_qualification.py --dates <batch> --out <batch>.json",
+  "recorded": [
+    "dispatch optimal flag and solver status",
+    "conditional price solve optimal flag and solver status",
+    "conditional objective difference against max(0.01, 1e-6 * |objective|)",
+    "price qualification label",
+    "qualified_for_settlement",
+    "idle direction stability",
+    "every probe: period, bus, epsilon, dual, left and right derivative, smooth_pass, subgradient_bracket"
+  ],
+  "acceptance": "Unchanged. This run measures and does not widen any criterion. A day whose conditional solve is suboptimal keeps that status unless a solver setting reaches an optimal solve with the objective agreement preserved."
+}

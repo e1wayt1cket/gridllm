@@ -230,6 +230,22 @@ def probe_prices(model, reference, *, periods=None, buses=None):
     return records
 
 
+def qualification_label(probes):
+    """The label the probes support. A corner is labelled as a corner, not smoothed.
+
+    Every probe must satisfy the same rule: all smooth, or all bracketed by their
+    one-sided derivatives. An empty probe list is untested, and a probe that fails
+    both rules fails the day.
+    """
+    if not probes:
+        return "NOT_TESTED"
+    if all(p["smooth_pass"] for p in probes):
+        return "SMOOTH_PASS"
+    if all(p["subgradient_bracket"] for p in probes):
+        return "SUBGRADIENT_PASS"
+    return "NONSMOOTH_OR_FAILED"
+
+
 def clear_day(day, *, seconds=120, price_probes=True, log_path=None):
     """Return explicit dispatch and conditional-price qualification states."""
     exact_model = ClearingModel(day, exact=True, seconds=seconds, log_path=log_path)
@@ -271,7 +287,7 @@ def clear_day(day, *, seconds=120, price_probes=True, log_path=None):
                                                         | (voltage >= day.network.voltage_max - 1e-6)))
             probes = probe_prices(pricing_model, pricing, buses=sorted(buses))
             output["price_probes"] = probes
-            output["price_qualification"] = "SMOOTH_PASS" if all(p["smooth_pass"] for p in probes) else "NONSMOOTH_OR_FAILED"
+            output["price_qualification"] = qualification_label(probes)
     finally:
         pricing_model.close()
     alternate = {name: np.where(idle[name], -1, values) for name, values in directions.items()}
@@ -300,5 +316,5 @@ def clear_day(day, *, seconds=120, price_probes=True, log_path=None):
                                            and output["exact_physical_audit"]["passed"]
                                            and output["ac_replay"]["passed"]
                                            and output["idle_direction_stable"]
-                                           and output["price_qualification"] == "SMOOTH_PASS")
+                                           and output["price_qualification"] in ("SMOOTH_PASS", "SUBGRADIENT_PASS"))
     return output

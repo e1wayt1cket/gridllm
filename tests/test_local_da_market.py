@@ -2,13 +2,15 @@
 
 from dataclasses import replace
 import unittest
+from unittest import mock
 
 import numpy as np
 
 from local_da_contracts import (DayAheadInput, Generator, RadialNetwork, StorageBid,
                                 StorageUnit, condenser, validate_day)
 from local_da_accounting import ac_replay, physical_audit, settle_day
-from local_da_clearing import ClearingModel, choose_directions, clear_day
+from local_da_clearing import (ClearingModel, choose_directions, clear_day,
+                               qualification_label)
 
 
 def small_day(periods=2, *, storage=True):
@@ -229,6 +231,36 @@ class SolverTests(unittest.TestCase):
         mutated = dict(result["pricing"])
         mutated["qcc_mvar"] = result["pricing"]["qcc_mvar"] + .1
         self.assertFalse(physical_audit(day, mutated)["passed"])
+
+
+class QualificationLabelTests(unittest.TestCase):
+    @staticmethod
+    def probe(smooth, bracket):
+        return {"period": 1, "bus": 0, "epsilon_mw": 1e-4, "dual_cny_mwh": 100.,
+                "left_cny_mwh": 90., "right_cny_mwh": 120.,
+                "smooth_pass": smooth, "subgradient_bracket": bracket}
+
+    def test_smooth_probes_label_a_smooth_derivative(self):
+        probes = [self.probe(True, True), self.probe(True, True)]
+        self.assertEqual(qualification_label(probes), "SMOOTH_PASS")
+
+    def test_a_bracketed_corner_is_labelled_a_corner(self):
+        probes = [self.probe(True, True), self.probe(False, True)]
+        self.assertEqual(qualification_label(probes), "SUBGRADIENT_PASS")
+
+    def test_one_probe_outside_its_bracket_fails_the_day(self):
+        probes = [self.probe(True, True), self.probe(False, False)]
+        self.assertEqual(qualification_label(probes), "NONSMOOTH_OR_FAILED")
+
+    def test_no_probes_is_untested(self):
+        self.assertEqual(qualification_label([]), "NOT_TESTED")
+
+    def test_a_bracketed_corner_qualifies_once_the_physical_audits_pass(self):
+        corner = self.probe(False, True)
+        with mock.patch("local_da_clearing.probe_prices", return_value=[corner]):
+            result = clear_day(small_day(), seconds=15)
+        self.assertEqual(result["price_qualification"], "SUBGRADIENT_PASS")
+        self.assertTrue(result["qualified_for_settlement"], result)
 
 
 if __name__ == "__main__":

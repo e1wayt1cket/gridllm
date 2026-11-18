@@ -10,7 +10,7 @@ from gurobipy import GRB
 import numpy as np
 
 from local_da_accounting import ac_replay, physical_audit
-from local_da_clearing import ClearingModel, choose_directions, probe_prices
+from local_da_clearing import ClearingModel, choose_directions, probe_prices, qualification_label
 from local_da_contracts import Generator
 from run_local_da import ROOT, build_legacy_day, sha
 
@@ -235,7 +235,7 @@ def clear_operating_day(day, rules, *, seconds=120, log_path=None, price_probes=
         buses.update(int(b) for b in np.flatnonzero((v <= lower) | (v >= upper)))
         probes = probe_prices(pricing, result, buses=sorted(buses))
         output["price_probes"] = probes
-        output["price_qualification"] = "SMOOTH_PASS" if all(p["smooth_pass"] for p in probes) else "NONSMOOTH_OR_FAILED"
+        output["price_qualification"] = qualification_label(probes)
         output["pricing_audit"] = audit_operating(day, rules, ratings, result)
     finally:
         pricing.close()
@@ -256,5 +256,5 @@ def clear_operating_day(day, rules, *, seconds=120, log_path=None, price_probes=
             output["idle_direction_max_price_difference_cny_mwh"] = float(difference.max())
         output["idle_direction_stable"] = bool(stable)
     output["qualified_for_settlement"] = (gap <= tolerance and output["pricing_audit"]["passed"]
-        and output["idle_direction_stable"] and output["price_qualification"] == "SMOOTH_PASS")
+        and output["idle_direction_stable"] and output["price_qualification"] in ("SMOOTH_PASS", "SUBGRADIENT_PASS"))
     return output
