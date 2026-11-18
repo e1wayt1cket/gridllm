@@ -358,6 +358,10 @@ class LocalDABiddingEnv(BiddingEnv):
             for nm, value in inventory.items():
                 payoff[nm] += value
                 baseline_payoff[nm] += base_inventory[nm]
+        # The raw state is reported for measurement; the carried state is the
+        # clamped handoff the next window may inherit.
+        raw_soc = {a.name: float(pricing["energy"][a.name][n_commit]) / E_MAX_MWH
+                   for a in self.rl_agents}
         for a in self.rl_agents:
             self.prev_soc[a.name] = carried_soc(
                 pricing["energy"][a.name][n_commit], a)
@@ -385,6 +389,7 @@ class LocalDABiddingEnv(BiddingEnv):
 
         info = {"payoff": payoff,
                 "baseline_payoff": baseline_payoff,
+                "soc_raw": raw_soc,
                 "degradation_cny": {nm: row["degradation_cny"]
                                     for nm, row in payoffs.items()},
                 "inventory_cny": inventory,

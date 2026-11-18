@@ -113,7 +113,7 @@ def _walk(pair, *, seconds: float, quote, roll_horizon: int = ROLL_HORIZON):
     for block in range(N_BLOCKS):
         begun = time.perf_counter()
         try:
-            _, rewards, done, _ = env.step(actions)
+            _, rewards, done, info = env.step(actions)
         except (EpisodeClearingError, ValueError) as error:
             record["none_clears"] += 1
             record["abort"] = True
@@ -128,7 +128,9 @@ def _walk(pair, *, seconds: float, quote, roll_horizon: int = ROLL_HORIZON):
                                  "failure": None})
         record["rewards_finite"] = record["rewards_finite"] and all(
             math.isfinite(float(value)) for value in rewards.values())
-        for soc in env.prev_soc.values():
+        # The raw solve state, not the clamped handoff: a solve outside the
+        # band must fail the acceptance flag rather than read the band edge.
+        for soc in info["soc_raw"].values():
             record["soc_min"] = (soc if record["soc_min"] is None
                                  else min(record["soc_min"], soc))
             record["soc_max"] = (soc if record["soc_max"] is None
@@ -200,7 +202,13 @@ def smoke(days: Sequence[str], *, seconds: float = 120.0,
     episodes = []
     for pair in pairs:
         record = _walk(pair, seconds=seconds, quote=TRUTHFUL)
-        record.update(_timed_block(pair, seconds=seconds))
+        # A timing solve that raises costs the latency entry, not the day's
+        # record: the walk already happened and is the evidence that matters.
+        try:
+            record.update(_timed_block(pair, seconds=seconds))
+        except Exception as error:
+            record.update({"exact": None, "price": None, "baseline": None,
+                           "latency_failure": f"{type(error).__name__}: {error}"})
         episodes.append(record)
     fallback = shaded = None
     if side_arms:

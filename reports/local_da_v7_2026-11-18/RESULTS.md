@@ -22,7 +22,11 @@ result is not evidence.
 
 Band is `0.1 <= SOC <= 0.9`, the storage spec `rl_da_env.storage_agents`
 declares. `summarize(record)` is the source of each row; the values are read
-from `smoke.json`.
+from `smoke.json`. The `soc_min`/`soc_max` values in `smoke.json` are the
+post-clamp carried states (`env.prev_soc`) as measured at run time; the harness
+now records `info["soc_raw"]`, the raw energy-derived SOC before the clamp, so
+`soc_in_band` can fail on a solve outside the band. The audited values above
+are unchanged by that switch.
 
 ## Latency
 
@@ -77,11 +81,21 @@ box-normalized squared deviation 0.008889.
 | --- | --- | --- | --- |
 | 2021-06-04 | 24 of 24 | 0 | 47.785 |
 
+This arm is near-truthful -- both prices sit at 10/150 and 20/300 of their box
+with quantities at full -- so its zero abort count does not bound an untrained
+policy's abort rate; an aggressive quote can still hit the 120 s limit.
+
 Before the SOC carry was clamped, this same quote aborted `2021-06-04` at block
 22: `ValueError: Invalid independent storage device`, carried SOC
 `0.0999999996268` on ESS14. The clamp in `rl_da_env.carried_soc` now stores the
 band edge, and the arm completes with no abort. The truthful arm's abort count
 is zero on all three days.
+
+Provenance:
+- The pre-fix block-22 abort is quoted from the fixing report's traceback; it
+  is not an artifact in this evidence directory.
+- The 2021-06-04 whole-day-clear corroboration is a coordinator ruling, not a
+  measurement stored in this evidence directory.
 
 ## Commands run
 

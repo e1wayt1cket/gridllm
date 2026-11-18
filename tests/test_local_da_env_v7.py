@@ -16,6 +16,28 @@ def truthful(env):
     return {nm: TRUTHFUL.copy() for nm in env.agent_names}
 
 
+class BelowBandClearingModel:
+    """A solve that leaves every unit just below its declared SOC band."""
+
+    def __init__(self, day, *, directions=None, exact=True, seconds=120.0):
+        self.day = day
+
+    def solve(self, prices=False):
+        names = [unit.name for unit in self.day.storage]
+        periods = self.day.periods
+        energy = 0.1 * rl_da_env.E_MAX_MWH - 1e-9
+        result = {"optimal": True, "clearing_objective": 0.0,
+                  "charge": {nm: np.zeros(periods) for nm in names},
+                  "discharge": {nm: np.zeros(periods) for nm in names},
+                  "energy": {nm: np.full(periods + 1, energy) for nm in names}}
+        if prices:
+            result["lmp_cny_mwh"] = np.zeros((periods, self.day.network.buses))
+        return result
+
+    def close(self):
+        pass
+
+
 class DriftingClearingModel:
     """Fixed results whose conditional objective does not reproduce the exact one."""
 
@@ -134,6 +156,19 @@ def test_the_carried_soc_is_held_on_the_band_edge():
         validate_day(window_day(env.pair, 0, 20, soc=env.prev_soc, quotes={}))
     assert below == unit.storage.soc_min
     assert above == unit.storage.soc_max
+
+
+def test_the_step_stores_a_solve_below_the_band_at_the_band_edge(monkeypatch):
+    # The regression is at the call site: restoring the unclamped carry line
+    # must fail this test even though every truthful walk stays in band.
+    env = LocalDABiddingEnv()
+    env.reset(load_pair(PAIR))
+    monkeypatch.setattr(rl_da_env, "ClearingModel", BelowBandClearingModel)
+    _, _, _, info = env.step(truthful(env))
+    units = {agent.name: agent for agent in env.rl_agents}
+    for name in env.agent_names:
+        assert info["soc_raw"][name] < units[name].storage.soc_min
+        assert env.prev_soc[name] == units[name].storage.soc_min
 
 
 def test_the_quote_vector_reaches_the_window_in_leg_order():
