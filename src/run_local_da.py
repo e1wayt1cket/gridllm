@@ -132,16 +132,9 @@ def build_legacy_day(date):
                                     "pair_key": pairs[0]})
 
 
-def _assemble_day(p, price, context, reactive=None):
+def radial_network():
+    """The native case33bw tree, oriented away from the slack, in per-unit impedance."""
     net = networks.case33bw()
-    ratio = np.zeros(33)
-    for _, row in net.load.iterrows():
-        ratio[int(row.bus)] = row.q_mvar / row.p_mw
-    # Without a declared reactive curve the day uses the v1 historical basis:
-    # each bus keeps case33bw's own Q0/P0 ratio.
-    reactive = p * ratio[None, :] if reactive is None else np.asarray(reactive, dtype=float)
-    if reactive.shape != p.shape:
-        raise ValueError("Declared reactive curve must match the active load shape")
     opened = set(int(row.element) for _, row in net.switch.iterrows()
                  if row.et == "l" and not row.closed)
     available = [(int(idx), int(row.from_bus), int(row.to_bus)) for idx, row in net.line.iterrows()
@@ -167,7 +160,20 @@ def _assemble_day(p, price, context, reactive=None):
                   for idx, _, _ in ordered])
     x = np.array([net.line.at[idx, "x_ohm_per_km"] * net.line.at[idx, "length_km"] / zbase
                   for idx, _, _ in ordered])
-    network = RadialNetwork(33, 0, tuple((start, end) for _, start, end in ordered), r, x)
+    return RadialNetwork(33, 0, tuple((start, end) for _, start, end in ordered), r, x)
+
+
+def _assemble_day(p, price, context, reactive=None):
+    net = networks.case33bw()
+    ratio = np.zeros(33)
+    for _, row in net.load.iterrows():
+        ratio[int(row.bus)] = row.q_mvar / row.p_mw
+    # Without a declared reactive curve the day uses the v1 historical basis:
+    # each bus keeps case33bw's own Q0/P0 ratio.
+    reactive = p * ratio[None, :] if reactive is None else np.asarray(reactive, dtype=float)
+    if reactive.shape != p.shape:
+        raise ValueError("Declared reactive curve must match the active load shape")
+    network = radial_network()
     storage = tuple(StorageUnit(f"ESS{bus}", bus) for bus in [9, 14, 17, 27])
     bids = {unit.name: StorageBid(np.full(96, .4), np.full(96, .4), np.zeros(96), np.zeros(96))
             for unit in storage}
