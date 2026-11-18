@@ -23,6 +23,7 @@ PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype
 | One clearing per library day, 136 rows | PASS | `evidence/summary.csv` row count 136; dates equal the union of `split.json` `blocks` |
 | Feasible days | PASS | 132 of 136; `evidence/summary.json` `counts` |
 | Feasible by block: train 87/90, validation 17/18, test 18/18, holiday 10/10 | PASS | `summary.json` `counts` |
+| Named exclusions match the screen | PASS | `excluded_days.json` names exactly the four `feasible != True` rows of `evidence_audits_slack1.00/summary.csv`; `tests/test_local_da_v3_inputs.py::ExclusionTests` fails when one entry is removed |
 | Library not modified | PASS | `summary.json` `library_unchanged` = true, from comparing all `outputs` hashes before and after |
 | Deterministic | PASS | `rerun_check/summary.csv` for 2021-07-18 and 2021-12-24: `optimal`, `feasible`, `price_qualification`, `qualified_for_settlement`, `voltage_min_pu`, `voltage_max_pu` identical to the first run |
 | Runtime | PASS | `summary.json` `runtime_seconds_total` 386.4 s; per day median 2.74 s, max 5.52 s |
@@ -47,6 +48,28 @@ the library's peaks and the fourth at rank 33, all within 0.06 MW of the
 declared band ceiling (4.0865 MW), while the library's median day peaks at
 3.91 MW and clears. Feasibility is otherwise uniform across months and load
 years (2021: 69/70, 2022: 63/66; the worst month is 2022-10 at 13/15).
+
+### Named exclusions
+
+The library is not edited. The four days are named in
+`excluded_days.json`, generated from the screened evidence:
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/name_unservable_days.py
+```
+
+The artifact carries the rule that produced it, both declared inputs, the
+solver status and failure text of every excluded day, and per-block counts:
+train 87/90, validation 17/18, test 18/18, holiday 10/10.
+`tests/test_local_da_v3_inputs.py::ExclusionTests` fails if the named set drifts
+from the screen.
+
+`docs/superpowers/specs/2026-11-17-local-da-rl-stack-design.md` allows only
+train days to be dropped — "every validation and test day in `split.json` is
+evaluated" — and its acceptance check 8 requires validation and test counts to
+equal `split.json`. Excluding 2022-08-02 breaks that rule by construction. The
+artifact records it as a validation exclusion rather than hiding it, and the
+design sentence has to change before the acceptance check can pass.
 
 ## Voltage
 
@@ -314,13 +337,16 @@ reproduces the benchmark's own aggregate ratio.
 
 ## Decision point
 
-1. **Train days.** 3 of 90 train days cannot be served. The RL design permits
-   dropping train days for feasibility and requires them to be named, so these
-   three can be handled without touching the library.
-2. **Validation.** 1 of 18 validation days (2022-08-02) cannot be served, and
-   the design requires every validation day to be evaluated. This needs a
-   decision before any training: keep the day and record its evaluation as
-   failed, or treat an unservable validation day as a mechanism problem.
+1. **Train days.** 3 of 90 train days cannot be served; all three are named in
+   `excluded_days.json` with their block, price date and solver status. The RL
+   design permits dropping train days for feasibility and requires them to be
+   named, so this part needs no library edit.
+2. **Validation.** 1 of 18 validation days (2022-08-02) also cannot be served
+   and is named in the same artifact. Dropping it deviates from the design rule
+   that every validation day is evaluated, so acceptance check 8 cannot pass on
+   this artifact. The design sentence has to be amended, or the day kept and its
+   evaluation recorded as failed; either way an unservable validation day is a
+   signal about the mechanism, not just about the day.
 3. **Price qualification is empty.** With 0 of 136 days qualified, it cannot
    serve as a training-day admission criterion until the SUBOPTIMAL status and
    the smoothness failures are settled as their own question. Both are market

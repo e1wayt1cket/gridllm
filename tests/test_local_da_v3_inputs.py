@@ -1,6 +1,8 @@
 """The forward day builder reads the v3 library at its own bus assignment."""
 
+import csv
 import json
+from pathlib import Path
 import unittest
 
 import numpy as np
@@ -8,6 +10,8 @@ import pandapower.networks as networks
 
 from local_da_operating import build_historical_day
 from run_local_da import PRICE_CURVES, V3, build_day, build_legacy_day
+
+CLEARING = Path(__file__).resolve().parents[1] / "reports/candidate_days_v3_clearing_2026-11-17"
 
 
 def v3_pair(date):
@@ -73,6 +77,22 @@ class InputTests(unittest.TestCase):
         self.assertEqual(day.active_load_mw.shape, (96, 33))
         self.assertTrue(kept)
         self.assertEqual(context["load_date"], "2022-12-22")
+
+
+class ExclusionTests(unittest.TestCase):
+    def test_named_exclusions_are_the_screened_unservable_days(self):
+        screen = CLEARING / "evidence_audits_slack1.00/summary.csv"
+        if not screen.exists():                 # pragma: no cover
+            self.skipTest("the 1.00 screen is not built in this checkout")
+        record = json.loads((CLEARING / "excluded_days.json").read_text(encoding="utf-8"))
+        with screen.open(encoding="utf-8") as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual({day["date"] for day in record["excluded"]},
+                         {row["date"] for row in rows if row["feasible"] != "True"})
+        self.assertEqual(record["counts"]["train"]["excluded"], 3)
+        self.assertEqual(record["counts"]["validation"]["excluded"], 1)
+        self.assertEqual(record["counts"]["holiday"]["excluded"], 0)
+        self.assertEqual(record["counts"]["test"]["excluded"], 0)
 
 
 if __name__ == "__main__":
