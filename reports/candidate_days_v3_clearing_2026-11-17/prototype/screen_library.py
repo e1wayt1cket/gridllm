@@ -18,6 +18,7 @@ import numpy as np
 import grid  # noqa: F401  ortools must load before pandas on this platform
 
 from local_da_clearing import clear_day
+from local_da_contracts import Generator
 from run_local_da import ROOT, V3, archive_result, build_day, sha, write_json
 
 BLOCKS = ("train", "validation", "test", "holiday")
@@ -98,6 +99,8 @@ def main():
                         help="Reactive capability the market declares for every generator.")
     parser.add_argument("--storage-energy", type=float, default=None, metavar="MWH",
                         help="Energy capacity the market declares for every storage unit.")
+    parser.add_argument("--reactive-bus", nargs="+", default=[], metavar="BUS:MVAR",
+                        help="Reactive-only capability declared at a bus, as BUS:MVAR pairs.")
     parser.add_argument("--no-probes", dest="probes", action="store_false",
                         help="Skip the price probes; qualification then stays NOT_TESTED.")
     args = parser.parse_args()
@@ -110,6 +113,11 @@ def main():
     if args.storage_energy is not None and (not np.isfinite(args.storage_energy)
                                             or args.storage_energy <= 0):
         raise ValueError("The declared storage energy must be finite and positive")
+    try:
+        reactive_bus = tuple((int(bus), float(mvar))
+                             for bus, mvar in (item.split(":") for item in args.reactive_bus))
+    except ValueError:
+        raise ValueError("Reactive capability must be declared as BUS:MVAR") from None
     try:
         capacitors = tuple((int(bus), float(mvar))
                            for bus, mvar in (item.split(":") for item in args.capacitors))
@@ -137,7 +145,11 @@ def main():
                                                                   shunts=capacitors),
                                   generators=tuple(dataclasses.replace(
                                       g, reactive_limit_mvar=args.generator_q)
-                                      for g in day.generators),
+                                      for g in day.generators)
+                                  + tuple(Generator(f"Q{bus}", bus,
+                                                    np.zeros(day.active_load_mw.shape[0]),
+                                                    reactive_limit_mvar=mvar)
+                                          for bus, mvar in reactive_bus),
                                   storage=tuple(dataclasses.replace(
                                       u, energy_mwh=args.storage_energy
                                       if args.storage_energy is not None else u.energy_mwh)
@@ -154,6 +166,7 @@ def main():
                 "shunts_mvar": [list(shunt) for shunt in day.network.shunts],
                 "generator_q_mvar": args.generator_q,
                 "storage_energy_mwh": [u.energy_mwh for u in day.storage],
+                "reactive_buses_mvar": [list(pair) for pair in reactive_bus],
                 "generators": [[g.name, g.bus, g.reactive_limit_mvar]
                                for g in day.generators],
                 "qualified_for_settlement": ("separate and stricter: physical audits, "

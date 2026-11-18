@@ -1,0 +1,65 @@
+{
+  "band": [
+    0.93,
+    1.07
+  ],
+  "clearing": "clear_day(price_probes=False) on build_day(date)",
+  "declared_before_first_solve": true,
+  "feasible": "exact complementary dispatch optimal and every bus-period inside the network's own voltage band",
+  "generator_q_mvar": 0.0,
+  "generators": [
+    [
+      "PV21",
+      21,
+      0.0
+    ],
+    [
+      "PV23",
+      23,
+      0.0
+    ],
+    [
+      "WIND30",
+      30,
+      0.0
+    ],
+    [
+      "Q17",
+      17,
+      1.0
+    ],
+    [
+      "Q31",
+      31,
+      0.5
+    ],
+    [
+      "Q32",
+      32,
+      1.0
+    ]
+  ],
+  "qualified_for_settlement": "separate and stricter: physical audits, idle-direction stability and smooth prices",
+  "reactive_buses_mvar": [
+    [
+      17,
+      1.0
+    ],
+    [
+      31,
+      0.5
+    ],
+    [
+      32,
+      1.0
+    ]
+  ],
+  "shunts_mvar": [],
+  "slack_vm_pu": 1.0,
+  "storage_energy_mwh": [
+    1.6,
+    1.6,
+    1.6,
+    1.6
+  ]
+}

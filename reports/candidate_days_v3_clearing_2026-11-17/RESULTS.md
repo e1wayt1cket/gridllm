@@ -124,7 +124,7 @@ PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype
 | The slack bus reproduces the exogenous price | PASS | 132 priced days; median `|LMP_slack - external|` 0.0000, max 0.0005 CNY/MWh |
 | No negative prices | PASS | 0 of 418,176 bus-periods |
 | The ordinary level is anchored | PASS | LMP median 306.51 against an external median of 300; mean bus markup over the slack runs 0.00% - 5.86%, rising with distance from the slack |
-| Prices stay inside the declared 0-600 CNY/MWh research interval | FAIL | max 1621.85; 26 days carry a price above 600 and 16 above 800 |
+| Prices stay inside the declared 0-600 CNY/MWh research interval | FAIL | max 1621.85; 26 days carry a price above 600 and 16 above 800. Ten library days carry an external price above 600 themselves, so this count mixes the model's rent with the data's scarcity price; the markup rows below and the capability section separate them |
 | The extreme tail is a voltage rent, not an energy price | PASS | 654 of 12,672 periods carry a bus above 3x the external price (1.94% of bus-periods), and 100% of those periods have a bus exactly on 0.93; 95.6% of them sit where the external price is at or below 60 CNY/MWh |
 | The duals are internally consistent | PASS | 41 of 405,504 branch-periods show a price fall above 20 CNY across a branch; the worst is -28.10, a 2% step between two buses both above 1,400 |
 | Those prices are certified optimal duals | NOT_TESTED | 108 of the 132 day sets come from a pricing solve with status 13 (SUBOPTIMAL). The above-3x share is the same in the 24 optimal ones (1.92% against 1.94%), so the pattern belongs to the mechanism, not to the status |
@@ -366,6 +366,45 @@ Both capability levels are declared research parameters, not Jiangsu rules and
 not equipment data: PV21 and PV23 carry 0.3 MW nameplate and WIND30 1.0 MW, so
 0.3 MVAr is one unit of reactive per unit of active for the PVs and 3.0 MVAr is
 ten times nameplate. Adopting either needs its own line in the protocol.
+
+### Controllable reactive capability at the binding buses
+
+The generators sit at buses 21, 23 and 30; the sag sits at buses 17 and 31-32.
+A reactive-only unit is a generator with no active availability and a reactive
+limit, which is the synchronous-condenser or STATCOM structure, and the market
+can declare it at any bus.
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/screen_library.py \
+    --out reports/candidate_days_v3_clearing_2026-11-17/evidence_qbus_slack1.00_a \
+    --reactive-bus 17:1.0 31:0.5 32:1.0 --no-probes --dates <first quarter>
+```
+
+All 136 days, in four quarters of the library:
+
+| Quantity | plain feeder | 2.5 MVAr at buses 17/31/32 |
+| --- | --- | --- |
+| Days the exact dispatch clears inside the band | 132/136 | 136/136 |
+| Bus-periods pinned at 0.93 | 2,326 (0.56%) | 1,088 (0.25%) |
+| Periods with at least one bus pinned | 1,582 (12.48%) | 1,018 (7.80%) |
+| Days whose worst markup exceeds 3x / 10x | 69 / 31 | 7 / 0 |
+| Median of the day-worst markup | 3.29 | 1.23 |
+| Worst day-worst markup | 41.4 | 9.5 |
+| Days touching 1.07 | 0 | 2 |
+| Days with a structural cone gap above 1e-3 MW2 | 0 | 0 |
+
+| Claim | Verdict | Evidence |
+| --- | --- | --- |
+| Capability sited where the sag is collapses the markup tail | PASS | day-worst markup above 10x falls 31 days to 0, worst 41.4x to 9.5x |
+| It keeps the convex relaxation exact | PASS | worst cone gap 1.5e-5 MW2 over 136 days; no day above 1e-3 |
+| It removes band contact | FAIL | 101 days still touch 0.93 and 2 touch 1.07; 2021-09-30 then fails the cone gate at 8.5e-6 |
+| Every price lies inside 0-600 CNY/MWh | FAIL | and 10 library days cannot, whatever the mechanism: their external price itself reaches above 600, one to 1,500 |
+
+The last row corrects a reading of the earlier [LMP sanity](#lmp-sanity) table.
+Counting absolute prices above 600 mixes the model's own rent with the external
+scarcity price. On 2022-06-12 no bus touches either edge and the day's highest
+LMP is 1,595 against an external 1,500 — a 1.06x markup. The markup, not the
+absolute price, is what the mechanism contributes.
 
 ### Larger storage capacity
 

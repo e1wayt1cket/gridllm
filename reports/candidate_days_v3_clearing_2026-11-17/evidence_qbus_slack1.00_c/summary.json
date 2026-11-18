@@ -1,0 +1,71 @@
+{
+  "cells": "one clearing per library day, price probes enabled",
+  "counts": {
+    "holiday": {
+      "band_ok": 3,
+      "days": 3,
+      "feasible": 3,
+      "optimal": 3,
+      "price_qualification": {
+        "NOT_TESTED": 3
+      },
+      "qualified_for_settlement": 0
+    },
+    "test": {
+      "band_ok": 1,
+      "days": 1,
+      "feasible": 1,
+      "optimal": 1,
+      "price_qualification": {
+        "NOT_TESTED": 1
+      },
+      "qualified_for_settlement": 0
+    },
+    "train": {
+      "band_ok": 22,
+      "days": 22,
+      "feasible": 22,
+      "optimal": 22,
+      "price_qualification": {
+        "NOT_TESTED": 22
+      },
+      "qualified_for_settlement": 0
+    },
+    "validation": {
+      "band_ok": 8,
+      "days": 8,
+      "feasible": 8,
+      "optimal": 8,
+      "price_qualification": {
+        "NOT_TESTED": 8
+      },
+      "qualified_for_settlement": 0
+    }
+  },
+  "inputs": {
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\bus_active_load_mw.npz": "f5a6fddf538928db62b208da47745b26ba1476fb7ae8736ae11f149bd1591897",
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\bus_reactive_load_mvar.npz": "8ff8bd5ed8687aa0c8d3a3ee34e810f063da94479877535d2ef9001b5927b365",
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\manifest.json": "07b9fdf920e6916ec39f35109626c3dceccd5251c9c4cbbe6478ffe849dffc11",
+    "reports\\candidate_days_v3_2026-11-17\\evidence\\split.json": "582a4a22380073f4b1dd5c8ed20791311398b7521f487078615e0617a91edf38",
+    "src\\local_da_clearing.py": "ded5531be313961b620e451f836255bbd3b03c4e96ed8707bbe3277d71de5716",
+    "src\\local_da_contracts.py": "a450ce05097a203f98487523176ef97ec3e37b2863f27342e31c0d4a4776e412",
+    "src\\run_local_da.py": "0de263eae8ced0016bf8859d118f42024d92332f419234bbe5a65a5770e3b5b2"
+  },
+  "library_hashes_after": {
+    "bus_active_load_mw.npz": "f5a6fddf538928db62b208da47745b26ba1476fb7ae8736ae11f149bd1591897",
+    "bus_reactive_load_mvar.npz": "8ff8bd5ed8687aa0c8d3a3ee34e810f063da94479877535d2ef9001b5927b365",
+    "day_selection.csv": "fdf2f98dd886c5b4ad4f3373efd6f684856d54bb47649ddd0648daec6bb99d84",
+    "source_bus_mapping.csv": "6183f15f4151603012494f28d2c21c19c14f6518208e054920ff4af3052394a9",
+    "split.json": "582a4a22380073f4b1dd5c8ed20791311398b7521f487078615e0617a91edf38"
+  },
+  "library_hashes_before": {
+    "bus_active_load_mw.npz": "f5a6fddf538928db62b208da47745b26ba1476fb7ae8736ae11f149bd1591897",
+    "bus_reactive_load_mvar.npz": "8ff8bd5ed8687aa0c8d3a3ee34e810f063da94479877535d2ef9001b5927b365",
+    "day_selection.csv": "fdf2f98dd886c5b4ad4f3373efd6f684856d54bb47649ddd0648daec6bb99d84",
+    "source_bus_mapping.csv": "6183f15f4151603012494f28d2c21c19c14f6518208e054920ff4af3052394a9",
+    "split.json": "582a4a22380073f4b1dd5c8ed20791311398b7521f487078615e0617a91edf38"
+  },
+  "library_unchanged": true,
+  "rule_file": "rule.json",
+  "runtime_seconds_total": 178.15500000002066
+}
