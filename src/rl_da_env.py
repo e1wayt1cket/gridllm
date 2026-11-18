@@ -161,6 +161,17 @@ def inventory_value(day, clearing, *, e0_mwh):
             * price for unit in day.storage}
 
 
+def carried_soc(energy_mwh, unit, *, e_max=E_MAX_MWH):
+    """The state a block leaves, held inside the unit's declared band.
+
+    A solve can return a state a fraction outside the band. The next window
+    inherits the edge rather than the wobble, because `validate_day` refuses a
+    device whose initial SOC is outside its own declared band.
+    """
+    carried = float(energy_mwh) / e_max
+    return min(max(carried, unit.storage.soc_min), unit.storage.soc_max)
+
+
 def abort_count(records):
     """Aborted episodes in a round, and whether that round is degraded.
 
@@ -348,8 +359,8 @@ class LocalDABiddingEnv(BiddingEnv):
                 payoff[nm] += value
                 baseline_payoff[nm] += base_inventory[nm]
         for a in self.rl_agents:
-            self.prev_soc[a.name] = float(
-                pricing["energy"][a.name][n_commit]) / E_MAX_MWH
+            self.prev_soc[a.name] = carried_soc(
+                pricing["energy"][a.name][n_commit], a)
 
         buses = sorted(a.bus for a in self.rl_agents)
         mean_lmp = float(np.mean(pricing["lmp_cny_mwh"][:n_commit, buses]))

@@ -3,8 +3,10 @@ import pytest
 
 import rl_da_env
 import rl_spec_v7
+from local_da_contracts import validate_day
 from local_da_days import load_pair, window_day
-from rl_da_env import EpisodeClearingError, LocalDABiddingEnv, directions_consistent
+from rl_da_env import (E_MAX_MWH, EpisodeClearingError, LocalDABiddingEnv,
+                       carried_soc, directions_consistent)
 
 PAIR = "2021-06-04"
 TRUTHFUL = np.array([0., 0.4, 0., 0.4])
@@ -117,6 +119,21 @@ def test_direction_consistency_flags_a_flipped_leg():
                "discharge": {"ESS9": np.array([0.0, 0.0])}}
     assert directions_consistent(directions, idle, same) is True
     assert directions_consistent(directions, idle, flipped) is False
+
+
+def test_the_carried_soc_is_held_on_the_band_edge():
+    # A solve can leave a unit a fraction outside its declared band. The next
+    # window must inherit the edge, because validate_day refuses anything else.
+    env = LocalDABiddingEnv()
+    env.reset(load_pair(PAIR))
+    unit = env.rl_agents[0]
+    below = carried_soc(0.1 * E_MAX_MWH - 1e-9, unit)
+    above = carried_soc(0.9 * E_MAX_MWH + 1e-9, unit)
+    for value in (below, above):
+        env.prev_soc = {agent.name: value for agent in env.rl_agents}
+        validate_day(window_day(env.pair, 0, 20, soc=env.prev_soc, quotes={}))
+    assert below == unit.storage.soc_min
+    assert above == unit.storage.soc_max
 
 
 def test_the_quote_vector_reaches_the_window_in_leg_order():
