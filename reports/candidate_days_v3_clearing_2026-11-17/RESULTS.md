@@ -186,6 +186,52 @@ charge into the sag. Whether the clearing would re-optimise to a cheaper
 dispatch under either remedy is `NOT_TESTED`; these are power flows, not
 cleared days.
 
+### Declared substation voltage
+
+The slack voltage is now an input rather than a constant:
+`RadialNetwork.slack_vm_pu` defaults to 1.0, `validate_day` requires it strictly
+inside the voltage band, and the clearing holds `v[slack] == slack_vm_pu**2`
+instead of a hard-coded 1. Every existing day still declares 1.0, so no archived
+evidence changes.
+
+Tests: `tests/test_local_da_market.py` covers the default, a value outside the
+band being refused, and the cleared slack following a declaration of 1.04;
+`tests/test_local_da_v3_inputs.py` locks the library's own 1.0.
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/screen_library.py \
+    --out reports/candidate_days_v3_clearing_2026-11-17/evidence_slack1.02 --slack 1.02 --no-probes
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/compare_screens.py \
+    reports/candidate_days_v3_clearing_2026-11-17/evidence{,_slack1.02,_slack1.03}
+```
+
+Both screens run with the probes off, so their `price_qualification` is
+`NOT_TESTED` by construction and is not comparable with the 1.00 screen.
+
+| Quantity | 1.00 | 1.02 | 1.03 |
+| --- | --- | --- | --- |
+| Feasible days | 132/136 | 135/136 (see note) | 136/136 |
+| The four originally unservable days | 0/4 | 4/4 | 4/4 |
+| Days pinned at the lower bound | 119 | 70 | 50 |
+| Days pinned at the upper bound | 0 | 46 | 76 |
+| Worst day-max LMP / day-max external | 3.17 | 2.38 | 1.74 |
+| Days whose day-max ratio exceeds 2x | 9 | 3 | 0 |
+| Bus-periods above 3x the external price | 8,100 | 3,659 | 2,233 |
+| Bus-periods below half the external price | 0 | 212 | 353 |
+| No negative prices | PASS | PASS | PASS |
+
+The lever works: at 1.02 the four unservable days clear and at 1.03 every day
+does, and the price tail shrinks by roughly three quarters. The cost is that
+the binding constraint moves to the top of the band — 46 days at 1.02 and 76 at
+1.03 sit exactly on 1.07 pu — and prices there fall below the wholesale price,
+though never negative and only on 0.05% - 0.08% of bus-periods.
+
+Note on 2022-06-22: the 1.02 screen records solver status 9 (time limit) for it.
+Re-solving that day with a 600 s budget returns optimal in 2.8 s, so the day is
+feasible and the row is a budget artifact. The screen treats a time limit as not
+feasible, which is the honest reading; it has no retry pass, so a status 9 row is
+`NOT_TESTED` rather than `FAIL`.
+
 ## Decision point
 
 1. **Train days.** 3 of 90 train days cannot be served. The RL design permits
@@ -203,6 +249,12 @@ cleared days.
    periods at the price floor, outside the declared 0-600 research interval.
    Any consumer of the price signal, the RL observation included, will read
    those spikes as the cheapest hours of the day.
+5. **Declared substation voltage.** The mechanism now exists and is measured at
+   1.02 and 1.03. Choosing a value is a market-rule decision with a real
+   trade-off: a higher slack removes the four unservable days and most of the
+   price tail, and moves the binding constraint to the upper band edge on 46 to
+   76 days. Until a value is adopted, the delivered library is the 1.00 screen
+   with its four unservable days.
 
 ## Notes on the artifacts
 

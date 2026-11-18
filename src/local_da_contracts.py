@@ -47,6 +47,8 @@ class RadialNetwork:
     current_sq_limit: np.ndarray | None = None
     voltage_min: float = .93
     voltage_max: float = 1.07
+    # The substation voltage the market holds; a tap changer sets it in practice.
+    slack_vm_pu: float = 1.
 
 
 @dataclass(frozen=True)
@@ -88,6 +90,7 @@ def validate_day(day):
     if not np.isfinite(day.dt_hours) or day.dt_hours <= 0:
         raise ValueError("Period duration must be positive")
     if (not 0 <= net.slack < net.buses or not 0 < net.voltage_min < 1 < net.voltage_max
+            or not net.voltage_min < net.slack_vm_pu <= net.voltage_max
             or len(net.branches) != net.buses - 1):
         raise ValueError("A connected radial network and a voltage band containing the slack are required")
     reached = {net.slack}

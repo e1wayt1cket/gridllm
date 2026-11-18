@@ -27,6 +27,16 @@ class ContractTests(unittest.TestCase):
         net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))
         self.assertEqual((net.voltage_min, net.voltage_max), (0.93, 1.07))
 
+    def test_slack_voltage_defaults_to_one_pu(self):
+        net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))
+        self.assertEqual(net.slack_vm_pu, 1.)
+
+    def test_slack_voltage_outside_the_band_is_refused(self):
+        day = small_day()
+        for value in [1.08, .90]:
+            with self.assertRaises(ValueError):
+                validate_day(replace(day, network=replace(day.network, slack_vm_pu=value)))
+
     def test_explicit_quantity_and_price_bounds(self):
         day = small_day()
         for bid in [replace(day.bids["ESS"], charge_quantity_mw=np.full(2, .401)),
@@ -96,6 +106,12 @@ class SolverTests(unittest.TestCase):
         self.assertEqual(set(ledger["units"]), set(bids))
         self.assertAlmostEqual(ledger["units"]["ESS0"]["economic_payoff_cny"], 0., places=6)
         self.assertTrue(all(ledger["units"][f"ESS{i}"]["economic_payoff_cny"] > 0 for i in [1, 2, 3]))
+
+    def test_cleared_slack_voltage_follows_the_declaration(self):
+        day = small_day(storage=False)
+        day = replace(day, network=replace(day.network, slack_vm_pu=1.04))
+        result = clear_day(day, seconds=15)
+        np.testing.assert_allclose(np.sqrt(result["dispatch"]["voltage_sq"]), 1.04, atol=1e-9)
 
     def test_infeasible_load_has_no_price_or_settlement_fallback(self):
         day = small_day(storage=False)

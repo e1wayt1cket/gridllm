@@ -10,6 +10,7 @@ are reported, and neither edits the library.
 import argparse
 from collections import Counter
 import csv
+import dataclasses
 import json
 from pathlib import Path
 
@@ -89,9 +90,15 @@ def main():
     parser.add_argument("--dates", nargs="+")
     parser.add_argument("--out", required=True)
     parser.add_argument("--seconds", type=float, default=120.)
+    parser.add_argument("--slack", type=float, default=1.,
+                        help="Substation voltage the market holds, in pu.")
+    parser.add_argument("--no-probes", dest="probes", action="store_false",
+                        help="Skip the price probes; qualification then stays NOT_TESTED.")
     args = parser.parse_args()
     if not np.isfinite(args.seconds) or args.seconds <= 0:
         raise ValueError("A finite positive solve budget is required")
+    if not np.isfinite(args.slack) or not .9 < args.slack <= 1.07:
+        raise ValueError("The declared substation voltage must lie inside the band")
     output = Path(args.out).resolve()
     if not output.is_relative_to(ROOT):
         raise ValueError("Evidence output must stay within the repository")
@@ -109,6 +116,8 @@ def main():
     rows = []
     for date in dates:
         day, context = build_day(date)
+        day = dataclasses.replace(day, network=dataclasses.replace(day.network,
+                                                                  slack_vm_pu=args.slack))
         if band is None:
             band = [day.network.voltage_min, day.network.voltage_max]
             # Declared before the first solve, so the rule cannot follow the result.
@@ -117,10 +126,11 @@ def main():
                 "feasible": ("exact complementary dispatch optimal and every bus-period "
                              "inside the network's own voltage band"),
                 "band": band,
+                "slack_vm_pu": args.slack,
                 "qualified_for_settlement": ("separate and stricter: physical audits, "
                                              "idle-direction stability and smooth prices"),
-                "clearing": "clear_day(price_probes=True) on build_day(date)"})
-        result = clear_day(day, seconds=args.seconds, price_probes=True,
+                "clearing": f"clear_day(price_probes={args.probes}) on build_day(date)"})
+        result = clear_day(day, seconds=args.seconds, price_probes=args.probes,
                            log_path=output / f"{date}.log")
         archive_result(output / date, result)
         rows.append(row(date, block_of[date], context["price_date"], day, result))

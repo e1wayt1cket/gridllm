@@ -99,7 +99,7 @@ class ClearingModel:
             incoming[end] = line
             outgoing.setdefault(start, []).append(line)
         for t in range(periods):
-            m.addConstr(self.v[t, net.slack] == 1)
+            m.addConstr(self.v[t, net.slack] == net.slack_vm_pu ** 2)
             objective += day.dt_hours * float(day.external_price_cny_mwh[t]) * self.pcc[t]
             for bus in buses:
                 active, reactive = gp.LinExpr(), gp.LinExpr()
