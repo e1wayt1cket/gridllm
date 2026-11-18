@@ -160,6 +160,32 @@ against 2.2 - 2.5 MVAr of load, so the relief is a fifth of what the feeder
 needs. A remedy that reaches the corner needs shunt reactive plant of the order
 of the load's reactive demand, or a slack voltage the operator can raise.
 
+### What would actually reach the band
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/voltage_remedy_probe.py
+```
+
+Power flow on the worst cleared hour (fleet at available output, every battery
+charging) for the two hardest days:
+
+| Remedy | 2022-10-14 Vmin | 2021-09-20 Vmin |
+| --- | --- | --- |
+| none, slack 1.00 pu, no shunt | 0.8592 | 0.8724 |
+| slack 1.02 pu | 0.8829 | 0.8956 |
+| slack 1.04 pu | 0.9063 | 0.9187 |
+| 1.0 MVAr capacitors at buses 17 and 30 | 0.8888 | 0.8963 |
+| 2.0 MVAr capacitors at buses 17 and 30 | 0.9068 | 0.9141 |
+| slack 1.04 pu plus 1.5 MVAr capacitors | 0.9457 | 0.9523 |
+
+No single passive remedy reaches 0.93 at that hour; the combination does, with
+Vmax at 1.041 pu still inside the 1.07 upper bound. The stress hour is not
+pessimistic: the market solved with the band opened to 0.80 chose Vmin 0.8607 on
+2022-10-14, within 0.0015 pu of this power flow, so the clearing really does
+charge into the sag. Whether the clearing would re-optimise to a cheaper
+dispatch under either remedy is `NOT_TESTED`; these are power flows, not
+cleared days.
+
 ## Decision point
 
 1. **Train days.** 3 of 90 train days cannot be served. The RL design permits
