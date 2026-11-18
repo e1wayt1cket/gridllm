@@ -96,6 +96,8 @@ def main():
                         help="Fixed compensation the feeder declares, as BUS:MVAR pairs.")
     parser.add_argument("--generator-q", type=float, default=0., metavar="MVAR",
                         help="Reactive capability the market declares for every generator.")
+    parser.add_argument("--storage-energy", type=float, default=None, metavar="MWH",
+                        help="Energy capacity the market declares for every storage unit.")
     parser.add_argument("--no-probes", dest="probes", action="store_false",
                         help="Skip the price probes; qualification then stays NOT_TESTED.")
     args = parser.parse_args()
@@ -105,6 +107,9 @@ def main():
         raise ValueError("The declared substation voltage must lie inside the band")
     if not np.isfinite(args.generator_q) or args.generator_q < 0:
         raise ValueError("The declared reactive capability must be finite and non-negative")
+    if args.storage_energy is not None and (not np.isfinite(args.storage_energy)
+                                            or args.storage_energy <= 0):
+        raise ValueError("The declared storage energy must be finite and positive")
     try:
         capacitors = tuple((int(bus), float(mvar))
                            for bus, mvar in (item.split(":") for item in args.capacitors))
@@ -132,7 +137,11 @@ def main():
                                                                   shunts=capacitors),
                                   generators=tuple(dataclasses.replace(
                                       g, reactive_limit_mvar=args.generator_q)
-                                      for g in day.generators))
+                                      for g in day.generators),
+                                  storage=tuple(dataclasses.replace(
+                                      u, energy_mwh=args.storage_energy
+                                      if args.storage_energy is not None else u.energy_mwh)
+                                      for u in day.storage))
         if band is None:
             band = [day.network.voltage_min, day.network.voltage_max]
             # Declared before the first solve, so the rule cannot follow the result.
@@ -144,6 +153,7 @@ def main():
                 "slack_vm_pu": args.slack,
                 "shunts_mvar": [list(shunt) for shunt in day.network.shunts],
                 "generator_q_mvar": args.generator_q,
+                "storage_energy_mwh": [u.energy_mwh for u in day.storage],
                 "generators": [[g.name, g.bus, g.reactive_limit_mvar]
                                for g in day.generators],
                 "qualified_for_settlement": ("separate and stricter: physical audits, "

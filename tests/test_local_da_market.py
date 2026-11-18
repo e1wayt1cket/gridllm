@@ -196,6 +196,14 @@ class SolverTests(unittest.TestCase):
         self.assertLess(capable["qcc_mvar"][0], bare["qcc_mvar"][0])
         self.assertLessEqual(float(np.abs(capable["generator_q"]["G"]).max()), .2 + 1e-6)
 
+    def test_declared_storage_energy_caps_the_throughput(self):
+        day = small_day()
+        tight = replace(day, storage=(replace(day.storage[0], energy_mwh=.2),))
+        loose = replace(day, storage=(replace(day.storage[0], energy_mwh=2.),))
+        tight_charge = float(clear_day(tight, seconds=15)["dispatch"]["charge"]["ESS"].sum())
+        loose_charge = float(clear_day(loose, seconds=15)["dispatch"]["charge"]["ESS"].sum())
+        self.assertLess(tight_charge, loose_charge)
+
     def test_native_q_network_losses_and_nonlinear_ac_replay(self):
         day = small_day(storage=False)
         net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))

@@ -367,6 +367,41 @@ not equipment data: PV21 and PV23 carry 0.3 MW nameplate and WIND30 1.0 MW, so
 0.3 MVAr is one unit of reactive per unit of active for the PVs and 3.0 MVAr is
 ten times nameplate. Adopting either needs its own line in the protocol.
 
+### Larger storage capacity
+
+The four units carry 0.4 MW and 1.6 MWh. A screen can declare a larger energy
+capacity for the same power, which is the only storage parameter the fleet's
+frozen definition leaves open without also changing its charging rate.
+
+```bash
+PYTHONPATH=src python -B reports/candidate_days_v3_clearing_2026-11-17/prototype/screen_library.py \
+    --out reports/candidate_days_v3_clearing_2026-11-17/tmp_ess6.4 \
+    --storage-energy 6.4 --no-probes --dates 2021-09-20 2022-11-11 2022-12-15 \
+    2021-12-25 2022-11-27 2022-07-31
+```
+
+Six days, three capacities, same power:
+
+| Quantity | 1.6 MWh | 3.2 MWh | 6.4 MWh |
+| --- | --- | --- | --- |
+| Bus-periods pinned at 0.93 | 242 (1.27%) | 233 (1.23%) | 199 (1.05%) |
+| Worst day-max LMP | 1,284.1 | 1,261.5 | 1,228.9 |
+| Mean of the six day-max LMPs | 948.1 | 914.3 | 829.2 |
+| Total charging over the six days | 29.7 MWh | 32.9 MWh | 32.8 MWh |
+
+| Claim | Verdict | Evidence |
+| --- | --- | --- |
+| A larger energy capacity reduces lower-bound pinning | PASS | 1.27% to 1.05% of bus-periods over the six days |
+| It fixes the price tail | FAIL | the worst day-max LMP falls 4%, to 1,228.9 CNY/MWh |
+| The market keeps using the extra energy | FAIL | charging rises 29.7 to 32.9 MWh and then stops at 6.4 MWh |
+| A larger charging rate | NOT_TESTED | not screened; the forced-charging measurement below puts 1.6 MW at 0.04-0.05 pu of extra sag, so the expected effect is worse, not better |
+
+Capacity is the wrong lever. The sag depth is set by the charging rate, not by
+how long the unit can sustain it, and the extra energy is absorbed by the same
+price-shape arbitrage instead of relieved hours: charging saturates between 3.2
+and 6.4 MWh. Storage capacity is also frozen by the fleet definition, so
+changing it is a protocol decision, not a network parameter.
+
 ### Load level or reactive draw?
 
 ```bash
