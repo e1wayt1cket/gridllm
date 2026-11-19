@@ -91,6 +91,33 @@ The reduced launcher run (`--train-days 2`, one full validation round) took
 21,600-32,400 per seed is therefore back inside the recorded 11.95-17.92 h
 projection rather than the 69-104 h the bilinear encoding implied.
 
+## Gate proof
+
+`PYTHONPATH=src python -B src/run_formal_training.py --config-dir
+reports/v2_cy_jn_2025/formal_training_v7 --check`:
+
+```
+data_payload_matches true     budget_contract_ok true
+code_sources_match true       code_tests_match true
+config_hash_matches true      data_manifest_hash_matches true
+code_manifest_hash_matches true   library_counts true
+all_disjoint true             legacy_label_declared true
+h2_declared true              all_pass true
+status: null    accepted_candidate: V7_candidate_002
+config_sha256: 8db03638    contract_violations: []
+```
+
+`status` is null for the same reason it was null before: the readiness status is
+written only by `--finalize`, from a `pretraining_validation_results.json`
+produced on these sources, and no producer for v7 exists.
+
+## Rollback
+
+The superseded manifest set is preserved at
+`tmp/manifest_superseded/v7_ea92b0af/`; it is not tracked, and it describes a
+source tree that no longer exists, so restoring it would require reverting this
+record's commit as well.
+
 ## Not validated
 
 - No formal run and no formal round exist under this hash either. The reduced

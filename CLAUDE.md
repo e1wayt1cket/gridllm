@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## CC engineering framework
 
 - Live formal manifest: `reports/v2_cy_jn_2025/formal_training_v7/`
-  (config hash `ea92b0af`, `protocol_version: 7`,
-  `V7_candidate_001`). `formal_training_v6/` (`ac0f78d2`),
+  (config hash `8db03638`, `protocol_version: 7`,
+  `V7_candidate_002`). `formal_training_v6/` (`ac0f78d2`),
   `formal_training_v5/` (`6e32398b`), `formal_training_v4/` (`7834d0aa`),
   `formal_training_v3/` (`1b47e0ed`), `formal_training_v2/` (`2148a577`) and
   `formal_training_ready/` (`b21a97c1`, `SUPERSEDED_READ_ONLY`) are

@@ -1,9 +1,9 @@
 {
-  "generated_on": "2026-11-19T17:33:58",
-  "candidate": "V7_candidate_001",
-  "config_sha256": "ea92b0af04a4cd12f7af9f8f8faca6154b5762f72df815c23078b459ebdc4bb9",
+  "generated_on": "2026-11-19T21:10:24",
+  "candidate": "V7_candidate_002",
+  "config_sha256": "8db03638d56c1023fde11353d49d25c53c286e6d10d1c629d0b2304b6d4ae712",
   "source_sha256": {
-    "rl_da_env.py": "0b1f27572e0fdfd8b08c1048bc7bb68c003b0d7c26bcefdcbcf7a62cf5ba52e0",
+    "rl_da_env.py": "06e6aed320b07ffda58406914c261ced7e5f70c5132cb9d57fedcfb507ceaf9f",
     "rl_da_gate.py": "bbd14fe4cbffe8dbe8472435464001e4854f6e83eee1a63689562361d53fd2f2",
     "rl_da_gate_v7.py": "265bbd1d89ee36e7321eaedc3e7df8e3aabf01014f223077cb1b09f0adc4369f",
     "da_quote_map.py": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
@@ -23,7 +23,7 @@
     "money.py": "de58573dc07ac60b4049cb7851c9c7c137d2abc65d67f4f4952f1ee31ed19a12",
     "local_da_days.py": "a09586beca841531ef6cfbbd3e4fe384b32c23e222d410b1e41bf77c97bf7b33",
     "local_da_contracts.py": "3da106c1c2ee7dbbf0adcf854bd9cc36a173c129e717fcbb9e541621d99f721e",
-    "local_da_clearing.py": "f09a6e512e0e9abc2a73afc4c5cadb0859f455ab4d323be4ed53c9a33fea31da",
+    "local_da_clearing.py": "a0c555896529aee297eaa0c0d5c4fe144c8ad3a60c1ae89191e841fec1ca7905",
     "local_da_operating.py": "432fbed7a4b1ad58080fb2104d5f21f25d9683b96c33f33114475e8819776cce",
     "local_da_accounting.py": "da029eac996400d2894243933b86184aa39736480f152c635f142b62df05a4af",
     "local_da_audit.py": "5e4948b77392b1833fd19671ad127c5a6ffdd4bdb378e86d9603b4acc66dbbe5",
@@ -35,6 +35,6 @@
     "training_contract_v7.py": "1a0b6d49774d3c7deb1a97051be4c0a40fda21a171819831d8501629c8f9d99d",
     "training_contract.py": "db4bda665106ff1fad9ee50fb2e31e1510b63ac3d7f1d2792ff4501bbd3c1fe4",
     "run_formal_training.py": "d98e5733f757189159ab5dcb3f14990ef074cc13f58cc30d2252b750478409d1",
-    "make_formal_training_manifests.py": "bc63df0524b7b8394cf844999bdebb921635617601d0739f35907045effe6896"
+    "make_formal_training_manifests.py": "69fb22b6b3c9a87e832b3e44ec4c702adcd85d352eca04dc747b2c3b3a5b0256"
   }
 }

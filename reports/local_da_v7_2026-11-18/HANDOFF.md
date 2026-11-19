@@ -1,8 +1,9 @@
 # v7 formal launch: GO / NO-GO handoff
 
-Protocol `v7`, candidate `V7_candidate_001`, config hash `ea92b0af`,
+Protocol `v7`, candidate `V7_candidate_002`, config hash `8db03638`,
 manifest `reports/v2_cy_jn_2025/formal_training_v7/`, re-freeze record
-`reports/audit_remediation_2026-11-15/REFREEZE_V7.md`.
+`reports/audit_remediation_2026-11-15/REFREEZE_V7_DISJUNCTION.md`, which
+supersedes `REFREEZE_V7.md`.
 
 Nothing below authorises a launch. `run_formal_training.py --seed` refuses
 while `status` is not `GO_FORMAL_TRAINING`, and it is `null`.

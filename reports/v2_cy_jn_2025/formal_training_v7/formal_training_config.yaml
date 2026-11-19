@@ -1,7 +1,7 @@
 formal_training:
   experiment_id: FORMAL_LOCAL_DA_V7
   protocol_version: 7
-  accepted_candidate: V7_candidate_001
+  accepted_candidate: V7_candidate_002
   dataset: 'v3 candidate-day library: Jiangsu 2021-2022 bus load paired with 2025
     day-ahead price dates'
   split: reports\candidate_days_v3_2026-11-17\evidence\split.json
@@ -17,7 +17,8 @@ formal_training:
     initial: 0.5
     valuation: inventory_value at the day end
   cycle_cost_cny_per_mwh: 100.0
-  clearing_engine: exact MIQCP dispatch, fixed-direction conditional pricing
+  clearing_engine: exact MIP dispatch with a binary charge/discharge disjunction,
+    fixed-direction conditional pricing
   training_gap_tolerance: 0.01
   training_window_seconds: 300.0
   voltage_band_pu:
@@ -168,9 +169,9 @@ formal_training:
       and is then known only to that gap; no settlement payment and no audit price
       was read off an uncertified incumbent
   code:
-    candidate: V7_candidate_001
+    candidate: V7_candidate_002
     source_sha256:
-      rl_da_env.py: 0b1f27572e0fdfd8b08c1048bc7bb68c003b0d7c26bcefdcbcf7a62cf5ba52e0
+      rl_da_env.py: 06e6aed320b07ffda58406914c261ced7e5f70c5132cb9d57fedcfb507ceaf9f
       rl_da_gate.py: bbd14fe4cbffe8dbe8472435464001e4854f6e83eee1a63689562361d53fd2f2
       rl_da_gate_v7.py: 265bbd1d89ee36e7321eaedc3e7df8e3aabf01014f223077cb1b09f0adc4369f
       da_quote_map.py: 821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358
@@ -190,7 +191,7 @@ formal_training:
       money.py: de58573dc07ac60b4049cb7851c9c7c137d2abc65d67f4f4952f1ee31ed19a12
       local_da_days.py: a09586beca841531ef6cfbbd3e4fe384b32c23e222d410b1e41bf77c97bf7b33
       local_da_contracts.py: 3da106c1c2ee7dbbf0adcf854bd9cc36a173c129e717fcbb9e541621d99f721e
-      local_da_clearing.py: f09a6e512e0e9abc2a73afc4c5cadb0859f455ab4d323be4ed53c9a33fea31da
+      local_da_clearing.py: a0c555896529aee297eaa0c0d5c4fe144c8ad3a60c1ae89191e841fec1ca7905
       local_da_operating.py: 432fbed7a4b1ad58080fb2104d5f21f25d9683b96c33f33114475e8819776cce
       local_da_accounting.py: da029eac996400d2894243933b86184aa39736480f152c635f142b62df05a4af
       local_da_audit.py: 5e4948b77392b1833fd19671ad127c5a6ffdd4bdb378e86d9603b4acc66dbbe5
@@ -202,9 +203,9 @@ formal_training:
       training_contract_v7.py: 1a0b6d49774d3c7deb1a97051be4c0a40fda21a171819831d8501629c8f9d99d
       training_contract.py: db4bda665106ff1fad9ee50fb2e31e1510b63ac3d7f1d2792ff4501bbd3c1fe4
       run_formal_training.py: d98e5733f757189159ab5dcb3f14990ef074cc13f58cc30d2252b750478409d1
-      make_formal_training_manifests.py: bc63df0524b7b8394cf844999bdebb921635617601d0739f35907045effe6896
+      make_formal_training_manifests.py: 69fb22b6b3c9a87e832b3e44ec4c702adcd85d352eca04dc747b2c3b3a5b0256
     git:
-      revision: 6797fc9
+      revision: 4cfba8a
       dirty: true
       dirty_paths:
       - ocs/2026-09-18-matd3-smoke.md
@@ -214,7 +215,6 @@ formal_training:
       - reports/v2_cy_jn_2025/formal_training_v7/formal_training_data_manifest.json
       - reports/v2_cy_jn_2025/formal_training_v7/formal_training_manifest.json
       - reports/v2_cy_jn_2025/formal_training_v7/manifest_generation.json
-      - tests/test_training_contract_v7.py
       - tools/check_checkpoint_obs.py
       - tools/demo_snapshot.py
       - .agents/
@@ -251,6 +251,9 @@ formal_training:
       - tmp/day_full_rows.npy
       - tmp/diag_band_090.py
       - tmp/diag_band_bisect.py
+      - tmp/diag_block5.py
+      - tmp/diag_block5_params.py
+      - tmp/diag_block_loop.py
       - tmp/diag_cone.py
       - tmp/diag_cycle_in_clearing.py
       - tmp/diag_cycle_mismatch.py
@@ -263,6 +266,7 @@ formal_training:
       - tmp/diag_matrix.py
       - tmp/diag_multiobj.py
       - tmp/diag_pen.py
+      - tmp/diag_policy_blocks.py
       - tmp/diag_settle_paths.py
       - tmp/diag_shed.py
       - tmp/diag_shedmin.py
@@ -273,6 +277,7 @@ formal_training:
       - tmp/diag_vdrop.py
       - tmp/diag_voltage_lmp.py
       - tmp/diag_vprofile.py
+      - tmp/diag_why_slow.py
       - tmp/est_balanced_coverage.py
       - tmp/est_coverage_first.py
       - tmp/est_daily_subset_peaks.py
