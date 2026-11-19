@@ -96,8 +96,8 @@ fallback.
 
 | item | verdict | reason |
 | --- | --- | --- |
-| the launcher on a full round | `NOT_TESTED` | `runs/SMOKE_local_da_v7_launcher3` aborted both training episodes at 120 s windows (`CLEAR_UNPROVEN` on `2021-06-13` block 5, `CLEAR_INFEASIBLE` on `2021-06-04` block 1); no validation round, checkpoint or final bundle was written, and the process was then killed for memory. The 300 s limit and 1 % gap are the response and are untested end to end. |
-| a gap-solved episode | `NOT_TESTED` | Both aborted episodes recorded `gap_solved_blocks = 1`, so the acceptance fires, but no episode completed with the column populated. |
+| the launcher on a full round | `NOT_TESTED` | `runs/SMOKE_local_da_v7_gap` cleared both of its training episodes (48 s and 59 s) and then entered the first validation pass, where the process was killed for low memory. The launcher logs a round only once it is measured, so the run ends at episode 2 with `eval_history.json`, the round snapshot, the best checkpoint and the final bundle absent and `run_manifest.json` still at `stopped: null`, `best.value: -inf`. That the kill fell inside validation is read from that absence plus the harness notification, not from a log line. |
+| a cleared episode | `PASS` | `runs/SMOKE_local_da_v7_gap/episodes.csv` has two rows with status `cleared` over the two training days, finite per-agent rewards and `gap_solved_blocks = 24` on each; `total_steps` is cumulative (24, then 48), so each episode is 24 blocks. |
 | the wall-clock projection | `INFERRED` | Extrapolated from the latency table; no formal run has measured it. |
 | `pretraining_validation_results.json` | `BLOCKED` | It describes the sources it was produced on; the v6 file describes v6. Producing one is the only thing that sets `status`. |
 
