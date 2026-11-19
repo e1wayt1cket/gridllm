@@ -74,6 +74,10 @@ class DAV7ExperimentConfig(DAExperimentConfig):
 
     experiment_id: str = "MATD3_DA_GATE_v7"
     action_schema: str = "storage_quote_v5"
+    # The parent's 0.10 was selected for the two-entry box. The four-entry box
+    # receives this weight from the parent's own selection rule applied to it;
+    # a launch that omits the field still runs the calibrated value.
+    anchor_weight: float = 0.05
 
     def __post_init__(self):
         if self.reward_mode not in ("B", "B_C2"):

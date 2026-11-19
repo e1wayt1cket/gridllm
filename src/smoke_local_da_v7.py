@@ -36,7 +36,7 @@ from rl_da_env import (BLOCK_SIZE, EpisodeClearingError, LocalDABiddingEnv,
                        N_BLOCKS, ROLL_HORIZON, SOC0, clear_window)
 
 #: The per-day feasibility screen the v7 day library was validated against.
-SCREEN = "reports/candidate_days_v3_clearing_2026-11-17/evidence"
+from local_da_audit import SCREEN  # noqa: E402  one screen definition
 #: The storage spec's own band, as `rl_da_env.storage_agents` declares it.
 SOC_MIN, SOC_MAX = 0.1, 0.9
 #: The brief's fallback window: 12 periods, 8 of them lookahead.

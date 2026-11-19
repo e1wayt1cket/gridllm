@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from local_da_contracts import validate_day
+from local_da_audit import SCREEN
 from local_da_days import load_pair, train_pairs, window_day
 from run_local_da import build_day
 
@@ -55,10 +56,10 @@ def test_the_window_clears_against_the_committed_case33bw_topology():
 
 
 def test_the_train_pairs_drop_only_exact_infeasible_days_and_name_them():
-    # Both v3 screens share the library and the same per-day failure strings,
-    # so either one answers the exact-infeasible criterion.
-    pairs, selection = train_pairs(
-        "reports/candidate_days_v3_clearing_2026-11-17/evidence")
-    assert len(pairs) == 87
-    assert set(selection["dropped"]) == {"2021-12-24", "2022-10-11", "2022-10-14"}
+    # The screen is the re-measured one: on the current default every library
+    # day's exact dispatch is optimal, so the filter drops nothing and the
+    # train block keeps its full size. A day that stops clearing shows up here.
+    pairs, selection = train_pairs(SCREEN)
+    assert len(pairs) == 90
+    assert selection["dropped"] == {}
     assert all(p["block"] == "train" for p in pairs)

@@ -1,6 +1,7 @@
 import numpy as np
 
-from local_da_audit import compare_stacks, eval_counts, rolling_gap
+from local_da_audit import (SCREEN, compare_stacks, eval_counts,
+                            feasibility_selected, rolling_gap)
 
 
 def test_sign_and_gap_bounds_are_computed_on_the_cells_above_the_floor():
@@ -26,6 +27,17 @@ def test_the_rolling_gap_reports_median_and_p95():
     # gaps are 0.1, 0.1, 0.2, 0.2
     assert abs(out["median"] - 0.15) < 1e-9
     assert abs(out["p95"] - 0.2) < 1e-9
+
+
+def test_the_feasibility_selection_reconciles_against_the_split():
+    out = feasibility_selected(SCREEN)
+    counts, dropped = out["counts"], out["dropped"]
+    # Every block's full count is reported, the train block's selected count is
+    # the remainder after the drops, and the drops are named by the screen.
+    assert set(counts) == {"train", "validation", "test", "holiday",
+                           "train_selected"}
+    assert counts["train_selected"] + len(dropped) == counts["train"]
+    assert counts["validation"] + counts["test"] + counts["holiday"] == 46
 
 
 def test_the_eval_counts_name_the_infeasible_day():

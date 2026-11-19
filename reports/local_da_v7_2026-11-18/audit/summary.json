@@ -1,0 +1,255 @@
+{
+  "acceptance_4": {
+    "criterion": "sign_agreement >= 0.95 and median_rel_gap <= 0.10",
+    "per_day": {
+      "2021-06-04": {
+        "block_failures": [],
+        "cells": 384,
+        "median_rel_gap": 0.027751684876405593,
+        "sign_agreement": 1.0
+      },
+      "2021-06-13": {
+        "block_failures": [],
+        "cells": 384,
+        "median_rel_gap": 0.04756045663804026,
+        "sign_agreement": 1.0
+      },
+      "2021-06-17": {
+        "block_failures": [],
+        "cells": 384,
+        "median_rel_gap": 0.03810642973439284,
+        "sign_agreement": 1.0
+      }
+    },
+    "verdict": "PASS"
+  },
+  "acceptance_5": {
+    "per_day": {
+      "2021-06-04": {
+        "block_failures": [],
+        "by_bus": {
+          "14": {
+            "median": 0.1650097984135093,
+            "p95": 0.3059649478963469,
+            "periods": 96
+          },
+          "17": {
+            "median": 0.16864204195088356,
+            "p95": 0.30263413257115357,
+            "periods": 96
+          },
+          "27": {
+            "median": 0.1749493452622321,
+            "p95": 0.334669478551753,
+            "periods": 96
+          },
+          "9": {
+            "median": 0.16291818757945434,
+            "p95": 0.3100004571781935,
+            "periods": 96
+          }
+        }
+      },
+      "2021-06-13": {
+        "block_failures": [],
+        "by_bus": {
+          "14": {
+            "median": 0.18618150014559742,
+            "p95": 8.086116417458324,
+            "periods": 96
+          },
+          "17": {
+            "median": 0.18726350693048438,
+            "p95": 7.942946972555793,
+            "periods": 96
+          },
+          "27": {
+            "median": 0.1633745068676037,
+            "p95": 9.016573976661526,
+            "periods": 96
+          },
+          "9": {
+            "median": 0.17129163102390926,
+            "p95": 8.50438173485366,
+            "periods": 96
+          }
+        }
+      },
+      "2021-06-17": {
+        "block_failures": [],
+        "by_bus": {
+          "14": {
+            "median": 0.2015151696823554,
+            "p95": 0.6126732974905275,
+            "periods": 96
+          },
+          "17": {
+            "median": 0.20840089743878587,
+            "p95": 0.5960429898364699,
+            "periods": 96
+          },
+          "27": {
+            "median": 0.17766308704302625,
+            "p95": 0.7221717989096108,
+            "periods": 96
+          },
+          "9": {
+            "median": 0.1960154583447679,
+            "p95": 0.6570272453289075,
+            "periods": 96
+          }
+        }
+      }
+    }
+  },
+  "acceptance_6": {
+    "criterion": "gradient_share <= 0.50",
+    "gradient_share": 0.04289964018583475,
+    "rows": [
+      {
+        "corner_fraction": 0.8125,
+        "econ_grad_norm": 0.11598340328782797,
+        "grad_ratio": 0.0,
+        "lambda": 0.0,
+        "mean_deviation_after_probe": 0.5124719440937042,
+        "pen_grad_norm": 0.0
+      },
+      {
+        "corner_fraction": 0.875,
+        "econ_grad_norm": 0.11598340328782797,
+        "grad_ratio": 0.008579927836422157,
+        "lambda": 0.01,
+        "mean_deviation_after_probe": 0.499943807721138,
+        "pen_grad_norm": 0.0009951292304322124
+      },
+      {
+        "corner_fraction": 0.875,
+        "econ_grad_norm": 0.11598340328782797,
+        "grad_ratio": 0.04289964018583475,
+        "lambda": 0.05,
+        "mean_deviation_after_probe": 0.41391709446907043,
+        "pen_grad_norm": 0.004975646268576384
+      },
+      {
+        "corner_fraction": 0.8125,
+        "econ_grad_norm": 0.11598340328782797,
+        "grad_ratio": 0.0857992803716695,
+        "lambda": 0.1,
+        "mean_deviation_after_probe": 0.3565995693206787,
+        "pen_grad_norm": 0.009951292537152767
+      },
+      {
+        "corner_fraction": 0.8125,
+        "econ_grad_norm": 0.11598340328782797,
+        "grad_ratio": 0.21449818888448616,
+        "lambda": 0.25,
+        "mean_deviation_after_probe": 0.29979415982961655,
+        "pen_grad_norm": 0.024878229945898056
+      },
+      {
+        "corner_fraction": 0.9375,
+        "econ_grad_norm": 0.11598340328782797,
+        "grad_ratio": 0.4289963777689723,
+        "lambda": 0.5,
+        "mean_deviation_after_probe": 0.24992002546787262,
+        "pen_grad_norm": 0.04975645989179611
+      },
+      {
+        "corner_fraction": 1.0,
+        "econ_grad_norm": 0.11598340328782797,
+        "grad_ratio": 0.8579927555379446,
+        "lambda": 1.0,
+        "mean_deviation_after_probe": 0.0,
+        "pen_grad_norm": 0.09951291978359222
+      }
+    ],
+    "selected_weight": 0.05,
+    "verdict": "PASS"
+  },
+  "acceptance_7": {
+    "episodes": [
+      {
+        "blocks_cleared": true,
+        "date": "2021-06-04",
+        "declared_point_deviation_zero": true,
+        "inventory_terms_one": true,
+        "no_none_clear": true,
+        "rewards_finite": true,
+        "soc_in_band": true
+      },
+      {
+        "blocks_cleared": true,
+        "date": "2021-06-13",
+        "declared_point_deviation_zero": true,
+        "inventory_terms_one": true,
+        "no_none_clear": true,
+        "rewards_finite": true,
+        "soc_in_band": true
+      },
+      {
+        "blocks_cleared": true,
+        "date": "2021-06-17",
+        "declared_point_deviation_zero": true,
+        "inventory_terms_one": true,
+        "no_none_clear": true,
+        "rewards_finite": true,
+        "soc_in_band": true
+      }
+    ],
+    "verdict": "PASS"
+  },
+  "acceptance_8": {
+    "counts": {
+      "holiday": 10,
+      "test": 18,
+      "train": 90,
+      "train_selected": 90,
+      "validation": 18
+    },
+    "dropped": {}
+  },
+  "construction": {
+    "degradation_cny_mwh": [
+      80.0,
+      80.0,
+      80.0,
+      80.0
+    ],
+    "external_reactive_bus": 32,
+    "inverter_ratings_mvar": {
+      "PV21": 0.33,
+      "PV23": 0.33,
+      "Q_ESS14": 0.44000000000000006,
+      "Q_ESS17": 0.44000000000000006,
+      "Q_ESS27": 0.44000000000000006,
+      "Q_ESS9": 0.44000000000000006,
+      "SC17": 1.1,
+      "SC31": 1.1,
+      "SC32": 1.1,
+      "WIND30": 1.1
+    },
+    "periods": 96,
+    "reactive_devices": [
+      "SC17",
+      "SC31",
+      "SC32",
+      "Q_ESS9",
+      "Q_ESS14",
+      "Q_ESS17",
+      "Q_ESS27",
+      "EXTERNAL33"
+    ],
+    "terminal_soc_equal": true
+  },
+  "days": [
+    "2021-06-04",
+    "2021-06-13",
+    "2021-06-17"
+  ],
+  "dispatch_status": {
+    "2021-06-04": 2,
+    "2021-06-13": 2,
+    "2021-06-17": 2
+  },
+  "floor_cny_mwh": 1.0
+}
