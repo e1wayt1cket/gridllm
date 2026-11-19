@@ -1,0 +1,42 @@
+{
+ "days": 136,
+ "labels": {
+  "SMOOTH_PASS": 22,
+  "SUBGRADIENT_PASS": 55,
+  "NONSMOOTH_OR_FAILED": 59
+ },
+ "label_qualified": 77,
+ "settled": 62,
+ "label_ok_settle_failed": [
+  "2021-09-11",
+  "2021-09-30",
+  "2021-10-01",
+  "2021-11-18",
+  "2021-12-04",
+  "2021-12-07",
+  "2021-12-14",
+  "2021-12-24",
+  "2022-06-22",
+  "2022-07-03",
+  "2022-07-10",
+  "2022-09-02",
+  "2022-10-31",
+  "2022-12-20",
+  "2022-12-21"
+ ],
+ "dispatch_not_optimal": [],
+ "pricing_status": [
+  2
+ ],
+ "files": [
+  "library_a.json",
+  "library_b0.json",
+  "library_b1.json",
+  "library_b2.json",
+  "library_b3.json",
+  "library_b4.json",
+  "library_b5.json",
+  "library_b6.json",
+  "library_b7.json"
+ ]
+}

@@ -20,7 +20,7 @@ them on the current default.
   `da_market_pricing.qualify_prices` has always emitted; the old copy in
   `local_da_clearing` could not produce its middle state.
 
-## Result
+## Result on the sixteen-day sample
 
 | Label | Before the three-state rule | After |
 | --- | --- | --- |
@@ -84,31 +84,35 @@ return status 13. The comment above `ClearingModel.BarQCPConvTol` already record
 1e-10 returns suboptimal prices. Recorded in `tolerance_probe.json`; the
 tolerance is not changed on this evidence.
 
-## The first library batch, and the batch that did not finish
+## The whole library
 
-`library_a.json` covers the 28 earliest library days: `SMOOTH_PASS` 8,
-`SUBGRADIENT_PASS` 7, `NONSMOOTH_OR_FAILED` 13, `qualified_for_settlement` 14.
-Every pricing solve is status 2. `2021-09-11` carries a passing label and a
-failing settlement, and this record kept no audit breakdown for it, so which
-audit refused it is `NOT_TESTED`.
+All 136 days on the current default: `SMOOTH_PASS` 22, `SUBGRADIENT_PASS` 55,
+`NONSMOOTH_OR_FAILED` 59, `qualified_for_settlement` 62. Every exact dispatch
+and every conditional price solve is optimal (status 2), including the 108 days
+the old screen recorded with a suboptimal price solve and the four it recorded
+with an unservable dispatch.
 
-The label is not reproducible day for day. `2021-08-14` is
-`NONSMOOTH_OR_FAILED` in `after.json` and `SMOOTH_PASS` in `library_a.json`, on
-the same day, the same default and the same code. A single run's label is
-therefore not evidence that a day is qualified; only the probe records are.
+Fifteen days carry a passing label and a failing settlement: `2021-09-11`,
+`2021-09-30`, `2021-10-01`, `2021-11-18`, `2021-12-04`, `2021-12-07`,
+`2021-12-14`, `2021-12-24`, `2022-06-22`, `2022-07-03`, `2022-07-10`,
+`2022-09-02`, `2022-10-31`, `2022-12-20`, `2022-12-21`. This record keeps no
+audit breakdown for them. `2021-12-24` was measured separately at a cone
+tightness of 4.63e-6 against the 1e-6 threshold; which audit refuses the other
+fourteen is `NOT_TESTED`.
 
-`BLOCKED`: batches two to five, 108 days. The first attempt raised `KeyError:
-'clearing_objective'` on a day whose exact dispatch did not solve (the recorder
-now tolerates that and records the failure string); the second was stopped by
-the system for low memory. Neither is restarted here, so the 136-day counts are
-`NOT_TESTED`.
+The measurement is deterministic. `after.json` and `library_a.json` were produced
+by two separate runs, and their 16 overlapping days agree on every label, every
+settlement flag and all 336 one-sided derivatives to the last bit.
+
+Files: `library_a.json` (28 days), `library_b0.json` to `library_b7.json`
+(14, 14, 14, 14, 14, 14, 14, 10), `summary.json`.
 
 ## Not covered
 
-- The 136-day counts are `NOT_TESTED` for the reason above.
-- The sample is 16 of 136 days and is not a rate estimate for the library.
-- `SMOOTH_PASS` and `SUBGRADIENT_PASS` counts are reported separately and are
-  not added into a single "qualified" figure.
+- Which audit refuses the fourteen days listed above is `NOT_TESTED`: the
+  recorder stores the price probes, not the audit breakdown.
+- `SMOOTH_PASS` and `SUBGRADIENT_PASS` are reported separately and are not
+  added into a single "qualified" figure.
 
 ## Commands
 
