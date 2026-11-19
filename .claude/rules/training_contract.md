@@ -4,10 +4,12 @@ Applies to every formal-training launch, resume, re-freeze and audit.
 
 ## Live manifest
 
-- `reports/v2_cy_jn_2025/formal_training_v6/` is the only live formal manifest
-  set (config hash `ac0f78d2`, `protocol_version: 6`,
-  `V6_candidate_001`; re-freeze record in
-  `reports/audit_remediation_2026-11-15/REFREEZE_V6.md`).
+- `reports/v2_cy_jn_2025/formal_training_v7/` is the only live formal manifest
+  set (config hash `ea92b0af`, `protocol_version: 7`,
+  `V7_candidate_001`; re-freeze record in
+  `reports/audit_remediation_2026-11-15/REFREEZE_V7.md`).
+- `reports/v2_cy_jn_2025/formal_training_v6/` (`ac0f78d2`) is historical and
+  read-only, superseded on the same terms as v5 and older below.
 - `reports/v2_cy_jn_2025/formal_training_v5/` (`6e32398b`) is historical and
   read-only, superseded on the same terms as v4 and v3 below.
 - `reports/v2_cy_jn_2025/formal_training_v4/` (`7834d0aa`) and
@@ -34,11 +36,14 @@ With `train_days = data_manifest.counts.train`:
 - `block_steps_per_seed_max == episodes_per_seed_max * episode.blocks`
 - `early_stop_patience >= 1`
 - `seeds` is non-empty and has no duplicates
-- terminal SOC starts and ends at the same value and is applied only in the
+- v6: terminal SOC starts and ends at the same value and is applied only in the
   day-end window
+- v7: `terminal_soc.mode: free` with a declared initial value; the endpoint is
+  valued by the settlement's inventory term and never pinned
 
-The frozen run for the current protocol is 10–15 rounds, 530–795 episodes,
-12,720–19,080 block steps per seed.
+The frozen run for v6 is 10–15 rounds, 530–795 episodes, 12,720–19,080 block
+steps per seed. The frozen run for v7 is 10–15 rounds, 900–1350 episodes,
+21,600–32,400 block steps per seed over the 90-day training block.
 
 ## Early stopping
 
@@ -62,6 +67,8 @@ exact episode, so a partial round keeps its remaining days.
   failed run is still evidence.
 - v6 runs get new run ids (`FORMAL_ac0f78d2_seed<N>`) and do not overwrite
   any earlier protocol's runs.
+- v7 runs get new run ids (`FORMAL_<config>_seed<N>` under its own config
+  hash) on the same terms; no v7 run id may be a v6 one.
 - A new seed requires a new run directory. A populated run directory is a
   refusal, not a prompt to delete.
 - Best and final checkpoints are distinct artifacts. `best` is the highest
@@ -71,7 +78,9 @@ exact episode, so a partial round keeps its remaining days.
 
 ## Enforcement
 
-- `src/training_contract.py` implements the invariants above.
+- `src/training_contract.py` implements the invariants above for v6 and
+  `src/training_contract_v7.py` for v7; `src/run_formal_training.py` selects
+  the one the manifest's `protocol_version` names.
 - `src/run_formal_training.py --check` is the gate; it must return
   `all_pass: true` and `budget_contract_ok: true`.
 - `.claude/hooks/protect_frozen.py` denies Edit/Write on the frozen set.

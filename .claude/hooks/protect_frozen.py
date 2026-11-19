@@ -28,6 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # The first directory is the live protocol; the rest are historical and are
 # frozen as directories and run/snapshot trees, not as source pins.
 MANIFEST_DIRS = (
+    PROJECT_ROOT / "reports/v2_cy_jn_2025/formal_training_v7",
     PROJECT_ROOT / "reports/v2_cy_jn_2025/formal_training_v6",
     PROJECT_ROOT / "reports/v2_cy_jn_2025/formal_training_v5",
     PROJECT_ROOT / "reports/v2_cy_jn_2025/formal_training_v4",

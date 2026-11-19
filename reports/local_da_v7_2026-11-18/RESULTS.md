@@ -50,12 +50,19 @@ Per-day episode seconds: 49.524, 48.559, 45.251.
 
 ## Per-seed projection at both windows
 
-Frozen block-step bounds per seed: 12,720 (min) and 19,080 (max).
+Frozen block-step bounds per seed under v7: 21,600 (min) and 32,400 (max),
+i.e. 900-1350 episodes of 24 blocks over the 90-day training block. (An
+earlier version of this table carried v6's 12,720 / 19,080 bounds, which are
+the 53-day block's counts and understate a v7 seed.)
 
 | Window | Seconds per block | Projected hours per seed |
 | --- | --- | --- |
-| `ROLL_HORIZON=20` | 1.991 | 7.03 - 10.55 |
-| 12-period fallback (8 lookahead) | 1.328 | 4.69 - 7.04 |
+| `ROLL_HORIZON=20` | 1.991 | 11.95 - 17.92 |
+| 12-period fallback (8 lookahead) | 1.328 | 7.97 - 11.95 |
+
+The projection is the typical-block rate. A block that reaches the 300 s
+solver limit spends all of it, so a day whose blocks all bind would cost two
+hours and no average bounds it.
 
 No wall-clock gate exists in `training_contract.py`. Its budget keys are
 rounds, exposures, episodes and block steps (`minimum_rounds`,
@@ -216,3 +223,55 @@ PYTHONPATH=src python -B tools/audit_local_da_v7.py \
 PYTHONPATH=src python -m pytest tests/test_local_da_audit_v7.py -q   # 5 passed
 PYTHONPATH=src python -m pytest tests/test_local_da_v7_days.py -q    # 5 passed
 ```
+
+## Training-window gap tolerance
+
+The exact model demands a 1e-6 relative and 0.001 CNY absolute gap. Some
+shaded-quote windows in the training loop cannot certify that inside the 120 s
+limit while holding a feasible incumbent, and the launcher read those as
+infeasible and aborted the day. The reproduction was `2021-06-13` block 0 at
+the probe policy's quote: `solver_status 9`, three solutions, `MIPGap`
+5.47e-3 against an objective bound of -230.44 CNY; the same window cleared
+optimally at `seconds=600`, so the failure was a time limit and not a
+physically impossible window.
+
+`rl_da_env.GAP_TOLERANCE` (`0.01`) accepts such a dispatch when its own
+reported relative gap is inside the bound. The accepted dispatch is cleared
+and priced as usual, the conditional objective is compared to the exact one
+on the same bound, and the block is counted in `env.gap_solved_blocks`, which
+every episode row carries as `gap_solved_blocks`. A solve with no incumbent
+stays `CLEAR_INFEASIBLE`; a solve with an incumbent outside the bound stays
+`CLEAR_UNPROVEN`. `local_da_clearing.clear_day`, the settlement ledger and
+every audit pass `0.0` and keep demanding the certified optimum, so no
+settlement payment and no audit price is read off an uncertified incumbent.
+
+The tolerance is declared in `formal_training.training_gap_tolerance` of the
+v7 config and bounded in `claims.gap_accepted_payoffs`. The acceptance is
+tested on a stub solve (`test_local_da_env_v7.py`) and fired on the
+reproduction above.
+
+### The window limit is raised to 300 s
+
+The tolerance alone did not carry a training episode. On the exploration
+policy two episodes of the launcher smoke (`runs/SMOKE_local_da_v7_launcher3`,
+120 s windows) aborted:
+
+| Episode | Day | Block | Failure | `gap_solved_blocks` |
+| --- | --- | --- | --- | --- |
+| 1 | `2021-06-13` | 5 | `CLEAR_UNPROVEN` (incumbent held, gap above 1 % at 120 s) | 1 |
+| 2 | `2021-06-04` | 1 | `CLEAR_INFEASIBLE` (no incumbent found in 120 s) | 1 |
+
+`2021-06-04` clears in seconds at the truthful quote, so the second failure is
+the exploration quote meeting the limit, not a physically impossible day. The
+frozen config now declares `training_window_seconds: 300`, `train_local_da_v7`
+defaults to it, and `run_formal_training.command` passes it, so a launch
+cannot silently use another value.
+
+The limit is a search budget, not a criterion: a gap-solved block still has to
+report its own gap inside 1 %, and a block with no incumbent is still
+infeasible. The cost is stated rather than hidden: a block that reaches the
+limit spends all of it, so a day whose 24 blocks all bind costs 2 hours while
+the declared 12-18 h per-seed projection assumes the typical ~2 s block. No
+end-to-end episode has yet completed under the 300 s limit; the launcher smoke
+was killed for low system memory after those two aborts and has not been
+re-run.

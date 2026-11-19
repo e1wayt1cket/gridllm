@@ -42,8 +42,15 @@ E_MAX_MWH = 1.6
 P_MAX_MW = 0.4
 SOC0 = 0.5
 
-FAILURE_CODES = ("CLEAR_INFEASIBLE", "DIRECTIONS_FAILED",
+FAILURE_CODES = ("CLEAR_INFEASIBLE", "CLEAR_UNPROVEN", "DIRECTIONS_FAILED",
                  "PRICE_SOLVE_FAILED", "BASELINE_INFEASIBLE")
+#: The relative gap a training window may leave uncertified. The exact model
+#: demands a 1e-6 relative and 0.001 CNY absolute gap, which some shaded-quote
+#: windows cannot certify inside the solver's time limit even though they hold
+#: a feasible incumbent. A training payoff may be read off that incumbent when
+#: its own reported gap is inside this bound; the settlement and audit paths
+#: pass 0.0 and keep demanding the certified optimum.
+GAP_TOLERANCE = 0.01
 
 
 class EpisodeClearingError(RuntimeError):
@@ -80,18 +87,30 @@ def directions_consistent(directions, idle, pricing, *, tolerance=1e-6):
     return True
 
 
-def clear_window(day, *, seconds=120.0):
-    """Clear one window exactly, then re-solve it with its directions frozen."""
+def clear_window(day, *, seconds=120.0, gap_tolerance=0.0):
+    """Clear one window, then re-solve it with its directions frozen.
+
+    `gap_tolerance` accepts a dispatch whose optimality the solver did not
+    certify but whose own reported gap is inside the bound; 0.0 demands the
+    certificate. `gap_solved` records which one happened.
+    """
     output = {"dispatch": None, "pricing": None, "directions": None,
-              "idle": None, "failure": None, "direction_unstable": False}
+              "idle": None, "failure": None, "direction_unstable": False,
+              "gap_solved": False}
     exact = ClearingModel(day, exact=True, seconds=seconds)
     try:
         dispatch = exact.solve()
     finally:
         exact.close()
     output["dispatch"] = dispatch
-    if not dispatch["optimal"]:
-        output["failure"] = "CLEAR_INFEASIBLE"
+    certified = dispatch["optimal"]
+    if not certified and gap_tolerance > 0.0 and dispatch["solution_count"] > 0:
+        certified = (float(dispatch.get("optimality_gap", np.inf))
+                     <= gap_tolerance)
+    output["gap_solved"] = bool(certified and not dispatch["optimal"])
+    if not certified:
+        output["failure"] = ("CLEAR_UNPROVEN" if dispatch["solution_count"]
+                             else "CLEAR_INFEASIBLE")
         return output
     try:
         directions, idle = choose_directions(dispatch)
@@ -109,10 +128,15 @@ def clear_window(day, *, seconds=120.0):
     if not pricing["optimal"] or "lmp_cny_mwh" not in pricing:
         output["failure"] = "PRICE_SOLVE_FAILED"
         return output
-    # The conditional solve must reproduce the exact objective, on the same
-    # tolerance `clear_day` uses; otherwise its prices describe another
+    # The conditional solve must reproduce the dispatch's objective, on the
+    # same tolerance `clear_day` uses; otherwise its prices describe another
     # dispatch. Both objectives are already in hand, so this costs no solve.
+    # A dispatch accepted inside `gap_tolerance` is known only to that gap, so
+    # the same bound separates the two objectives it is compared by.
     tolerance = max(.01, abs(dispatch["clearing_objective"]) * 1e-6)
+    if output["gap_solved"]:
+        tolerance = max(tolerance,
+                        abs(dispatch["clearing_objective"]) * gap_tolerance)
     if (abs(pricing["clearing_objective"] - dispatch["clearing_objective"])
             > tolerance):
         output["failure"] = "PRICE_SOLVE_FAILED"
@@ -202,10 +226,12 @@ def storage_agents():
 class LocalDABiddingEnv(BiddingEnv):
     """A day of 24 blocks, each a cleared window of one library pair."""
 
-    def __init__(self, *, seconds=120.0, roll_horizon=ROLL_HORIZON):
+    def __init__(self, *, seconds=120.0, roll_horizon=ROLL_HORIZON,
+                 gap_tolerance=GAP_TOLERANCE):
         super().__init__(storage_agents(), None, roll_horizon=roll_horizon,
                          obs_spec=OBS_V7, action_spec=ACTION_STORAGE_QUOTE_V5)
         self.seconds = float(seconds)
+        self.gap_tolerance = float(gap_tolerance)
 
     @property
     def agent_names(self):
@@ -218,6 +244,9 @@ class LocalDABiddingEnv(BiddingEnv):
         self._prev_block_actions = None
         self._prev_block_index = None
         self.block_idx = 0
+        # Blocks this day whose dispatch was accepted inside the gap bound
+        # rather than certified; the caller records the count per episode.
+        self.gap_solved_blocks = 0
         self.prev_soc = {nm: SOC0 for nm in self.agent_names}
         self.hist_lmp = deque(maxlen=self.T)
         self.bus_lmp_history = {nm: [] for nm in self.agent_names}
@@ -321,17 +350,20 @@ class LocalDABiddingEnv(BiddingEnv):
 
         day = window_day(self.pair, t_start, t_end, soc=self.prev_soc,
                          quotes=quotes)
-        result = clear_window(day, seconds=self.seconds)
+        result = clear_window(day, seconds=self.seconds,
+                              gap_tolerance=self.gap_tolerance)
         self._last_result = result
         if result["failure"] is not None:
             raise EpisodeClearingError(result["failure"],
                                        self.pair["load_date"], block)
+        self.gap_solved_blocks += int(result["gap_solved"])
 
         truthful = {nm: np.array(TRUTHFUL, dtype=float)
                     for nm in self.agent_names}
         base_day = window_day(self.pair, t_start, t_end, soc=self.prev_soc,
                               quotes=truthful)
-        baseline = clear_window(base_day, seconds=self.seconds)
+        baseline = clear_window(base_day, seconds=self.seconds,
+                                gap_tolerance=self.gap_tolerance)
         self._last_base_result = baseline
         if baseline["failure"] is not None:
             raise EpisodeClearingError("BASELINE_INFEASIBLE",

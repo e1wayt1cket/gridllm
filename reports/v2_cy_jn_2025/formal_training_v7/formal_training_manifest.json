@@ -1,0 +1,19 @@
+{
+  "status": "PENDING_PRETRAINING_VALIDATION",
+  "training_readiness_status": null,
+  "scope": "formal training on the v3 local day-ahead library; Test and holiday are LEGACY_SEEN_TEST; the 40 H2 price dates were used for price-date adaptation only",
+  "accepted_candidate": "V7_candidate_001",
+  "data_manifest": "formal_training_data_manifest.json",
+  "code_manifest": "formal_training_code_manifest.json",
+  "config_file": "formal_training_config.yaml",
+  "config_sha256": "ea92b0af04a4cd12f7af9f8f8faca6154b5762f72df815c23078b459ebdc4bb9",
+  "data_manifest_sha256": "451ed499a6ac77bb3a309538afb6a00f372b9f09d73f325a74ed050e7d61a7f9",
+  "code_manifest_sha256": "9ace562f14a57c4729cf0d49b861cbe32bbf5988f5a5f71f6994128c366082c6",
+  "checks": {
+    "library_counts": true,
+    "all_disjoint": true,
+    "legacy_label_declared": true,
+    "h2_declared": true,
+    "all_pass": true
+  }
+}

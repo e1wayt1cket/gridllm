@@ -1,8 +1,10 @@
 """Build and check the formal-training data, config and code manifests.
 
-The common split's NEAR view is the formal data definition. Its test and
-holiday blocks are the LEGACY_SEEN_TEST set. The H2 price-date holdout is not
-opened by this script; only the status file's legacy label is read.
+The formal data definition is the v3 candidate-day library: 136 paired days of
+historical Jiangsu bus load and 2025 day-ahead price, split into 90 train, 18
+validation, 18 test and 10 holiday blocks. Its price dates come from the same
+2025 series the H2 holdout definition counts, so the data manifest declares how
+many of those dates entered training and what the result still supports.
 """
 
 from __future__ import annotations
@@ -17,49 +19,53 @@ from pathlib import Path
 
 import yaml
 
+import training_contract_v7 as contract_v7
+
 ROOT = Path(".")
-DATA = ROOT / "data/processed/v2_cy_jn_2025"
-# The B1 baseline was recomputed on the corrected radial tree; the load and
-# price inputs are unchanged, so the two roots are named rather than merged.
-DATA_B1 = ROOT / "data/processed/v2_cy_jn_2025_v6"
-OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v6"
-CANDIDATE = "V6_candidate_001"
+LIBRARY = ROOT / "reports/candidate_days_v3_2026-11-17/evidence"
+PRICE_DIR = ROOT / "data/processed/v2_cy_jn_2025"
+OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v7"
+CANDIDATE = "V7_candidate_001"
 INPUTS = (
-    ("near/load_price_pairing.csv", DATA),
-    ("bus_loads_96x33.npz", DATA),
-    ("price_curves.npz", DATA),
-    ("common_split.json", DATA),
-    ("holdout_status.json", DATA),
-    ("b1_terminal_neutral_manifest.json", DATA_B1),
-    ("b1_terminal_neutral_results.csv", DATA_B1),
-    ("b1_terminal_neutral_block_payoffs.json", DATA_B1),
-    ("terminal_soc_config.json", DATA),
-    ("trainer_configs.json", DATA),
+    ("manifest.json", LIBRARY),
+    ("split.json", LIBRARY),
+    ("bus_active_load_mw.npz", LIBRARY),
+    ("bus_reactive_load_mvar.npz", LIBRARY),
+    ("price_curves.npz", PRICE_DIR),
+    # Reads the H2 definition the library's price dates are checked against.
+    ("holdout_manifest.json", PRICE_DIR),
 )
 SOURCE_FILES = (
-    "rl_da_gate.py", "rl_b_c2_gate.py", "train_da_gate.py", "da_quote_map.py",
-    "da_replay.py", "truthful_gate_actor_adapter.py", "rl_spec.py",
-    # rl_bidding.py defines the actor/critic networks and the v4 anchor; it
-    # escaped the v3 pin list and is pinned from v4 on. The calibration
-    # scripts selected the anchor weight and the hinge delta and are pinned
-    # for provenance.
-    "rl_bidding.py", "calibrate_anchor_v4.py", "calibrate_hinge_v4.py",
-    "rl_env.py", "c2_reward.py", "daily_reward_b.py",
-    "b1_daily_baseline.py", "dispatch_socp.py", "v2_cy_jn_env.py",
+    # The environment, the quote map, the actor/critic stack and the trainer.
+    "rl_da_env.py", "rl_da_gate.py", "rl_da_gate_v7.py",
+    "da_quote_map.py", "da_quote_map_v5.py", "rl_spec.py", "rl_spec_v7.py",
+    "rl_env.py", "rl_td3.py", "rl_bidding.py", "rl_b_c2_gate.py",
+    "truthful_gate_actor_adapter.py", "da_replay.py",
+    "c2_reward.py", "daily_reward_b.py", "price_forecaster.py",
+    "participant_payoff.py", "money.py",
+    # The market: library, contracts, clearing, operating rules and pricing.
+    "local_da_days.py", "local_da_contracts.py", "local_da_clearing.py",
+    "local_da_operating.py", "local_da_accounting.py", "local_da_audit.py",
+    "run_local_da.py",
     "checkpoint_writer_v2.py", "checkpoint_loader_v2.py",
-    # The launcher, the contract, the auditor and this generator supply and
-    # check the budget and the stop rule, so they are part of the protocol.
-    "run_formal_training.py", "training_contract.py", "audit_run.py",
-    "make_formal_training_manifests.py",
+    "validate_checkpoint_schema.py",
+    # The launch, the contract and this generator supply and check the budget,
+    # the stop rule and the interfaces, so they are part of the protocol.
+    "train_local_da_v7.py", "training_contract_v7.py", "training_contract.py",
+    "run_formal_training.py", "make_formal_training_manifests.py",
 )
 TESTS = (
-    "tests/test_da_quote_mapping.py",
-    "tests/test_train_da_gate_guards.py",
-    "tests/test_train_da_gate_resume.py",
-    "tests/test_training_contract.py",
+    "tests/test_local_da_env_v7.py",
+    "tests/test_local_da_env_v7_probe.py",
+    "tests/test_local_da_env_v7_reward.py",
+    "tests/test_local_da_v7_days.py",
+    "tests/test_local_da_audit_v7.py",
+    "tests/test_rl_da_gate_v7.py",
+    "tests/test_rl_spec_v7.py",
+    "tests/test_local_da_market.py",
+    "tests/test_smoke_local_da_v7.py",
+    "tests/test_training_contract_v7.py",
     "tests/test_frozen_guard.py",
-    "tests/test_v4_mechanics.py",
-    "src/audit_phase20_action_routing.py",
 )
 
 
@@ -93,69 +99,107 @@ def code_payload() -> dict:
 
 
 def data_payload() -> dict:
-    split_doc = json.loads((DATA / "common_split.json").read_text(
+    split_doc = json.loads((LIBRARY / "split.json").read_text(
         encoding="utf-8"))
-    near = split_doc["near"]
-    sets = {name: set(near[name]) for name in
-            ("train", "validation", "test", "holiday_block")}
-    overlaps = {}
+    sets = {name: set(rows) for name, rows in split_doc["pairs"].items()}
     names = list(sets)
+    overlaps = {}
     for i, left in enumerate(names):
         for right in names[i + 1:]:
             overlaps[f"{left}/{right}"] = sorted(sets[left] & sets[right])
-    legacy = sets["test"] | sets["holiday_block"]
-    status = json.loads((DATA / "holdout_status.json").read_text(
+    legacy = sets["test"] | sets["holiday"]
+    library = json.loads((LIBRARY / "manifest.json").read_text(
         encoding="utf-8"))
-    declared = set(status["legacy_seen_test"]["pairs"])
+    price_dates = {entry.split("|")[1] for rows in split_doc["pairs"].values()
+                   for entry in rows}
+    holdout = json.loads((PRICE_DIR / "holdout_manifest.json").read_text(
+        encoding="utf-8"))
+    h2_dates = {pair.split("|")[1] for pair in holdout["h2_pair_ids"]}
     return {
-        "split_file": str(DATA / "common_split.json"),
-        "split_view": "near",
+        "split_file": str(LIBRARY / "split.json"),
+        "split_view": "v3_candidate_library",
         "split_seed": split_doc["seed"],
-        "pair_key": split_doc.get("pair_key", "load_date|price_date"),
+        "pair_key": "load_date|price_date",
+        "library_size": split_doc["library_size"],
+        "library_dataset_version": library.get("dataset_version"),
         "counts": {name: len(sets[name]) for name in names},
         "train_pairs": sorted(sets["train"]),
         "validation_pairs": sorted(sets["validation"]),
         "test_pairs": sorted(sets["test"]),
-        "holiday_pairs": sorted(sets["holiday_block"]),
+        "holiday_pairs": sorted(sets["holiday"]),
         "legacy_seen_test_pairs": sorted(legacy),
-        "legacy_label": status["legacy_seen_test"]["label"],
-        "legacy_label_matches_declared": sorted(legacy) == sorted(declared),
+        "legacy_label": "LEGACY_SEEN_TEST",
         "overlaps": overlaps,
         "all_disjoint": all(not v for v in overlaps.values()),
-        "h2_opened": False,
+        # The holdout is not sealed. These are the price dates the H2
+        # definition enumerates that the library also used, and the surfaces
+        # the declaration still rules out.
+        "price_dates_used": len(price_dates),
+        "h2_price_dates_used": len(h2_dates & price_dates),
+        "h2_opened": True,
+        "h2_use": contract_v7.H2_USE,
+        "independent_generalisation_claim": False,
         "input_sha256": {
             name: sha(root / name) for name, root in INPUTS
         },
         "test_label": "LEGACY_SEEN_TEST",
-        "independent_generalisation_claim": False,
     }
 
 
 def config_payload(data: dict, code: dict) -> dict:
     return {
         "formal_training": {
-            "experiment_id": "FORMAL_NEAR_COMMON_B_C2_GATE",
-            "protocol_version": 6,
+            "experiment_id": "FORMAL_LOCAL_DA_V7",
+            "protocol_version": 7,
             "accepted_candidate": CANDIDATE,
-            "dataset": "JN-Base-NEAR / common_split near view",
+            "dataset": "v3 candidate-day library: Jiangsu 2021-2022 bus load "
+                       "paired with 2025 day-ahead price dates",
             "split": data["split_file"],
             "split_view": data["split_view"],
             "split_seed": data["split_seed"],
+            "trainer": "src/train_local_da_v7.py",
+            "trainer_split": "local_da_v7",
             "reward_mode": "B_C2",
             "gamma": 0.99,
             "fixed_scale": 100.0,
-            "terminal_soc": {"initial": 0.5, "final": 0.5,
-                             "day_end_window_only": True},
+            # The day ends on whatever SOC it reached; the endpoint is valued
+            # by the settlement's inventory term, never pinned.
+            "terminal_soc": {"mode": "free", "initial": 0.5,
+                             "valuation": "inventory_value at the day end"},
             "cycle_cost_cny_per_mwh": 100.0,
-            "clearing_engine": "socp",
-            "network_support": "line50_q2.0",
-            "b1_source": "b1_terminal_neutral",
-            "settlement": "two_settlement_ledger",
-            "observation": {"name": "v6_12d", "version": 6,
+            "clearing_engine": "exact MIQCP dispatch, fixed-direction "
+                               "conditional pricing",
+            # A training window may read its payoff off a feasible incumbent
+            # when the solver stopped at its time limit and its own reported
+            # relative gap is inside this bound. Settlement and audit paths
+            # pass 0.0 and keep demanding the certified optimum.
+            "training_gap_tolerance": 0.01,
+            # Exploration quotes can make a window hard to certify: one block
+            # of a 2021-06-04 episode found no incumbent at all inside 120 s.
+            # The limit is a search budget, not a criterion; typical blocks
+            # clear in about two seconds.
+            "training_window_seconds": 300.0,
+            "voltage_band_pu": [0.93, 1.07],
+            "reactive_support": "declared zero-active shunt asset at buses "
+                                "17, 31, 32 carried by the library day and "
+                                "by every training window",
+            "settlement": "local day-ahead settlement ledger",
+            "observation": {"name": "v7_12d", "version": 7,
                             "dimensions": 12},
-            "action": {"name": "storage_quote_v4", "version": 4,
+            "action": {"name": "storage_quote_v5", "version": 5,
                        "quote_map": "linear_core_v1",
-                       "dimensions_per_unit": 2,
+                       "dimensions_per_unit": 4,
+                       "quote_order": ["charge_price", "charge_quantity",
+                                       "discharge_price",
+                                       "discharge_quantity"],
+                       "bounds": {"charge_price": [0.0, 150.0],
+                                  "charge_quantity": [0.0, 0.4],
+                                  "discharge_price": [0.0, 300.0],
+                                  "discharge_quantity": [0.0, 0.4]},
+                       "truthful": {"charge_price": 0.0,
+                                    "charge_quantity": 0.4,
+                                    "discharge_price": 0.0,
+                                    "discharge_quantity": 0.4},
                        "ess_order": ["ESS9", "ESS14", "ESS17", "ESS27"]},
             "gate": {"per_unit": 2, "total": 8, "estimator":
                      "straight_through_bernoulli",
@@ -168,32 +212,20 @@ def config_payload(data: dict, code: dict) -> dict:
             "optimizer": {"name": "Adam", "lr": 3e-4, "tau": 0.005,
                           "policy_delay": 2, "batch_size": 128,
                           "buffer_capacity": 6000, "start_steps": 480,
-                          "critic_weight_decay": 0.0,
                           "actor_weight_decay": 1e-5,
                           "calibration_interval": 8},
-            "anchor": {"weight": 0.10,
-                       "form": "sum over an agent's legs of squared quotes "
-                               "scaled by each leg's high, averaged over the "
-                               "batch",
+            "anchor": {"weight": 0.05,
+                       "form": "sum over a unit's quotes of squared "
+                               "box-normalised deviations from truthful, "
+                               "averaged over the batch",
                        "calibrated_by":
-                           "reports/algorithm_diagnostics/"
-                           "v4_anchor_calibration.json",
-                       "selection_rule": "largest weight with zero corner "
-                                         "excess over weight 0",
+                           "reports/local_da_v7_2026-11-18/audit/"
+                           "summary.json (acceptance_6)",
+                       "selection_rule": "largest weight whose gradient share "
+                                         "stays at or below one half",
                        "note": "not a profit-selected hyperparameter"},
             "hinge": {"advantage_hinge_delta": 0.10,
-                      "twin_gap_weight": 1.0,
-                      "form": "-ReLU(Q(a) - Q(a_truthful) - delta_eff) with "
-                              "delta_eff = clamp(twin_gap_weight * "
-                              "|Q1 - Q2|, min=delta)",
-                      "calibrated_by":
-                          "reports/algorithm_diagnostics/"
-                          "v4_hinge_calibration.json",
-                      "selection_rule": "delta = round_up_0.05(max Q "
-                                        "variation over states whose payoff "
-                                        "range over the three lowest quotes "
-                                        "< 0.5 CNY)",
-                      "note": "not a profit-selected hyperparameter"},
+                      "twin_gap_weight": 1.0},
             "sampler": {"uniform_fraction": 0.5, "beta": 0.5,
                         "max_upweight": 5.0},
             "exploration": {"epsilon_start": 0.20, "epsilon_end": 0.05,
@@ -202,20 +234,33 @@ def config_payload(data: dict, code: dict) -> dict:
                             "high_fraction": 0.5},
             "target": {"policy_noise": 0.2, "noise_clip": 0.5},
             "episode": {"blocks": 24, "commit_periods": 4,
-                        "lookahead_periods": 16},
+                        "lookahead_periods": 16, "roll_horizon": 20,
+                        "probe_block": 11},
             "budget": {"seeds": [11, 23],
                        "minimum_rounds": 10,
                        "exposures_per_day_min": 10,
                        "exposures_per_day_max": 15,
-                       "episodes_per_seed_min": 530,
-                       "episodes_per_seed_max": 795,
-                       "block_steps_per_seed_min": 12720,
-                       "block_steps_per_seed_max": 19080,
+                       "episodes_per_seed_min": 900,
+                       "episodes_per_seed_max": 1350,
+                       "block_steps_per_seed_min": 21600,
+                       "block_steps_per_seed_max": 32400,
                        "critic_updates_per_block": 1,
                        "actor_updates_every_blocks": 2},
+            "wall_clock": {
+                "hours_per_seed_min": 12.0,
+                "hours_per_seed_max": 18.0,
+                "status": "recorded for the reader; not a gate",
+                "source": "reports/local_da_v7_2026-11-18/RESULTS.md "
+                          "latency table at roll horizon 20",
+                "hard_block_seconds": 300,
+                "hard_block_note": "a block that reaches the solver limit "
+                                   "spends it; the projection is the typical "
+                                   "block rate and does not bound a day whose "
+                                   "blocks all bind",
+            },
             "validation": {
-                "passes": "after each full pass over the 53 training days",
-                "metric": "mean fleet delta G over the 11 validation days "
+                "passes": "after each full pass over the 90 training days",
+                "metric": "mean fleet delta G over the 18 validation days "
                           "(settlement, not reward)",
                 "best_checkpoint": "highest validation mean fleet delta G",
                 "resume_checkpoint": "every round",
@@ -223,37 +268,36 @@ def config_payload(data: dict, code: dict) -> dict:
                 "early_stop_patience": 3,
             },
             "compatibility": {
-                "supersedes": "reports/v2_cy_jn_2025/formal_training_v5",
-                "reward_scale": "fixed_scale 100 (v4, v5 and v6) vs 1000 "
-                                "(v3): reward and delta-G magnitudes are NOT "
-                                "comparable across protocols; compare "
-                                "settlement-side G_policy/G_b1 in CNY only",
-                "checkpoints": "v6 runs refuse to load a checkpoint from any "
-                               "earlier protocol: the source hashes are part "
-                               "of the frozen manifest, so an earlier "
-                               "checkpoint does not describe the v6 clearing "
-                               "(F4 nodal slack penalties, F6 terminal value "
-                               "under a pinned endpoint, the v6 non-finite "
-                               "guards). The B1 baseline moves to the "
-                               "recomputed artifact, so a v5 run's delta G was "
-                               "measured against a different network",
+                "supersedes": "reports/v2_cy_jn_2025/formal_training_v6",
+                "reward_scale": "fixed_scale 100, unchanged from v4 to v7",
+                "checkpoints": "v7 runs refuse to load a checkpoint from any "
+                               "earlier protocol: the observation name, the "
+                               "quote box and the clearing market all differ, "
+                               "so an earlier checkpoint does not describe a "
+                               "v7 policy",
             },
             "boundaries": {
                 "train_only_in_replay": True,
                 "validation_not_in_replay": True,
                 "test_evaluated": False,
                 "holiday_evaluated": False,
-                "h2_opened": False,
+                "h2_opened": True,
+                "h2_use": contract_v7.H2_USE,
                 "test_label": "LEGACY_SEEN_TEST",
                 "independent_generalisation_claim": False,
             },
             "claims": {
-                "allowed": "formal training on the NEAR80 controlled "
-                           "simulation under the frozen protocol",
-                "not_allowed": "independent generalisation or blind-test "
-                               "result",
-                "old_g10_status": "NO-GO remains for an independent "
-                                  "generalisation claim",
+                "allowed": "limited price-date adaptation on 40 unpaired "
+                           "2025 price dates with historical load scenarios, "
+                           "under this frozen protocol",
+                "not_allowed": "a joint source-load generalisation claim or "
+                               "any independent generalisation claim",
+                "gap_accepted_payoffs": "a training payoff may be read off an "
+                                        "incumbent inside "
+                                        "training_gap_tolerance and is then "
+                                        "known only to that gap; no settlement "
+                                        "payment and no audit price was read "
+                                        "off an uncertified incumbent",
             },
             "code": {
                 "candidate": CANDIDATE,
@@ -263,6 +307,7 @@ def config_payload(data: dict, code: dict) -> dict:
             "data": {
                 "counts": data["counts"],
                 "legacy_seen_test_pairs": data["legacy_seen_test_pairs"],
+                "h2_price_dates_used": data["h2_price_dates_used"],
                 "input_sha256": data["input_sha256"],
             },
         }
@@ -288,8 +333,9 @@ def main(argv=None) -> int:
     manifest = {
         "status": "PENDING_PRETRAINING_VALIDATION",
         "training_readiness_status": None,
-        "scope": ("formal training on NEAR80/common_split; Test is "
-                  "LEGACY_SEEN_TEST; no independent-generalisation claim"),
+        "scope": ("formal training on the v3 local day-ahead library; Test "
+                  "and holiday are LEGACY_SEEN_TEST; the 40 H2 price dates "
+                  "were used for price-date adaptation only"),
         "accepted_candidate": CANDIDATE,
         "data_manifest": "formal_training_data_manifest.json",
         "code_manifest": "formal_training_code_manifest.json",
@@ -300,12 +346,14 @@ def main(argv=None) -> int:
         "code_manifest_sha256": hashlib.sha256(
             json.dumps(code, sort_keys=True).encode("utf-8")).hexdigest(),
         "checks": {
-            "common_split_counts": data["counts"]
-            == {"train": 53, "validation": 11, "test": 11,
-                "holiday_block": 5},
+            "library_counts": data["counts"] == contract_v7.EXPECTED_COUNTS,
             "all_disjoint": data["all_disjoint"],
-            "legacy_label_matches": data["legacy_label_matches_declared"],
-            "h2_sealed": not data["h2_opened"],
+            "legacy_label_declared":
+                data["legacy_label"] == "LEGACY_SEEN_TEST",
+            "h2_declared": (data["h2_price_dates_used"]
+                            == contract_v7.H2_PRICE_DATES_USED
+                            and data["independent_generalisation_claim"]
+                            is False),
         },
     }
     manifest["checks"]["all_pass"] = all(manifest["checks"].values())

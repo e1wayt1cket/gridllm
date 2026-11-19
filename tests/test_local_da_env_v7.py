@@ -38,6 +38,37 @@ class BelowBandClearingModel:
         pass
 
 
+def gap_clearing_model(*, gap, count):
+    """A time-limited exact solve whose incumbent sits the named relative gap."""
+
+    class _Model:
+        def __init__(self, day, *, directions=None, exact=True, seconds=120.0):
+            self.day = day
+            self.exact = exact
+
+        def solve(self, prices=False):
+            names = [unit.name for unit in self.day.storage]
+            periods = self.day.periods
+            result = {"optimal": not self.exact,
+                      "solver_status": 9 if self.exact else 2,
+                      "solution_count": count if self.exact else 1,
+                      "optimality_gap": gap,
+                      "clearing_objective": 1000.0,
+                      "charge": {nm: np.zeros(periods) for nm in names},
+                      "discharge": {nm: np.zeros(periods) for nm in names},
+                      "energy": {nm: np.full(periods + 1, 0.8)
+                                 for nm in names}}
+            if prices:
+                result["lmp_cny_mwh"] = np.zeros(
+                    (periods, self.day.network.buses))
+            return result
+
+        def close(self):
+            pass
+
+    return _Model
+
+
 class DriftingClearingModel:
     """Fixed results whose conditional objective does not reproduce the exact one."""
 
@@ -169,6 +200,41 @@ def test_the_step_stores_a_solve_below_the_band_at_the_band_edge(monkeypatch):
     for name in env.agent_names:
         assert info["soc_raw"][name] < units[name].storage.soc_min
         assert env.prev_soc[name] == units[name].storage.soc_min
+
+
+def window():
+    return window_day(load_pair(PAIR), 0, 20,
+                      soc={f"ESS{b}": 0.5 for b in (9, 14, 17, 27)},
+                      quotes={})
+
+
+def test_an_incumbent_inside_the_gap_bound_clears_and_records_the_gap(
+        monkeypatch):
+    # A time-limited solve is not an infeasible one: the accepted arm keeps the
+    # incumbent and says so, the strict arm refuses the same solve, and the
+    # env counts the accepted block itself, once, so the episode row can show
+    # how many of its blocks were read off an incumbent rather than a proof.
+    monkeypatch.setattr(rl_da_env, "ClearingModel",
+                        gap_clearing_model(gap=5e-3, count=3))
+    accepted = rl_da_env.clear_window(window(), gap_tolerance=0.01)
+    assert accepted["failure"] is None
+    assert accepted["gap_solved"] is True
+    refused = rl_da_env.clear_window(window(), gap_tolerance=0.0)
+    assert refused["failure"] == "CLEAR_UNPROVEN"
+    assert refused["gap_solved"] is False
+
+    env = LocalDABiddingEnv(gap_tolerance=0.01)
+    env.reset(load_pair(PAIR))
+    env.step(truthful(env))
+    assert env.gap_solved_blocks == 1
+
+
+def test_a_solve_without_an_incumbent_is_infeasible_not_unproven(monkeypatch):
+    monkeypatch.setattr(rl_da_env, "ClearingModel",
+                        gap_clearing_model(gap=np.inf, count=0))
+    result = rl_da_env.clear_window(window(), gap_tolerance=0.01)
+    assert result["failure"] == "CLEAR_INFEASIBLE"
+    assert result["gap_solved"] is False
 
 
 def test_the_quote_vector_reaches_the_window_in_leg_order():
