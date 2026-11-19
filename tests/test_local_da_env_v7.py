@@ -19,7 +19,8 @@ def truthful(env):
 class BelowBandClearingModel:
     """A solve that leaves every unit just below its declared SOC band."""
 
-    def __init__(self, day, *, directions=None, exact=True, seconds=120.0):
+    def __init__(self, day, *, directions=None, exact=True, seconds=120.0,
+                 mip_gap=1e-6):
         self.day = day
 
     def solve(self, prices=False):
@@ -42,7 +43,8 @@ def gap_clearing_model(*, gap, count):
     """A time-limited exact solve whose incumbent sits the named relative gap."""
 
     class _Model:
-        def __init__(self, day, *, directions=None, exact=True, seconds=120.0):
+        def __init__(self, day, *, directions=None, exact=True, seconds=120.0,
+                 mip_gap=1e-6):
             self.day = day
             self.exact = exact
 
@@ -72,7 +74,8 @@ def gap_clearing_model(*, gap, count):
 class DriftingClearingModel:
     """Fixed results whose conditional objective does not reproduce the exact one."""
 
-    def __init__(self, day, *, directions=None, exact=True, seconds=120.0):
+    def __init__(self, day, *, directions=None, exact=True, seconds=120.0,
+                 mip_gap=1e-6):
         self.day = day
         self.exact = exact
 

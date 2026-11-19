@@ -25,7 +25,7 @@ ROOT = Path(".")
 LIBRARY = ROOT / "reports/candidate_days_v3_2026-11-17/evidence"
 PRICE_DIR = ROOT / "data/processed/v2_cy_jn_2025"
 OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v7"
-CANDIDATE = "V7_candidate_001"
+CANDIDATE = "V7_candidate_002"
 INPUTS = (
     ("manifest.json", LIBRARY),
     ("split.json", LIBRARY),
@@ -167,17 +167,18 @@ def config_payload(data: dict, code: dict) -> dict:
             "terminal_soc": {"mode": "free", "initial": 0.5,
                              "valuation": "inventory_value at the day end"},
             "cycle_cost_cny_per_mwh": 100.0,
-            "clearing_engine": "exact MIQCP dispatch, fixed-direction "
+            "clearing_engine": "exact MIP dispatch with a binary charge/"
+                               "discharge disjunction, fixed-direction "
                                "conditional pricing",
             # A training window may read its payoff off a feasible incumbent
             # when the solver stopped at its time limit and its own reported
             # relative gap is inside this bound. Settlement and audit paths
             # pass 0.0 and keep demanding the certified optimum.
             "training_gap_tolerance": 0.01,
-            # Exploration quotes can make a window hard to certify: one block
-            # of a 2021-06-04 episode found no incumbent at all inside 120 s.
-            # The limit is a search budget, not a criterion; typical blocks
-            # clear in about two seconds.
+            # The limit is a search budget, not a criterion. The disjunction
+            # gives the exact model a feasible incumbent in seconds; blocks that
+            # cannot be certified inside the limit are still cleared and counted
+            # in gap_solved_blocks.
             "training_window_seconds": 300.0,
             "voltage_band_pu": [0.93, 1.07],
             "reactive_support": "declared zero-active shunt asset at buses "

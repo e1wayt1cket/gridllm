@@ -74,7 +74,10 @@ class SolverTests(unittest.TestCase):
         day = small_day()
         result = clear_day(day, seconds=15)
         self.assertTrue(result["qualified_for_settlement"], result)
-        self.assertEqual(result["dispatch"]["declared_integer_variables"], 0)
+        # The dispatch carries one binary per unit and period; the pricing model
+        # that reads the duals must stay continuous.
+        self.assertGreater(result["dispatch"]["declared_binary_variables"], 0)
+        self.assertEqual(result["pricing"]["declared_integer_variables"], 0)
         np.testing.assert_allclose(result["pricing"]["charge"]["ESS"], [.4, 0], atol=1e-6)
         np.testing.assert_allclose(result["pricing"]["discharge"]["ESS"], [0, .4], atol=1e-6)
         np.testing.assert_allclose(result["pricing"]["lmp_cny_mwh"][:, 0], [20, 200], atol=1e-6)
@@ -99,7 +102,22 @@ class SolverTests(unittest.TestCase):
         self.assertTrue(result["optimal"])
         self.assertLess(abs(result["charge"]["ESS"][0]), 1e-6)
         self.assertLess(abs(result["discharge"]["ESS"][0]), 1e-6)
-        self.assertEqual(result["declared_binary_variables"], 0)
+        self.assertEqual(result["declared_binary_variables"], 1)
+
+    def test_a_quote_that_pays_both_ways_still_clears(self):
+        # A spread on both legs makes the relaxation want simultaneous charge
+        # and discharge; the disjunction is what removes it, and the window must
+        # still certify rather than spend its limit looking for a feasible point.
+        day = small_day(periods=1)
+        bid = StorageBid(np.array([.4]), np.array([.4]), np.array([61.]), np.array([153.]))
+        day = replace(day, bids={"ESS": bid})
+        model = ClearingModel(day, exact=True, seconds=60)
+        try:
+            result = model.solve()
+        finally:
+            model.close()
+        self.assertTrue(result["optimal"], result)
+        self.assertLess(result["charge"]["ESS"][0] * result["discharge"]["ESS"][0], 1e-12)
 
     def test_four_independent_units_and_zero_quantity(self):
         day = small_day()

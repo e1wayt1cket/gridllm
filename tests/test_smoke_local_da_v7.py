@@ -30,7 +30,8 @@ def test_a_missing_clear_and_a_second_inventory_term_fail_their_flags():
 class BelowBandClearingModel:
     """A solve that leaves every unit just below its declared SOC band."""
 
-    def __init__(self, day, *, directions=None, exact=True, seconds=120.0):
+    def __init__(self, day, *, directions=None, exact=True, seconds=120.0,
+                 mip_gap=1e-6):
         self.day = day
 
     def solve(self, prices=False):

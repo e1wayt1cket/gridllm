@@ -49,8 +49,15 @@ FAILURE_CODES = ("CLEAR_INFEASIBLE", "CLEAR_UNPROVEN", "DIRECTIONS_FAILED",
 #: windows cannot certify inside the solver's time limit even though they hold
 #: a feasible incumbent. A training payoff may be read off that incumbent when
 #: its own reported gap is inside this bound; the settlement and audit paths
-#: pass 0.0 and keep demanding the certified optimum.
+#: pass 0.0 and keep demanding the certified optimum. The bound is handed to the
+#: solver as its own stopping rule, so a window certifies to 1% and stops there
+#: instead of spending the time limit closing a gap the settlement already
+#: accepts.
 GAP_TOLERANCE = 0.01
+#: A reported gap above this separation means the dispatch stopped on a relaxed
+#: tolerance rather than on the 1e-6 request, whose own reported gap is bounded
+#: by MIPGapAbs over the objective on these magnitudes.
+CERTIFIED_GAP = 1e-4
 
 
 class EpisodeClearingError(RuntimeError):
@@ -97,7 +104,8 @@ def clear_window(day, *, seconds=120.0, gap_tolerance=0.0):
     output = {"dispatch": None, "pricing": None, "directions": None,
               "idle": None, "failure": None, "direction_unstable": False,
               "gap_solved": False}
-    exact = ClearingModel(day, exact=True, seconds=seconds)
+    exact = ClearingModel(day, exact=True, seconds=seconds,
+                          mip_gap=gap_tolerance or 1e-6)
     try:
         dispatch = exact.solve()
     finally:
@@ -107,7 +115,10 @@ def clear_window(day, *, seconds=120.0, gap_tolerance=0.0):
     if not certified and gap_tolerance > 0.0 and dispatch["solution_count"] > 0:
         certified = (float(dispatch.get("optimality_gap", np.inf))
                      <= gap_tolerance)
-    output["gap_solved"] = bool(certified and not dispatch["optimal"])
+    # A dispatch that stopped on the relaxed tolerance is known to that gap and
+    # not to the 1e-6 request, so the pricing comparison widens with it.
+    relaxed = float(dispatch.get("optimality_gap", 0.0)) > CERTIFIED_GAP
+    output["gap_solved"] = bool(certified and (relaxed or not dispatch["optimal"]))
     if not certified:
         output["failure"] = ("CLEAR_UNPROVEN" if dispatch["solution_count"]
                              else "CLEAR_INFEASIBLE")

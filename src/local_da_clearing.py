@@ -14,7 +14,8 @@ from local_da_contracts import validate_day
 class ClearingModel:
     """A model owns its solver resources; all participants bid simultaneously."""
 
-    def __init__(self, day, *, directions=None, exact=True, seconds=120, log_path=None):
+    def __init__(self, day, *, directions=None, exact=True, seconds=120,
+                 log_path=None, mip_gap=1e-6):
         validate_day(day)
         self.day = day
         self.model = m = gp.Model("independent_local_da")
@@ -27,24 +28,27 @@ class ClearingModel:
         m.Params.TimeLimit = seconds
         m.Params.FeasibilityTol = 1e-8
         m.Params.OptimalityTol = 1e-8
-        # The exact model's quadratics are the exclusivity products and need the
-        # tight barrier. The fixed-direction pricing model has no product left to
-        # converge, and at 1e-10 Gurobi returns SUBOPTIMAL with a solution whose
-        # objective is ~0.005 CNY off the exact one. 1e-8 certifies OPTIMAL and
-        # keeps the returned cone inside the 1e-6 physical audit on the reference
-        # day; Gurobi's default 1e-6 leaves that cone gap at 1.8e-6.
-        m.Params.BarQCPConvTol = 1e-10 if exact else 1e-8
+        # The cones are the only quadratics in either model, and 1e-8 keeps them
+        # inside the 1e-6 physical audit on the reference day; Gurobi's default
+        # 1e-6 leaves that gap at 1.8e-6. A tighter barrier does not buy any
+        # exclusivity now that the disjunction is structural, and at 1e-10 the
+        # exact model stalls before certifying a window the settlement accepts.
+        m.Params.BarQCPConvTol = 1e-8
         m.Params.NumericFocus = 1
         m.Params.SoftMemLimit = 2
-        m.Params.NonConvex = 2 if exact else 0
+        # The exact model's exclusivity is an explicit binary disjunction, so its
+        # only quadratics are the convex cones and the default nonconvex setting
+        # applies. Presolve and presolve's linearization stay on: they are what
+        # turn each disjunction into a branchable cut rather than a continuous
+        # product the solver has to separate by spatial branching.
+        m.Params.NonConvex = 0
         m.Params.QCPDual = int(not exact)
         if exact:
-            m.Params.MIPGap = 1e-6
+            # A caller that already accepts a looser gap hands it in, so the
+            # solver stops there instead of spending its limit closing a gap the
+            # caller would not have used.
+            m.Params.MIPGap = float(mip_gap)
             m.Params.MIPGapAbs = .001
-            # Presolve can replace complementarity by binary disjunctions.
-            # Keep the user model continuous through this transformation too.
-            m.Params.Presolve = 0
-            m.Params.PreQLinearize = 0
         net, periods = day.network, day.periods
         buses, lines = range(net.buses), range(len(net.branches))
         self.v = m.addVars(periods, buses, lb=net.voltage_min ** 2,
@@ -58,12 +62,18 @@ class ClearingModel:
                             name="pcc_net_import")
         self.qcc = m.addVars(periods, lb=-GRB.INFINITY, name="pcc_q")
         self.charge, self.discharge, self.energy = {}, {}, {}
+        self.is_charge = {}
         objective = gp.LinExpr()
         self.idle_positions = []
         for unit in day.storage:
             name, bid = unit.name, day.bids[unit.name]
             self.charge[name] = m.addVars(periods, lb=0, name=f"charge_{name}")
             self.discharge[name] = m.addVars(periods, lb=0, name=f"discharge_{name}")
+            # One disjunction per unit and period; a direction-fixed pricing model
+            # already bounds one leg at zero and needs no binary.
+            if exact and directions is None:
+                self.is_charge[name] = m.addVars(
+                    periods, vtype=GRB.BINARY, name=f"is_charge_{name}")
             self.energy[name] = m.addVars(periods + 1, lb=unit.soc_min * unit.energy_mwh,
                                         ub=unit.soc_max * unit.energy_mwh, name=f"energy_{name}")
             m.addConstr(self.energy[name][0] == unit.soc_initial * unit.energy_mwh)
@@ -84,10 +94,17 @@ class ClearingModel:
                         ch.UB = 0
                 m.addConstr(self.energy[name][t + 1] == self.energy[name][t]
                             + day.dt_hours * (unit.eta_charge * ch - dis / unit.eta_discharge))
-                if exact:
-                    # Express the same equality in kW squared so the solver's
-                    # product tolerance implies sub-micro-MW overlap as well.
-                    m.addQConstr(1e6 * ch * dis == 0, name=f"exclusive_{name}_{t}")
+                if name in self.is_charge:
+                    # Exclusivity as a disjunction over the declared quantities:
+                    # one leg is carried at zero each period. The bilinear
+                    # equality this replaced left the solver to separate a
+                    # product by spatial branching, which in a day of 20-period
+                    # windows could consume the whole limit without an incumbent.
+                    z = self.is_charge[name][t]
+                    m.addConstr(ch <= float(bid.charge_quantity_mw[t]) * z,
+                                name=f"charge_only_if_{name}_{t}")
+                    m.addConstr(dis <= float(bid.discharge_quantity_mw[t]) * (1 - z),
+                                name=f"discharge_only_if_{name}_{t}")
                 objective += day.dt_hours * (float(bid.discharge_price_cny_mwh[t]) * dis
                                              - float(bid.charge_price_cny_mwh[t]) * ch)
         self.generation, self.generator_q = {}, {}
@@ -142,8 +159,10 @@ class ClearingModel:
                     current.UB = float(net.current_sq_limit[line])
         m.setObjective(objective, GRB.MINIMIZE)
         m.update()
-        if m.NumIntVars != 0:
-            raise RuntimeError("The local market must not declare integer variables")
+        # A MIP carries no duals, so the pricing solve must stay continuous: its
+        # directions are already fixed and every leg it does not open is zero.
+        if directions is not None and m.NumIntVars != 0:
+            raise RuntimeError("Conditional pricing must not declare integer variables")
 
     def close(self):
         self.model.dispose()

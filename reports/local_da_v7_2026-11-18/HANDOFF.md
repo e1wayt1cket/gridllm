@@ -75,6 +75,22 @@ by the harness for low system memory while the session was idle, so one seed
 at a time, foreground, in day-sized pieces. Two seeds in parallel is not
 advisable on this machine.
 
+## What the disjunction changed
+
+The exact model now carries a binary charge/discharge disjunction instead of a
+bilinear complementarity equality, and a training window stops at the declared
+1% gap instead of closing it to 1e-6. The record is
+`reports/audit_remediation_2026-11-15/REFREEZE_V7_DISJUNCTION.md`.
+
+Measured on the days that used to abort (`2021-06-13`, `2021-06-04`, seeded
+policy, 24 blocks each): both episodes finished in 48 s and 59 s, no block
+reached the time limit, and every block cleared. The same day on the bilinear
+encoding aborted at block 5 after 300 s with no incumbent.
+
+`gap_solved_blocks` therefore reads 24 on a cleared training day by design: it
+counts the blocks whose payoff is known only to the declared 1%, not a rare
+fallback.
+
 ## What is not established
 
 | item | verdict | reason |
