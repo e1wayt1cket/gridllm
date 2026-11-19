@@ -126,7 +126,9 @@ class MarketModelTests(unittest.TestCase):
             model.close()
         self.assertTrue(result["optimal"])
         np.testing.assert_allclose(result["energy"]["ESS"],.5,atol=1e-7)
-        self.assertEqual(result["declared_binary_variables"],0)
+        # Exclusivity is an explicit disjunction over the declared quantities, so
+        # the dispatch declares one binary per unit and period.
+        self.assertGreater(result["declared_binary_variables"],0)
         with self.assertRaises(ValueError):
             rules.validate(replace(day,terminal_soc_equal=False))
 

@@ -67,6 +67,14 @@ the relaxed tolerance, which is what widens the pricing comparison, so
 pricing solve still declares none; a bid that pays on both legs at once must
 clear rather than consume its limit.
 
+Two unpinned tests asserted the encoding this record retires and were brought
+in line: `test_da_market_system.MarketModelTests.test_zero_quantity_preserves_endpoint_soc`
+now expects the dispatch to declare binaries instead of none, and
+`test_local_da_pricing_tolerance.test_both_models_share_the_cone_barrier_tolerance`
+pins 1e-8 on both models instead of 1e-10 on the exact one. The properties they
+were built for — endpoint SOC under zero quantities, and a cone tolerance the
+physical audit accepts — are unchanged.
+
 ## Acceptance claim that changes
 
 The market no longer carries "the local market must not declare integer
