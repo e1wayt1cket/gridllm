@@ -22,6 +22,7 @@ def measure(date):
     probes = output.get("price_probes") or []
     dispatch = output["dispatch"]
     pricing = output.get("pricing") or {}
+    objective = dispatch.get("clearing_objective")
     return {
         "date": date,
         "price_date": context["price_date"],
@@ -31,7 +32,8 @@ def measure(date):
         "pricing_status": (int(pricing["solver_status"])
                            if "solver_status" in pricing else None),
         "objective_difference_cny": output.get("conditional_objective_difference_cny"),
-        "objective_tolerance_cny": max(.01, abs(dispatch["clearing_objective"]) * 1e-6),
+        "objective_tolerance_cny": (max(.01, abs(objective) * 1e-6)
+                                    if objective is not None else None),
         "price_qualification": output["price_qualification"],
         "qualified_for_settlement": bool(output["qualified_for_settlement"]),
         "idle_direction_stable": output.get("idle_direction_stable"),

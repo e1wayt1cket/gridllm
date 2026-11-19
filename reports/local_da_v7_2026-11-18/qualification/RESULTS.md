@@ -84,10 +84,28 @@ return status 13. The comment above `ClearingModel.BarQCPConvTol` already record
 1e-10 returns suboptimal prices. Recorded in `tolerance_probe.json`; the
 tolerance is not changed on this evidence.
 
+## The first library batch, and the batch that did not finish
+
+`library_a.json` covers the 28 earliest library days: `SMOOTH_PASS` 8,
+`SUBGRADIENT_PASS` 7, `NONSMOOTH_OR_FAILED` 13, `qualified_for_settlement` 14.
+Every pricing solve is status 2. `2021-09-11` carries a passing label and a
+failing settlement, and this record kept no audit breakdown for it, so which
+audit refused it is `NOT_TESTED`.
+
+The label is not reproducible day for day. `2021-08-14` is
+`NONSMOOTH_OR_FAILED` in `after.json` and `SMOOTH_PASS` in `library_a.json`, on
+the same day, the same default and the same code. A single run's label is
+therefore not evidence that a day is qualified; only the probe records are.
+
+`BLOCKED`: batches two to five, 108 days. The first attempt raised `KeyError:
+'clearing_objective'` on a day whose exact dispatch did not solve (the recorder
+now tolerates that and records the failure string); the second was stopped by
+the system for low memory. Neither is restarted here, so the 136-day counts are
+`NOT_TESTED`.
+
 ## Not covered
 
-- The 136-day re-measurement is `NOT_TESTED`. At 12 s per day it is about 27
-  minutes and must run in foreground batches.
+- The 136-day counts are `NOT_TESTED` for the reason above.
 - The sample is 16 of 136 days and is not a rate estimate for the library.
 - `SMOOTH_PASS` and `SUBGRADIENT_PASS` counts are reported separately and are
   not added into a single "qualified" figure.
