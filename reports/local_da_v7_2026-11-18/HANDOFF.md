@@ -6,7 +6,8 @@ manifest `reports/v2_cy_jn_2025/formal_training_v7/`, re-freeze record
 supersedes `REFREEZE_V7.md`.
 
 Nothing below authorises a launch. `run_formal_training.py --seed` refuses
-while `status` is not `GO_FORMAL_TRAINING`, and it is `null`.
+while `status` is not `GO_FORMAL_TRAINING`, and it is `null`. Recorded
+2026-11-19; no formal run exists under any v7 hash.
 
 ## Gate state
 
@@ -115,11 +116,47 @@ fallback.
    (`RESULTS.md`, `qualification/summary.json`, `smoke.json`, the audit
    summary) into one record whose `all_pass` is computed from those items,
    and `make_formal_training_manifests.py --finalize` then reads it.
-3. The full suite green apart from the known pre-existing failure, which is
-   where the tree stands: `python -m pytest tests/ -q` on the committed tree
-   gives `1 failed, 1578 passed, 53 deselected` in 1162 s, and the failure is
+3. The full suite green apart from the known pre-existing failure. The last
+   completed full run was on the disjunction tree before two of its tests were
+   reconciled: `python -m pytest tests/ -q` gave `3 failed, 1577 passed, 53
+   deselected` in 1051 s. One of those three is
    `test_da_market_system::test_standard_cone_matches_rotated_form_and_ac`,
-   which fails at HEAD and touches no file this protocol pins.
+   which fails at HEAD and touches no file this protocol pins. The other two
+   asserted the retired encoding — no integer variables in the dispatch, and a
+   1e-10 barrier on the exact model — and were rewritten, together with the
+   re-freeze record, in the commit named below. The four files those tests live
+   in then ran `40 passed, 1 failed` (the pre-existing failure), but the
+   confirming full run was stopped before it finished, so "green apart from the
+   known failure" is `NOT_TESTED` for the current tree.
+
+## Where the tree stands at this stop
+
+Committed:
+
+- the disjunction and the gap hand-off (`local_da_clearing.py`, `rl_da_env.py`),
+  `4cfba8a`;
+- the regenerated v7 manifests and the re-freeze record, `a707e2d`;
+- this handoff's corrected rows, `8c5d721`;
+- the two reconciled tests and the record paragraph naming them, `8d825cd`.
+
+Re-verified after the test edits: the gate still reports `all_pass: true`,
+`config_sha256: 8db03638…`, `status: null`; the pinned file set was not
+touched by them.
+
+Stopped, not done:
+
+- the full-suite run that would confirm the reconciled tree (killed on
+  request, not by memory pressure);
+- any launcher round beyond episode 2 (see the table above);
+- `tools/run_da_market.py` and `tools/run_candidate_q050.py` remain untracked
+  pending a check that they write no frozen directory;
+- `tmp/manifest_superseded/` holds five abandoned manifest directories that
+  await an owner's decision to delete.
+
+Four tracked files were already modified when this work started and were left
+untouched by it: `docs/2026-09-18-matd3-smoke.md`,
+`docs/2026-09-20-external-wholesale-price.md`, `tools/check_checkpoint_obs.py`
+and `tools/demo_snapshot.py`. They carry no part of this protocol.
 
 Recommendation: **NO-GO** until item 1 exists. The environment and the market
 are frozen and gated; the launcher has not yet shown it can carry a day.
