@@ -9,18 +9,25 @@ the live manifest. No formal run and no formal round exists under any v7 hash.
 Re-measuring the 136-day library on the disjunction tree
 (`reports/local_da_v7_2026-11-20/qualification/`) returned:
 
-| | bilinear, `BarQCPConvTol=1e-10` | disjunction, `1e-8` |
-| --- | --- | --- |
-| `SMOOTH_PASS` | 22 | 19 |
-| `SUBGRADIENT_PASS` | 55 | 62 |
-| `NONSMOOTH_OR_FAILED` | 59 | 55 |
-| label-qualified | 77 | 81 |
-| settle-qualified | 62 | **38** |
-| label-qualified but not settle-qualified | 15 | **43** |
+| | bilinear, `BarQCPConvTol=1e-10` | disjunction, cone `1e-6` | disjunction, cone `1e-5` |
+| --- | --- | --- | --- |
+| `SMOOTH_PASS` | 22 | 19 | 19 |
+| `SUBGRADIENT_PASS` | 55 | 62 | 62 |
+| `NONSMOOTH_OR_FAILED` | 59 | 55 | 55 |
+| label-qualified | 77 | 81 | 81 |
+| settle-qualified | 62 | **38** | **80** |
+| label-qualified but not settle-qualified | 15 | **43** | 1 |
 
-Twenty days that settled before stopped settling; six started. Every dispatch
-was optimal and every price solve optimal on all 136 days; the loss is entirely
-in the settlement audit.
+Thirty days that settled before stopped settling, and six that had not started
+settling, when the disjunction moved the barrier tolerance. Every dispatch and
+every price solve was optimal on all 136 days; the loss was entirely in the
+settlement audit. Giving the cone check its own bound recovers 42 of them and
+loses none.
+
+All three columns are `reports/local_da_v7_2026-11-18/qualification/`,
+`reports/local_da_v7_2026-11-20/qualification/` and
+`reports/local_da_v7_2026-11-20/qualification_cone_tol/`, five batches each
+over the same 136 library days.
 
 ## What was actually wrong
 
@@ -69,8 +76,14 @@ re-solves the nonlinear radial flow from the cleared injections and fails when
 the cone is structurally open. What the change stops demanding is that a
 bookkeeping variable be resolved finer than the solver was asked to resolve it.
 
-`1e-5` clears the sampled maximum by 1.5x. Days outside the sample may exceed
-it; that is a measured limit, not a proof of coverage.
+Measured over the whole library after the change, exactly one day exceeds the
+bound, and it is the exact model rather than the dispatch: `2022-10-30` reports
+an `exact_physical_audit` cone residual of `1.81e-5` while its dispatch audit
+reads `4.29e-8`, every other item on both models stays at `1e-10`, and
+`ac_replay` matches to `3.3e-11` pu. That day stays unqualified for settlement.
+It is a measured limit of the bound, not a proof of coverage, and it is not
+grounds for another loosening: the bound was chosen from the failure
+distribution, not fitted until the count reached 81.
 
 ## Gate proof
 
@@ -108,9 +121,10 @@ The superseded manifest set is at `tmp/manifest_superseded/v7_b8b61d8d/`.
 
 ## Not validated
 
-- The 136-day qualification has not been re-run under the new bound. The
-  recovery of the twenty days is measured on fifteen of them; the count of
-  settle-qualified days under this candidate is `NOT_TESTED`.
 - The barrier/tolerance pair was not tuned jointly. `1e-9` and `1e-10` were
   sampled on three days each, not swept.
+- `2022-10-30` is in the training block and would be unqualified at the frozen
+  schedule. `rl_da_env.block_payoffs` settles the window anyway and does not
+  gate reward on qualification, so it costs a flagged episode row, not a lost
+  day. That is the current behaviour, not a decision that it is the right one.
 - No formal run exists under `0f35fed8`.

@@ -62,11 +62,18 @@ prices, 24 unsmooth probes).
 **Re-measured on the disjunction tree, 2026-11-20**
 (`reports/local_da_v7_2026-11-20/qualification/`): `SMOOTH_PASS` 19,
 `SUBGRADIENT_PASS` 62, `NONSMOOTH_OR_FAILED` 55, label-qualified 81, and only
-**38** settle. Twenty days that settled before stopped settling, all of them on
+**38** settle. Thirty days that settled before stopped settling, all of them on
 `cone_tightness_max_mw2` alone, with `ac_replay` passing to `1e-10` pu. The
 cause was the barrier tolerance the disjunction refreeze moved from `1e-10` to
 `1e-8`; `REFREEZE_V7_CONE_TOL.md` gives the cone check its own `1e-5` bound.
-The 136-day count under that bound is `NOT_TESTED`.
+
+**Under that bound, 2026-11-20**
+(`reports/local_da_v7_2026-11-20/qualification_cone_tol/`, the same 136 days):
+labels unchanged at 19 / 62 / 55, label-qualified 81, and **80** settle — 42
+recovered, none lost. The one label-qualified day that does not settle is
+`2022-10-30`: its exact-model cone residual is `1.81e-5` while its dispatch
+audit reads `4.29e-8` and `ac_replay` matches to `3.3e-11` pu. The bound was
+not loosened further to take it.
 
 ## Cost per seed
 
