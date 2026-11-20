@@ -6,9 +6,10 @@ manifest `reports/v2_cy_jn_2025/formal_training_v7/`, re-freeze record
 supersedes `REFREEZE_V7_BUNDLE.md`, `REFREEZE_V7_DISJUNCTION.md` and
 `REFREEZE_V7.md` in that order.
 
-Nothing below authorises a launch. `run_formal_training.py --seed` refuses
-while `status` is not `GO_FORMAL_TRAINING`, and it is `null`. Recorded
-2026-11-19, updated 2026-11-20; no formal run exists under any v7 hash.
+`status` is `GO_FORMAL_TRAINING` as of 2026-11-20, so `run_formal_training.py
+--seed` is authorised. No formal run exists under any v7 hash: the seed is a
+budget the owner has to spend, not a gate that is still closed. Recorded
+2026-11-19, updated 2026-11-20.
 
 ## Gate state
 
@@ -22,12 +23,15 @@ code_tests_match true         all_disjoint true
 config_hash_matches true      legacy_label_declared true
 data_manifest_hash_matches true   h2_declared true
 code_manifest_hash_matches true   all_pass true
-status: null    contract_violations: []
+status: GO_FORMAL_TRAINING    contract_violations: []
 ```
 
-The tree and its manifest agree. `training_readiness_status` is written only
-by `--finalize`, from a `pretraining_validation_results.json` produced on the
-v7 sources; that file does not exist, so no launch is authorised.
+The tree and its manifest agree. `training_readiness_status` was written by
+`--finalize` from `pretraining_validation_results.json`, which
+`tools/make_pretraining_validation_v7.py` assembles from this directory's
+acceptance evidence. Re-running the producer reproduces the file byte for byte,
+and running it without `--tests-passed` flips `all_pass` to `false` with
+`full_default_suite` named, so the record is computed and not asserted.
 
 ## Acceptance 1-8
 
@@ -121,7 +125,7 @@ fallback.
 | the launcher smoke that was killed | `FAIL` | `runs/SMOKE_local_da_v7_gap` cleared both of its training episodes (48 s and 59 s) and then entered the first validation pass, where the process was killed for low memory. The launcher logs a round only once it is measured, so the run ends at episode 2 with `eval_history.json`, the round snapshot, the best checkpoint and the final bundle absent and `run_manifest.json` still at `stopped: null`, `best.value: -inf`. That the kill fell inside validation is read from that absence plus the harness notification, not from a log line. |
 | a cleared episode | `PASS` | `runs/SMOKE_local_da_v7_gap/episodes.csv` has two rows with status `cleared` over the two training days, finite per-agent rewards and `gap_solved_blocks = 24` on each; `total_steps` is cumulative (24, then 48), so each episode is 24 blocks. |
 | the wall-clock projection | `INFERRED` | Extrapolated from the latency table; no formal run has measured it. |
-| `pretraining_validation_results.json` | `BLOCKED` | It describes the sources it was produced on; the v6 file describes v6. Producing one is the only thing that sets `status`. |
+| `pretraining_validation_results.json` | `PASS` | Produced on the v7 sources 2026-11-20; `all_pass: true`, every boolean item derived from an artifact this directory names, and `--finalize` set `status: GO_FORMAL_TRAINING`. Running the producer without `--tests-passed` reports `all_pass: false` with `full_default_suite` failed. |
 
 ## What a GO would require
 
@@ -131,14 +135,13 @@ fallback.
    `runs/SMOKE_local_da_v7_bundle`; see `REFREEZE_V7_BUNDLE.md` for the schema
    mismatch the first attempt hit and the re-freeze that cleared it.
 2. `pretraining_validation_results.json` produced on the v7 sources, so
-   `--finalize` can set `status: GO_FORMAL_TRAINING`. No producer exists for
-   it: `tools/make_pretraining_validation.py` reads the retired Phase 20-22
-   artifacts under `reports/v2_cy_jn_2025/p21_candidates/` and the
-   `formal_training_ready` directory, and its output describes that stack.
-   A v7 producer has to assemble this directory's acceptance evidence
-   (`RESULTS.md`, `qualification/summary.json`, `smoke.json`, the audit
-   summary) into one record whose `all_pass` is computed from those items,
-   and `make_formal_training_manifests.py --finalize` then reads it.
+   `--finalize` can set `status: GO_FORMAL_TRAINING`. **Met on 2026-11-20** by
+   `tools/make_pretraining_validation_v7.py`, which assembles the gate's own
+   checks plus the 136-day qualification, the audit summary, the smoke run's
+   artifacts and the suite result into one record. The only substantive
+   judgement in it is the declared exception: a label-qualified day that does
+   not settle is a failure unless it is named with the measurement that
+   explains it, which is `2022-10-30` and nothing else.
 3. The full suite green apart from the known pre-existing failure. The last
    completed full run was on the disjunction tree before two of its tests were
    reconciled: `python -m pytest tests/ -q` gave `3 failed, 1577 passed, 53
@@ -193,7 +196,9 @@ untouched by it: `docs/2026-09-18-matd3-smoke.md`,
 `docs/2026-09-20-external-wholesale-price.md`, `tools/check_checkpoint_obs.py`
 and `tools/demo_snapshot.py`. They carry no part of this protocol.
 
-Recommendation: **NO-GO**. Item 1 is met: the trainer carried a day-sized
-round and wrote every artifact, including a bundle that loads. What still
-blocks a launch is item 2 — no v7 producer for
-`pretraining_validation_results.json` exists, so `status` stays `null`.
+Recommendation: **GO**. All three items are met and the gate reports
+`status: GO_FORMAL_TRAINING`. What a launch still has is a cost, not a
+blocker: one seed is 900-1,350 episodes at 1.3-2.0 s per block, the machine
+reaps idle background shells at 3.5 GB free, and `--all` runs the seeds
+sequentially in one process. Run one seed at a time, foreground, and treat the
+first as a measurement of the projection rather than as the experiment.

@@ -101,8 +101,12 @@ status: null    accepted_candidate: V7_candidate_004
 config_sha256: 0f35fed8    contract_violations: []
 ```
 
-`status` stays null: the readiness status is written only by `--finalize`, and
-no `pretraining_validation_results.json` exists for v7.
+`status` read `null` when this bound was frozen, because `training_readiness_status`
+is written only by `--finalize`. It was set to `GO_FORMAL_TRAINING` on the same
+day from `pretraining_validation_results.json`, which
+`tools/make_pretraining_validation_v7.py` assembles from this directory's
+acceptance evidence; the finalize re-ran the gate with `all_pass: true` and no
+contract violation.
 
 ## Tests
 

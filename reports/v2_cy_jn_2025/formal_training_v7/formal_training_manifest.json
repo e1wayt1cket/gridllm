@@ -1,6 +1,6 @@
 {
-  "status": "PENDING_PRETRAINING_VALIDATION",
-  "training_readiness_status": null,
+  "status": "finalized",
+  "training_readiness_status": "GO_FORMAL_TRAINING",
   "scope": "formal training on the v3 local day-ahead library; Test and holiday are LEGACY_SEEN_TEST; the 40 H2 price dates were used for price-date adaptation only",
   "accepted_candidate": "V7_candidate_004",
   "data_manifest": "formal_training_data_manifest.json",
@@ -15,5 +15,8 @@
     "legacy_label_declared": true,
     "h2_declared": true,
     "all_pass": true
-  }
+  },
+  "pretraining_validation_results": "reports\\v2_cy_jn_2025\\formal_training_v7\\pretraining_validation_results.json",
+  "training_readiness": "reports\\v2_cy_jn_2025\\formal_training_v7\\training_readiness.md",
+  "finalized_on": "2026-11-20"
 }

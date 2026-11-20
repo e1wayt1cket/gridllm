@@ -20,11 +20,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   manifest's source pins are checked; older pins are superseded.
 - Formal launch gate: `src/run_formal_training.py --check` must report
   `all_pass: true` and `budget_contract_ok: true`, and `status` must be
-  `GO_FORMAL_TRAINING`. v7 currently verifies `all_pass: true` with
-  `status: null`: its `training_readiness_status` is written only by
-  `--finalize`, from a `pretraining_validation_results.json` produced on the
-  v7 sources. A protocol change invalidates the previous protocol's
-  validation, so no launch is authorized until that file is regenerated.
+  `GO_FORMAL_TRAINING`. v7 verifies `all_pass: true` with
+  `status: GO_FORMAL_TRAINING`: its `training_readiness_status` is written only
+  by `--finalize`, from a `pretraining_validation_results.json` produced on the
+  v7 sources by `tools/make_pretraining_validation_v7.py`. A protocol change
+  invalidates the previous protocol's validation, so a re-freeze needs that
+  record regenerated before any launch.
   The budget invariants live in `src/training_contract.py` for v6 and in
   `src/training_contract_v7.py` for v7, selected by `protocol_version`.
 - Rules: [training contract](.claude/rules/training_contract.md),

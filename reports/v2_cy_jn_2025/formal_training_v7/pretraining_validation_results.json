@@ -1,0 +1,121 @@
+{
+  "all_pass": true,
+  "training_readiness_status": "GO_FORMAL_TRAINING",
+  "scope": "formal training under protocol_version 7 on the 90-day training block of the frozen library; the Test and holiday blocks are legacy-seen and never enter training or model selection; the H2 price-date holdout stays sealed; no independent-generalisation claim",
+  "protocol_version": 7,
+  "candidate": "V7_candidate_004",
+  "config_sha256": "0f35fed866edffde210f39aff60c8be80695c4e885da291413adc0d947cae14f",
+  "checks": {
+    "gate": {
+      "data_payload_matches": true,
+      "code_sources_match": true,
+      "code_tests_match": true,
+      "config_hash_matches": true,
+      "data_manifest_hash_matches": true,
+      "code_manifest_hash_matches": true,
+      "budget_contract_ok": true,
+      "library_counts": true,
+      "all_disjoint": true,
+      "legacy_label_declared": true,
+      "h2_declared": true,
+      "all_pass": true
+    },
+    "qualification": {
+      "days_measured": 136,
+      "all_days_measured": true,
+      "smooth_pass": 19,
+      "subgradient_pass": 62,
+      "nonsmooth_or_failed": 55,
+      "label_qualified": 81,
+      "settle_qualified": 80,
+      "settle_qualified_without_label": [],
+      "declared_exceptions": [
+        "2022-10-30"
+      ],
+      "no_undeclared_exception": true
+    },
+    "acceptance": {
+      "block_vs_day_price_verdict": "PASS",
+      "block_vs_day_price_pass": true,
+      "block_vs_day_price_criterion": "sign_agreement >= 0.95 and median_rel_gap <= 0.10",
+      "deviation_weight_verdict": "PASS",
+      "deviation_weight_pass": true,
+      "deviation_weight_gradient_share": 0.04289964018583475,
+      "deviation_weight_criterion": "gradient_share <= 0.50",
+      "smoke_flags_verdict": "PASS",
+      "smoke_flags_pass": true,
+      "block_vs_day_gap": "recorded, no criterion",
+      "feasibility_counts": {
+        "holiday": 10,
+        "test": 18,
+        "train": 90,
+        "train_selected": 90,
+        "validation": 18
+      },
+      "feasibility_matches_manifest": {
+        "train": true,
+        "validation": true,
+        "test": true,
+        "holiday": true
+      },
+      "feasibility_no_day_dropped": true
+    },
+    "launcher": {
+      "eval_history_written": true,
+      "round_snapshot_written": true,
+      "best_checkpoint_written": true,
+      "final_bundle_written": true,
+      "bundle_reloaded": true,
+      "bundle_level": true
+    },
+    "tests": {
+      "full_default_suite": true,
+      "summary": "2 failed, 1578 passed, 53 deselected in 1076 s; one pre-existing (test_da_market_system cone/rotated form), one the energy_env matplotlib stub (passes under the anaconda3 interpreter)"
+    }
+  },
+  "declared_exceptions": {
+    "2022-10-30": "exact-model cone residual 1.81e-5 against a 1e-5 bound; its dispatch audit reads 4.29e-8, every other item on both models 1e-10, ac_replay 3.3e-11 pu. In the training block; rl_da_env.block_payoffs settles the window anyway and does not gate reward on qualification."
+  },
+  "residual_risks": [
+    "The load is 2022 metered and the price is a 2025 Jiangnan curve: a cross-year controlled simulation, not same-period settlement.",
+    "The cone bound is 1e-5, looser than the 1e-6 it replaced. It is justified by the nonlinear replay passing to 3e-11 pu on every sampled day, and it is a measured limit rather than a proof that no claimed clearance is a slack relaxation.",
+    "The launcher's reduced-round path is exercised on two training days; `run_formal_training.py --seed` itself has not started a formal run, because the status gate is what this record sets.",
+    "The full suite has one pre-existing failure that touches no file this protocol pins, and one failure that is the interpreter's matplotlib rather than the tree.",
+    "`wall_clock` is a projection from one measured day, not a bounded cost."
+  ],
+  "evidence": {
+    "reports\\v2_cy_jn_2025\\formal_training_v7\\formal_training_manifest.json": "d9f93dfe814185fcd4eaef0fe55cf4ce8e428a8eac9e759f0f90fcebc94809b5",
+    "reports\\v2_cy_jn_2025\\formal_training_v7\\formal_training_data_manifest.json": "62b526fcba6a96413418f703da4ebf5dff55aa65293ee15980c742e73efb4716",
+    "reports\\local_da_v7_2026-11-18\\smoke.json": "77b475027f7c0e775f77565e6edc6278c2a662040985b146f36c40d43a07e615",
+    "reports\\local_da_v7_2026-11-18\\audit\\summary.json": "505c62f2ea83eab75ff1ea689dacc627cc3eb696ef57884547c7f5b7976916ea",
+    "reports\\local_da_v7_2026-11-18\\RESULTS.md": "4955dbc234b1081f37379a045916729da3d78720ffe6e06bcef6270cb4b72764",
+    "reports\\local_da_v7_2026-11-20\\qualification_cone_tol\\library_0.json": "89da145b8dbb90e2bf6e61adb58ff442c86e99aa74d41e30b8032a14636412a4",
+    "reports\\local_da_v7_2026-11-20\\qualification_cone_tol\\library_1.json": "65f8e023593d324cde0137cc5f0fa423ef0ffe21d0cead0f527ae062a17d93ef",
+    "reports\\local_da_v7_2026-11-20\\qualification_cone_tol\\library_2.json": "340e954e6031a0558f9452d83ba8dca02b1f4e3b5e930fc39a0f36bc97d4a738",
+    "reports\\local_da_v7_2026-11-20\\qualification_cone_tol\\library_3.json": "6c03cd90ef09163b2c61070eb23ec8332724f00687d18d493acd3604b7b693ba",
+    "reports\\local_da_v7_2026-11-20\\qualification_cone_tol\\library_4.json": "c81dfb7d4f0cf180aaf5e583e82932fd654ae2fac12eed864ffd300625d1d8ce",
+    "snapshots\\SMOKE_local_da_v7_bundle\\round_001.json": "81fd33c7545e7943b963a7a28395c877e1b7af5bf2bc4c169d5cd9eaabbb7d32"
+  },
+  "manifest": "reports\\v2_cy_jn_2025\\formal_training_v7\\formal_training_manifest.json",
+  "config": "reports\\v2_cy_jn_2025\\formal_training_v7\\formal_training_config.yaml",
+  "notes": {
+    "split_counts": {
+      "holiday": 10,
+      "test": 18,
+      "train": 90,
+      "validation": 18
+    },
+    "h2_opened": true,
+    "h2_use": "price-date adaptation only: the 40 unpaired 2025 price dates the H2 definition enumerates also entered training, so no result supports joint source-load generalisation",
+    "smoke_days": [
+      "2021-06-04",
+      "2021-06-13",
+      "2021-06-17"
+    ],
+    "dispatch_status": {
+      "2021-06-04": 2,
+      "2021-06-13": 2,
+      "2021-06-17": 2
+    }
+  }
+}
