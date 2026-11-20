@@ -1,7 +1,7 @@
 formal_training:
   experiment_id: FORMAL_LOCAL_DA_V7
   protocol_version: 7
-  accepted_candidate: V7_candidate_002
+  accepted_candidate: V7_candidate_003
   dataset: 'v3 candidate-day library: Jiangsu 2021-2022 bus load paired with 2025
     day-ahead price dates'
   split: reports\candidate_days_v3_2026-11-17\evidence\split.json
@@ -169,7 +169,7 @@ formal_training:
       and is then known only to that gap; no settlement payment and no audit price
       was read off an uncertified incumbent
   code:
-    candidate: V7_candidate_002
+    candidate: V7_candidate_003
     source_sha256:
       rl_da_env.py: 06e6aed320b07ffda58406914c261ced7e5f70c5132cb9d57fedcfb507ceaf9f
       rl_da_gate.py: bbd14fe4cbffe8dbe8472435464001e4854f6e83eee1a63689562361d53fd2f2
@@ -199,13 +199,13 @@ formal_training:
       checkpoint_writer_v2.py: bac5c3c909d38f37d86c12929bb83580ce2f9d60412ceae31a5b2587b21cfd90
       checkpoint_loader_v2.py: 23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe
       validate_checkpoint_schema.py: 78893c7cd88c87810843748e2ac1cedd5ed0a35f26595db04420efd70628da2f
-      train_local_da_v7.py: 516dc1c1072941f3e324aac5cf74ea00f7e854d7afed6ef0c94b000f8dc5c99d
+      train_local_da_v7.py: 6b698a90b52daddd3fc739767f809e5b3745f9978d79f0943931480535042bf8
       training_contract_v7.py: 1a0b6d49774d3c7deb1a97051be4c0a40fda21a171819831d8501629c8f9d99d
       training_contract.py: db4bda665106ff1fad9ee50fb2e31e1510b63ac3d7f1d2792ff4501bbd3c1fe4
       run_formal_training.py: d98e5733f757189159ab5dcb3f14990ef074cc13f58cc30d2252b750478409d1
-      make_formal_training_manifests.py: 69fb22b6b3c9a87e832b3e44ec4c702adcd85d352eca04dc747b2c3b3a5b0256
+      make_formal_training_manifests.py: d7a8a345adbaaa6f7e8523cf4ff63f132221af91c56a836bba50bb82ad4ea73b
     git:
-      revision: 4cfba8a
+      revision: 7c476fc
       dirty: true
       dirty_paths:
       - ocs/2026-09-18-matd3-smoke.md
@@ -215,6 +215,8 @@ formal_training:
       - reports/v2_cy_jn_2025/formal_training_v7/formal_training_data_manifest.json
       - reports/v2_cy_jn_2025/formal_training_v7/formal_training_manifest.json
       - reports/v2_cy_jn_2025/formal_training_v7/manifest_generation.json
+      - src/make_formal_training_manifests.py
+      - src/train_local_da_v7.py
       - tools/check_checkpoint_obs.py
       - tools/demo_snapshot.py
       - .agents/
@@ -243,6 +245,7 @@ formal_training:
       - reports/physical_infeasibility_2026-11-13/
       - reports/withdrawal_diagnosis_2026-11-14/
       - reports/workspace_occupancy_2026-11-17.md
+      - snapshots/SMOKE_local_da_v7_round/
       - tmp/band_0.90.json
       - tmp/con_after.npz
       - tmp/con_before.npz

@@ -1,13 +1,13 @@
 # v7 formal launch: GO / NO-GO handoff
 
-Protocol `v7`, candidate `V7_candidate_002`, config hash `8db03638`,
+Protocol `v7`, candidate `V7_candidate_003`, config hash `b8b61d8d`,
 manifest `reports/v2_cy_jn_2025/formal_training_v7/`, re-freeze record
-`reports/audit_remediation_2026-11-15/REFREEZE_V7_DISJUNCTION.md`, which
-supersedes `REFREEZE_V7.md`.
+`reports/audit_remediation_2026-11-15/REFREEZE_V7_BUNDLE.md`, which supersedes
+`REFREEZE_V7_DISJUNCTION.md` and, through it, `REFREEZE_V7.md`.
 
 Nothing below authorises a launch. `run_formal_training.py --seed` refuses
 while `status` is not `GO_FORMAL_TRAINING`, and it is `null`. Recorded
-2026-11-19; no formal run exists under any v7 hash.
+2026-11-19, updated 2026-11-20; no formal run exists under any v7 hash.
 
 ## Gate state
 
@@ -97,7 +97,8 @@ fallback.
 
 | item | verdict | reason |
 | --- | --- | --- |
-| the launcher on a full round | `NOT_TESTED` | `runs/SMOKE_local_da_v7_gap` cleared both of its training episodes (48 s and 59 s) and then entered the first validation pass, where the process was killed for low memory. The launcher logs a round only once it is measured, so the run ends at episode 2 with `eval_history.json`, the round snapshot, the best checkpoint and the final bundle absent and `run_manifest.json` still at `stopped: null`, `best.value: -inf`. That the kill fell inside validation is read from that absence plus the harness notification, not from a log line. |
+| the launcher on a full round | `PASS` for the trainer path, `NOT_TESTED` for the gate | `runs/SMOKE_local_da_v7_bundle` cleared two training episodes, measured one validation round over two days, and wrote `eval_history.json`, `snapshots/SMOKE_local_da_v7_bundle/round_001.json`, the best checkpoint and the final bundle; `load_checkpoint` reads that bundle back. The first attempt, `runs/SMOKE_local_da_v7_round`, completed the same round but died writing the bundle on a schema mismatch (`REFREEZE_V7_BUNDLE.md`). `run_formal_training.py --seed` itself is still unexercised: it refuses at the `status` gate before reaching the trainer. |
+| the launcher smoke that was killed | `FAIL` | `runs/SMOKE_local_da_v7_gap` cleared both of its training episodes (48 s and 59 s) and then entered the first validation pass, where the process was killed for low memory. The launcher logs a round only once it is measured, so the run ends at episode 2 with `eval_history.json`, the round snapshot, the best checkpoint and the final bundle absent and `run_manifest.json` still at `stopped: null`, `best.value: -inf`. That the kill fell inside validation is read from that absence plus the harness notification, not from a log line. |
 | a cleared episode | `PASS` | `runs/SMOKE_local_da_v7_gap/episodes.csv` has two rows with status `cleared` over the two training days, finite per-agent rewards and `gap_solved_blocks = 24` on each; `total_steps` is cumulative (24, then 48), so each episode is 24 blocks. |
 | the wall-clock projection | `INFERRED` | Extrapolated from the latency table; no formal run has measured it. |
 | `pretraining_validation_results.json` | `BLOCKED` | It describes the sources it was produced on; the v6 file describes v6. Producing one is the only thing that sets `status`. |
@@ -106,7 +107,9 @@ fallback.
 
 1. The launcher completing one full round on a reduced day set, under
    `--seconds 300`, writing `eval_history.json`, a round snapshot, a best
-   checkpoint and a final bundle.
+   checkpoint and a final bundle. **Met on 2026-11-20** by
+   `runs/SMOKE_local_da_v7_bundle`; see `REFREEZE_V7_BUNDLE.md` for the schema
+   mismatch the first attempt hit and the re-freeze that cleared it.
 2. `pretraining_validation_results.json` produced on the v7 sources, so
    `--finalize` can set `status: GO_FORMAL_TRAINING`. No producer exists for
    it: `tools/make_pretraining_validation.py` reads the retired Phase 20-22
@@ -143,11 +146,16 @@ Re-verified after the test edits: the gate still reports `all_pass: true`,
 `config_sha256: 8db03638…`, `status: null`; the pinned file set was not
 touched by them.
 
+The bundle-slot re-freeze (`train_local_da_v7.py`,
+`make_formal_training_manifests.py`), the regenerated manifests under
+`b8b61d8d` and `REFREEZE_V7_BUNDLE.md` are committed; the gate performs all
+eight of its checks on that tree with `status: null`.
+
 Stopped, not done:
 
 - the full-suite run that would confirm the reconciled tree (killed on
   request, not by memory pressure);
-- any launcher round beyond episode 2 (see the table above);
+- any round beyond the two-day smoke; the formal launch itself;
 - `tools/run_da_market.py` and `tools/run_candidate_q050.py` remain untracked
   pending a check that they write no frozen directory;
 - `tmp/manifest_superseded/` holds five abandoned manifest directories that
@@ -158,5 +166,7 @@ untouched by it: `docs/2026-09-18-matd3-smoke.md`,
 `docs/2026-09-20-external-wholesale-price.md`, `tools/check_checkpoint_obs.py`
 and `tools/demo_snapshot.py`. They carry no part of this protocol.
 
-Recommendation: **NO-GO** until item 1 exists. The environment and the market
-are frozen and gated; the launcher has not yet shown it can carry a day.
+Recommendation: **NO-GO**. Item 1 is met: the trainer carried a day-sized
+round and wrote every artifact, including a bundle that loads. What still
+blocks a launch is item 2 — no v7 producer for
+`pretraining_validation_results.json` exists, so `status` stays `null`.

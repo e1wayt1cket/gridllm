@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## CC engineering framework
 
 - Live formal manifest: `reports/v2_cy_jn_2025/formal_training_v7/`
-  (config hash `8db03638`, `protocol_version: 7`,
-  `V7_candidate_002`). `formal_training_v6/` (`ac0f78d2`),
+  (config hash `b8b61d8d`, `protocol_version: 7`,
+  `V7_candidate_003`). `formal_training_v6/` (`ac0f78d2`),
   `formal_training_v5/` (`6e32398b`), `formal_training_v4/` (`7834d0aa`),
   `formal_training_v3/` (`1b47e0ed`), `formal_training_v2/` (`2148a577`) and
   `formal_training_ready/` (`b21a97c1`, `SUPERSEDED_READ_ONLY`) are
   historical and never the default. v7 carries the re-freeze record in
-  `reports/audit_remediation_2026-11-15/REFREEZE_V7.md`; v6's is
+  `reports/audit_remediation_2026-11-15/REFREEZE_V7_BUNDLE.md`; v6's is
   `REFREEZE_V6.md` beside it.
 - Frozen set: the live code manifest's `source_sha256` entries and its pinned
   tests/audits, all seven manifest directories, and every

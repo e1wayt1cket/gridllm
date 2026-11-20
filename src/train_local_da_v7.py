@@ -34,6 +34,7 @@ from local_da_audit import SCREEN
 from local_da_days import LIBRARY, load_pair, train_pairs
 from rl_da_env import N_BLOCKS, EpisodeClearingError, LocalDABiddingEnv
 from rl_da_gate_v7 import DAGateTrainerV7, DAV7ExperimentConfig
+from run_local_da import PRICE_CURVES
 
 ROOT = Path.cwd()
 RUNS = ROOT / "runs"
@@ -47,6 +48,20 @@ def now() -> str:
 
 def sha(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def bundle_data() -> dict:
+    """The four slots the checkpoint schema names at bundle level, hashed from
+    the files this protocol actually reads. v7 has no separate common split:
+    the block assignment lives in the library's split.json, so that slot
+    carries the same file as `pairing`."""
+    split = sha(LIBRARY / "split.json")
+    return {
+        "pairing": split,
+        "bus_loads": sha(LIBRARY / "bus_active_load_mw.npz"),
+        "price_curves": sha(PRICE_CURVES),
+        "common_split": split,
+    }
 
 
 def code_revision() -> str:
@@ -440,7 +455,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         final = trainer.save(
             run_dir / "final", level="bundle", dataset=ENV_NAME,
             seed=args.seed, config_hash_value=config_hash,
-            data={"library_split": sha(LIBRARY / "split.json")},
+            data=bundle_data(),
             code_revision=code_revision(),
             exposure_log=str(run_dir / "final/exposure.json"),
             eval_provenance=str(run_dir / "eval_history.json"))
