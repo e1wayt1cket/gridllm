@@ -128,9 +128,16 @@ fallback.
    asserted the retired encoding — no integer variables in the dispatch, and a
    1e-10 barrier on the exact model — and were rewritten, together with the
    re-freeze record, in the commit named below. The four files those tests live
-   in then ran `40 passed, 1 failed` (the pre-existing failure), but the
-   confirming full run was stopped before it finished, so "green apart from the
-   known failure" is `NOT_TESTED` for the current tree.
+   in then ran `40 passed, 1 failed` (the pre-existing failure).
+   **Measured on the current tree, 2026-11-20**:
+   `python -m pytest tests/ -q` gave `2 failed, 1578 passed, 53 deselected` in
+   1076 s. One failure is the known one above. The other,
+   `test_formal_ensemble::test_every_consumer_reads_the_declared_comparison_set`,
+   is the interpreter and not the tree: `energy_env`'s `matplotlib` is a
+   namespace package with no `use` attribute, and the same test passes under
+   `C:/ProgramData/anaconda3/python.exe` (`1 passed`). A full run under that
+   interpreter has not been done, so "green apart from the known failure" holds
+   for every test the `energy_env` run could execute.
 
 ## Where the tree stands at this stop
 
