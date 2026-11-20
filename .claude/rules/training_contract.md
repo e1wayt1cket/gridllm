@@ -5,11 +5,11 @@ Applies to every formal-training launch, resume, re-freeze and audit.
 ## Live manifest
 
 - `reports/v2_cy_jn_2025/formal_training_v7/` is the only live formal manifest
-  set (config hash `b8b61d8d`, `protocol_version: 7`,
-  `V7_candidate_003`; re-freeze records in
+  set (config hash `0f35fed8`, `protocol_version: 7`,
+  `V7_candidate_004`; re-freeze records in
   `reports/audit_remediation_2026-11-15/REFREEZE_V7.md`,
-  `REFREEZE_V7_DISJUNCTION.md` and `REFREEZE_V7_BUNDLE.md`, each superseding
-  the one before it).
+  `REFREEZE_V7_DISJUNCTION.md`, `REFREEZE_V7_BUNDLE.md` and
+  `REFREEZE_V7_CONE_TOL.md`, each superseding the one before it).
 - `reports/v2_cy_jn_2025/formal_training_v6/` (`ac0f78d2`) is historical and
   read-only, superseded on the same terms as v5 and older below.
 - `reports/v2_cy_jn_2025/formal_training_v5/` (`6e32398b`) is historical and

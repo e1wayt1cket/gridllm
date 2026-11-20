@@ -1,9 +1,10 @@
 # v7 formal launch: GO / NO-GO handoff
 
-Protocol `v7`, candidate `V7_candidate_003`, config hash `b8b61d8d`,
+Protocol `v7`, candidate `V7_candidate_004`, config hash `0f35fed8`,
 manifest `reports/v2_cy_jn_2025/formal_training_v7/`, re-freeze record
-`reports/audit_remediation_2026-11-15/REFREEZE_V7_BUNDLE.md`, which supersedes
-`REFREEZE_V7_DISJUNCTION.md` and, through it, `REFREEZE_V7.md`.
+`reports/audit_remediation_2026-11-15/REFREEZE_V7_CONE_TOL.md`, which
+supersedes `REFREEZE_V7_BUNDLE.md`, `REFREEZE_V7_DISJUNCTION.md` and
+`REFREEZE_V7.md` in that order.
 
 Nothing below authorises a launch. `run_formal_training.py --seed` refuses
 while `status` is not `GO_FORMAL_TRAINING`, and it is `null`. Recorded
@@ -46,6 +47,9 @@ each cites the artifact it was read from there.
 
 ## Price qualification, counted apart
 
+Rows below are the **superseded** bilinear measurement. They are kept because
+the re-measurement is what found the defect, not because they describe the tree.
+
 `reports/local_da_v7_2026-11-18/qualification/summary.json`, 136 days:
 `SMOOTH_PASS` 22, `SUBGRADIENT_PASS` 55, `NONSMOOTH_OR_FAILED` 59. Label-qualified
 77; of those, 62 settle and 15 pass the label but fail the physical settlement
@@ -54,6 +58,15 @@ price is a subgradient, not a unique derivative.
 
 Before the remediation the count was 0 of 136 (108 suboptimal conditional
 prices, 24 unsmooth probes).
+
+**Re-measured on the disjunction tree, 2026-11-20**
+(`reports/local_da_v7_2026-11-20/qualification/`): `SMOOTH_PASS` 19,
+`SUBGRADIENT_PASS` 62, `NONSMOOTH_OR_FAILED` 55, label-qualified 81, and only
+**38** settle. Twenty days that settled before stopped settling, all of them on
+`cone_tightness_max_mw2` alone, with `ac_replay` passing to `1e-10` pu. The
+cause was the barrier tolerance the disjunction refreeze moved from `1e-10` to
+`1e-8`; `REFREEZE_V7_CONE_TOL.md` gives the cone check its own `1e-5` bound.
+The 136-day count under that bound is `NOT_TESTED`.
 
 ## Cost per seed
 

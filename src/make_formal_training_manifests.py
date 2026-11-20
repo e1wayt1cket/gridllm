@@ -25,7 +25,7 @@ ROOT = Path(".")
 LIBRARY = ROOT / "reports/candidate_days_v3_2026-11-17/evidence"
 PRICE_DIR = ROOT / "data/processed/v2_cy_jn_2025"
 OUT = ROOT / "reports/v2_cy_jn_2025/formal_training_v7"
-CANDIDATE = "V7_candidate_003"
+CANDIDATE = "V7_candidate_004"
 INPUTS = (
     ("manifest.json", LIBRARY),
     ("split.json", LIBRARY),
