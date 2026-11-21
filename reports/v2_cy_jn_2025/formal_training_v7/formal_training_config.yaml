@@ -1,0 +1,355 @@
+formal_training:
+  experiment_id: FORMAL_LOCAL_DA_V7
+  protocol_version: 7
+  accepted_candidate: V7_candidate_004
+  dataset: 'v3 candidate-day library: Jiangsu 2021-2022 bus load paired with 2025
+    day-ahead price dates'
+  split: reports\candidate_days_v3_2026-11-17\evidence\split.json
+  split_view: v3_candidate_library
+  split_seed: 20261117
+  trainer: src/train_local_da_v7.py
+  trainer_split: local_da_v7
+  reward_mode: B_C2
+  gamma: 0.99
+  fixed_scale: 100.0
+  terminal_soc:
+    mode: free
+    initial: 0.5
+    valuation: inventory_value at the day end
+  cycle_cost_cny_per_mwh: 100.0
+  clearing_engine: exact MIP dispatch with a binary charge/discharge disjunction,
+    fixed-direction conditional pricing
+  training_gap_tolerance: 0.01
+  training_window_seconds: 300.0
+  voltage_band_pu:
+  - 0.93
+  - 1.07
+  reactive_support: declared zero-active shunt asset at buses 17, 31, 32 carried by
+    the library day and by every training window
+  settlement: local day-ahead settlement ledger
+  observation:
+    name: v7_12d
+    version: 7
+    dimensions: 12
+  action:
+    name: storage_quote_v5
+    version: 5
+    quote_map: linear_core_v1
+    dimensions_per_unit: 4
+    quote_order:
+    - charge_price
+    - charge_quantity
+    - discharge_price
+    - discharge_quantity
+    bounds:
+      charge_price:
+      - 0.0
+      - 150.0
+      charge_quantity:
+      - 0.0
+      - 0.4
+      discharge_price:
+      - 0.0
+      - 300.0
+      discharge_quantity:
+      - 0.0
+      - 0.4
+    truthful:
+      charge_price: 0.0
+      charge_quantity: 0.4
+      discharge_price: 0.0
+      discharge_quantity: 0.4
+    ess_order:
+    - ESS9
+    - ESS14
+    - ESS17
+    - ESS27
+  gate:
+    per_unit: 2
+    total: 8
+    estimator: straight_through_bernoulli
+    temperature_start: 4.0
+    temperature_end: 1.0
+    warmup_episodes: 106
+    evaluation_temperature: 1.0
+    logit_bound: 4.0
+  networks:
+    actor: 256-128-4
+    critic: centralized twin 256-256 no dropout
+  optimizer:
+    name: Adam
+    lr: 0.0003
+    tau: 0.005
+    policy_delay: 2
+    batch_size: 128
+    buffer_capacity: 6000
+    start_steps: 480
+    actor_weight_decay: 1.0e-05
+    calibration_interval: 8
+  anchor:
+    weight: 0.05
+    form: sum over a unit's quotes of squared box-normalised deviations from truthful,
+      averaged over the batch
+    calibrated_by: reports/local_da_v7_2026-11-18/audit/summary.json (acceptance_6)
+    selection_rule: largest weight whose gradient share stays at or below one half
+    note: not a profit-selected hyperparameter
+  hinge:
+    advantage_hinge_delta: 0.1
+    twin_gap_weight: 1.0
+  sampler:
+    uniform_fraction: 0.5
+    beta: 0.5
+    max_upweight: 5.0
+  exploration:
+    epsilon_start: 0.2
+    epsilon_end: 0.05
+    decay_episodes: 159
+    charge_scale: 0.5
+    high_fraction: 0.5
+  target:
+    policy_noise: 0.2
+    noise_clip: 0.5
+  episode:
+    blocks: 24
+    commit_periods: 4
+    lookahead_periods: 16
+    roll_horizon: 20
+    probe_block: 11
+  budget:
+    seeds:
+    - 11
+    - 23
+    minimum_rounds: 10
+    exposures_per_day_min: 10
+    exposures_per_day_max: 15
+    episodes_per_seed_min: 900
+    episodes_per_seed_max: 1350
+    block_steps_per_seed_min: 21600
+    block_steps_per_seed_max: 32400
+    critic_updates_per_block: 1
+    actor_updates_every_blocks: 2
+  wall_clock:
+    hours_per_seed_min: 12.0
+    hours_per_seed_max: 18.0
+    status: recorded for the reader; not a gate
+    source: reports/local_da_v7_2026-11-18/RESULTS.md latency table at roll horizon
+      20
+    hard_block_seconds: 300
+    hard_block_note: a block that reaches the solver limit spends it; the projection
+      is the typical block rate and does not bound a day whose blocks all bind
+  validation:
+    passes: after each full pass over the 90 training days
+    metric: mean fleet delta G over the 18 validation days (settlement, not reward)
+    best_checkpoint: highest validation mean fleet delta G
+    resume_checkpoint: every round
+    final_checkpoint: end of budget or early stop
+    early_stop_patience: 3
+  compatibility:
+    supersedes: reports/v2_cy_jn_2025/formal_training_v6
+    reward_scale: fixed_scale 100, unchanged from v4 to v7
+    checkpoints: 'v7 runs refuse to load a checkpoint from any earlier protocol: the
+      observation name, the quote box and the clearing market all differ, so an earlier
+      checkpoint does not describe a v7 policy'
+  boundaries:
+    train_only_in_replay: true
+    validation_not_in_replay: true
+    test_evaluated: false
+    holiday_evaluated: false
+    h2_opened: true
+    h2_use: 'price-date adaptation only: the 40 unpaired 2025 price dates the H2 definition
+      enumerates also entered training, so no result supports joint source-load generalisation'
+    test_label: LEGACY_SEEN_TEST
+    independent_generalisation_claim: false
+  claims:
+    allowed: limited price-date adaptation on 40 unpaired 2025 price dates with historical
+      load scenarios, under this frozen protocol
+    not_allowed: a joint source-load generalisation claim or any independent generalisation
+      claim
+    gap_accepted_payoffs: a training payoff may be read off an incumbent inside training_gap_tolerance
+      and is then known only to that gap; no settlement payment and no audit price
+      was read off an uncertified incumbent
+  code:
+    candidate: V7_candidate_004
+    source_sha256:
+      rl_da_env.py: 06e6aed320b07ffda58406914c261ced7e5f70c5132cb9d57fedcfb507ceaf9f
+      rl_da_gate.py: bbd14fe4cbffe8dbe8472435464001e4854f6e83eee1a63689562361d53fd2f2
+      rl_da_gate_v7.py: 265bbd1d89ee36e7321eaedc3e7df8e3aabf01014f223077cb1b09f0adc4369f
+      da_quote_map.py: 821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358
+      da_quote_map_v5.py: 5504d07d6adbb964f7239130b7939c0fe8d8e54aed65b82a444707a59b4b0bf0
+      rl_spec.py: ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1
+      rl_spec_v7.py: 22212c1acabc1d5c53736702f545172bdc3cf7e51ccb98ca4c18e1797e44ae75
+      rl_env.py: 5b1567060b8a3d21e6693617fedd9aa6b6620d35ff19b0d5e872325987149deb
+      rl_td3.py: e795cbc455be5a171ca764589470ab86615f93b12e575e1ab16cdce2defe3e75
+      rl_bidding.py: a697e5f42b92a86c860154f222a0556697fd64374c0c65cefa9c03d6f54b940c
+      rl_b_c2_gate.py: f4a16326db621a2cfd340aa7ddecb7eebd0283c17df1cd27707a697eac85dea7
+      truthful_gate_actor_adapter.py: c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b
+      da_replay.py: 9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53
+      c2_reward.py: 81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c
+      daily_reward_b.py: c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541
+      price_forecaster.py: 99be0f321478c5f1ead5e189f799642a4f6ff3555fe1c6454f3e994afa4e17a4
+      participant_payoff.py: 2051aa59f743239e4b2db200e25686825897eb8ee6f5e65362ab2c989dc1078d
+      money.py: de58573dc07ac60b4049cb7851c9c7c137d2abc65d67f4f4952f1ee31ed19a12
+      local_da_days.py: a09586beca841531ef6cfbbd3e4fe384b32c23e222d410b1e41bf77c97bf7b33
+      local_da_contracts.py: 3da106c1c2ee7dbbf0adcf854bd9cc36a173c129e717fcbb9e541621d99f721e
+      local_da_clearing.py: a0c555896529aee297eaa0c0d5c4fe144c8ad3a60c1ae89191e841fec1ca7905
+      local_da_operating.py: 432fbed7a4b1ad58080fb2104d5f21f25d9683b96c33f33114475e8819776cce
+      local_da_accounting.py: b82dfe3549b5772b081ea7f7bbd0b331453b43914177415aa4bbe791c16d61b5
+      local_da_audit.py: 5e4948b77392b1833fd19671ad127c5a6ffdd4bdb378e86d9603b4acc66dbbe5
+      run_local_da.py: 2f26325dc7bb8aaa21c5dafc618c86a72bf51adf3e00ae6670a24a3aa929440c
+      checkpoint_writer_v2.py: bac5c3c909d38f37d86c12929bb83580ce2f9d60412ceae31a5b2587b21cfd90
+      checkpoint_loader_v2.py: 23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe
+      validate_checkpoint_schema.py: 78893c7cd88c87810843748e2ac1cedd5ed0a35f26595db04420efd70628da2f
+      train_local_da_v7.py: 6b698a90b52daddd3fc739767f809e5b3745f9978d79f0943931480535042bf8
+      training_contract_v7.py: 1a0b6d49774d3c7deb1a97051be4c0a40fda21a171819831d8501629c8f9d99d
+      training_contract.py: db4bda665106ff1fad9ee50fb2e31e1510b63ac3d7f1d2792ff4501bbd3c1fe4
+      run_formal_training.py: d98e5733f757189159ab5dcb3f14990ef074cc13f58cc30d2252b750478409d1
+      make_formal_training_manifests.py: 7bfb934f2d37cb80fc38b40975f61e4779260ffc813bcb4217b69eaec907bbe0
+    git:
+      revision: f4bd73e
+      dirty: true
+      dirty_paths:
+      - ocs/2026-09-18-matd3-smoke.md
+      - docs/2026-09-20-external-wholesale-price.md
+      - reports/v2_cy_jn_2025/formal_training_v7/formal_training_code_manifest.json
+      - reports/v2_cy_jn_2025/formal_training_v7/formal_training_config.yaml
+      - reports/v2_cy_jn_2025/formal_training_v7/formal_training_data_manifest.json
+      - reports/v2_cy_jn_2025/formal_training_v7/formal_training_manifest.json
+      - reports/v2_cy_jn_2025/formal_training_v7/manifest_generation.json
+      - src/local_da_accounting.py
+      - src/make_formal_training_manifests.py
+      - tools/check_checkpoint_obs.py
+      - tools/demo_snapshot.py
+      - .agents/
+      - .codex/
+      - config/independent_da.json
+      - data/processed/industry_meter_bus_map_v2.csv
+      - docs/2026-11-13-ieee33-load-mapping-proposal.md
+      - docs/2026-11-13-local-da-market-integrated-plan.md
+      - docs/2026-11-13-multi-user-load-revision.md
+      - docs/2026-11-14-da-market-system-spec.md
+      - docs/2026-11-15-old-engine-rule-alignment-plan.md
+      - reports/2026-11-14-two-week-briefing.md
+      - reports/candidate_days_2026-11-16/
+      - reports/candidate_days_clearing_2026-11-16/
+      - reports/candidate_days_v3_2026-11-17/source_pool/
+      - reports/candidate_days_v3_clear_tol_2026-11-18/
+      - reports/candidate_q050_2026-11-13/
+      - reports/da_market_system_2026-11-14/
+      - reports/full_project_audit_2026-11-15/
+      - reports/historical_mapping_da_2026-11-13/
+      - reports/load_selection_2026-11-13/
+      - reports/local_da_clearing_2026-11-13/
+      - reports/local_da_v7_2026-11-20/
+      - reports/market_mechanism_audit/M1D_local_da_market_2026-11-12/
+      - reports/market_mechanism_audit/M1E_local_market_robustness_2026-11-13/
+      - reports/multi_user_load_2026-11-13/
+      - reports/physical_infeasibility_2026-11-13/
+      - reports/withdrawal_diagnosis_2026-11-14/
+      - reports/workspace_occupancy_2026-11-17.md
+      - snapshots/SMOKE_local_da_v7_bundle/
+      - snapshots/SMOKE_local_da_v7_round/
+      - tmp/audit_sample.json
+      - tmp/band_0.90.json
+      - tmp/con_after.npz
+      - tmp/con_before.npz
+      - tmp/day_after.npz
+      - tmp/day_before.npz
+      - tmp/day_full_rows.npy
+      - tmp/diag_audit_sample.py
+      - tmp/diag_band_090.py
+      - tmp/diag_band_bisect.py
+      - tmp/diag_block5.py
+      - tmp/diag_block5_params.py
+      - tmp/diag_block_loop.py
+      - tmp/diag_cone.py
+      - tmp/diag_cone_tol.py
+      - tmp/diag_cycle_in_clearing.py
+      - tmp/diag_cycle_mismatch.py
+      - tmp/diag_day_full.py
+      - tmp/diag_day_report.py
+      - tmp/diag_driver.py
+      - tmp/diag_lines.py
+      - tmp/diag_lmp.py
+      - tmp/diag_markup.py
+      - tmp/diag_matrix.py
+      - tmp/diag_multiobj.py
+      - tmp/diag_pen.py
+      - tmp/diag_policy_blocks.py
+      - tmp/diag_settle_paths.py
+      - tmp/diag_shed.py
+      - tmp/diag_shedmin.py
+      - tmp/diag_storage_influence.py
+      - tmp/diag_train_base.py
+      - tmp/diag_train_sat.py
+      - tmp/diag_v5_before_after.py
+      - tmp/diag_vdrop.py
+      - tmp/diag_voltage_lmp.py
+      - tmp/diag_vprofile.py
+      - tmp/diag_why_slow.py
+      - tmp/est_balanced_coverage.py
+      - tmp/est_coverage_first.py
+      - tmp/est_daily_subset_peaks.py
+      - tmp/est_smallest_first.py
+      - tmp/extract_page_xy.py
+      - tmp/extract_rules.py
+      - tmp/ldf_after.npz
+      - tmp/ldf_before.npz
+      - tmp/ldf_before_src/
+      - tmp/manifest_superseded/
+      - tmp/pdfs/
+      - tmp/probe.npz
+      - tmp/pylibs/
+      - tmp/q_one.json
+      - tmp/refreeze_v5/src/
+      - tmp/rules/
+      - tmp/smoke_anchor/
+      - tmp/smoke_da_v7/
+      - tmp/trace_ldf_residual.py
+      - tmp/v4_src_tree/
+      - tmp/v7_dates.txt
+      - tmp/verify_v5_targeted.py
+      - tools/run_candidate_q050.py
+      - tools/run_da_market.py
+  data:
+    counts:
+      holiday: 10
+      test: 18
+      train: 90
+      validation: 18
+    legacy_seen_test_pairs:
+    - 2021-09-02|2025-09-15
+    - 2021-09-11|2025-09-16
+    - 2021-09-16|2025-09-17
+    - 2021-09-19|2025-09-19
+    - 2021-09-20|2025-09-20
+    - 2021-09-23|2025-09-21
+    - 2021-09-30|2025-09-22
+    - 2021-10-01|2025-10-01
+    - 2021-10-02|2025-10-02
+    - 2021-10-03|2025-10-03
+    - 2021-10-04|2025-10-04
+    - 2021-10-05|2025-10-05
+    - 2021-12-10|2025-12-07
+    - 2021-12-27|2025-12-15
+    - 2022-10-01|2025-10-17
+    - 2022-10-02|2025-10-18
+    - 2022-10-03|2025-10-19
+    - 2022-10-04|2025-10-20
+    - 2022-10-05|2025-10-21
+    - 2022-10-07|2025-10-22
+    - 2022-12-06|2025-12-18
+    - 2022-12-10|2025-12-19
+    - 2022-12-15|2025-12-22
+    - 2022-12-16|2025-12-23
+    - 2022-12-18|2025-12-24
+    - 2022-12-20|2025-12-25
+    - 2022-12-30|2025-12-30
+    - 2022-12-31|2025-12-31
+    h2_price_dates_used: 40
+    input_sha256:
+      manifest.json: 07b9fdf920e6916ec39f35109626c3dceccd5251c9c4cbbe6478ffe849dffc11
+      split.json: 582a4a22380073f4b1dd5c8ed20791311398b7521f487078615e0617a91edf38
+      bus_active_load_mw.npz: f5a6fddf538928db62b208da47745b26ba1476fb7ae8736ae11f149bd1591897
+      bus_reactive_load_mvar.npz: 8ff8bd5ed8687aa0c8d3a3ee34e810f063da94479877535d2ef9001b5927b365
+      price_curves.npz: 316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1
+      holdout_manifest.json: 3cf3ec2af241ebc3895d0a63929a02cb2f4c6028a0757c2a4c610ce0b1989c29

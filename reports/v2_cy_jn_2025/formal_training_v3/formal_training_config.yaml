@@ -1,0 +1,189 @@
+formal_training:
+  experiment_id: FORMAL_NEAR_COMMON_B_C2_GATE
+  protocol_version: 3
+  accepted_candidate: P21_candidate_001
+  dataset: JN-Base-NEAR / common_split near view
+  split: data\processed\v2_cy_jn_2025\common_split.json
+  split_view: near
+  split_seed: 20261101
+  reward_mode: B_C2
+  gamma: 0.99
+  fixed_scale: 1000.0
+  terminal_soc:
+    initial: 0.5
+    final: 0.5
+    day_end_window_only: true
+  cycle_cost_cny_per_mwh: 100.0
+  clearing_engine: socp
+  network_support: line50_q2.0
+  b1_source: b1_terminal_neutral
+  settlement: two_settlement_ledger
+  observation:
+    name: v6_12d
+    version: 6
+    dimensions: 12
+  action:
+    name: storage_quote_v3
+    version: 3
+    quote_map: linear_core_v1
+    dimensions_per_unit: 2
+    ess_order:
+    - ESS9
+    - ESS14
+    - ESS17
+    - ESS27
+  gate:
+    per_unit: 2
+    total: 8
+    estimator: straight_through_bernoulli
+    temperature_start: 4.0
+    temperature_end: 1.0
+    warmup_episodes: 106
+    evaluation_temperature: 1.0
+  networks:
+    actor: 256-128-4
+    critic: centralized twin 256-256
+  optimizer:
+    name: Adam
+    lr: 0.0003
+    tau: 0.005
+    policy_delay: 2
+    batch_size: 128
+    buffer_capacity: 100000
+    start_steps: 0
+  sampler:
+    uniform_fraction: 0.5
+    beta: 0.5
+    max_upweight: 5.0
+  exploration:
+    epsilon_start: 0.2
+    epsilon_end: 0.05
+    decay_episodes: 159
+    charge_scale: 0.5
+    high_fraction: 0.5
+  target:
+    policy_noise: 0.2
+    noise_clip: 0.5
+  episode:
+    blocks: 24
+    commit_periods: 4
+    lookahead_periods: 16
+  budget:
+    seeds:
+    - 11
+    - 23
+    - 37
+    - 53
+    - 71
+    minimum_rounds: 10
+    exposures_per_day_min: 10
+    exposures_per_day_max: 15
+    episodes_per_seed_min: 530
+    episodes_per_seed_max: 795
+    block_steps_per_seed_min: 12720
+    block_steps_per_seed_max: 19080
+    critic_updates_per_block: 1
+    actor_updates_every_blocks: 2
+  validation:
+    passes: after each full pass over the 53 training days
+    metric: mean fleet delta G over the 11 validation days (settlement, not reward)
+    best_checkpoint: highest validation mean fleet delta G
+    resume_checkpoint: every round
+    final_checkpoint: end of budget or early stop
+    early_stop_patience: 3
+  boundaries:
+    train_only_in_replay: true
+    validation_not_in_replay: true
+    test_evaluated: false
+    holiday_evaluated: false
+    h2_opened: false
+    test_label: LEGACY_SEEN_TEST
+    independent_generalisation_claim: false
+  claims:
+    allowed: formal training on the NEAR80 controlled simulation under the frozen
+      protocol
+    not_allowed: independent generalisation or blind-test result
+    old_g10_status: NO-GO remains for an independent generalisation claim
+  code:
+    candidate: P21_candidate_001
+    source_sha256:
+      rl_da_gate.py: 9ed0b8335f7061a9cd89cc4366a30257217b14202d9d7f63b0d297fda1c12eb1
+      rl_b_c2_gate.py: 0269e93108deefdb1bc55637b7e08c46ee53d24f254f23403f13859b7c6ffc41
+      train_da_gate.py: 4ae66f12a48775fbf0f2bbda293c631dffc77baac8e6789add2a5db815cd72a7
+      da_quote_map.py: 79e96c8eb8f0a343c52d31bee3690663a2e6a32c37233fde943e6669867845bf
+      da_replay.py: 9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53
+      truthful_gate_actor_adapter.py: c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b
+      rl_spec.py: 156aa7a7b09688e9881e0d9b173bd27e5c44ea8ced75a3f25ba59050f8382e68
+      rl_env.py: d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f
+      c2_reward.py: 81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c
+      daily_reward_b.py: c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541
+      b1_daily_baseline.py: 1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd
+      dispatch_socp.py: d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a
+      v2_cy_jn_env.py: 39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a
+      checkpoint_writer_v2.py: 0f973f6589b5594efa93d91e185254a765e43684076c197a30abf05ba80f7cd1
+      checkpoint_loader_v2.py: 23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe
+      run_formal_training.py: 7208c9e5fca0899b93167cea64b9c5e415efdda5022c595c9335965a50e10916
+      training_contract.py: e79d9d655667c44441a39f933d4593782bcbdbdd7167fcb1b54cfda702edba3a
+      audit_run.py: 88fe2d3bc9f4202ddd8671c17077914123c0342c734034ec2c8098be27e220fd
+      make_formal_training_manifests.py: ca93e0990ec17e7bb4d46c6621100f67d2a5536e0531375044ea34fa9ac8f5a1
+    git:
+      revision: 63b008d
+      dirty: true
+      dirty_paths:
+      - LAUDE.md
+      - src/make_formal_training_manifests.py
+      - src/run_formal_training.py
+      - src/train_da_gate.py
+      - tests/test_train_da_gate_guards.py
+      - .claude/
+      - .tmp_report_updates.py
+      - TECHNICAL_DEBT.md
+      - data/processed/node_loads/multiday_industry_subset/
+      - data/processed/v2/
+      - data/processed/v2_cy_jn_2025/
+      - reports/cc01/
+      - reports/cc02/
+      - reports/v2_cy_jn_2025/formal_training_v3/
+      - review.md
+      - scripts/
+      - snapshots/
+      - src/audit_run.py
+      - src/diagnose_seed53_clearing.py
+      - src/training_contract.py
+      - tests/test_frozen_guard.py
+      - tests/test_train_da_gate_resume.py
+      - tests/test_training_contract.py
+  data:
+    counts:
+      train: 53
+      validation: 11
+      test: 11
+      holiday_block: 5
+    legacy_seen_test_pairs:
+    - 2022-07-24|2025-07-12
+    - 2022-07-25|2025-07-14
+    - 2022-10-03|2025-10-03
+    - 2022-10-04|2025-10-04
+    - 2022-10-05|2025-10-05
+    - 2022-10-06|2025-10-06
+    - 2022-10-07|2025-10-07
+    - 2022-10-11|2025-10-10
+    - 2022-10-12|2025-10-09
+    - 2022-10-27|2025-10-27
+    - 2022-10-30|2025-10-25
+    - 2022-11-06|2025-11-01
+    - 2022-12-14|2025-12-15
+    - 2022-12-19|2025-12-19
+    - 2022-12-24|2025-12-21
+    - 2022-12-29|2025-12-30
+    input_sha256:
+      near/load_price_pairing.csv: e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363
+      bus_loads_96x33.npz: 754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078
+      price_curves.npz: 316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1
+      common_split.json: fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335
+      holdout_status.json: 4f31263d8ebc1ecb02fbabecc64c118a3aea25ba81da1c6e81d38997d84e5e85
+      b1_terminal_neutral_manifest.json: 79a823e5e72c51f82bfb6128b4a31ae80ec1bb344846608b8b137c80f35f0011
+      b1_terminal_neutral_results.csv: 886ec54e6d553af3c5181bda6351ddef805437946c92a35c823a9a2300be50aa
+      b1_terminal_neutral_block_payoffs.json: 87cb7e9ddc2493b40479b2354ec4fcb266508c730582bb999b03c74f91483fed
+      terminal_soc_config.json: abf4f910b87e8c0cf1a5985c6e044758a56b726cd434f2905e3bf88bd461b1c3
+      trainer_configs.json: b3d4b084ce9586a6708abc9097aff5d83f1ccba51f2593f6405a11914a34d5a9

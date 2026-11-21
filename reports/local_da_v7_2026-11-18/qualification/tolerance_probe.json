@@ -1,0 +1,310 @@
+{
+ "2021-06-04": {
+  "base": {
+   "status": 2,
+   "cone": 6.291463341839842e-07,
+   "audit": true,
+   "objdiff": 3.840836689050775e-05,
+   "smooth": true,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 9.883722178167338e-08,
+   "audit": true,
+   "objdiff": 7.603426638524979e-06,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2021-09-02": {
+  "base": {
+   "status": 2,
+   "cone": 1.1959663348796532e-06,
+   "audit": false,
+   "objdiff": 0.0001245049170393031,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 1.2549772638117702e-07,
+   "audit": true,
+   "objdiff": 1.6261878045042977e-05,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2021-10-23": {
+  "base": {
+   "status": 2,
+   "cone": 3.098950780988652e-07,
+   "audit": true,
+   "objdiff": 4.109690235054586e-05,
+   "smooth": true,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 13
+  }
+ },
+ "2021-12-22": {
+  "base": {
+   "status": 2,
+   "cone": 7.725688498961685e-07,
+   "audit": true,
+   "objdiff": 1.3363298876356566e-05,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 2.0030813252525093e-07,
+   "audit": true,
+   "objdiff": 1.0282177754561417e-05,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  }
+ },
+ "2022-08-05": {
+  "base": {
+   "status": 2,
+   "cone": 1.3493691366864855e-06,
+   "audit": false,
+   "objdiff": 5.669602251145989e-05,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 4.828602233776896e-08,
+   "audit": true,
+   "objdiff": 4.0345348679693416e-06,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2022-11-04": {
+  "base": {
+   "status": 2,
+   "cone": 9.170897318222515e-07,
+   "audit": true,
+   "objdiff": 1.984789196285419e-05,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 1.4325306940676796e-08,
+   "audit": true,
+   "objdiff": 2.6662182790460065e-06,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2021-07-18": {
+  "base": {
+   "status": 2,
+   "cone": 6.170367977120783e-07,
+   "audit": true,
+   "objdiff": 2.8464098249969538e-05,
+   "smooth": true,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 1.9417471654181728e-07,
+   "audit": true,
+   "objdiff": 9.877016964310315e-06,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2021-10-02": {
+  "base": {
+   "status": 2,
+   "cone": 5.614567734346654e-08,
+   "audit": true,
+   "objdiff": 9.926894563250244e-06,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 2.396675848892471e-07,
+   "audit": true,
+   "objdiff": 1.0271152859786525e-05,
+   "smooth": true,
+   "bracket": true,
+   "probes": 10
+  }
+ },
+ "2021-12-10": {
+  "base": {
+   "status": 2,
+   "cone": 2.3206682331189225e-07,
+   "audit": true,
+   "objdiff": 1.263270496565383e-05,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 2.3206682331189225e-07,
+   "audit": true,
+   "objdiff": 1.263270496565383e-05,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2022-08-14": {
+  "base": {
+   "status": 2,
+   "cone": 7.391635423375847e-07,
+   "audit": true,
+   "objdiff": 2.103267706843326e-05,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 2.4722108571406665e-07,
+   "audit": true,
+   "objdiff": 2.571210643509403e-06,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2022-09-24": {
+  "base": {
+   "status": 2,
+   "cone": 3.1457136002305264e-07,
+   "audit": true,
+   "objdiff": 6.404598752851598e-05,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 2.7010827907680834e-08,
+   "audit": true,
+   "objdiff": 1.0073159501189366e-05,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2022-11-02": {
+  "base": {
+   "status": 2,
+   "cone": 1.663211221183869e-07,
+   "audit": true,
+   "objdiff": 6.122614649939351e-06,
+   "smooth": true,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 1.663211221183869e-07,
+   "audit": true,
+   "objdiff": 6.122614649939351e-06,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2021-12-24": {
+  "base": {
+   "status": 2,
+   "cone": 4.6254484526722585e-06,
+   "audit": false,
+   "objdiff": 8.121075916278642e-05,
+   "smooth": true,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 5.356313932817006e-07,
+   "audit": true,
+   "objdiff": 1.154685924120713e-05,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2022-08-02": {
+  "base": {
+   "status": 2,
+   "cone": 2.662283678095604e-07,
+   "audit": true,
+   "objdiff": 1.1107023965450935e-05,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 2.662283678095604e-07,
+   "audit": true,
+   "objdiff": 1.1107023965450935e-05,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ },
+ "2022-10-11": {
+  "base": {
+   "status": 2,
+   "cone": 5.736459537767106e-07,
+   "audit": true,
+   "objdiff": 4.64997356175445e-06,
+   "smooth": true,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 13
+  }
+ },
+ "2022-10-14": {
+  "base": {
+   "status": 2,
+   "cone": 1.11070017627668e-08,
+   "audit": true,
+   "objdiff": 3.7773515941808e-06,
+   "smooth": false,
+   "bracket": true,
+   "probes": 10
+  },
+  "conv1e-9": {
+   "status": 2,
+   "cone": 8.783040739146486e-09,
+   "audit": true,
+   "objdiff": 3.6524888855637982e-06,
+   "smooth": false,
+   "bracket": false,
+   "probes": 10
+  }
+ }
+}

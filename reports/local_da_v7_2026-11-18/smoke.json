@@ -1,0 +1,722 @@
+{
+  "days": [
+    "2021-06-04",
+    "2021-06-13",
+    "2021-06-17"
+  ],
+  "episodes": [
+    {
+      "date": "2021-06-04",
+      "price_date": "2025-06-02",
+      "rewards_finite": true,
+      "clears": 24,
+      "none_clears": 0,
+      "soc_min": 0.10000000000460027,
+      "soc_max": 0.596830785876466,
+      "declared_point_deviation": 0.0,
+      "inventory_terms": 1,
+      "block_seconds": [
+        2.27601990000403,
+        1.9989883999951417,
+        1.7708281999948667,
+        1.8141554999892833,
+        1.968499000009615,
+        1.9069644999981392,
+        2.456432199993287,
+        2.0144794000079855,
+        2.3851230000000214,
+        2.66299519999302,
+        2.377282599991304,
+        4.1998726000019815,
+        2.2562316999974428,
+        2.114024300011806,
+        2.0740381000068737,
+        2.19427999999607,
+        2.18801440000243,
+        2.2416472000040812,
+        2.009255500001018,
+        2.173868300000322,
+        1.7284909000009065,
+        1.3005904000019655,
+        0.8809937999903923,
+        0.5299782999936724
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 1,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 2,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 3,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 4,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 5,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 6,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 7,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 8,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 9,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 10,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 11,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 12,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 13,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 14,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 15,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 16,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 17,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 18,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 19,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 20,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 21,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 22,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 23,
+          "status": "cleared",
+          "failure": null
+        }
+      ],
+      "abort": false,
+      "episode_seconds": 49.52386950000073,
+      "probe": {
+        "date": "2021-06-04",
+        "block": 11,
+        "price_qualification": "NONSMOOTH_OR_FAILED",
+        "idle_direction_stable": true,
+        "qualified_for_settlement": false,
+        "failure": "PROBE_FAILED"
+      },
+      "probe_seconds": 2.068854899989674,
+      "exact": 0.8002594000136014,
+      "price": 0.048201900004642084,
+      "baseline": 1.055054000011296
+    },
+    {
+      "date": "2021-06-13",
+      "price_date": "2025-06-03",
+      "rewards_finite": true,
+      "clears": 24,
+      "none_clears": 0,
+      "soc_min": 0.10000000000087272,
+      "soc_max": 0.8999999945140598,
+      "declared_point_deviation": 0.0,
+      "inventory_terms": 1,
+      "block_seconds": [
+        2.6953251999948407,
+        2.4233382000093115,
+        1.9059774999914225,
+        1.6396506000019144,
+        1.8261460000067018,
+        1.5250807999982499,
+        1.5943507999909343,
+        2.5671072999975877,
+        2.460301900006016,
+        2.2764903999923263,
+        2.7678271000040695,
+        4.585718799993629,
+        1.7312708999961615,
+        1.6177257999952417,
+        1.8230310000071768,
+        1.7299714999971911,
+        2.274395000000368,
+        2.5735148999956436,
+        2.2462985000020126,
+        1.9888909999863245,
+        1.7002666000043973,
+        1.1614969999936875,
+        0.820551600001636,
+        0.623097300005611
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 1,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 2,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 3,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 4,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 5,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 6,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 7,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 8,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 9,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 10,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 11,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 12,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 13,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 14,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 15,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 16,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 17,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 18,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 19,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 20,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 21,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 22,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 23,
+          "status": "cleared",
+          "failure": null
+        }
+      ],
+      "abort": false,
+      "episode_seconds": 48.558631899999455,
+      "probe": {
+        "date": "2021-06-13",
+        "block": 11,
+        "price_qualification": "NONSMOOTH_OR_FAILED",
+        "idle_direction_stable": true,
+        "qualified_for_settlement": false,
+        "failure": "PROBE_FAILED"
+      },
+      "probe_seconds": 2.3687873000017134,
+      "exact": 0.9311366000038106,
+      "price": 0.17236909999337513,
+      "baseline": 1.331408799989731
+    },
+    {
+      "date": "2021-06-17",
+      "price_date": "2025-06-04",
+      "rewards_finite": true,
+      "clears": 24,
+      "none_clears": 0,
+      "soc_min": 0.10000000000328868,
+      "soc_max": 0.639435928915448,
+      "declared_point_deviation": 0.0,
+      "inventory_terms": 1,
+      "block_seconds": [
+        2.079201500004274,
+        1.953178099996876,
+        1.6349438000033842,
+        1.6208985000121174,
+        1.9971583000005921,
+        1.6059383999963757,
+        1.8635447999986354,
+        1.9609856999886688,
+        2.0499532999965595,
+        2.0610826999909477,
+        2.104665800012299,
+        4.012227499988512,
+        2.1320622000057483,
+        2.151306499989005,
+        2.127141799996025,
+        2.229485499992734,
+        2.0544890000019222,
+        2.1758449000044493,
+        1.84439330000896,
+        1.9042377000005217,
+        1.304783999992651,
+        1.044970100003411,
+        0.767097099989769,
+        0.5710703000077046
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 1,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 2,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 3,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 4,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 5,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 6,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 7,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 8,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 9,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 10,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 11,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 12,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 13,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 14,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 15,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 16,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 17,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 18,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 19,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 20,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 21,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 22,
+          "status": "cleared",
+          "failure": null
+        },
+        {
+          "block": 23,
+          "status": "cleared",
+          "failure": null
+        }
+      ],
+      "abort": false,
+      "episode_seconds": 45.25149159999273,
+      "probe": {
+        "date": "2021-06-17",
+        "block": 11,
+        "price_qualification": "SMOOTH_PASS",
+        "idle_direction_stable": true,
+        "qualified_for_settlement": true,
+        "failure": null
+      },
+      "probe_seconds": 2.108889299997827,
+      "exact": 0.733659000004991,
+      "price": 0.05230769999616314,
+      "baseline": 0.9990292000002228
+    }
+  ],
+  "latency": {
+    "exact": 0.8216850000074677,
+    "price": 0.09095956666472678,
+    "baseline": 1.12849733333375,
+    "probe_day": 2.1821771666630716,
+    "episode": 47.777997666664305
+  },
+  "block_seconds": 1.9907158319436147,
+  "roll_horizon": 20,
+  "fallback_horizon": 12,
+  "fallback": {
+    "episode_seconds": 31.86723119999806,
+    "block_seconds": 1.3277696375001444
+  },
+  "projected_hours": {
+    "horizon_20": {
+      "min": 7.033862606200772,
+      "max": 10.550793909301158
+    },
+    "horizon_12": {
+      "min": 4.691452719167177,
+      "max": 7.037179078750766
+    }
+  },
+  "shaded": {
+    "date": "2021-06-04",
+    "price_date": "2025-06-02",
+    "rewards_finite": true,
+    "clears": 24,
+    "none_clears": 0,
+    "soc_min": 0.09999999962679973,
+    "soc_max": 0.5962410376328061,
+    "declared_point_deviation": 0.008888888888888889,
+    "inventory_terms": 1,
+    "block_seconds": [
+      1.9994068999949377,
+      2.0714563999936217,
+      1.88199490000261,
+      1.8075465000001714,
+      2.0461261000018567,
+      1.930526700001792,
+      2.3184608000010485,
+      2.2733997000032105,
+      2.5176642000005813,
+      2.4866694000083953,
+      2.293819500002428,
+      4.349407200003043,
+      2.1216593999997713,
+      2.0703687999921385,
+      2.0005400000081863,
+      2.2111663999967277,
+      2.1903293000068516,
+      2.240836800003308,
+      2.1304954000079306,
+      2.115676599991275,
+      1.5902166000014404,
+      1.1223009999957867,
+      0.8594100000045728,
+      0.4872046000091359
+    ],
+    "blocks": [
+      {
+        "block": 0,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 1,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 2,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 3,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 4,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 5,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 6,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 7,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 8,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 9,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 10,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 11,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 12,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 13,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 14,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 15,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 16,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 17,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 18,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 19,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 20,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 21,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 22,
+        "status": "cleared",
+        "failure": null
+      },
+      {
+        "block": 23,
+        "status": "cleared",
+        "failure": null
+      }
+    ],
+    "abort": false,
+    "episode_seconds": 49.11742100000265,
+    "probe": {
+      "date": "2021-06-04",
+      "block": 11,
+      "price_qualification": "SMOOTH_PASS",
+      "idle_direction_stable": true,
+      "qualified_for_settlement": true,
+      "failure": null
+    },
+    "probe_seconds": 2.1340912000014214
+  }
+}

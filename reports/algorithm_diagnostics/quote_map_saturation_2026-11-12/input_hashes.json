@@ -1,0 +1,269 @@
+{
+  "written_at": "2026-11-12T01:00:09+0800",
+  "label": "NON_FORMAL_DIAGNOSTIC",
+  "git": {
+    "revision": "63b008d725e391d98b55f9d563b0d712cd710793",
+    "dirty": true,
+    "branch": "review"
+  },
+  "environment": {
+    "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 16:36:49) [MSC v.1944 64 bit (AMD64)]",
+    "executable": "C:\\Users\\26036\\.conda\\envs\\energy_env\\python.exe",
+    "torch": "2.11.0+cpu",
+    "numpy": "1.24.3",
+    "gurobi": [
+      13,
+      0,
+      1
+    ],
+    "cwd": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB"
+  },
+  "inputs": {
+    "src/da_quote_map.py": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
+    "src/rl_da_gate.py": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3",
+    "src/rl_b_c2_gate.py": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b",
+    "src/train_da_gate.py": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee",
+    "src/rl_spec.py": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1",
+    "src/da_replay.py": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+    "src/diagnose_c0_mapping_v4.py": "7e3e4f01f34a0c3d69db936d731c2edbd70583e093165fc29b1a44d9cb27ac85",
+    "src/quote_map_candidates.py": "629ffb4233e6f25aeebd429d2158358a65da99f35aae664618389977ce1692ab",
+    "src/diagnose_quote_map_saturation.py": "187a46ceabf6adc1b09ed919759d736cc1e023b0b75f694f955073681a45c148",
+    "tests/test_da_quote_mapping.py": "43cade2fa0c7b360a661b20e8d938d8d8b1081924081cb732216adc39bd4df05",
+    "tests/test_v4_mechanics.py": "81847d1585c0e0ba6c41c60e44cb0ad25d5d5a1dd064ea1a2a36bcefeca732a4",
+    "reports/algorithm_diagnostics/c0_d3_mapping.json": "1c8af310cccb2390b828f746b0bc7d94b01f426d750d4cd6bcaf625ed86dbf82",
+    "reports/algorithm_diagnostics/c0_d3_mapping.md": "ad317ead4ff4da05c0cb0f935a37a19de82b1c9f6f2f4c26da5174e25c8fca84",
+    "reports/algorithm_diagnostics/P1_v4_evidence.json": "e0240bf61e6119edf452ebb8743967ae258a0bece0ad8dd89f90dff1b97c6cc6",
+    "reports/algorithm_diagnostics/thresholds.json": "12549ac67a879f1bec4de4e49c082839ab0abd6b02e43ff254029f569ab54592",
+    "formal_training_v4/formal_training_manifest.json": "31c0bce1266fdcdd2de1394e38b31b752cd09cb5b969454ebebc58d2d6cf315d",
+    "formal_training_v4/formal_training_code_manifest.json": "c9ec1da1a028ab1a68384f6e048983508e2257cb653186e669aee4640ffc717c",
+    "formal_training_v4/formal_training_config.yaml": "d4cdfe843566a915d357429490a614a8f44de7f4a7f529738a8a1b1d04ef350a",
+    "formal_training_v4/formal_training_data_manifest.json": "e5eaa358c3445b613fa111c2655893e092594033a9597bb277be8ac580121424",
+    "formal_training_v4/phase25_v4_freeze.md": "dcd90f9f4a8088fdcacb0e9409a38399123784f6936c3c1051ed807d42553bce",
+    "runs/FORMAL_7834d0aa_seed11/manifest.json": "352a13e5d09a878f8501c884a05e99c8bb939f009c7c402fa9607a21a68e41a2",
+    "runs/FORMAL_7834d0aa_seed11/exposure.json": "87124e5bc94afa3dd1632fb93db973f889accbe1049ec483a3a5be568e6efc6f",
+    "runs/FORMAL_7834d0aa_seed11/run_manifest.json": "e01ce54871428dc40bb97251f1797e209b8c62e055007b5cdc19c0046c40cd8a",
+    "runs/FORMAL_7834d0aa_seed11_best/manifest.json": "4332d5d2bf8d5f4a71fb0fb7c1ff82dfddfa1374e4ef2574cb4f4cf997cecaff",
+    "runs/FORMAL_7834d0aa_seed11_best/exposure.json": "c82e1b4ead04290f93a79ff8c0e364b29789b37c08444e36c250b34fcc621d6e",
+    "runs/FORMAL_7834d0aa_seed11/block_decisions.jsonl": "5914d5e8d9f3930697aa24865f94d7f526212131cb007572d83161844b652a2a",
+    "runs/FORMAL_7834d0aa_seed11/eval_history.json": "753fbf6a14372f18e77c018ee1a92df187e028d99b8410675ca62d18cdf17a2f",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00001272/buffer/replay.npz": "fd587e193109b3b5be840ffb6cbc3f5538e6d1383f63b557fdece9f666b8a2d0",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00002544/buffer/replay.npz": "3393c737bef491f24d2bc90b02f6302135d33af1b166f86033adaec425f9ad49",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00003816/buffer/replay.npz": "62c228d4eaca1ed42c61ad78029d969db981f9d621805f984fd861f949fa8349",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00005088/buffer/replay.npz": "c4e36f8c193161c1d4daa7f89b6660b1ec9173b9e740280b2322b5561ab7f47e",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00006360/buffer/replay.npz": "1ee7264445268cff38b28201275a10b486fde8cc0f549598a2a3ecbe7e65fca8",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00007632/buffer/replay.npz": "ff6b95a4001a9e0e4031374290197af4e5f7c3a366f1406267de2795b1484c51",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00008904/buffer/replay.npz": "84e1a689c49bff4e9becd0f2e2a4e3fd9b320d46217dfa1940f4bb90b892e767",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00010176/buffer/replay.npz": "dc88cbd3d70d5cf1e42f52d1d32c49634e8d095fec6091a21bb725fb57cfac7d",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00011448/buffer/replay.npz": "c9a6b3505d981ab8e6671da36252f6c3c918814faa8c429089e4a0f08b4d6fa1",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00012720/buffer/replay.npz": "2396f053b59d44eb392425ae002a9b1c0be7a2881ff72cdfded4a39d512259cf",
+    "runs/FORMAL_7834d0aa_seed11_best/checkpoints/step_00001272/buffer/replay.npz": "fd587e193109b3b5be840ffb6cbc3f5538e6d1383f63b557fdece9f666b8a2d0",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00012720/actors/ESS9.pt": "4385a8ba3b0b78d2089ed56754a99aeefc3c99f5878f127b0458d2800a1a8047",
+    "runs/FORMAL_7834d0aa_seed11_best/checkpoints/step_00001272/actors/ESS9.pt": "137aa912dae6e9b48d882e50f7cc7fcf8761947072585c2721a0ba64170aa3ef",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00012720/actors/ESS14.pt": "afbbe586d206d6acb780bf4cd976536882a522d54d2c9b737aeeb9678a24b969",
+    "runs/FORMAL_7834d0aa_seed11_best/checkpoints/step_00001272/actors/ESS14.pt": "302bdf67519810d7b20048fc3efe880ea7046a14928d9a9c49508e94df8db84f",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00012720/actors/ESS17.pt": "f2f3a0c1611e3f952fab9ce64a3e573005d20b1fff5af45ae1b549ca6804aa37",
+    "runs/FORMAL_7834d0aa_seed11_best/checkpoints/step_00001272/actors/ESS17.pt": "f3cc58098a3d9d7bad773cd920072a27565bb2ad853beff02e4c0fe3751cc6e8",
+    "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00012720/actors/ESS27.pt": "33620a2da5313610da84d9d18a6a81185dd84cbe72d12211e227f8292176ba1a",
+    "runs/FORMAL_7834d0aa_seed11_best/checkpoints/step_00001272/actors/ESS27.pt": "9242b9e43f1336d59108eba9141a2155ce7f023c7c21de49aaabc1d262f370f7",
+    "runs/FORMAL_7834d0aa_seed23/manifest.json": "470602b98554ac5c57cf977d2ac207d2ff73d7386772b51ff64ab57a757bff4a",
+    "runs/FORMAL_7834d0aa_seed23/exposure.json": "87124e5bc94afa3dd1632fb93db973f889accbe1049ec483a3a5be568e6efc6f",
+    "runs/FORMAL_7834d0aa_seed23/run_manifest.json": "877bd67344a8e8d0680da90162591b241209ba51a58a086968cd52ff721c719c",
+    "runs/FORMAL_7834d0aa_seed23_best/manifest.json": "41066f5c70bcdf49394deaa7ce01e288d8cce04d7fe583dc31f15c6631b567e3",
+    "runs/FORMAL_7834d0aa_seed23_best/exposure.json": "c82e1b4ead04290f93a79ff8c0e364b29789b37c08444e36c250b34fcc621d6e",
+    "runs/FORMAL_7834d0aa_seed23/block_decisions.jsonl": "704defe689838822a622d5f3de3aa601883fd26d73f5b9c3a36abdb7cf60dc43",
+    "runs/FORMAL_7834d0aa_seed23/eval_history.json": "73ebda947598b3048fab7bfc3507da02ea8e80bff3acbdd868d05c65c29f166e",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00001272/buffer/replay.npz": "f21c8cad72c5393cfe490535fbf371efa26498cfefc1019d1b833f63b4c49ad2",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00002544/buffer/replay.npz": "eb4a7dfea22eeb9ad6afc7a940d34a1bffe8488ddb3c776f5cca6f131a2e549b",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00003816/buffer/replay.npz": "254e8763e389ab18a803ed84915ada4999f082b43e5ba9f95602d1c1014b844f",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00005088/buffer/replay.npz": "cb2c1f4406eb672001c0344b91b18024d76af8909aecc99df468e3952bb4f9b8",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00006360/buffer/replay.npz": "c2bb94340c04cc4d0ccf7c954ae1bbedff97592ed5b474eab2f588264449ba23",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00007632/buffer/replay.npz": "4e803d15122071850028fa2b40f685ee7f701c06afd5c7ba992b89d903f409c2",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00008904/buffer/replay.npz": "890d33958c8ae587ff8007ec1cbac684eac059035bc93e0e0471ea50dcd8718e",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00010176/buffer/replay.npz": "f59d8703f7f90ce15f0da6ab9974fb20b47e7b13a76e33834caa8b33eb2f1717",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00011448/buffer/replay.npz": "82ffa6296c0355442e71dec8c1512a26127febba5e562c86c6c932e2cd840afe",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00012720/buffer/replay.npz": "83bbfb7e57f1ec9ffccd0b1fc8d7d9f8d57a9673ff3d58dc021e52f971bbbb09",
+    "runs/FORMAL_7834d0aa_seed23_best/checkpoints/step_00001272/buffer/replay.npz": "f21c8cad72c5393cfe490535fbf371efa26498cfefc1019d1b833f63b4c49ad2",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00012720/actors/ESS9.pt": "2194f4d0729568f2a67a90358a7c6a449ec656c202e7473c576e7b7be8dd07a8",
+    "runs/FORMAL_7834d0aa_seed23_best/checkpoints/step_00001272/actors/ESS9.pt": "18ea5551ceac6cac0825738187267c13837709f20c8712ad5f2de64fb8e1ca58",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00012720/actors/ESS14.pt": "12dadaab6a0e408e8fffca26457d3301184851c6d3ff5ccfd2e2057e5ed991b9",
+    "runs/FORMAL_7834d0aa_seed23_best/checkpoints/step_00001272/actors/ESS14.pt": "e9f9dd51401bb3ca675b1ecba7f972981d636110eed99e7fe80b0e86a9806e77",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00012720/actors/ESS17.pt": "d36ecad2902aaf8128b8ae927969299c5c52868575bdd943b1089688f731ddcf",
+    "runs/FORMAL_7834d0aa_seed23_best/checkpoints/step_00001272/actors/ESS17.pt": "731a9904220fafec3e5dd1000535b03626fd90b4ad6c8b6f1c3d1d36113c07ce",
+    "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00012720/actors/ESS27.pt": "2bab815d71e8c3996ffaf5245d1ba63f4d8778478c849d08f149430a3a469906",
+    "runs/FORMAL_7834d0aa_seed23_best/checkpoints/step_00001272/actors/ESS27.pt": "5d3993590b04b9f37436672a7b9a277e1500222c47bd1dba12f8836704898b48"
+  },
+  "missing_inputs": [],
+  "code_manifest_pins": {},
+  "code_manifest_all_match": true,
+  "routes": {
+    "execution_uses_forward_policy_v3": true,
+    "actor_update_uses_forward_policy_v3": true,
+    "target_actor_uses_target_quotes_v3": true,
+    "critic_actor_action_uses_actor_loss_map": true,
+    "critic_target_action_uses_target_quotes": true,
+    "v2_map_absent_from_da_module": true
+  },
+  "routes_all_pass": true,
+  "run_source_pins": {
+    "seed11:rl_da_gate.py": {
+      "expected": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3",
+      "actual": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3",
+      "match": true
+    },
+    "seed11:da_quote_map.py": {
+      "expected": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
+      "actual": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
+      "match": true
+    },
+    "seed11:da_replay.py": {
+      "expected": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+      "actual": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+      "match": true
+    },
+    "seed11:rl_b_c2_gate.py": {
+      "expected": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b",
+      "actual": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b",
+      "match": true
+    },
+    "seed11:rl_spec.py": {
+      "expected": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1",
+      "actual": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1",
+      "match": true
+    },
+    "seed11:rl_env.py": {
+      "expected": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+      "actual": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+      "match": true
+    },
+    "seed11:dispatch_socp.py": {
+      "expected": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+      "actual": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+      "match": true
+    },
+    "seed11:b1_daily_baseline.py": {
+      "expected": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+      "actual": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+      "match": true
+    },
+    "seed11:c2_reward.py": {
+      "expected": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+      "actual": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+      "match": true
+    },
+    "seed11:daily_reward_b.py": {
+      "expected": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+      "actual": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+      "match": true
+    },
+    "seed11:v2_cy_jn_env.py": {
+      "expected": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+      "actual": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+      "match": true
+    },
+    "seed11:train_da_gate.py": {
+      "expected": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee",
+      "actual": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee",
+      "match": true
+    },
+    "seed23:rl_da_gate.py": {
+      "expected": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3",
+      "actual": "b261a22c67a04b77bed71b11aeebccdcf0a7502d6cd1e043d3b179e78722d1f3",
+      "match": true
+    },
+    "seed23:da_quote_map.py": {
+      "expected": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
+      "actual": "821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358",
+      "match": true
+    },
+    "seed23:da_replay.py": {
+      "expected": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+      "actual": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+      "match": true
+    },
+    "seed23:rl_b_c2_gate.py": {
+      "expected": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b",
+      "actual": "52164ff79b1dae2bd49a23c5e5d9ccda3dfbec54c3cedaac2ebc522bde36ef8b",
+      "match": true
+    },
+    "seed23:rl_spec.py": {
+      "expected": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1",
+      "actual": "ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1",
+      "match": true
+    },
+    "seed23:rl_env.py": {
+      "expected": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+      "actual": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+      "match": true
+    },
+    "seed23:dispatch_socp.py": {
+      "expected": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+      "actual": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+      "match": true
+    },
+    "seed23:b1_daily_baseline.py": {
+      "expected": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+      "actual": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+      "match": true
+    },
+    "seed23:c2_reward.py": {
+      "expected": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+      "actual": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+      "match": true
+    },
+    "seed23:daily_reward_b.py": {
+      "expected": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+      "actual": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+      "match": true
+    },
+    "seed23:v2_cy_jn_env.py": {
+      "expected": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+      "actual": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+      "match": true
+    },
+    "seed23:train_da_gate.py": {
+      "expected": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee",
+      "actual": "f4a2d0ab376c0c0d0ca85b88741cbdf90a558dc6c070e85b8f634770bf1e6bee",
+      "match": true
+    }
+  },
+  "run_source_pins_all_match": true,
+  "probe_pair_split": {
+    "11": {
+      "probe_pairs_subset_of_train": true,
+      "probe_pairs_disjoint_from_holdouts": true,
+      "probe_pairs_present": 8
+    },
+    "23": {
+      "probe_pairs_subset_of_train": true,
+      "probe_pairs_disjoint_from_holdouts": true,
+      "probe_pairs_present": 8
+    }
+  },
+  "identity": {
+    "map_version": "linear_core_v1",
+    "action_schema": "storage_quote_v4",
+    "protocol_version": null,
+    "config_hash": null,
+    "quote_map_in_manifest": "linear_core_v1",
+    "base_b_c2_uses_v2_sigmoid_map": true,
+    "base_b_c2_audited_here": false,
+    "phase19_20_routing_issues": "already fixed; not re-reported as current"
+  },
+  "preregistration": {
+    "written_before_measurement": true,
+    "primary_coverage_reading": "checkpoint actor forward on the stored replay observations of the same round, legs whose recorded Bernoulli gate was open",
+    "secondary_reading": "recorded block_decisions price_logits (post-noise training distribution), gate open and exploration_source == 0",
+    "deployment_reading": "seeded eval-mode rollout on the 8 pre-registered train pairs, deterministic gate",
+    "coverage_definition": "share of leg-decisions with |z| < Z_CORE",
+    "minimum_leg_sample": 100,
+    "criteria": {
+      "coverage_overall": 0.9,
+      "coverage_each_ess_leg": 0.8,
+      "abs_dq_dz_median_vs_v1": 10.0,
+      "abs_dq_dz_p10_vs_v1": 3.0,
+      "edge_fraction_drop_pp": 20.0
+    },
+    "per_seed_independent": true,
+    "selection_rule": "smallest Z passing every criterion on both seeds"
+  }
+}

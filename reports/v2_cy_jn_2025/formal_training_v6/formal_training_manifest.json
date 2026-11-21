@@ -1,0 +1,19 @@
+{
+  "status": "PENDING_PRETRAINING_VALIDATION",
+  "training_readiness_status": null,
+  "scope": "formal training on NEAR80/common_split; Test is LEGACY_SEEN_TEST; no independent-generalisation claim",
+  "accepted_candidate": "V6_candidate_001",
+  "data_manifest": "formal_training_data_manifest.json",
+  "code_manifest": "formal_training_code_manifest.json",
+  "config_file": "formal_training_config.yaml",
+  "config_sha256": "ac0f78d2bc3aa3349597ef4f500910263524e65609d122ee8475c5ef2556ed8f",
+  "data_manifest_sha256": "e9d6e13dd3d479f41aca1e0ccbb10020cc2fb9bd54e5c6c10ba222418c5a02cd",
+  "code_manifest_sha256": "de556c392eb3c5cb8651ad6c34d739b4e270f275776298b46fba03d0d7e06035",
+  "checks": {
+    "common_split_counts": true,
+    "all_disjoint": true,
+    "legacy_label_matches": true,
+    "h2_sealed": true,
+    "all_pass": true
+  }
+}

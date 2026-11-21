@@ -1,0 +1,95 @@
+{
+  "history": [
+    {
+      "seed": 11,
+      "rows": 71126,
+      "closed_gate_nonzero": 0,
+      "open_no_override_mismatch": 0,
+      "recorded_price_quotes_field": "absent in block_decisions.jsonl",
+      "layer1_raw_logits": "NOT_TESTED for historical rows; recovered from checkpoints instead"
+    },
+    {
+      "seed": 23,
+      "rows": 63809,
+      "closed_gate_nonzero": 0,
+      "open_no_override_mismatch": 0,
+      "recorded_price_quotes_field": "absent in block_decisions.jsonl",
+      "layer1_raw_logits": "NOT_TESTED for historical rows; recovered from checkpoints instead"
+    }
+  ],
+  "buffer": {
+    "11": {
+      "remap_max_abs_err": 0.0,
+      "executed_mismatch": 0,
+      "closed_gate_nonzero": 0,
+      "rows": 48720,
+      "path": "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/buffer_raw_logits_seed11.npz",
+      "sha256": "a27ac12e0c7919e47cddf73564097f143dc452fc8b1483794b6ec209095adb99"
+    },
+    "23": {
+      "remap_max_abs_err": 0.0,
+      "executed_mismatch": 0,
+      "closed_gate_nonzero": 0,
+      "rows": 48720,
+      "path": "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/buffer_raw_logits_seed23.npz",
+      "sha256": "4768c19b3900ec5ec34eb4734c64bf64a3bc4dc89c6cbb700dba38ec97043c52"
+    }
+  },
+  "routes_measured": {
+    "execution": {
+      "da_v3": 1,
+      "map_v3": 0,
+      "v2_sigmoid": 0
+    },
+    "actor_loss": {
+      "da_v3": 1,
+      "map_v3": 0,
+      "v2_sigmoid": 0
+    },
+    "target": {
+      "da_v3": 0,
+      "map_v3": 1,
+      "v2_sigmoid": 0
+    },
+    "v2_sigmoid_used_in_da_paths": false
+  },
+  "rollout": [
+    {
+      "seed": 11,
+      "checkpoint": "final",
+      "episode": 530,
+      "gate_temperature": 1.0,
+      "epsilon": 0.04999999999999999,
+      "rows": 1536,
+      "raw_logits": 1493
+    },
+    {
+      "seed": 11,
+      "checkpoint": "best",
+      "episode": 53,
+      "gate_temperature": 2.5,
+      "epsilon": 0.15000000000000002,
+      "rows": 1536,
+      "raw_logits": 1344
+    },
+    {
+      "seed": 23,
+      "checkpoint": "final",
+      "episode": 530,
+      "gate_temperature": 1.0,
+      "epsilon": 0.04999999999999999,
+      "rows": 1536,
+      "raw_logits": 1344
+    },
+    {
+      "seed": 23,
+      "checkpoint": "best",
+      "episode": 53,
+      "gate_temperature": 2.5,
+      "epsilon": 0.15000000000000002,
+      "rows": 1536,
+      "raw_logits": 1344
+    }
+  ],
+  "probe_trace_sha256": "83c3ca8025aa56672d3c128150d6dd9cba38d333c2e47006ff0d7f2579f800da"
+}

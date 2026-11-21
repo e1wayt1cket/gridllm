@@ -1,0 +1,60 @@
+{
+  "phase": 21,
+  "purpose": "controlled comparison of candidate fixes on a fixed training subset",
+  "created_on": "2026-11-02",
+  "split": {
+    "file": "data/processed/v2_cy_jn_2025/common_split.json",
+    "view": "near",
+    "sha256": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335",
+    "train_days": 53,
+    "validation_days": 11,
+    "test_days": 11,
+    "holiday_days": 5
+  },
+  "smoke": {
+    "train_days": [
+      "2022-08-14",
+      "2022-10-13",
+      "2022-11-01",
+      "2022-12-17",
+      "2022-12-27"
+    ],
+    "seed": 11,
+    "exposures": 4,
+    "rounds": 4,
+    "episodes": 20,
+    "blocks_per_episode": 24,
+    "block_interactions": 480,
+    "validation_passes": 4,
+    "early_stop_patience": 0,
+    "trace_blocks": true
+  },
+  "runs": {
+    "control_pre_fix": "P21_control_smoke_seed11",
+    "candidate_001": "P21_candidate_001_smoke_seed11"
+  },
+  "boundaries": {
+    "reads_test": false,
+    "reads_holiday": false,
+    "reads_h2": false,
+    "overwrites_existing_runs": false,
+    "smoke_is_not_a_generalisation_result": true
+  },
+  "acceptance": {
+    "hard_gates": [
+      "targeted tests pass",
+      "action routing PASS with v2_calls_in_update == 0",
+      "exact smoke days, episodes and block count",
+      "no abort, no voltage/line/SOC/terminal violation",
+      "no test, holiday or H2 access",
+      "complete logs and checkpoint restore"
+    ],
+    "non_inferiority_vs_control": {
+      "validation_mean_delta": "control minus one paired day-level standard deviation",
+      "positive_days": "control positive_days - 1",
+      "per_ess_mean": "no ESS worse than control by more than 10 CNY"
+    },
+    "target_metric": "the metric the candidate was opened to fix improves by at least 20% in the predicted direction",
+    "smoke_result_is_diagnostic_only": true
+  }
+}

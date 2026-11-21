@@ -1,0 +1,79 @@
+{
+  "all_pass": true,
+  "training_readiness_status": "GO_FORMAL_TRAINING",
+  "scope": "formal training on NEAR80/common_split; Test is LEGACY_SEEN_TEST; no independent-generalisation claim",
+  "checks": {
+    "data": {
+      "common_split_counts": true,
+      "all_disjoint": true,
+      "legacy_label_matches": true,
+      "h2_sealed": true,
+      "all_pass": true
+    },
+    "environment": {
+      "control_hard_gates": true,
+      "candidate_hard_gates": true,
+      "control_terminal_soc": true,
+      "candidate_terminal_soc": true,
+      "control_no_voltage": true,
+      "candidate_no_voltage": true,
+      "control_no_line": true,
+      "candidate_no_line": true,
+      "settlement_identity_control": true,
+      "settlement_identity_candidate": true
+    },
+    "algorithm": {
+      "map_tests_passed": true,
+      "routing_all_pass": true,
+      "v2_calls_in_update_zero": true,
+      "actor_loss_finite": true,
+      "target_route_v3": true,
+      "finite_difference_dq_dquote": true,
+      "smoke_accepted": true,
+      "no_persistent_action_degeneration": true,
+      "bellman_target_reconstructed": true,
+      "critic_action_indices": true
+    },
+    "engineering": {
+      "checkpoint_roundtrip": true,
+      "pause_resume": true,
+      "entry_isolation": true,
+      "validation_not_in_replay": true,
+      "obs_future_price_causal": true,
+      "obs_positive_control": true,
+      "no_forbidden_open": true,
+      "block_traceability": true,
+      "artifacts_hashed": true,
+      "manifests_consistent": true
+    },
+    "tests": {
+      "full_default_suite": true,
+      "summary": "core suite 1361 passed + eval consistency 4 passed; 36 slow deselected; 0 failed"
+    }
+  },
+  "residual_risks": [
+    "The D+A critic's ranking on material states is weak (Q-top equals return-top in 6/15 informative groups for best and 1/15 for final; median within-group Spearman +0.238 / -0.143). No minimal fix was supported by target-smoothing or credit evidence. The formal run is required to test whether the larger budget changes this; the readiness GO is not a performance claim.",
+    "The smoke is a 20-episode diagnostic, not a generalisation result.",
+    "The load is 2022 metered and the price is a 2025 Jiangnan curve: a cross-year controlled simulation, not same-period settlement.",
+    "The H2 price-date holdout remains sealed and the legacy test is not a blind set.",
+    "The online critic has dropout; routing and finite-difference checks use eval mode, while training-time gradients are stochastic."
+  ],
+  "evidence": {
+    "data\\processed\\v2_cy_jn_2025\\phase20_oracle_surrogate.json": "a0eefe48732eb96253c43d782822de596fae6abdb99e3303868ee0df5db8aff9",
+    "data\\processed\\v2_cy_jn_2025\\phase20_bellman_diagnostics.json": "924f214990a63acc4dd1ff719f7c92a57d575309a27416e47d33aefc7d7ff690",
+    "data\\processed\\v2_cy_jn_2025\\phase20_own_action_sensitivity.json": "536bf8c987153d5865619ab521fe895606fcd192efa641a6309e046167a3ef39",
+    "data\\processed\\v2_cy_jn_2025\\phase20_action_routing.json": "fa7940902b84c7be274240c6ef41c1190dfe4b2c674ba1dae1dc9ed33f65e3f3",
+    "data\\processed\\v2_cy_jn_2025\\phase21_smoke_control_vs_candidate_001.json": "94ed0b7864f0e8d1dddf3d6c3bb738c758def471ee19bc576d9e3c732eb465d3",
+    "reports\\v2_cy_jn_2025\\formal_training_ready\\phase22_entry_isolation.json": "4a18efe15419bf9d64e5d66735e7b224c40dafd8142912c13cbaeb458206796a",
+    "reports\\v2_cy_jn_2025\\formal_training_ready\\phase22_checkpoint_roundtrip.json": "d9499f31e86b03798df713d130faf01e80defbfc2261edeca7dce8fa7ad80ad1",
+    "reports\\v2_cy_jn_2025\\formal_training_ready\\phase22_resume.json": "d6a34b92e5f5f6f0194331520ee96adcfa962a8b46250602a960b64ea82a5bc0"
+  },
+  "manifest": "reports\\v2_cy_jn_2025\\formal_training_ready\\formal_training_manifest.json",
+  "config": "reports\\v2_cy_jn_2025\\formal_training_ready\\formal_training_config.yaml",
+  "notes": {
+    "oracle": "piecewise-linear matched-rollout proxy over the observed quote grid; constant outside the grid",
+    "bellman": "read-only replay diagnostics; the TD residual is recomputed from the stored reward and next observation, not from the matched full-day return",
+    "sensitivity": "the four training states use the near/split.json role of the D+A run; the named cases are validation there and training days under common_split",
+    "routing": "the environment carries the v2 action spec as metadata; its bounds and truthful point are identical to v3, so this does not change the numeric action contract"
+  }
+}

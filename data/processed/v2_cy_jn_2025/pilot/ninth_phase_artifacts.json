@@ -1,0 +1,54 @@
+{
+  "reports": {
+    "reports/v2_cy_jn_2025/b1_daily_equivalence_audit.md": "c22671c0a4294503bef594425c17054abc947149e0aae0ad2ef7f8363f2c5a75",
+    "reports/v2_cy_jn_2025/daily_reward_b_audit.md": "93b3130625ea6643e3388ecde5bd2033f7ee1d830eb4d8e9f833d03de018079a",
+    "reports/v2_cy_jn_2025/c2_reward_implementation_audit.md": "c60c332bd50cf122c2219901e46a60c8ba003863c5ecde7d83432572c78852ce",
+    "reports/v2_cy_jn_2025/truthful_gate_interface_audit.md": "1c14b7c8be49262dc865e5b38516a9c29de1efece95d03426856b85aa0e26f6d",
+    "reports/v2_cy_jn_2025/checkpoint_roundtrip_audit.md": "95d6f52fa72eb9fb66cea342b106f671327dfdfa3e59f264f2293822d412a4a9",
+    "reports/v2_cy_jn_2025/future_holdout_protocol.md": "81c91b280590dc14f43efb6405cb7dc20eefc227f732522cd1bebca7e08838ca",
+    "reports/v2_cy_jn_2025/training_readiness.md": "db09bf0dda0c217b7e710169835201260c3d02a402b3e182651bb3d21b786759"
+  },
+  "data": {
+    "data/processed/v2_cy_jn_2025/pilot/b1_daily_results.csv": "8bb7ec7ec5b33eb6021e79e0ba83a969ca9c4d0cb546cf6ff1e75d4bbd992cc5",
+    "data/processed/v2_cy_jn_2025/pilot/b1_daily_manifest.json": "83917f68d2dd7c1a42ceab218418e9ecd3031a140a174decd42b847770f0cee0",
+    "data/processed/v2_cy_jn_2025/pilot/b1_jnbase_comparison.csv": "b5f49eecd57623136c94e2b0e117971df3b9a9b9fb5df388857c4cd32764954e",
+    "data/processed/v2_cy_jn_2025/pilot/reward_b_c2_identities.json": "889419b8de42bd19c9ca23103c2085c762936145d3c47d012272867cba8a72c8",
+    "data/processed/v2_cy_jn_2025/pilot/gate_interface_test_results.json": "2e368131eed680d6b305f7880dc11ecdd2b9c39d2397b1ee8a34d65e2c4533b1",
+    "data/processed/v2_cy_jn_2025/pilot/checkpoint_roundtrip_results.json": "a7f7cd40bf5b44b88dad4d63a4b6955f893c797e1a4ecd8ac07e97d7f08e973d",
+    "data/processed/v2_cy_jn_2025/pilot/checkpoint_schema_v2.sample.json": "aaf8e360c8819c108bef9202f9c0fe546a423e4410ab304425fb64f7ab6f0554",
+    "data/processed/v2_cy_jn_2025/pilot/checkpoint_schema_validation.json": "a484a52b9de3e22de33e10a3ea70e1a5ca02ee7655ec16371363a116902e2ce5",
+    "data/processed/v2_cy_jn_2025/pilot/holdout_status.json": "5562c972e925c9082e390a7d091bfbc9a4cf4acfb2208caab21298f235198b05"
+  },
+  "scripts": {
+    "src/b1_daily_baseline.py": "c62dc4e98dd2b32c6fe2c9f41910b674a14d38eb8f173b9b6cf1d7d9317c223e",
+    "src/daily_reward_b.py": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+    "src/c2_reward.py": "3d100e79ba5429bb88fc3420c61b0ad4b510c9d6fa9adc8763731c4dc57b6324",
+    "src/truthful_gate_actor_adapter.py": "c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b",
+    "src/checkpoint_writer_v2.py": "b8315f1b97af5b3683ee8f1895908bcc6cc00c28fab515f4f60884b74b420f33",
+    "src/checkpoint_loader_v2.py": "23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe",
+    "src/validate_checkpoint_schema.py": "78893c7cd88c87810843748e2ac1cedd5ed0a35f26595db04420efd70628da2f",
+    "src/audit_reward_b_c2_identities.py": "fd3e65459ff8a01a5e74a5c69673fb0edd3cd8691c4d91cb6cfad1b5ef9fa203",
+    "src/audit_truthful_gate_interface.py": "da386015a33cec9af3dd8deeb6a8e8b15c97b337d9521008ba4c4d68fc1305e3",
+    "src/audit_checkpoint_roundtrip.py": "59e899c97586f531e0aa8a1665253ff080c6d392df829bc89c81f30e154812d6",
+    "src/action_gate.py": "6dc43fc42c9e3cb6c68607e8c9e08e5623fd83427880c2983cbefb757ce71964"
+  },
+  "tests": {
+    "tests/test_b1_daily_baseline.py": "c02fc9be5809440ba6dd8b4d9e12d9119734adb3618dfe572e7c8f7355df883b",
+    "tests/test_daily_reward_b.py": "76f7706ef4131d9b0cd5b19cf106a08bec3d4ffb28f1f46f3db833a0f292b8d7",
+    "tests/test_c2_reward.py": "321c32582b4b08319c3618e199712ea086cc57c31c4a372d1437453778e13028",
+    "tests/test_truthful_gate_actor_adapter.py": "158436d0370e58506c9b169811a7bbb610b174d166118f1fa7805e20d972a174",
+    "tests/test_gate_interface_audit.py": "d9fbe01014ee423884e7c01f1742dd093d2943d69272de31fe1ed424d04a6167",
+    "tests/test_checkpoint_roundtrip.py": "74aea39b6349721feaef5a48d744a342272d3a04d9c5c2b585fda639547b062c",
+    "tests/test_checkpoint_schema.py": "1ab17b46a927f32bc4a736639bf35056c2c5593e4cd4e71642407fc08e23bc7a",
+    "tests/test_action_gate_prototype.py": "550d9625ce77d9c6ea14dc52279a37f52375162cafa743f8076459e523e2c46b"
+  },
+  "inputs": {
+    "data/processed/v2_cy_jn_2025/load_price_pairing.csv": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1",
+    "data/processed/v2_cy_jn_2025/near/load_price_pairing.csv": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363",
+    "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078",
+    "data/processed/v2_cy_jn_2025/price_curves.npz": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1",
+    "data/processed/v2_cy_jn_2025/common_split.json": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335"
+  },
+  "b1_config_hash": "5c6c93f16209203b61bfcc11436b110b80206fde5b2c2247a7ea29295b2c4162",
+  "b1_mechanism": "24 blocks, each a 16-period rolling window committing 4; all four RL units truthful (0,0); no terminal SOC pin; block-level participant_payoff summed"
+}

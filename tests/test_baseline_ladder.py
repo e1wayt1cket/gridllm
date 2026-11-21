@@ -24,10 +24,10 @@ _REPO = pathlib.Path(__file__).resolve().parent.parent
 #: The served/unserved split leaves ~1e-7 MWh behind at the native scale, and
 #: the band-sensitivity differences inherit it. The one rung that genuinely
 #: sheds -- B1 at the strict band, which has neither DER nor a battery and so
-#: can only meet a tighter bound by dropping load -- sits at ~1.3e-3 MWh, two
-#: orders above this line. Every tolerance below is stated against it rather
-#: than against a transcribed measurement, so a rung whose shed moves into the
-#: noise floor is reported rather than asserted to have changed.
+#: can only meet a tighter bound by dropping load -- sits at ~3.2e-2 MWh,
+#: three orders above this line. Every tolerance below is stated against it
+#: rather than against a transcribed measurement, so a rung whose shed moves
+#: into the noise floor is reported rather than asserted to have changed.
 SHED_TOL_MWH = 1e-5
 
 
@@ -579,3 +579,146 @@ def test_forcing_zero_shed_breaks_voltage_and_not_line_capacity():
           f"vmin {out['worst_voltage']['vmin']:.6f} at bus "
           f"{out['worst_voltage']['vmin_bus']}, worst line loading "
           f"{out['worst_line_loading']:.4f}")
+
+
+# ---------------------------------------------------------------------------
+# The rung's config is the scenario's config, at the rung's band
+# ---------------------------------------------------------------------------
+
+def _field_diffs(a, b, ignore=()):
+    """Every dataclass field that differs between two configs."""
+    import dataclasses
+    out = []
+    for section in ("network", "storage", "rt", "market_design"):
+        sa, sb = getattr(a, section), getattr(b, section)
+        for f in dataclasses.fields(sa):
+            if f.name in ignore:
+                continue
+            va, vb = getattr(sa, f.name), getattr(sb, f.name)
+            if va != vb:
+                out.append(f"{section}.{f.name}: {va!r} != {vb!r}")
+    return out
+
+
+def test_a_rung_is_built_through_the_scenario_config_path():
+    """The rung's model and the scenario's model are the same model.
+
+    `_config` used to assemble a `MarketConfig` from the dataclass defaults,
+    which agree with the file on most fields and not on the ones the scenario
+    declares. The two entry points then cleared different markets, and the
+    ladder's rung was not a rung of the scenario it claims to be.
+    """
+    from scenarios import scenario_model_config
+
+    rung = bl._config(PRIMARY_BAND)
+    scenario = scenario_model_config(bl.BASE_SCENARIO)
+    assert _field_diffs(rung, scenario,
+                        ignore=("v_min_pu", "v_max_pu")) == []
+
+
+def test_a_rung_carries_the_facility_choices_the_scenario_declares():
+    """The two fields the old construction silently dropped.
+
+    Both are choices about this study's facilities rather than properties of
+    the network, and a rung that clears without them is a different study.
+    """
+    rung = bl._config(PRIMARY_BAND)
+    assert rung.network.load_power_factor == pytest.approx(0.8503)
+    assert rung.network.inverter_smax_multiplier == pytest.approx(1.10)
+
+
+def test_only_the_band_moves_between_the_two_rungs():
+    """Reusing the scenario path must not disturb anything the band does not
+    name."""
+    primary = bl._config(PRIMARY_BAND)
+    strict = bl._config(STRICT_BAND)
+    assert _field_diffs(primary, strict,
+                        ignore=("v_min_pu", "v_max_pu")) == []
+    assert (primary.network.v_min_pu, primary.network.v_max_pu) == PRIMARY_BAND
+    assert (strict.network.v_min_pu, strict.network.v_max_pu) == STRICT_BAND
+
+
+def test_a_sweep_override_reaches_the_config_builder_and_not_the_rung():
+    """Where an override does and does not reach, stated as the boundary.
+
+    `_config` is public and reads the scenario cache, so a sweep built on it
+    sees what the sweep wrote. `build_rung_agents` clears both caches first --
+    deliberately, so a rung cannot depend on what ran before it -- and
+    therefore always clears the file's model. The two behaviours are different
+    on purpose, and each is asserted here rather than left to a reader.
+    """
+    from config_loader import reload_scenarios, set_scenario_override
+
+    reload_scenarios()
+    try:
+        set_scenario_override(bl.BASE_SCENARIO,
+                              "network.inverter_smax_multiplier", 1.35)
+        assert bl._config(PRIMARY_BAND).network.inverter_smax_multiplier ==             pytest.approx(1.35)
+
+        _agents, _w, built = bl.build_rung_agents("B3", PRIMARY_BAND, 123)
+        assert built.network.inverter_smax_multiplier == pytest.approx(1.10),             "a rung inherited an override the previous caller left in the cache"
+    finally:
+        reload_scenarios()
+
+    # With nothing written, both doors give the file's value.
+    assert bl._config(PRIMARY_BAND).network.inverter_smax_multiplier ==         pytest.approx(1.10)
+    _agents, _w, rung_config = bl.build_rung_agents("B3", PRIMARY_BAND, 123)
+    assert rung_config.network.inverter_smax_multiplier == pytest.approx(1.10)
+
+
+def test_re_applying_the_scenario_onto_a_rung_config_does_not_accumulate():
+    """`get_scenario` re-applies a scenario's overrides onto the config it is
+    handed, so a rung's value passes through the applier twice. Every entry is
+    an absolute assignment, and this is what holds that true."""
+    from scenarios import get_scenario
+
+    config = bl._config(PRIMARY_BAND)
+    before = (config.network.line_capacity_multiplier,
+              config.network.inverter_smax_multiplier,
+              config.network.load_power_factor)
+    assert before == (pytest.approx(1.5), pytest.approx(1.10),
+                      pytest.approx(0.8503))
+    for _ in range(3):
+        get_scenario(bl.BASE_SCENARIO, 96, config)
+    after = (config.network.line_capacity_multiplier,
+             config.network.inverter_smax_multiplier,
+             config.network.load_power_factor)
+    assert after == before, f"re-applying the scenario moved {before} to {after}"
+
+
+def test_the_superseded_ladder_outputs_are_marked_as_such():
+    """The recorded outputs describe the pre-S7 model, and the marker has to
+    keep saying so.
+
+    `outputs/ladder*.json` and `logs/audit_ladder_current.log` hold figures from
+    before the rung config was routed through the scenario path. They were left
+    on disk rather than rewritten, so the manifest beside them carries the
+    reason. Its `configuration_in_force` must be what the ladder builds now --
+    otherwise the note is describing a model that no longer exists either, and
+    a reader would be told the current numbers are the superseded ones.
+    """
+    import json
+    import pathlib
+
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    manifest = json.loads(
+        (repo / "outputs" / "ladder_superseded_manifest.json").read_text())
+
+    assert manifest["status"] == "superseded"
+    recorded = manifest["configuration_recorded"]
+    current = manifest["configuration_in_force"]
+    assert recorded != current, "the manifest names no actual change"
+
+    live = bl._config(PRIMARY_BAND)
+    assert current["network.load_power_factor"] == \
+        pytest.approx(live.network.load_power_factor)
+    assert current["network.inverter_smax_multiplier"] == \
+        pytest.approx(live.network.inverter_smax_multiplier)
+    assert current["built_from"] != recorded["built_from"]
+
+    for entry in manifest["files"]:
+        assert (repo / entry["path"]).exists(), entry["path"]
+        # Digests are provenance, not a gate: re-running the ladder overwrites
+        # these outputs, and that is the intended signal that they no longer
+        # describe the recorded run. The marker above is what the test holds.
+        assert len(entry["sha256"]) == 64

@@ -1,0 +1,1583 @@
+=== page 1 ===
+Information Fusion 129 (2026) 104026
+Contents lists available at ScienceDirect
+Information Fusion
+journal homepage: www.elsevier.com/locate/inffus
+Full Length Article
+MAD3PG: A framework for multi-agent deep denoising diffusion policy
+gradient optimization
+Shan Zhong a, Gang Wang b, Jingkui Zhang a, Xiaoyang Wang c, Kah Chan Teh d,
+He Diao a, Ping Zhang e, Jiacheng He a, Zhi Zeng a, Tee Hiang Cheng d,1,
+Bei Peng a,f,∗
+aSchool of Mechanical and Electrical Engineering, University of Electronic Science and Technology of China, Chengdu, 611731, China
+bSchool of Information and Communication Engineering, University of Electronic Science and Technology of China, Chengdu, 611731, China
+cDepartment of Computer Science, University of Exeter, United Kingdom
+dSchool of Electrical and Electronic Engineering, Nanyang Technological University, Singapore
+eSchool of Optoelectronic Science and Engineering, University of Electronic Science and Technology of China, Chengdu, 611731, China
+fSichuan EIR Technology Co. Ltd, Chengdu, China
+a r t i c l e i n f o a b s t r a c t
+Keywords: Distributional reinforcement learning enhances policy robustness and learning efficiency by modeling the full
+Diffusion models value distribution rather than merely estimating its expectation. However, most existing methods are designed for
+Distributional multi-agent reinforcement single-agent discrete tasks and typically rely on prior assumptions about the form of the value distribution, such as
+learning
+fixed discrete atoms or quantile regression. These assumptions become restrictive in multi-agent scenarios, where
+Multimodal value distribution
+information from different agents must be fused and the resulting joint value distribution often exhibits complex
+multimodal characteristics that cannot be effectively captured by predefined distributional forms. To address
+the above limitations, this paper proposes Multi-Agent Deep Denoising Diffusion Policy Gradient Optimization
+(MAD3PG), a novel framework that leverages diffusion models to model the value distribution of joint state-action
+pairs. Unlike existing distributional methods that rely on prior assumptions, diffusion models inherently possess
+the capacity to capture value distribution, thereby demonstrating clear advantages in multi-agent environments.
+Since true value samples are unavailable during online training, we introduce a K-repeated sampling strategy
+combined with temporal-difference targets to efficiently optimize the conditional variational evidence lower
+bound. Furthermore, we provide a theoretical convergence analysis of MAD3PG. We demonstrate MAD3PG’s
+ability to fit multi-modal distributions through toy examples. Furthermore, we validate its effectiveness by con-
+ducting comprehensive experiments in the Multi-Agent Particle Environment (MPE) as well as in the MuJoCo
+environment. The experimental results indicate that MAD3PG significantly outperforms traditional algorithms
+based on deterministic value estimation. The code is available at https://github.com/smartXiaoz/MAD3PG.
+1. Introduction and delayed policy updates, has been introduced to significant improve
+stability [7,8]. More recently, Heterogeneous-Agent Deep Determinis-
+Multi-agent reinforcement learning (MARL) has emerged as a vi- tic Policy Gradient (HADDPG) and Heterogeneous-Agent Twin Delayed
+tal area of research [1,2], driven by its wide-ranging applications in Deep Deterministic Policy Gradient (HATD3) have been explored to
+fields such as traffic signal control [3], robotic control [4]. In MARL, extend these concepts to heterogeneous-agent settings, enabling bet-
+MADDPG has become a widely-used algorithm by leveraging central- ter coordination among agents with diverse roles [9,10]. In this paper,
+ized training with decentralized execution (CTDE) to optimize determin- MADDPG, MATD3, HADDPG, and HATD3 are collectively referred to as
+istic policies [5]. However, MADDPG suffers from overestimation bias MADDPG-type algorithms.
+in the Q-value function, which limits its performance in complex envi- At the heart of these algorithms is the use of experience replay buffers
+ronments [6]. To address this, Multi-Agent Twin Delayed Deep Deter- to train the state-action value function 𝑄(𝑠,𝐚) (critic), with a determin-
+ministic Policy Gradient (MATD3), which introduces twin Q-networks istic policy used for action selection (actor) [5,9]. They approximated
+∗ Corresponding author.
+E-mail address: beipeng@uestc.edu.cn (B. Peng).
+1 T. H. Cheng is a Fellow of the Academy of Engineering, Singapore.
+https://doi.org/10.1016/j.inffus.2025.104026
+Received 24 August 2025; Received in revised form 21 November 2025; Accepted 1 December 2025
+Available online 3 December 2025
+1566-2535/© 2025 Elsevier B.V. All rights are reserved, including those for text and data mining, AI training, and similar technologies.
+
+=== page 2 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+the Q-value through point estimates, calculating a fixed value for each best of our knowledge, this is the first attempt to apply diffusion
+state-action pair [11]. Recent methods further enhanced robustness and models to multi-agent value estimation.
+representation power through ensemble learning [12–14] and multi- • By introducing a K-repeated sampling mechanism to select high-
+agent heterogeneous graph attention networks [15], which provide im- quality samples, and combining it with TD methods, we successfully
+proved feature modeling capabilities. While these approaches demon- optimize the ELBO of the diffusion model in online RL scenarios.
+strate impressive performance in many scenarios, they share a funda- • We successfully integrate MAD3PG with existing multi-agent rein-
+mental limitation in capturing multimodal value distributions. In multi- forcement learning algorithms such as MADDPG-type algorithms,
+agent scenarios with large joint action spaces, different coordination and validate its effectiveness through extensive experiments, demon-
+patterns may yield similarly high returns. For instance, when multiple strating superior performance compared to traditional deterministic
+agents navigate around a shared obstacle, coordinating to pass from op- algorithms.
+posite sides or queuing from the same side represents equally effective
+strategies that correspond to distinct peaks in the value distribution. Ex-
+2. Preliminaries
+isting regression-based methods converged to a single averaged estimate
+for such multimodal values, hindering agents from discovering diverse
+In this section, we discuss prior work related to our proposed ap-
+coordination strategies and slowing convergence in complex stochastic
+proach, primarily focusing on diffusion denoising models and multi-
+environments [16,17].
+agent reinforcement learning.
+Existing distributional reinforcement learning methods, such as
+Categorical 51 (C51) and Quantile Regression Deep Q-Network (QR-
+DQN) [18,19], attempted to overcome the limitations of point estima- 2.1. Denoising diffusion probabilistic models
+tion by modeling the value distribution. C51 represents the value dis-
+tribution through a set of predefined discrete atoms, while QR-DQN ap-
+The denoising diffusion model is a class of deep generative models
+proximates the distribution through learned quantile values. However,
+inspired by non-equilibrium thermodynamics [20–25]. In recent works,
+these methods were designed for single-agent settings and rely on fixed
+diffusion models have achieved remarkable success in policy learning
+distributional assumptions, thus limiting their effectiveness in capturing
+[26–28], imitation learning [29–32] and offline reinforcement learning
+complex distributions in multi-agent environments.
+[33–38]. In policy learning, the strategies generated by diffusion models
+Inspired by the powerful generative capabilities of diffusion mod-
+exhibit diversity, providing agents with strong exploratory capabilities
+els in image synthesis [20,21], which excel at modeling complex, high-
+[26]. In imitation learning, the goal is to learn behavioral policies from
+dimensional distributions without prior assumptions, in this paper, we
+expert datasets without the need for explicit reward functions. Several
+introduce a denoising diffusion model to predict the distribution of
+studies, such as Diffusion Policy [29], Crossway Diffusion [30], and Ac-
+joint state-action pairs. Unlike existing distributional methods such as
+tionless Video-based Dense Correspondence Learning (AVDC) [31], have
+C51 and QR-DQN, which rely on fixed distributional assumptions, the
+applied diffusion-based strategies to generate robotic action sequences
+diffusion model requires no such prior specification of distributional
+based on visual motion observations. These studies leverage the power-
+forms. It naturally possesses the capability to capture multimodal dis-
+ful expressiveness of diffusion models to capture the distribution of the
+tributions, thereby enabling a more expressive and flexible characteri-
+given dataset. Furthermore, considering that rewards in expert datasets
+zation of complex value structures. To the best of our knowledge, this
+may be sparse or unavailable, diffusion models have been applied to
+is the first attempt to apply diffusion models to multi-agent value func-
+learn goal-directed policies in imitation learning scenarios [32].
+tion estimation, offering a novel pathway to overcome the representa-
+In offline reinforcement learning, the challenge is to learn optimal
+tional limitations of regression-based approaches. However, direct opti-
+policies from suboptimal offline datasets. Diffusion models can be used
+mization of this process is not feasible in online reinforcement learn-
+to replace unimodal policies, thereby increasing the diversity of sam-
+ing due to the lack of reliable 𝑄(𝑠,𝐚) samples. To address this chal-
+pled actions or decision-making sequences. For example, Diffusion-QL
+lenge, we sample from Gaussian noise and use state-action pairs from
+[33] combines diffusion models with the traditional Q-learning frame-
+the environment for conditional diffusion. For each sample, we gen-
+work but faces instability when training in out-of-distribution (OOD)
+erate 𝐾 initial rewards in parallel, which effectively reduces the high
+state regions. To address this, in [34], the authors reconstructed states
+variance of the diffusion model and improves sample efficiency. These
+to mitigate distributional shifts caused by OOD data, while in [35], the
+samples are then converted into cumulative rewards using the tempo-
+authors reduced the computational cost of diffusion inference by pre-
+ral difference (TD) method. The cumulative rewards are further dif-
+dicting actions through the application of the Tweedie formula. In [36],
+fused into Gaussian noise through a forward process. A reverse pro-
+the authors employed diffusion sampling with precise guidance defined
+cess is then defined, which samples from Gaussian noise to regener-
+by an energy function based on contrastive learning, and a consistency
+ate the reward distribution via reverse diffusion. We train the diffusion
+model was used in [37] to represent policies. In [38], the authors ex-
+model by optimizing the variational evidence lower bound (ELBO), with
+plored the application of diffusion models in offline multi-agent learn-
+(𝑠,𝐚) serving as a conditional dependency in both the forward and back-
+ing. In [39–41], diffusion models have been used to construct optimal
+ward diffusion chains. Our method can be integrated into existing MAD-
+policies through weighted regression [26].
+DPG, MATD3, HADDPG, and HATD3 algorithms. We name this frame-
+While diffusion models have been extensively studied in the context
+work Multi-Agent Deep Denoising Diffusion Policy Gradient Optimiza-
+of reinforcement learning, the majority of research has focused on of-
+tion (MAD3PG). MAD3PG can well capture the distribution of value
+fline learning and single-agent policy learning. In contrast, their applica-
+functions in complex environments. Even if the value function has a
+tion to online learning, value estimation, and multi-agent reinforcement
+complex multimodal distribution, MAD3PG can achieve accurate esti-
+learning has received far less attention.
+mation. We demonstrate the capability of MAD3PG to fit complex value
+distributions using a toy example. In comparisons with MADDPG-type 2.2. Dec-POMDP
+algorithms, MAD3PG consistently shows superior performance across
+various tasks. A standard multi-agent task can be described as a Decentralized Par-
+The main contributions of this paper are summarized as follows: tially Observable Markov Decision Process (Dec-POMDP), defined by a tu-
+ple 𝐺=(,𝑁,,,,,𝛾,𝑁). Here,  represents the set of global
+states of the environment, and  denotes the action space of agent 𝑖. At
+𝑖
+• We propose the MAD3PG framework, which utilizes generative dif- each time step 𝑡, agent 𝑖 follows a policy 𝜋 𝜃𝑖 to choose an action 𝑎𝑡 𝑖 ∈ 𝑖 ,
+fusion models to model the state-action value distribution. To the and all selected actions form a joint action 𝐚𝐭 =(𝑎1,𝑎2,…,𝑎𝑁)∈𝑁.
+𝑡 𝑡 𝑡
+2
+
+=== page 3 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+The current state 𝑠𝑡 and joint action 𝐚𝐭 are mapped by the state tran-
+sition function (𝑠𝑡+1∣𝑠𝑡,𝐚𝐭) to the distribution of the next state 𝑠𝑡+1,
+i.e.,  ∶×𝑁 →. All agents receive a collective reward 𝑟𝑡 based
+on the reward function ∶×𝑁 →ℝ, with the objective of maxi-
+mizing the expected discounted reward 𝔼 𝑠𝑡,𝐚𝑡 [∑ 𝑡 𝛾𝑡𝑟𝑡], where 𝛾∈[0,1]
+is the discount factor. Agent 𝑖 receives a partial observation 𝑜𝑡∈,
+𝑖 𝑖
+which is determined by the observation function ∶→𝑁. The ag-
+gregation of all agents’ partial observations forms the joint observation
+𝐨𝐭 =(𝑜1,𝑜2,…,𝑜𝑁).
+2.3. Multi-agent deep deterministic policy gradient and extensions
+In the MADDPG algorithm, the CTDE approach is adopted, combin-
+ing an actor-critic architecture to enhance efficient learning among mul-
+tiple agents. During the training phase, for each agent 𝑖, it maintains its
+own actor policy network 𝜋 and a centralized critic network 𝑄𝜋 (𝑠,𝐚),
+where 𝜃 and 𝜔 represent n 𝜃 e 𝑖 twork parameters. Here, 𝑠 is obtain 𝜔 e𝑖d the
+𝑖 𝑖
+set of global states of the environment , and 𝐚=(𝑎 ,𝑎 ,…,𝑎 ), with
+1 2 𝑁
+𝑎 being the action space  of agent 𝑖.
+𝑖 𝑖
+The objective of the critic network is to minimize the following loss
+function:
+=𝔼 𝑠,𝐚,𝑟,𝑠′[(𝑄𝜋
+𝜔𝑖
+(𝑠,𝐚)−𝑦)2],𝑦=𝑟+𝛾𝑄𝜋
+𝜔′
+𝑖
+(𝑠′,𝐚′), (1)
+where 𝑠′ is from the set of global states , 𝑠′ and 𝐚′=(𝑎′,𝑎′,…,𝑎′ )
+represent the next state and actions, respectively, wherea 1 s 𝜔 2 ′ are t 𝑁 he Fig. 1. Sampling 𝐾 samples from the experience replay buffer , the stochas-
+parameters of the target network. Note that 𝑟 is the collective
+𝑖
+reward
+ticity of both the policies and the environment results in varying reward distri-
+butions for the same state. These factors contribute to a complex, multimodal,
+obtained based on the reward function ∶×𝑁 →ℝ.
+and uncertain of the overall reward distribution.
+Each agent’s policy network is updated by maximizing the output of
+the centralized critic network. The update of the policy network is based
+on the following gradient:
+3.1. Training and inference of MAD3PG
+∇
+𝜃𝑖
+(𝜋
+𝜃𝑖
+)=𝔼 𝑠,𝐚∼[∇
+𝜃𝑖
+𝜋
+𝜃𝑖
+(𝑎 𝑖|𝑜
+𝑖
+)∇
+𝑎𝑖
+𝑄𝜋
+𝜔𝑖
+(𝑠,𝐚)|𝑎𝑖=𝜋𝜃𝑖
+(𝑜𝑖)
+], (2)
+To enhance sample efficiency, MADDPG-type off-policy algorithms
+where  is the experience replay buffer that stores the tuple
+typically use a large experience replay buffer . As the policy network
+(𝑠,𝐨,𝐚,𝑟,𝑠′,𝐨′) containing the experiences of all agents. In the execution
+updates, the buffer contains multi-agent interaction trajectories gen-
+phase, each agent independently selects actions according to its own
+erated under different policies and different time steps. During batch
+policy network 𝜋 and local observation 𝑜, thus realizing decentralized
+execution.
+𝜃𝑖 𝑖 sampling, the same initial state (𝑠𝑡,𝐚𝑡) may lead to different subsequent
+trajectories due to the stochasticity of the environment and policies,
+MATD3 improves upon MADDPG by introducing twin Q-networks,
+w Q- h v e a r l e u t e h , e r e c d ri u ti c c i n n g e t o w v o e r r k es s t 𝑄 im 1 𝜔 a𝑖 t a i n o d n 𝑄 bi 2 𝜔 a𝑖s a : re used to compute the minimum m di a st k r i i n b g u t 𝑠 i 𝑡 o + n 1 𝑝 in 𝑠𝑡 ,𝐚 ( 𝑡 𝑠 ∼ 𝑡,  𝐚 ( 𝑡 ∑ ,𝑟 𝑡 𝑡, 𝛾 𝑠 𝑡 𝑡 𝑟 + 𝑡 1 ∣ ) ( u 𝑠𝑡 n , c 𝐚 e 𝑡) r ) t a o i f n te . n In m t a h n is i f c e o st n s t e a x s t a , t c h o e m c p o l n ex d i m tio u n lt a i- l
+modal distribution, as illustrated in Fig. 1. However, the current critic
+𝑦=𝑟 𝑖 +𝛾min(𝑄1 𝜔′ (𝑠′,𝐚′),𝑄2 𝜔′ (𝑠′,𝐚′)). (3) networks commonly use the 𝐿2 norm as the loss function, which pri-
+It also employs delayed updates for
+𝑖
+the actor
+𝑖
+network, stabilizing train-
+marily fits the expectation of the cumulative reward, and makes it chal-
+ing.
+lenging to accurately capture the uncertainty and distributional charac-
+HADDPG and HATD3 extend MADDPG and MATD3 to teristics of 𝑝 𝑠𝑡,𝐚𝑡∼( ∑ 𝑡 𝛾𝑡𝑟𝑡∣(𝑠𝑡,𝐚𝑡)). Consequently, if the distribution of
+heterogeneous-agent settings [9], where agents with different
+∑
+𝑡
+𝛾𝑡𝑟𝑡 under (𝑠𝑡,𝐚𝑡) deviates from the expected distribution, the model’s
+roles and capabilities are trained in coordination. The learning
+performance may deteriorate.
+objective and update process remain similar, but these algorithms are
+In this paper, we utilize generative diffusion models to fit the distri-
+adapted to handle diverse multi-agent scenarios. HATD3 employs twin bution of the value function. Specifically, we use 𝑝 𝜃 to fit the unknown
+Q networks to ensure stability and reduce the overestimation bias of conditional distribution 𝑝( ∑ 𝑡 𝛾𝑡𝑟𝑡 |(𝑠𝑡,𝐚𝑡)). For simplicity, we use 𝐑 𝟎 to
+Q-values in heterogeneous environments. represent the true value of ∑ 𝑡 𝛾𝑡𝑟𝑡, and the parameters of 𝑝 𝜃 are repre-
+sented by a neural network. Our optimization objective is as follows:
+3. Methodology
+maxlog𝑝 [ 𝐑 ∣(𝑠,𝐚) ] . (4)
+𝜃 𝟎
+In this section, we present the main workflow of the proposed
+Using Jensen’s inequality, we derive the following relationship:
+MAD3PG framework, including both the training and inference steps.
+Additionally, we provide an example of applying the MAD3PG frame-
+[ ] ( )
+work to MADDPG. log𝑝 𝜃 𝐑 0 ∣(𝑠,𝐚) =log ∫ 𝑝 𝜃 𝐑 0∶𝑇 ∣(𝑠,𝐚) d𝐑 1∶𝑇
+Before formal derivation, we restate the notation for clarity. The [ 𝑝 (𝐑 ∣(𝑠,𝐚)) ]
+global state 𝑠∈ represents the environmental state, and the joint ac- ≥𝔼 𝑞𝜙(𝐑1∶𝑇∣𝐑0,𝑠,𝐚) log 𝑞 𝜃 (𝐑 0∶𝑇 ∣𝐑 ,𝑠,𝐚) , (5)
+tion 𝐚=(𝑎 ,𝑎 ,…,𝑎 ) denotes the simultaneous actions of all agents, 𝜙 1∶𝑇 0
+1 2 𝑁
+where 𝑎 𝑖 ∈ 𝑖 . Each agent 𝑖 maintains its own policy 𝜋 𝜙𝑖 (𝑎 𝑖|𝑜 𝑖 ) based where 𝐑 𝟏 ,…,𝐑 𝐓 are latent variables with the same dimensionality as
+on its local observation 𝑜 𝑖 . In cooperative scenarios with homogeneous 𝐑 𝟎 , and 𝑞 𝜙 (𝐑 𝟏∶𝐓 ∣𝐑 𝟎 ,𝑠,𝐚) is referred to as the forward process in the dif-
+agents sharing the same reward function, a single shared critic is typi- [ ]
+cally employed to evaluate the joint value function for parameter effi- fusion model. The expression 𝔼 𝑞𝜙(𝐑𝟏∶𝐓∣𝐑𝟎,𝑠,𝐚) log 𝑞 𝑝 𝜙 𝜃 (𝐑 (𝐑 𝟏 𝟎 ∶ ∶ 𝐓 𝐓 ∣𝐑 ∣(𝑠 𝟎 , , 𝐚 𝑠 ) ,𝐚 ) ) is known
+ciency [9], which we represent as the diffusion network 𝐑̂
+𝜃
+(𝑠,𝐚) in our as the ELBO. Using 𝐷KL(𝑞
+𝜙
+∥𝑝
+𝜃
+) to represent the Kullback-Leibler (KL)
+framework. divergence from distribution 𝑝 to distribution 𝑞 , the ELBO can be
+𝜃 𝜙
+3
+
+=== page 4 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+rewritten as: It can be seen that (17) directly fits the original value 𝐑 using noise
+0
+ ELBO =  − 0 ∑ (𝐑 𝑇 𝟎 ,𝑠  ,𝐚)− (𝐑  , 𝑇 𝑠 ( , 𝐑 𝐚 𝟎 ), ,𝑠,𝐚) (6) s s a ta m b p le l . e 𝐑 𝐭 and state-action pairs (𝑠,𝐚), which make the training more
+𝑡=2 𝑡−1 𝟎 Due to the limitations of MARL, the parameter 𝐑 is unknown in
+0
+ 0 =𝔼 𝑞𝜙 [ log𝑝 𝜃 (𝐑 𝟎 ∣𝐑 𝟏 ,𝑠,𝐚) ] , (7) (17). Based on TD strategy, we can estimate 𝐑 0 at time 𝑡 as follows:
+∑
+𝐑𝑡
+0
+=𝑟+ 𝛾𝑡+1𝑟𝑡+1 |(𝑠′,𝐚′). (18)
+
+𝑇
+=𝔼
+𝑞𝜙
+[ 𝐷KL ( 𝑞
+𝜙
+(𝐑
+𝐓
+∣𝐑
+𝟎
+,𝑠,𝐚)∥𝑝
+𝜃
+(𝐑
+𝐓
+∣𝑠,𝐚) )] , (8) 𝑡+1
+Note: 𝐑𝑡 here uses the superscript 𝑡 to represent the 𝑡th time step in the
+0
+
+𝑡−1
+= 𝔼
+𝑞𝜙
+[ 𝐷KL ( 𝑞
+𝜙
+(𝐑
+𝐭−𝟏
+∣𝐑
+𝐭
+,
+)
+𝐑
+] 𝟎
+,𝑠,𝐚)
+(9)
+gam
+T
+e
+h
+u
+er
+n
+e
+d
+f
+e
+o
+r
+r e
+M
+,
+A
+be
+R
+f
+L
+o
+,
+r e
+w h
+st
+i
+a
+c
+r
+h
+t i
+i
+n
+s
+g
+d i
+t
+s
+h
+t
+e
+in
+t
+c
+r
+t
+a
+f
+i
+r
+n
+o
+in
+m
+g ,
+t h
+w
+e
+e
+𝑡
+n
+in
+e e
+th
+d
+e
+t o
+d iff
+ge
+u
+n
+s
+e
+io
+r
+n
+at
+p
+e
+r
+i
+o
+n
+c
+i
+e
+ti
+s
+a
+s
+l
+.
+∥𝑝 (𝐑 ∣𝐑,𝑠,𝐚) .
+𝜃 𝐭−𝟏 𝐭 samples that satisfy the conditional distribution 𝑝( ∑ 𝛾𝑡+1𝑟𝑡+1∣(𝑠′,𝐚′)).
+Here,  𝑇 is a constant term and can be ignored. The remaining terms Based on (13), we present the following reverse diff 𝑡 u +1 sion process:
+ensure that the model 𝑝 (𝐑 ∣𝐑,𝑠,𝐚) aligns with the true denoising
+process 𝑞 𝜙 (𝐑 𝑡−1 ∣𝐑 𝑡 ,𝐑 0 ,𝑠 𝜃 ,𝐚). 𝑡 − B 1 efore 𝑡 proceeding, we first introduce some 𝐑 = √ 𝛼̄ 𝐑̂ + √ 1−𝛼̄ 𝑡−1 (𝐑 𝑡 − √ 𝛼̄ 𝑡 𝐑̂ 𝜃 ) +𝜎 (𝑡)𝐳. (19)
+necessary definitions. 𝑡−1 𝑡−1 𝜃 √
+1−𝛼̄
+𝑞
+𝑡
+The conditional distribution of a general time step in the diffusion
+process is defined as:
+After some iterations, the reward samples can be inferred from (𝑠′,𝐚′).
+We define this process as 𝐈𝐧𝐟𝐞𝐫(𝑠′,𝐚′) and summarize it in Algorithm 1.
+𝑞 𝜙 (𝐑 𝑡 ∣𝐑 𝑡−1 ,𝑠,𝐚)∼(𝐑 𝑡 ; √ 1−𝛽 𝑡 𝐑 𝑡−1 ,𝛽 𝑡 𝐈), (10) Then, Eq. (18) can be rewritten as:
+and
+𝑞 (𝐑 ∣𝐑 ,𝑠,𝐚)∼(𝐑; √ 𝛼̄ 𝐑 ,1−𝛼̄ 𝐈), (11)
+𝐑𝑡
+0
+=𝑟+𝐈𝐧𝐟𝐞𝐫(𝑠′,𝐚′). (20)
+𝜙 𝑡 0 𝑡 𝑡 0 𝑡
+By substituting (20) into (17) and omitting the coefficients, we derive
+where 𝛼̄ 𝑡 is defined as: 𝛼̄ 𝑡 = ∏𝑡 𝑠=1 𝛼 𝑠 , with 𝛼 𝑠 =1−𝛽 𝑠 , where 𝛽 𝑠 are pre- a trainable TD-based variational lower bound:
+defined noise scheduling parameters. This process gradually transforms
+the original data 𝐑 0 into a latent variable 𝐑 𝑡 that is closer to pure noise.  ELBO(𝐑𝑡 𝟎 ,𝑠,𝐚)
+The parameter 𝐑 𝑡 can b 𝐑 e 𝑡 o = bt √ ain 𝛼̄ 𝑡 e 𝐑 d 0 b + y √ re 1 sa − m 𝛼̄ p 𝑡 l 𝜖 i 0 n , g techniques: (12) =− ∑ 𝑡= 𝑇 1 𝔼 𝑞𝜙 [ ‖ ‖ ‖ 𝐑̂ 𝜃 (𝐑 𝐭 ,𝑡,𝑠,𝐚)− ( 𝑟+𝐈𝐧𝐟𝐞𝐫(𝑠′,𝐚′) )‖ ‖ ‖ 2 ] . (21)
+where 𝜖∼(0,𝐈) is the Gaussian noise added at each step 𝑡. Using The training process of (21) is summarized in Algorithm 2.
+Bayesian and Gaussian product formulas, we get
+𝑞 (𝐑 ∣𝐑,𝐑 ,𝑠,𝐚) Algorithm 1 Inference.
+𝜙 𝐭−𝟏 𝐭 𝟎
+= 𝑞𝜙(𝐑𝐭∣𝐑𝐭−1,𝐑𝟎,𝑠,𝐚)𝑞𝜙(𝐑𝐭−1∣𝐑𝟎,𝑠,𝐚) 1: 𝐑 ∼(0,𝐼)
+∝ exp {( 𝐑 𝑞 𝑡 𝜙 − ( √ 𝐑𝐭 𝛼 ∣ 𝑡 𝐑 𝐑 𝟎 𝑡 , − 𝑠 1 ,𝐚 ) ) 2 + (𝐑𝑡−1− √𝛼̄𝑡−1𝐑0 )2 } (13) 2 3 : : f o 𝑇 r 𝐳 𝑡 ∼ =  𝑇, ( … 0, , 𝐼 1 ) d if o 𝑡>1, else 𝐳=0
+∼  ( 𝜓 𝑡 𝐑 𝑡 + 2(1 ( − 1− 𝛼 ( 𝑡 𝛼 ) 1 𝑡 − )√ 𝛼̄𝑡 ) 𝛼̄𝑡−1𝐑 0 ,𝜎 2( 𝑞 2 1 ( − 𝑡 𝛼̄ ) 𝑡 𝐈 − ) 1) , 4 5 : : end 𝐑 f 𝑡 o −1 r = √ 𝛼̄ 𝑡−1 𝐑̂ 𝜃 (𝐑 𝑡 ,𝑡,𝑠,𝐚)+ √ 1−𝛼̄𝑡−1(𝐑𝑡 √ − 1 √ − 𝛼̄ 𝛼̄ 𝑡 𝑡 𝐑̂ 𝜃(𝐑𝑡,𝑡,𝑠,𝐚)) +𝜎 𝑡 𝐳
+where 𝜎2(𝑡)= ( 1−𝛼 )( 1−𝛼̄ ) ∕ ( 1−𝛼̄ ), 𝜓 = ( 1−𝛼̄ )√ 𝛼∕ ( 1−𝛼̄ ). 6: return 𝐑 0
+𝑞 𝑡 𝑡−1 𝑡 𝑡 𝑡−1 𝑡 𝑡
+In the context of classical diffusion models, we have:
+𝑝 (𝐑 ∣𝐑,𝑠,𝐚)
+𝜃 𝑡−1 𝑡
+∼ ( 1 𝐑 − 1−𝛼 𝑡 𝜖̂ (𝐑,𝑡,𝑠,𝐚),𝜎2(𝑡)𝐈 ) , (14) A 1 l : g w or h it i h le m n o 2 t T c r o a n i v n e in rg g e . d do
+√ 𝛼 𝑡 𝑡 √ 1−𝛼̄ 𝑡 √ 𝛼 𝑡 𝜃 𝑡 𝑞 2: 𝐑
+0
+∼𝑝(𝐑 0|𝑠,𝐚)
+where 𝜖̂ represents a noise prediction network. By combining (13) and 3: 𝑡∼Uniform({1,…,𝑇})
+𝜃
+(14), Eq. (6) can be rewritten as follows: 4: 𝜖∼(0,𝐼)
+√ √
+5: 𝐑 = 𝛼̄ 𝐑 + 1−𝛼̄ 𝜖
+ ELBO(𝐑 0 ,𝑠,𝐚)= 6: Ta 𝑡 ke gra 𝑡 die 0 nt descen 𝑡 t step on
+− ∑ 𝑡= 𝑇 1 𝔼 𝑞𝜙 [ 2𝜎 1 𝑞 2(𝑡) (1 ( − 1− 𝛼 𝑡 ) 𝛼̄ 2 𝑡 𝛼 ) ̄ 2 𝑡−1‖ ‖ 𝜖̂ 𝜃 (𝐑 𝑡 ,𝑡,𝑠,𝐚)−𝜖 0 ‖ ‖ 2 ] . (15) ∇ 𝜃 ‖ ‖ ‖ 𝑟+𝐈𝐧𝐟𝐞𝐫(𝑠′,𝐚′)−𝐑̂ 𝜃 (𝐑 𝑡 ,𝑡,𝑠,𝐚)‖ ‖ ‖ 2
+In reinforcement learning, the cumulative reward 𝐑 is unknown and 7: end while
+0
+usually follows a non-Gaussian distribution with a large variance. In
+contrast, 𝜖 is sampled from a standard Gaussian distribution. Directly
+0
+predicting noise can lead to scale variations in the loss function and
+3.2. 𝐾-repeated inference
+make convergence difficult. Therefore, we rewrite (14) as:
+𝑝 (𝐑 ∣𝐑,𝑠,𝐚)
+Although MAD3PG can reveal the complex distribution of rewards,
+𝜃 𝐭−𝟏 𝐭
+∼ ( 𝜓 𝑡 𝐑 𝑡 + ( 1− ( 1 𝛼 − 𝑡 )√ 𝛼̄
+𝑡
+) 𝛼̄ 𝑡−1 𝐑̂ 𝜃 (𝐑 𝐭 ,𝑡,𝑠,𝐚),𝜎 𝑞 2(𝑡)𝐈 ) , (16) t c w h e h e ss i c r e h e x s h u ca i l b t u s i s t e o h s f i g i a n h s s v t i a n a b r g i i l a l e i n ty i c n e i f , n e o r w e M n i A c n e D g 3 t 𝐈 o 𝐧 P 𝐟 G t 𝐞 h ’ 𝐫 s e ( 𝑠 a t ′ r b , a s 𝐚 i e n ′) n i n c d e g u . o r i T f n o r g e a a t l d h r d e e r w e d s i a ff s r u d th s s i i a o s m n i s p p s l u r e o e s - , ,
+we propose a K-repeated inference strategy. Specifically, this approach
+where 𝐑̂ is a neural network. At this time, Eq. (6) becomes:
+𝜃 is driven by the idea that, in a multimodal distribution, the rewards
+ ELBO(𝐑
+𝟎
+,𝑠,𝐚)= corresponding to the same state may be uncertain, with some rewards
+− ∑ 𝑡= 𝑇 1 𝔼 𝑞𝜙 [ 2𝜎 1 𝑞 2(𝑡) (1 ( − 1− 𝛼 𝑡 ) 𝛼̄ 2 𝑡 𝛼 ) ̄ 2 𝑡−1‖ ‖ ‖ 𝐑̂ 𝜃 (𝐑 𝐭 ,𝑡,𝑠,𝐚)−𝐑 0 ‖ ‖ ‖ 2 ] . (17) b w of e a i a r n d g s i f n l r a o g r m l g e e t i n h a f e n e d d re is o n t t c r h i e b e r r u e s t s i s o u m n lt a f 𝐈 l o 𝐧 l r . 𝐟 s B 𝐞 u 𝐫 y b ( 𝑠 c s ′ e o , q 𝐚 n u ′ s ) i e s c n t a e t n n o t p b ly t e i m s n e a i l z t e a u c t r t i a i o n l n l g y , t t r h h e e e d u r s a c m n e a d d l o . le m st n e re ss -
+4
+
+=== page 5 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Fig. 2. The inference and training process of MAD3PG.
+Algorithm 3 Diffusion Multi-Agent Policy Gradient (Diffusion-MAPG). superior performance in multi-agent tasks. The specific implementation
+is detailed in Algorithm 3, which we refer to as Diffusion Multi-Agent
+1: Define the action network 𝜋 and the target action network 𝜋′
+𝜙𝑘 𝜙𝑘 Policy Gradient (Diffusion-MAPG).
+2: Define the diffusion network 𝐑̂
+𝜃
+and the target diffusion network 𝐑̂′
+𝜃
+Similarly, other MADDPG-type algorithms, such as MATD3, HAD-
+3: for episode=1 to 𝑀 do DPG, and HATD3, can be modified using a similar process. To dis-
+4: Initialize a random process  for action exploration tinguish these modified methods, they are referred to as Diffusion
+5: Receive initial state 𝑠0 Multi-Agent Twin Delayed Policy Gradient (Diffusion-MATD), Diffusion
+6: for 𝑡=1 to max-episode-length do Heterogeneous-Agent Policy Gradient (Diffusion-HAPG), and Diffusion
+7: Each agent 𝑖 receives a partial observation 𝑜𝑡 Heterogeneous-Agent Twin Delayed Policy Gradient (Diffusion-HATD),
+𝑖
+8: Compute actions 𝑎𝑡=𝜋 (𝑜𝑡)+, forming joint action 𝐚𝐭 = respectively.
+𝑖 𝜙𝑖 𝑖 𝑡
+(𝑎𝑡,…,𝑎𝑡 )
+9: 1 Ex 𝑁 ecute joint action 𝐚𝐭, receive reward 𝑟𝑡 and next state 𝑠𝑡+1 Remark 1. The preceding derivations employ a single shared critic for
+10: Store (𝑠𝑡,𝐚𝐭,𝑟𝑡,𝑠𝑡+1) in replay buffer  homogeneous agents with the same reward function. For heterogeneous
+11: end for scenarios where agents have distinct reward functions 𝑟 𝑖 ≠𝑟 𝑗 , each agent
+12: Sample a random minibatch of 𝑆 samples (𝑠𝑗,𝐚𝑗,𝑟𝑗,𝑠𝑗+1) from  𝑖 maintains its own diffusion critic 𝐑̂ 𝜃𝑖 (𝑠,𝐚). The training objective in
+13: Compute next-step target actions 𝐚𝑗+1=(𝜋′ (𝑜𝑗+1),…,𝜋′ (𝑜𝑗+1)) Eq. (21) becomes:
+𝜙1 1 𝜙𝑁 𝑁
+14: Create 𝐾 identical copies of (𝑠𝑗+1,𝐚𝑗+1) 𝑖 (𝐑𝑡 ,𝑠,𝐚)=
+15: Perform 𝐾-repeated Inference using Algorithm 1 with 𝐑̂′: ELBO 𝟎,𝑖
+𝜃 𝑇 [ ] (22)
+𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝐾 min = 𝑘= m 1,… in ,𝐾 𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝑘 − ∑ 𝔼 𝑞𝜙 ‖ ‖
+‖
+𝐑̂ 𝜃𝑖 (𝐑 𝐭 ,𝑡,𝑠,𝐚)− ( 𝑟 𝑖 +𝐈𝐧𝐟𝐞𝐫 𝑖 (𝑠′,𝐚′) )‖ ‖
+‖
+2 ,
+16: Update diffusion critic 𝐑̂ using Algorithm 2 𝑡=1
+𝜃
+17: for each agent 𝑖=1 to 𝑁 do where 𝐈𝐧𝐟𝐞𝐫 𝑖 denotes the inference process using agent 𝑖’s individual
+18: Update policy using the policy gradient: critic. The 𝐾-repeated inference strategy applies similarly.
+∇ 𝐽 ≈ 1 ∑ ∇ 𝜋 (𝑜𝑗)∇ 𝐈𝐧𝐟𝐞𝐫(𝑠𝑗,𝐚𝑗)
+𝜙𝑖 𝑆
+𝑗
+𝜙𝑖 𝜙𝑖 𝑖 𝑎𝑖
+4. Convergence analysis
+19: end for
+20: Soft-update target networks: In this section, we establish the convergence properties of the pro-
+𝜙′
+𝑖
+←𝜏𝜙
+𝑖
++(1−𝜏)𝜙′
+𝑖
+, 𝜃′←𝜏𝜃+(1−𝜏)𝜃′ posed MAD3PG framework for multi-agent value function approxima-
+21: end for tion. Let 𝑝⋆(𝐑 ∣𝑠,𝐚) denote the true conditional distribution of the
+0
+cumulative return 𝐑 = ∑∞ 𝛾𝑘𝑟𝑡+𝑘, where (𝑠,𝐚) represents the global
+0 𝑘=0
+state and joint actions 𝐚=(𝑎 ,…,𝑎 ) of all agents. The ground-truth
+Gau I s n s i A a l n g o n r o i i t s h e m a n 1 d , s p in er c f e o 𝐑 rm 𝑇 𝐾 ∼  inf ( e 0 r , e 𝐼 n ) c , e w o e p c e a r n a t s i a o m ns p u le n 𝐾 de p r o th in e t s s a f m ro e m c o th n e - Q w - e f u m n o c d ti e o l n t h is is d d e i fi st n r e ib d u a ti s o 𝑄 n ⋆ u ( s 𝑠 i , n 1 𝐚 g ) a = p 𝔼 a 𝑝 r 𝑁 ⋆ a [ m 𝐑 e 0 t ] e . r I i n z e t d h e d i M ff A us D io 3 n P G m f o r d a e m l e 𝑝 w ( o 𝐑 rk, ∣
+ditions (𝑠′,𝐚′), obtaining 𝐾 reward estimates. The final result is defined 𝑠,𝐚). MAD3PG employs a generative diffusion model to capture th 𝜃 e fu 0 ll
+as t F h i e g . m 2 i n i i l m lu u st m ra t o e f s t h th e e s e i n 𝐾 fe e re st n i c m e a a te n s d , d tr e a n in o i t n ed g a p s r o 𝐈 c 𝐧 e 𝐟 s 𝐞 s 𝐫 ( o 𝑠 f ′ , t 𝐚 h ′ e )𝐾 m M in A . D3PG r ti e m tu a r t n io d n i . s t A ri c b c u o t r i d o i n n , g r l a y t , h t e h r i s t h s a e n ct r io el n y i f n o g c u o s n e s t r o a n d i e ti s o t n ab al l i 𝐿 sh 2 i - n b g a s t e h d e p t o h i e n o t r e e s t- -
+method. First, 𝐾 samples are drawn from the distribution (0,𝐼). Using ical guarantees of the generative ELBO-based optimization in Eq. (21),
+(𝑠′,𝐚′) as the condition, the reverse diffusion process is applied to gener- demonstrating that this distribution-fitting mechanism converges under
+ate 𝐾 value estimates 𝐈𝐧𝐟𝐞𝐫(𝑠′,𝐚′)1 through 𝐈𝐧𝐟𝐞𝐫(𝑠′,𝐚′)𝐾. The minimum stochastic gradient descent.
+value among these 𝐾 estimates, denoted as 𝐈𝐧𝐟𝐞𝐫(𝑠′,𝐚′)𝐾 , is then se- To facilitate the convergence analysis, we make the following as-
+min
+lected. Finally, the diffusion network 𝐑̂ is trained using the TD method. sumption:
+𝜃
+3.3. MAD3PG framework applied to MADDPG (A1) Lipschitz continuity: The network 𝐑̂ 𝜃 (𝑥) is 𝐿-Lipschitz with respect
+to 𝜃, i.e., ‖∇
+𝜃
+𝐑̂
+𝜃
+(𝑥)‖ ≤𝐿 for all inputs 𝑥.
+Algorithms 1 and 2 use the denoising diffusion process to achieve (A2) Bounded rewards and inference: The reward satisfies |𝑟(𝑠,𝐚)| ≤
+multi-agent action value estimation. Next, to provide a complete ex- 𝑅
+max
+with discount factor 𝛾∈(0,1). The inference output satisfies
+ample of the MAD3PG method, we will use the MAD3PG framework |Infer(𝑠′,𝐚′)| ≤𝑅i
+m
+nf
+ax
+. Define 𝑅̃
+max
+∶=𝑅
+max
++𝑅i
+m
+nf
+ax
+.
+to modify the MADDPG algorithm. By introducing the denoising diffu-
+Theorem 1. Under assumptions (A1)-(A2), the gradient of the ELBO ob-
+sion process, MAD3PG enhances MADDPG’s ability to reconstruct mul-
+jective is uniformly bounded as
+timodal reward distributions. The use of 𝐾-repeated inference reduces
+both multi-agent value estimation bias and action variance, leading to ‖ ‖ ∇ 𝜃  ELBO (𝜃)‖ ‖ ≤4𝐿𝑇𝑅̃ max . (23)
+5
+
+=== page 6 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Proof. Taking the gradient of (21) yields where 𝐺 is an upper bound on ‖∇
+𝜃
+ ELBO(𝜃
+𝑘
+)‖ .
+By rearranging the terms, we have
+∇ 𝜃  ELBO(𝜃)=2 ∑ 𝑡= 𝑇 1 𝔼 𝑞𝜙 [( 𝐑̂ 𝜃 −𝐑𝑡 0 ) ⋅∇ 𝜃 𝐑̂ 𝜃 ] . (24) 𝜂 𝑘 𝔼 [ ‖ ‖ ∇ 𝜃  ELBO(𝜃 𝑘 )‖ ‖ 2 ] ≤𝔼[ ELBO(𝜃 𝑘 )]−𝔼[ ELBO(𝜃 𝑘+1 )]
+By the Cauchy-Schwarz inequality and assumption (A1), + 1 𝐿 𝜂2𝐺2. (31)
+2 𝜃 𝑘
+‖ ‖ ∇ 𝜃  ELBO(𝜃)‖ ‖ ≤2𝐿 ∑ 𝑇 𝔼 [ ‖ ‖ ‖ 𝐑̂ 𝜃 −𝐑𝑡 0 ‖ ‖ ‖ ] . (25) Summing inequality (31) from 𝑘=0 to 𝐾−1 yields:
+Applying triangle inequality and assu 𝑡= m 1 ptions (A1)-(A2), we have 𝐾 ∑ −1 𝜂 𝑘 𝔼 [ ‖ ‖ ∇ 𝜃  ELBO(𝜃 𝑘 )‖ ‖ 2 ] ≤ ELBO(𝜃 0 )− ELBO(𝜃 𝐾 )
+𝑘=0
+‖ ‖ ‖ 𝐑̂ 𝜃 −𝐑𝑡 0 ‖ ‖ ‖ ≤‖ ‖ ‖ 𝐑̂ 𝜃 ‖ ‖ ‖ +‖ ‖ ‖ 𝐑𝑡 0 ‖ ‖ ‖ ≤2𝑅̃ max , (26) + 1 𝐿 𝐺2 𝐾 ∑ −1 𝜂2. (32)
+hence the result follows. 2 𝜃 𝑘
+𝑘=0
+Theorem 2. Under assumption (A1), the gradient ∇ 𝜃  ELBO (𝜃) is 𝐿 𝜃 - Assuming that  ELBO is bounded below and the step size satisfies the
+Lipschitz continuous, i.e., Robbins-Monro conditions:
+‖ ‖ ∇ 𝜃  ELBO (𝜃)−∇ 𝜃  ELBO (𝜃′)‖ ‖ ≤𝐿 𝜃‖ ‖ 𝜃−𝜃′‖ ‖ , ∑ ∞ 𝜂 𝑘 =∞, ∑ ∞ 𝜂 𝑘 2<∞, (33)
+where 𝐿 =2𝑇𝐿(𝐿+2𝑅̃ ). 𝑘=0 𝑘=0
+𝜃 max
+it follows from (32) that the weighted sum of the gradient norms is finite.
+Proof. Let
+Hence,
+𝐴 ∶=𝐑̂ −𝐑𝑡, 𝐵 ∶=∇ 𝐑̂ . [ ]
+Then 𝜃 𝜃 0 𝜃 𝜃 𝜃 𝑘 l → im ∞ 𝔼 ‖ ‖ ∇ 𝜃  ELBO(𝜃 𝑘 )‖ ‖ 2 =0, (34)
+𝑇 which implies convergence to a first-order stationary point. (b) Since
+∇ 𝜃  ELBO(𝜃)=2 ∑ 𝔼 [ 𝐴 𝜃 𝐵 𝜃 ] . ∇ 𝜃  ELBO(𝜃 𝑘 )→0, the iterations approach a stationary point. With suffi-
+𝑡=1 cient model capacity, this stationary point satisfies
+The gradient difference is
+𝑝 𝜃⋆(𝐑
+0
+∣𝑠,𝐚)=𝑝⋆(𝐑
+0
+∣𝑠,𝐚). (35)
+𝑇
+∇
+𝜃
+ ELBO(𝜃)−∇
+𝜃
+ ELBO(𝜃′)=2 ∑ 𝔼 [ Δ
+1
++Δ
+2
+] , (27) According to the ELBO-KL equivalence:
+𝑡=1 argmin ELBO(𝜃)=argminKL(𝑝⋆ ‖𝑝
+𝜃
+). (36)
+where 𝜃 𝜃
+Δ
+1
+=(𝐴
+𝜃
+−𝐴 𝜃′)𝐵
+𝜃
+, Δ
+2
+=𝐴 𝜃′(𝐵
+𝜃
+−𝐵 𝜃′). (c) To establish the convergence of Q-function, we first show that
+the cumulative return has bounded support. Under assumption (A2),
+By assumption (A1), we have
+we have
+‖𝐴 𝜃 −𝐴 𝜃′‖ ≤𝐿‖𝜃−𝜃′ ‖, ‖𝐵 𝜃 −𝐵 𝜃′‖ ≤𝐿‖𝜃−𝜃′ ‖. |𝐑 0|= | | | | ∑ ∞ 𝛾𝑘𝑟𝑡+𝑘 | | | | ≤ ∑ ∞ 𝛾𝑘𝑅 max = 1 𝑅 − ma 𝛾 x. (37)
+Also, |𝑘=0 | 𝑘=0
+‖𝐵 𝜃‖ ≤𝐿, ‖𝐴 𝜃′‖ ≤2𝑅̃ max . Therefore, 𝐑 0 has bounded support ⊆[−𝑅 1 m − a 𝛾 x,𝑅 1 m − a 𝛾 x] with diame-
+Hence, ter defined as diam()∶=sup 𝑥,𝑦∈|𝑥−𝑦|= 2𝑅
+1−
+m
+𝛾
+ax. By the Kantorovich-
+‖Δ 1‖ ≤𝐿2 ‖𝜃−𝜃′ ‖, ‖Δ 2‖ ≤2𝐿𝑅̃ max‖𝜃−𝜃′ ‖. Rubinstein duality, for any two probability distributions 𝑝 and 𝑞 on ℝ
+with finite first moments, the difference in expectations satisfies
+Summing over 𝑡 gives the overall bound:
+‖ ‖ ∇ 𝜃  ELBO(𝜃)−∇ 𝜃  ELBO(𝜃′)‖ ‖ ≤𝐿 𝜃‖𝜃−𝜃′ ‖. (28) | | | 𝔼 𝑝 [𝑋]−𝔼 𝑞 [𝑋]| | | ≤ ‖𝑓 s ‖ u 𝐿 p ≤1 | | | 𝔼 𝑝 [𝑓(𝑋)]−𝔼 𝑞 [𝑓(𝑋)]| | | (38)
+=𝑊 (𝑝,𝑞),
+1
+Theorem 3. Under assumptions (A1)-(A2) and Theorems 1–2, define the where ‖𝑓‖𝐿 ≤1 denotes 1-Lipschitz functions and 𝑊
+1
+is the 1-
+update rule: 𝜃 =𝜃 −𝜂 ∇  , and let 𝑄̂ (𝑠,𝐚)∶=𝔼 [𝐑 ]. Then: Wasserstein distance. For random variables with bounded support ,
+𝑘+1 𝑘 𝑘 𝜃 ELBO 𝜃 𝑝𝜃 0
+this can be strengthened to
+[ ]
+1. lim 𝑘→∞ 𝔼 ‖ ‖ ∇ 𝜃  ELBO (𝜃 𝑘 )‖ ‖ 2 =0; | |𝔼 𝑝 [𝑋]−𝔼 𝑞 [𝑋]| | ≤diam()⋅𝑊 1 (𝑝,𝑞). (39)
+𝑘→∞ | |
+2. (With sufficient model capacity) 𝑝 𝜃𝑘 (𝐑 0 ∣𝑠,𝐚)←←←←←←←←←←←←←←←←←←←→←← 𝑝⋆(𝐑 0 ∣𝑠,𝐚); Applying this to our setting yields
+3.
+𝑘
+l
+→
+im
+∞
+| |
+|
+𝑄̂ 𝜃𝑘 (𝑠,𝐚)−𝑄⋆(𝑠,𝐚)| |
+|
+=0.
+| | | 𝑄̂ 𝜃𝑘 (𝑠,𝐚)−𝑄⋆(𝑠,𝐚)| | | ≤
+2
+1
+𝑅
+− ma 𝛾 x ⋅𝑊 1 (𝑝 𝜃𝑘 ,𝑝⋆). (40)
+Proof.
+Lips
+(
+c
+a
+h
+)
+i
+f
+t
+o
+z
+l l
+c
+o
+o
+w
+n
+s
+ti
+f
+n
+r
+u
+o
+o
+m
+u s
+T h
+g
+e
+ra
+o
+d
+re
+ie
+m
+n
+s
+t s
+1
+a
+a
+n
+n
+d
+d
+t
+2
+h
+,
+a
+w
+t t
+h
+h
+ic
+e
+h
+g
+e
+ra
+st
+d
+a
+i
+b
+e
+l
+n
+is
+t
+h
+n
+t
+o
+h
+r
+a
+m
+t 
+is
+E
+u
+LB
+n
+O
+if
+(
+o
+𝜃
+r
+)
+m
+ha
+ly
+s
+T
+th
+o
+e
+c
+W
+on
+a
+n
+s
+e
+se
+c
+r
+t
+s
+t
+t
+h
+e
+i
+i
+s
+n
+to
+d i
+t
+s
+h
+ta
+e
+n
+K
+c
+L
+e
+c
+u
+o
+s
+n
+in
+v
+g
+e r
+t
+g
+w
+e
+o
+n c
+s
+e
+t a
+e
+n
+s
+d
+ta
+a
+b
+r
+l
+d
+i s
+i
+h
+n
+e
+e
+d
+q u
+in
+a l
+p
+it
+a
+i
+r
+e
+t
+s .
+( b
+F
+)
+o
+,
+r
+w
+d
+e
+i s
+b
+t
+o
+ri
+u
+b
+n
+u
+d
+-
+bounded. tions 𝑝 and 𝑞 on a bounded set , the Wasserstein distance satisfies
+The update rule follows stochastic gradient descent: 𝑊 (𝑝,𝑞)≤diam()⋅TV(𝑝,𝑞), (41)
+1
+𝜃 𝑘+1 =𝜃 𝑘 −𝜂 𝑘 ∇ 𝜃  ELBO(𝜃 𝑘 ;𝐵 𝑘 ), (29) where TV(𝑝,𝑞)∶= 1 2 ∫ |𝑝(𝑥)−𝑞(𝑥)|𝑑𝑥 is the total variation distance. By
+Pinsker’s inequality, the total variation distance is further bounded by
+where 𝜂 is the step size and 𝐵 denotes a mini-batch sampled from 𝑞 .
+𝑘 𝑘 𝜙
+equ B a y li t t y h : e 𝐿 𝜃 -smoothness of  ELBO , we have the standard descent in- TV(𝑝,𝑞)≤ √ 1 KL(𝑝‖𝑞). (42)
+2
+𝔼[ ELBO(𝜃 𝑘+1 )]≤𝔼[ ELBO(𝜃 𝑘 )]−𝜂 𝑘 𝔼 [ ‖ ‖ ∇ 𝜃  ELBO(𝜃 𝑘 )‖ ‖ 2 ] Combining (41) and (42) gives
+√
++ 1 2 𝐿 𝜃 𝜂 𝑘 2𝐺2, (30) 𝑊 1 (𝑝 𝜃𝑘 ,𝑝⋆)≤ 2 1 𝑅 − ma 𝛾 x 1 2 KL(𝑝⋆ ‖𝑝 𝜃𝑘 ). (43)
+6
+
+=== page 7 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Substituting this into (40) yields Spread: In this scenario, agents must work together to occupy all
+the target points in the environment. Each agent is tasked with navi-
+2𝑅
+| | | 𝑄̂ 𝜃𝑘 (𝑠,𝐚)−𝑄⋆(𝑠,𝐚)| | | ≤ 1− ma 𝛾 x ⋅𝑊 1 (𝑝 𝜃𝑘 ,𝑝⋆) g w a i t t i h n g e a t c o h a o u th n e iq r. u E e ff ta e r c g ti e v t e p c o o in o t p , e a r n at d i o t n h e a y n d m u co st o r d d o i n s a o t i w on it h a o r u e t n c e o c l e li s d sa in ry g
+≤ ( 2
+1
+𝑅
+−
+ma
+𝛾
+x )2√ 1
+2
+KL(𝑝⋆ ‖𝑝
+𝜃𝑘
+). (44) to a
+S
+v
+p
+o
+e
+id
+a k
+c
+e
+o
+r
+n
+_
+fl
+li
+i
+s
+c
+t
+t
+e
+s
+n
+a
+e
+n
+r
+d
+:
+a
+T
+c
+h
+h
+i
+i
+s
+e v
+sc
+e
+e
+t
+n
+h
+a
+e
+r i
+o
+o
+b j
+i
+e
+n
+c
+t
+t
+r
+i
+o
+v
+d
+e
+u
+e
+c
+ffi
+es
+c i
+a
+e n
+c
+t
+o
+ly
+m
+.
+munication ele-
+Since part (b) establishes that KL(𝑝⋆ ‖𝑝
+𝜃𝑘
+)→0 as 𝑘→∞, we conclude
+m
+tio
+e
+n
+n t
+a
+w
+nd
+h e
+m
+re
+u s
+o
+t
+n
+c
+e
+o
+a
+n
+g
+v
+e
+e
+n
+y
+t
+t
+(
+h
+th
+is
+e
+i
+s
+n
+p
+f
+e
+o
+a
+r
+k
+m
+e
+a
+r)
+ti o
+h
+n
+as
+t
+k
+o
+n
+a
+o
+n
+w
+o
+l
+t
+e
+h
+d
+e
+g
+r
+e
+a
+o
+g
+f
+e
+t
+n
+h
+t
+e
+( t
+t
+h
+ar
+e
+g
+l
+e
+i
+t
+s
+’
+t
+s
+e
+l
+n
+o
+e
+c
+r
+a
+)
+-
+.
+that |𝑄̂
+𝜃𝑘
+(𝑠,𝐚)−𝑄⋆(𝑠,𝐚)|→0.
+The listener, relying on the information provided by the speaker, navi-
+The proof is concluded.
+gates through the environment to locate the correct target. The success
+Remark 2. Unlike traditional critics that rely on Bellman contraction of the task depends on clear communication and accurate interpretation
+for Q-value convergence, our analysis focuses on the convergence prop- of the transmitted information.
+erties of ELBO-based distribution fitting. Theorem 3 establishes that op- Reference: In this more complex scenario, agents must not only rely
+timizing the ELBO objective ensures: (a) convergence to a stationary on communication but also infer the correct target based on additional
+point under SGD, (b) the learned distribution 𝑝 matches 𝑝⋆(𝐑 ∣𝑠,𝐚), reference information. The agents need to process both the communi-
+𝜃 0
+and (c) the Q-function estimate 𝑄̂ (𝑠,𝐚) converges to 𝑄⋆(𝑠,𝐚). cated information and the reference data to make accurate decisions.
+𝜃
+This requires both effective communication and the ability to perform
+reasoning under uncertainty.
+5. Experiments Performance Comparisons: In this study, we use the same evalua-
+tion metrics as [9,10]. For each seed, an evaluation is conducted every
+5.1. Toy examples 1000 iterations, with each evaluation result averaged over 20 iterations.
+The diffusion steps and stride are both set to 100. The results from five
+To validate MAD3PG’s effectiveness in fitting value functions with different seeds are then aggregated to calculate the mean and standard
+complex distributions, we applied it to eight toy examples. Fig. 3 shows deviation.
+state-action pairs (𝑠,𝐚) in the x-y plane with statistical characteristics Fig. 4 shows the evaluation curves of MAD3PG and MADDPG-type
+on the z-axis. We designed Q-functions with diverse statistical features: algorithms over five random runs. The solid lines represent the mean
+symmetric distributions with respect to (𝑠,𝐚) (Cases 1–5), multimodal returns (higher is better), while the shaded areas indicate the stan-
+distributions (Cases 6), and heteroscedastic rewards where variance in- dard deviation. We trained for 5,000,000 steps across three scenarios:
+creases with x (Cases 7–8). Fig. 3 compares true reward samples (blue), Spread, Speak_listener, and Reference. According to the reward curves, the
+MAD3PG-generated samples (green), and MADDPG-type samples (or- MAD3PG framework significantly outperforms the original MADDPG-
+ange). The results show that MADDPG-type methods approximate the type algorithms in the Spread and reference scenarios, while both meth-
+mean values, while MAD3PG accurately captures the full reward distri- ods show similar results in the Speak_listener scenario.
+bution, demonstrating its ability to reconstruct complex distributional Additionally, Table 1 presents a detailed performance comparison
+structures. after 5 million iterations. Specifically, in the Spread scenario, Diffusion-
+HAPG, Diffusion-HATD, Diffusion-MAPG, and Diffusion-MATD show
+improvements of 12.63%, 10.52%, 12.47%, and 11.07% over the orig-
+5.2. Cooperation tasks
+inal algorithms (HADDPG, HATD3, MADDPG, and MATD3), respec-
+Next, we will validate our proposed MAD3PG framework using var- tively. In the Reference scenario, the improvements are 21.54%, 9.35%,
+17.80%, and 8.53%, respectively.
+ious multi-agent task scenarios. Firstly, we adopt the MPE environment
+proposed by [42], which includes the following:
+Fig. 3. Toy example scatter plots.
+7
+
+=== page 8 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Fig. 4. Performance comparisons of proposed algorithms against their respective baselines in the MPE environment.
+Fig. 5. Illustration of different MuJoCo environments used for multi-agent tasks: Ant, HalfCheetah, Hopper, Walker2D.
+Table 1
+Average final returns across three MPE scenarios. ± represents the
+standard deviation over five runs.
+Algorithm Spread Speak_listener Reference
+HADDPG -65.72 ± 1.93 -11.98 ± 2.36 -15.14 ± 1.15
+Diffusion-HAPG -57.42 ± 1.49 -10.14 ± 1.65 -11.88 ± 0.94
+HATD3 -64.30 ± 1.79 -9.71 ± 1.52 -11.86 ± 0.86
+Diffusion-HATD -57.54 ± 1.28 -9.83 ± 1.60 -10.75 ± 0.74
+MADDPG -66.23 ± 1.81 -11.96 ± 2.40 -14.73 ± 1.14
+Diffusion-MAPG -57.96 ± 1.30 -9.91 ± 1.50 -12.11 ± 0.90
+MATD3 -63.67 ± 1.41 -9.71 ± 1.53 -11.83 ± 0.96
+Diffusion-MATD -56.62 ± 1.39 -10.35 ± 2.28 -10.82 ± 0.72
+8
+
+=== page 9 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Fig. 6. Performance comparison of proposed algorithms against their respective baselines in the Mujoco environment.
+5.3. Complex continuous control tasks movements is critical for maintaining balance and achieving optimal
+performance.
+Following our experiments in the MPE, we extend our evaluation to Hopper (Multi-Agent): The multi-agent Hopper environment as-
+more complex and realistic continuous control tasks using the MuJoCo signs agents to control different joints of a one-legged robot. The agents
+physics engine. In these environments, agents are tasked with control- must cooperate to maintain balance and achieve forward locomotion
+ling different joints or components of complex robotic systems, testing through hopping motions. The challenge lies in coordinating movements
+their ability to cooperate in continuous control tasks. The following en- between the limited number of controllable components.
+vironments are explored, as shown in Fig. 5: Walker2D (Multi-Agent): In the multi-agent Walker2D environ-
+Ant (Multi-Agent): In this environment, the Ant robot is divided into ment, agents control different joints of a two-legged bipedal robot. The
+multiple controllable components (such as legs or joints). Each agent is agents must coordinate to maintain the walker’s stability and generate
+responsible for controlling one or more joints of the Ant, and they must efficient forward walking motions. This environment tests coordination
+cooperate to achieve stable and efficient locomotion. The task typically and balance in a more constrained structure.
+involves moving the Ant forward without falling over. The reward curves for the four robotic control tasks are shown in
+HalfCheetah (Multi-Agent): In the multi-agent version of the Fig. 6, and the detailed performance results are presented in Table 2.
+HalfCheetah environment, different agents control different joints of the Our comprehensive study demonstrates that MAD3PG outperforms tra-
+cheetah-like robot, and they must work together to produce coordinated ditional MADDPG-type algorithms in the MuJoCo environment. Specifi-
+movements that maximize forward speed. Proper coordination of joint cally, in the Walker2D environment, Diffusion-HAPG achieves a 72.1%
+9
+
+=== page 10 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Table 2
+Average final return across four MuJoCo scenarios. ± represents the standard deviation over five runs.
+Algorithm HalfCheetah Hopper Ant Walker2D
+HADDPG 7034.15 ± 788.88 1809.30 ± 419.04 3811.09 ± 774.06 4240.62 ± 795.03
+Diffusion-HAPG 8182.08 ± 385.67 2521.08 ± 725.08 4577.96 ± 327.57 7299.00 ± 1433.55
+HATD3 5764.18 ± 2213.01 2970.86 ± 613.84 5446.49 ± 333.98 5750.10 ± 512.37
+Diffusion-HATD 8261.23 ± 374.37 3416.89 ± 300.69 5283.64 ± 220.01 8232.37 ± 769.56
+MADDPG 5932.48 ± 787.66 1838.04 ± 448.79 3402.97 ± 365.44 3756.63 ± 737.63
+Diffusion-MAPG 7983.40 ± 277.72 2773.92 ± 715.10 4505.95 ± 367.49 6004.75 ± 1516.21
+MATD3 7209.17 ± 1365.61 2814.02 ± 676.60 5079.62 ± 663.46 5043.75 ± 521.24
+Diffusion-MATD 8029.08 ± 288.22 3474.59 ± 231.61 5500.23 ± 222.31 6238.22 ± 801.91
+Table 3
+Statistical comparison of Diffusion-based algorithms against baseline methods.
+Algorithm Pair Win Rate Mean Improv. Sig. Improv. Large Effect
+Diffusion-MAPG vs MADDPG 7/7 (100%) +32.17% 7/7 (100%) 7/7 (100%)
+Diffusion-HAPG vs HADDPG 7/7 (100%) +28.20% 5/7 (71.4%) 7/7 (100%)
+Diffusion-HATD vs HATD3 5/7 (71.4%) +16.74% 4/7 (57.1%) 5/7 (71.4%)
+Diffusion-MATD vs MATD3 6/7 (85.7%) +11.40% 3/7 (42.9%) 6/7 (85.7%)
+Overall 25/28 (89.3%) +22.13% 19/28 (67.9%) 25/28 (89.3%)
+Note: Sig. Improv. = Significant improvements (𝑝<.05). Large Effect = Cohen’s 𝑑>0.8.
+Fig. 7. Performance analysis of MAD3PG under different 𝐾 values (Walker, Diffusion-HAPG).
+Beyond statistical verification, we further analyze the sensitivity of
+the proposed MAD3PG algorithm against key hyperparameters, focus-
+ing on two aspects: (1) the influence of different sample aggregation
+approaches in the 𝐾-repeated inference on policy performance and (2)
+the role of the diffusion step 𝑇 in value estimation.
+To analyze the effectiveness of the minimum selection mechanism
+in the 𝐾-repeated inference strategy, we comprehensively examine how
+different sample aggregation approaches affect algorithm performance.
+For each state-action pair (𝑠𝑗+1,𝐚𝑗+1), we sample 𝐾 points from Gaussian
+noise (0,𝐼) and perform 𝐾 reverse diffusion processes to obtain 𝐾
+value estimates. We then compare four aggregation approaches:
+𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝐾 = min { 𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝑘}
+Fig. 8. Histogram of final average rewards. ⎧ ⎪ min 𝑘=1,…,𝐾
+improvement over HADDPG, Diffusion-HATD achieves a 43.2% im- ⎪ ⎪ ⎪ 𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝐾 mean = 𝐾 1 𝑘 ∑ 𝐾 =1 𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝑘 (45)
+provement over HATD3, Diffusion-MAPG achieves a 59.8% improve- ⎨ ⎪ 𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝐾 med = med { 𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝑘}
+m
+m
+e
+e
+n
+n
+t
+t o
+o
+v
+v
+e
+e
+r
+r
+M
+M
+A
+A
+T
+D
+D
+D
+3
+P
+.
+G, and Diffusion-MATD achieves a 23.7% improve- ⎪
+⎪ ⎪ 𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝐾 trim =
+𝑘=
+∑
+1,…,𝐾
+𝐈𝐧𝐟𝐞𝐫′(𝑠𝑗+1,𝐚𝑗+1)𝑘,
+⎩ 𝑘∈trim
+5.4. Statistical verification and parameter analysis where  trim denotes the index set after removing the top and bottom
+10% of samples. Figs. 7 and 8 show that different aggregation ap-
+To verify that the performance gains of diffusion-enhanced multi- proaches exhibit distinctly different performance trends. The minimum
+agent algorithms are statistically reliable rather than due to random operator achieves the highest final performance at 𝐾=4 despite intro-
+fluctuations, we have conducted independent-samples t-tests across all ducing conservative downward bias, which helps prevent policy degra-
+evaluated scenarios. As summarized in Table 3, our diffusion-based al- dation caused by overestimation. However, as 𝐾 increases (𝐾=6,8,10),
+gorithms outperformed the baselines in 89.3% of the tasks, achieving an excessive conservatism leads to value underestimation and significant
+average improvement of 22.13%. Among these cases, 67.9% of the im- performance degradation. In contrast, the mean, median, and trimmed
+provements were statistically significant (𝑝<.05), and 89.3% exhibited mean operators all show gradual performance improvement as 𝐾 in-
+large effect sizes (Cohen’s 𝑑>0.8), indicating substantial and meaning- creases, with the mean operator reaching its peak at 𝐾=10 while me-
+ful algorithmic benefits. dian and trimmed mean also perform better at larger 𝐾 values. Although
+10
+
+=== page 11 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Fig. 9. Performance analysis of MAD3PG under different diffusion step 𝑇 values (Spread, Diffusion-MAPG).
+these approaches continue to improve with a larger 𝐾 value, they fail Data availability
+to achieve the peak performance of minimum at 𝐾=4 even at their
+optimal 𝐾 values. This suggests that moderate conservatism is more No data was used for the research described in the article.
+effective than simply increasing sampling size in our diffusion-based
+framework. We therefore adopt 𝐾=4 with minimum aggregation as Declaration of competing interest
+our default configuration, which balances peak performance and com-
+putational efficiency. The authors declare that they have no known competing financial
+On the other hand, we further examine the impact of the diffusion interests or personal relationships that could have appeared to influence
+step 𝑇. Fig. 9 presents the learning curves under various 𝑇. The ex- the work reported in this paper.
+perimental results suggest that smaller diffusion steps (e.g., 𝑇 =50 or
+𝑇 =100) generally lead to faster convergence and higher final returns. In Acknowledgements
+contrast, excessively large values (e.g., 𝑇 =500) result in greater train-
+ing instability and degraded performance. This may be attributed to the
+This work was supported by NSFC, China (51975107), and by the
+prolonged denoising process introducing additional uncertainty or noise
+China Scholarship Council under Grant CSC202406070141.
+in the value estimation, thereby reducing the reliability of Q-value in-
+Appendix A. Hyper-parameter settings
+ference. Consequently, it is advisable to select the diffusion step 𝑇 ac-
+cording to task complexity, in order to balance training stability and
+Hyper-parameter Settings: All our experiments were conducted on
+estimation accuracy.
+an NVIDIA GeForce RTX 4090 GPU with 24GB of memory and an AMD
+EPYC 9554 64-Core CPU. Tables A.1 and A.2 present the hyperparame-
+6. Conclusion ters used in MPE and Mujoco tasks, respectively. For fair comparisons,
+the network structure of the diffusion model has the same hidden layers
+In this paper, we have proposed the MAD3PG framework, a novel as the traditional critic network.
+approach that leverages diffusion networks for value estimation, effec-
+tively capturing the multimodal distribution of action-value functions Appendix B. Computational cost analysis
+and addressing the limitations of traditional deterministic networks. A
+significant challenge in employing diffusion models for value estimation To assess the computational overhead of the MAD3PG framework,
+lies in the difficulty of directly optimizing the variational lower bound we conducted runtime and memory profiling experiments in the MPE
+of the diffusion model. To address this, we introduced the K-repeated environment. Table B.1 reports the average training time per 104 iter-
+sampling strategy, integrated with the TD method, to stabilize training ations and peak memory usage across different algorithms. All experi-
+and reduce variance. Extensive experiments in multiple MPE and Mu- ments were conducted on the same hardware with identical hyperpa-
+JoCo environments demonstrate the superior performance of MAD3PG. rameters.
+However, even with skip-step sampling, the training time for MAD3PG
+remains longer than that of traditional algorithms. Future work will ex- Table A.1
+plore the integration of flow-matching models to reduce training over- Hyperparameters for MPE.
+head, paving the way for a more scalable and practical diffusion-based
+Hyperparameters MADDPG MAD3PG
+reinforcement learning framework.
+Hidden layers [128, 128] [128, 128]
+Activation ReLU ReLU
+Final Activation Tanh Tanh
+CRediT authorship contribution statement
+N-step TD 1 1
+Batch size 1000 1000
+Shan Zhong: Writing – review & editing, Writing – original draft, Buffer size 106 106
+Visualization, Methodology, Formal analysis, Conceptualization; Gang Eval interval 1000 1000
+Wang: Formal analysis; Jingkui Zhang: Software, Formal analysis; Xi- Discount for reward 𝛾 0.99 0.99
+Target smoothing coefficient 𝜏 0.005 0.005
+aoyang Wang: Methodology, Formal analysis; Kah Chan Teh: Writing Learning rate for actor 0.0005 0.0005
+– review & editing, Supervision; He Diao: Software; Ping Zhang: Re- Learning rate for critic 0.001 0.001
+sources; Jiacheng He: Investigation; Zhi Zeng: Project administration; Exploration noise 0.1 0.1
+Tee Hiang Cheng: Supervision; Bei Peng: Writing – review & editing, 𝐾-repeated N/A 4
+Warmup steps 10,000 10,000
+Supervision, Conceptualization.
+11
+
+=== page 12 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+Table A.2 [9] Y. Zhong, J.G. Kuba, X. Feng, S. Hu, J. Ji, Y. Yang, Heterogeneous-agent rein-
+Hyperparameters for Mujoco. forcement learning, J. Mach. Learn. Res. 25 (32) (2024) 1–67. http://jmlr.org/pa-
+pers/v25/23-0488.html.
+Hyperparameters MADDPG MAD3PG [10] J. Liu, Y. Zhong, S. Hu, H. Fu, F.U. QIANG, X. Chang, Y. Yang, Maximum entropy
+heterogeneous-agent reinforcement learning, in: The Twelfth International Confer-
+Hidden layers [256, 256] [256, 256]
+ence on Learning Representations, 2024.
+Activation ReLU ReLU
+[11] P. Ladosz, L. Weng, M. Kim, H. Oh, Exploration in deep reinforcement learning: a
+Final Activation Tanh Tanh survey, Inf. Fusion 85 (2022) 1–22.
+N-step TD 20 20 [12] C. Zhang, C. Guo, X. Wang, S. Ding, F. Wu, D. Zhang, Robust decorrelated stochastic
+Batch size 1000 1000 configuration networks ensemble via weighted negative correlation learning, IEEE
+Buffer size 106 106 Trans. Syst. Man Cybern. Syst. 55 (10) (2025) 6767–6776.
+Eval interval 10000 10,000 [13] C. Zhang, D. Cheng, J. Xue, F. Wu, D. Zhang, Deep ensemble stochastic configuration
+Discount for reward 𝛾 0.99 0.99 network via graph intuitionistic fuzzy for depression recognition, IEEE Trans. Fuzzy
+Target smoothing coefficient 𝜏 0.005 0.005 Syst. 33 (9) (2025) 2937–2949.
+Learning rate for actor 0.0005 0.0005 [14] C. Zhang, Y. Wang, D. Zhang, Greedy deep stochastic configuration networks
+Learning rate for critic 0.001 0.001 ensemble with boosting negative correlation learning, Inf. Sci. 680 (2024)
+Exploration noise 0.1 0.1 121140.
+𝐾-repeated N/A 4
+[15] W
+ge
+.
+n e
+D
+o
+u
+u
+,
+s
+S
+g
+.
+r
+D
+a
+i
+p
+n
+h
+g ,
+a
+C
+tt
+.
+e n
+Z
+t
+h
+io
+a
+n
+n g
+n
+,
+e
+Z
+t
+.
+w
+S
+o
+h
+r
+i
+k
+,
+,
+M
+IE
+u
+E
+lt
+E
+i a
+T
+g
+r
+e
+a
+n
+n
+t
+s
+r
+.
+e
+N
+in
+e
+f
+u
+o
+r
+r
+a
+c
+l
+e m
+Ne
+e
+t
+n
+w
+t
+.
+l e
+L
+a
+e
+r
+a
+n
+r
+i
+n
+n
+.
+g
+S
+w
+ys
+it
+t
+h
+. 3
+h
+4
+e t
+(
+e
+1
+r
+0
+o
+)
+-
+Warmup steps 10,000 10,000
+(2022) 6851–6860.
+[16] S. Fujimoto, H. Hoof, D. Meger, Addressing function approximation error in actor-
+Table B.1 critic methods, in: International Conference on Machine Learning, PMLR, 2018, pp.
+Computational cost comparison. Time mea- 1587–1596.
+[17] M.G. Bellemare, W. Dabney, M. Rowland, Distributional Reinforcement Learning,
+sured per 104 iterations (seconds), memory us-
+MIT Press, 2023.
+age in MB. [18] M.G. Bellemare, W. Dabney, R. Munos, A distributional perspective on reinforce-
+ment learning, in: International Conference on Machine Learning, PMLR, 2017, pp.
+Algorithm Time (s) Memory (MB) 449–458.
+HADDPG 6.186 513 [19] W. Dabney, M. Rowland, M. Bellemare, R. Munos, Distributional reinforcement
+Diffusion-HAPG 7.081 535 learning with quantile regression, in: Proceedings of the AAAI Conference on Ar-
+HATD3 6.527 515
+tificial Intelligence, 32, 2018.
+[20] J. Song, C. Meng, S. Ermon, Denoising diffusion implicit models, in: 9th International
+Diffusion-HATD 7.704 535
+Conference on Learning Representations, ICLR 2021, Virtual Event, Austria, May
+MADDPG 6.086 513
+3–7, 2021, OpenReview.net, 2021.
+Diffusion-MAPG 6.861 535 [21] J. Ho, A. Jain, P. Abbeel, Denoising diffusion probabilistic models, Adv. Neural Inf.
+MATD3 6.343 515 Process. Syst. 33 (2020) 6840–6851.
+Diffusion-MATD 7.588 535 [22] J. Sohl-Dickstein, E. Weiss, N. Maheswaranathan, S. Ganguli, Deep unsupervised
+learning using nonequilibrium thermodynamics, in: International Conference on Ma-
+chine Learning, PMLR, 2015, pp. 2256–2265.
+The results show that diffusion-based methods require approxi- [23] X. Han, H. Zheng, M. Zhou, Card: classification and regression diffusion models,
+Adv. Neural Inf. Process. Syst. 35 (2022) 18100–18115.
+mately 12–20% additional training time compared to their baselines, [24] Y. Song, J. Sohl-Dickstein, D.P. Kingma, A. Kumar, S. Ermon, B. Poole, Score-based
+with memory increasing by roughly 4% (around 22MB). This overhead generative modeling through stochastic differential equations, in: 9th International
+stems from the 𝑇 =50 denoising steps and 𝐾=4 repeated inference in Conference on Learning Representations, ICLR 2021, Virtual Event, Austria, May
+3–7, 2021, 2021.
+our implementation. It is important to note that this overhead occurs
+[25] L. Yang, S. Ding, Y. Cai, J. Yu, J. Wang, Y. Shi, Guidance with spherical Gaussian
+o ec n u ly te d s u w ri i n th g c a r i s t i i n c g t l r e a i f n o i r n w g a . r D d u p ri a n s g s d in e d p e lo p y e m nd e e n n t t , t o h f e t h ac e t o c r r i 𝜋 ti 𝜙 c 𝑖 , ( 𝑎 s 𝑖 o | 𝑜 i 𝑖 n ) f e e x r - - c c o h n in s e tr a L i e n a t r n fo in r g c , o n IC d M iti L o n 2 a 0 l 2 d 4 i , ff V u i s e io n n n , a , i n A : u F s o t r r t i y a - , fi J r u st ly I n 2 t 1 e – rn 2 a 7 t , i o 2 n 0 a 2 l 4 C , o O n p fe e r n e R n e c v e i e o w n . M ne a t - ,
+2024.
+ence cost does not affect real-time performance. As MAD3PG provides
+[26] S. Ding, K. Hu, Z. Zhang, K. Ren, W. Zhang, J. Yu, J. Wang, Y. Shi, Diffusion-
+a general framework for diffusion-based value estimation, it can read- based Reinforcement Learning via Q-weighted variational policy optimization,
+ily incorporate recent advances in generative modeling. Flow-matching arXiv:2405.16173 (2024).
+[27] Y. Wang, L. Wang, Y. Jiang, W. Zou, T. Liu, X. Song, W. Wang, L. Xiao, J. Wu,
+models [43], rectified flow [44], and meanflow methods [45] can
+J. Duan, et al., Diffusion actor-critic with entropy regulator, arXiv:2405.15177
+replace the DDIM sampling used in this work. These methods learn di- (2024).
+rect transport mappings between noise and data distributions, achieving [28] L. Yang, Z. Huang, F. Lei, Y. Zhong, Y. Yang, C. Fang, S. Wen, B. Zhou, Z. Lin,
+Policy representation via diffusion probability model for reinforcement Learning,
+comparable generation quality with only 1–5 steps instead of our cur-
+arXiv:2305.13122 (2023).
+rent 50 steps. Future integration of these techniques is expected to bring [29] C. Chi, S. Feng, Y. Du, Z. Xu, E. Cousineau, B. Burchfiel, S. Song, Diffusion policy:
+the training time close to that of baseline methods while preserving the visuomotor policy learning via action diffusion, in: K.E. Bekris, K. Hauser, S.L. Her-
+distributional modeling advantages. bert, J. Yu (Eds.), Robotics: Science and Systems XIX, Daegu, Republic of Korea, July
+10–14, 2023, 2023.
+[30] X. Li, V. Belagali, J. Shang, M.S. Ryoo, Crossway diffusion: improving diffusion-
+References based visuomotor policy via self-supervised learning, in: IEEE International Confer-
+ence on Robotics and Automation, ICRA 2024, Yokohama, Japan, May 13–17, 2024,
+[1] H. Wang, X. Zhou, Y. Kang, J. Xue, C. Yang, X. Liu, Multi-agent reinforcement learn- IEEE, 2024, pp. 16841–16849.
+ing with weak ties, Inf. Fusion 118 (2025) 102942. [31] P. Ko, J. Mao, Y. Du, S. Sun, J.B. Tenenbaum, Learning to act from actionless videos
+[2] A. Lakhan, A.N. Rashid, M.A. Mohammed, D.A. Zebari, M. Deveci, L. Wang, K.H. Ab- through dense correspondences, in: The Twelfth International Conference on Learn-
+dulkareem, J. Nedoma, R. Martinek, Multi-agent reinforcement learning framework ing Representations, ICLR 2024, Vienna, Austria, May 7–11, 2024, OpenReview.net,
+based on information fusion biometric ticketing data in different public transport 2024.
+modes, Inf. Fusion 110 (2024) 102471. [32] M. Reuss, M. Li, X. Jia, R. Lioutikov, Goal-conditioned imitation learning using
+[3] S. Yang, B. Yang, Z. Zeng, Z. Kang, Causal inference multi-agent reinforcement learn- score-based diffusion policies, in: K.E. Bekris, K. Hauser, S.L. Herbert, J. Yu (Eds.),
+ing for traffic signal control, Inf. Fusion 94 (2023) 243–256. Robotics: Science and Systems XIX, Daegu, Republic of Korea, July 10–14, 2023,
+[4] G. Ji, J. Yan, J. Du, W. Yan, J. Chen, Y. Lu, J. Rojas, S.S. Cheng, Towards safe control 2023.
+of continuum manipulator using shielded multiagent reinforcement learning, IEEE [33] Z. Wang, J.J. Hunt, M. Zhou, Diffusion policies as an expressive policy class for
+Rob. Autom. Lett. 6 (4) (2021) 7461–7468. offline reinforcement learning, The Eleventh International Conference on Learning
+[5] R. Lowe, Y.I. Wu, A. Tamar, J. Harb, O. Pieter Abbeel, I. Mordatch, Multi-agent actor- Representations (2022).
+critic for mixed cooperative-competitive environments, Adv. Neural Inf. Process. [34] S.E. Ada, E. Oztop, E. Ugur, Diffusion policies for out-of-distribution generalization
+Syst. 30 (2017) 6379–6390. in offline reinforcement learning, IEEE Rob. Autom. Lett. 9 (4) (2024) 3116–3123.
+[6] K. Liu, Y. Zhao, G. Wang, B. Peng, Self-attention-based multi-agent continuous con- [35] B. Kang, X. Ma, C. Du, T. Pang, S. Yan, Efficient diffusion policies for offline rein-
+trol method in cooperative environments, Inf. Sci. 585 (2022) 454–470. forcement learning, Adv. Neural Inf. Process. Syst. (2023).
+[7] J. Ackermann, V. Gabler, T. Osa, M. Sugiyama, Reducing overestimation bias in [36] C. Lu, H. Chen, J. Chen, H. Su, C. Li, J. Zhu, Contrastive energy prediction for exact
+multi-agent domains using double centralized critics, arXiv:1910.01465 (2019). energy-guided diffusion sampling in offline reinforcement learning, Int. Conf. Mach.
+[8] F. Zhang, J. Li, Z. Li, A TD3-based multi-agent deep reinforcement learning Learn. 202 (2023) 22825–22855.
+method in mixed cooperation-competition environment, Neurocomputing 411 [37] Y. Chen, H. Li, D. Zhao, Boosting continuous control with consistency pol-
+(2020) 206–215. icy, in: M. Dastani, J.S. Sichman, N. Alechina, V. Dignum (Eds.), Proceed-
+12
+
+=== page 13 ===
+S. Zhong et al. Information Fusion 129 (2026) 104026
+ings of the 23rd International Conference on Autonomous Agents and Multia- [41] P. Hansen-Estruch, I. Kostrikov, M. Janner, J.G. Kuba, S. Levine, IDQL: implicit q-
+gent Systems, AAMAS 2024, Auckland, New Zealand, May 6–10, 2024, Interna- Learning as an actor-critic method with diffusion policies, arXiv:2304.10573 (2023).
+tional Foundation for Autonomous Agents and Multiagent Systems / ACM, 2024, [42] R. Lowe, Y. Wu, A. Tamar, J. Harb, P. Abbeel, I. Mordatch, Multi-agent actor-critic
+pp. 335–344. for mixed cooperative-competitive environments, Neural Inf. Process. Syst. (NIPS)
+[38] Z. Zhu, M. Liu, L. Mao, B. Kang, M. Xu, Y. Yu, S. Ermon, W. Zhang, (2017) 6379–6390.
+Offline multi-agent Learning with diffusion models, arXiv:2311.01223 [43] Y. Lipman, R.T.Q. Chen, H. Ben-Hamu, M. Nickel, M. Le, Flow matching for gener-
+(2023). ative modeling, in: The Eleventh International Conference on Learning Representa-
+[39] L. He, L. Zhang, J. Tan, X. Wang, Diffcps: diffusion model based con- tions, ICLR 2023, 2023.
+strained policy search for offline reinforcement Learning, arXiv:2310.05333 [44] X. Liu, C. Gong, Q. Liu, Flow straight and fast: learning to generate and transfer
+(2023). data with rectified flow The Eleventh International Conference on Learning Rep-
+[40] H. Chen, C. Lu, C. Ying, H. Su, J. Zhu, Offline reinforcement learning via high- resentations, ICLR 2023, Kigali, Rwanda, May 1-5, 2023, OpenReview.net, (2023).
+Fidelity generative behavior modeling, in: The Eleventh International Conference https://openreview.net/forum?id=XVjTT1nw5z
+on Learning Representations, ICLR 2023, Kigali, Rwanda, May 1–5, 2023, OpenRe- [45] Z. Geng, M. Deng, X. Bai, J.Z. Kolter, K. He, Mean flows for one-step generative
+view.net, 2023. modeling, arXiv:2505.13447 (2025).
+13

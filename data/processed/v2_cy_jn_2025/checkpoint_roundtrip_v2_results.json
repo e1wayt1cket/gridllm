@@ -1,0 +1,43 @@
+{
+  "source": "trainer_smoke_results.json",
+  "trainer": "MATD3_B_C2_GATE",
+  "checkpoint": {
+    "checkpoint_level": "resume",
+    "action_restored": true,
+    "buffer_sample_restored": true,
+    "losses_restored": true,
+    "actor_parameters_changed_by_update": true,
+    "actor_parameters_restored_and_updated_identically": true,
+    "counters_restored": true,
+    "exposure_restored": true,
+    "update_expected": {
+      "critic_loss": 0.49654553085565567,
+      "actor_loss": 0.8050131052732468,
+      "actor_loss_by_agent": {
+        "ESS9": 1.3094850778579712,
+        "ESS14": 0.9887748956680298,
+        "ESS17": 0.4766930937767029,
+        "ESS27": 0.4450993537902832
+      },
+      "q1_mean": -0.621551688760519,
+      "q2_mean": -0.5526538342237473,
+      "q_gap": 0.374603308737278,
+      "reward_scale": 1000.0
+    },
+    "update_actual": {
+      "critic_loss": 0.49654553085565567,
+      "actor_loss": 0.8050131052732468,
+      "actor_loss_by_agent": {
+        "ESS9": 1.3094850778579712,
+        "ESS14": 0.9887748956680298,
+        "ESS17": 0.4766930937767029,
+        "ESS27": 0.4450993537902832
+      },
+      "q1_mean": -0.621551688760519,
+      "q2_mean": -0.5526538342237473,
+      "q_gap": 0.374603308737278,
+      "reward_scale": 1000.0
+    },
+    "all_pass": true
+  }
+}

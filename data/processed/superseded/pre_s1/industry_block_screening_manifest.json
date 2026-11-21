@@ -1,0 +1,52 @@
+{
+  "reading": "B",
+  "screening_rule_version": "f647fa60d88c3b29",
+  "rule_inputs": {
+    "pool_drop_flags": [
+      "all_zero",
+      "duplicate_row",
+      "empty_identity",
+      "missing_slots",
+      "other_phase",
+      "placeholder"
+    ],
+    "advisory_flags": [
+      "capacity_inconsistent",
+      "duplicate_conflict",
+      "duplicate_row",
+      "negative_load",
+      "negative_pv",
+      "ratio_missing",
+      "ratio_suspect"
+    ],
+    "capacity_peak_tolerance": 1.5,
+    "ratio_outlier_factor": 100.0,
+    "slot_minutes": 15
+  },
+  "source_workbook": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\docs\\16\u7c7b\u884c\u4e1a\u7528\u6237.xlsx",
+  "source_workbook_sha256": "63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb",
+  "source_workbook_bytes": 67277368,
+  "generated_at": "2026-10-14T11:42:32+08:00",
+  "dataset_version": "industry-blocks-B/310fbfb3ccde",
+  "block_table_sha256": "310fbfb3ccde565023af04efad2898fb44bd86a1d48d78abe0273dd67bbe3dab",
+  "block_table": "industry_block_screening.csv",
+  "counts": {
+    "qualified_A_blocks": 87511,
+    "qualified_A_meters": 208,
+    "qualified_A_users": 68,
+    "qualified_A_dates": 730,
+    "qualified_B_blocks": 39365,
+    "qualified_B_meters": 84,
+    "qualified_B_users": 36,
+    "qualified_B_dates": 730,
+    "qualified_C_blocks": 35383,
+    "qualified_C_meters": 74,
+    "qualified_C_users": 31,
+    "qualified_C_dates": 730,
+    "records": 117271,
+    "blocks_total": 103739,
+    "meters_total": 283,
+    "users_total": 73,
+    "dates_total": 731
+  }
+}

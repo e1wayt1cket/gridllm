@@ -30,7 +30,9 @@ _CONVENTION_TITLES = {
     "unknown": "无消费者账目",
 }
 
-_SCENARIO_ORDER = ["baseline", "high_re", "peak_load", "congestion"]
+from scenarios import legacy_comparison_scenarios
+
+_SCENARIO_ORDER = legacy_comparison_scenarios()
 
 
 def _fmt_table(df: pd.DataFrame, columns: dict, decimals: int = 1) -> str:
@@ -76,7 +78,7 @@ def build_digest(runs: pd.DataFrame, evals: pd.DataFrame) -> str:
     # ---- per-run table ----
     out += ["## 一、训练运行", ""]
     cols = {"date": "时间", "algo": "算法", "seed": "种子",
-            "episodes": "集数", "best_episode": "best 集",
+            "opf_mode": "引擎", "episodes": "集数", "best_episode": "best 集",
             "final_mean_reward": "final reward", "critic_max": "critic 峰值",
             "critic_trend": "损失趋势"}
     shown = real[list(cols)].copy()

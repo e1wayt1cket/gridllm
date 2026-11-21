@@ -1,0 +1,1058 @@
+Equilibrium Analysis for Electricity Market 
+Considering Carbon Emission Trading Based on 
+Multi-agent Deep Reinforcement Learning 
+ 
+Qiyuan Liu 
+Dept. of Electrical Engineering 
+Shanghai Jiao Tong University 
+Shanghai, China 
+qyuan_liu@126.com 
+ 
+ 
+Donghan Feng* 
+Dept. of Electrical Engineering 
+Shanghai Jiao Tong University 
+Shanghai, China 
+seed@sjtu.edu.cn 
+ 
+ 
+Yun Zhou 
+Dept. of Electrical Engineering 
+Shanghai Jiao Tong University 
+Shanghai, China 
+yun.zhou@sjtu.edu.cn 
+ 
+ 
+Hengjie Li 
+School of Electrical and 
+Information Engineering 
+Lanzhou University of 
+Technology 
+Lanzhou, China 
+lihj915@lut.edu.cn
+ 
+ 
+ 
+Kaiyu Zhang 
+Electric Power Research 
+Institude 
+State Grid Shanghai Municipal 
+Shanghai, China 
+zhang_ky@163.com 
+Shanshan Shi 
+Electric Power Research 
+Institude 
+State Grid Shanghai Municipal 
+Shanghai, China 
+sss3397@163.com 
+ 
+ 
+ 
+ 
+ 
+ 
+Abstract—With the proposal of China's carbon peaking and 
+carbon neutrality goals, carbon emission trading (CET) is 
+gradually participating in the electricity market to accelerate 
+carbon emission reduction and the improvement of power supply 
+structure. In this study, we analyze the impacts of CET on the 
+electricity market based on the electricity market equilibrium 
+model and multi-agent deep reinforcement learning (MADL) 
+method. We firstly establish the electricity market clearing 
+process involved CET and develop the bi-level problem to model 
+the electricity market equilibrium with strategic generation 
+company (GENCO) bidders. Then, a multi-agent Twin Delayed 
+Deep Deterministic Policy Gradient (MATD3) algorithm is 
+applied to solve the market equilibrium described above. Finally, 
+we simulate multiple cases based on a modified IEEE 30-bus 
+system. The result shows that an excessive carbon price can raise 
+the nodal electricity price and have a negative influence on 
+reducing carbon emission, and an appropriately low carbon 
+emission quota setting can help for carbon emission reduction. 
+Keywords—electricity market equilibrium, carbon emission 
+trading, multi-agent deep reinforcement learning, carbon price, 
+carbon quota 
+I. INTRODUCTION  
+Energy and environmental issues are becoming increasingly 
+serious, and China's carbon emissions and energy consumption 
+are the highest in the world. To accelerate carbon mitigation and 
+achieve sustainable development, China has proposed to achieve 
+carbon peak and carbon neutrality goals by 2030 and 2060 
+respectively, and the construction of carbon emission trading 
+(CET) market is gradually advancing [1]. The carbon emission 
+trading market is a market mechanism that allocates the total 
+amount of permitted carbon emissions within a certain time and 
+space to carbon emitters in the form of allowances, and allows 
+carbon emission rights to be traded as commodity. The purpose 
+of CET mechanism is to reduce carbon emissions, improve 
+energy efficiency, and optimize the power supply structure of 
+the industries involved. The market-oriented carbon price is 
+formed to guide market participants to reduce carbon emissions 
+proactively. Meanwhile, the carbon emissions of the power 
+industry are very large, CET market will significantly affect the 
+cost of electricity for generation companies (GENCOs) [2]. In 
+the context of carbon neutrality goal and electricity market 
+reform, CET will have a great influence on the equilibrium of 
+electricity market. 
+The electricity equilibrium problem, also known as the 
+strategic electricity market bidding problem, is essentially 
+finding the Nash equilibrium point of the electricity market. The 
+electricity market bidding problem can be formulated as a bi-
+level model, the upper-level model is the power producers profit 
+maximization problem, and the lower-level model is the 
+electricity market clearing model with the goal of minimizing 
+total power generation costs. A widely applied method to deal 
+with the bi-level problem above is using the lower-level model's 
+Karush-Kuhn-Tucker (KKT) optimality conditions to convert it 
+to a single-level mathematical problem with equilibrium 
+constraints (MPEC) [3]. The combination of all strategic 
+GENCO bidders’ MPEC formulates the equilibrium problem 
+with equilibrium constraints (EPEC), which can be solved by 
+applying multiple linearization methods or using the 
+diagonalization algorithm [4], [5]. 
+All the above work can be classified as model-driven 
+approaches, which mainly rely on the assumption that each 
+GENCO bidder has the complete information of other bidders’ 
+This work was supported in part by National Natural Science Foundation of 
+China (52077139 and 52167014), in part by the Science and Technology 
+Project from State Grid Shanghai Municipal Electric Power Company of China 
+(52094022004B), and in part by the Science and Technology Commission of 
+Shanghai Municipality (23XD1422000). 
+1849
+2023 IEEE IAS Industrial and Commercial Power System Asia
+979-8-3503-3934-5/23/$31.00 ©2023 IEEE
+2023 IEEE/IAS Industrial and Commercial Power System Asia (I&CPS Asia) | 979-8-3503-3934-5/23/$31.00 ©2023 IEEE | DOI: 10.1109/ICPSASIA58343.2023.10294544
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on November 09,2026 at 14:27:47 UTC from IEEE Xplore.  Restrictions apply. 
+
+bidding strategies as well as the market clearing process, which 
+doesn’t correspond to the real situation. Additionally, a large 
+number of complementarity conditions lead to high nonlinearity 
+and nonconvexity, which makes the model hard to solve with 
+the scale of the power system increasing. 
+With the rapid development of machine learning and 
+artificial 
+intelligence, 
+reinforcement 
+learning 
+(RL) 
+is 
+increasingly used as an alternative method to traditional model-
+driven methods in electricity market equilibrium problems [6]. 
+The data-driven, model-free, and self-learning characteristics of 
+reinforcement learning methods are in line with the research 
+needs of the electricity market equilibrium analysis. Considering 
+electricity market with multiple strategic GENCO bidders, 
+multi-agent reinforcement learning (MADL) can be applied to 
+find the optimal strategy for each GENCO bidder [7]. Market 
+players can gradually learn their best strategies through 
+continuous interaction with the market clearing environment, 
+without relying on knowledge of the market clearing 
+information and other GENCO bidders’ strategies. 
+This paper proposes a electricity market GENCO bidding 
+equilibrium model for single-period electricity spot market. The 
+model includes a GENCO bidder optimal strategy model and an 
+electricity market clearing model considering the CET market. 
+Then, a state of the art reinforcement learning algorithm is used 
+to find the Nash equilibrium of the electricity market. Finally, 
+multiple cases are simulated to study the effects of carbon 
+emission quota and carbon price on the electricity market 
+equilibrium. 
+The rest of this paper is organized in the following. Section 
+II establishes the profit maximization strategy for GENCO 
+bidders and the market clearing model and the electricity market 
+equilibrium is formulated. Section III proposes the MATD3 
+method to solve the Nash equilibrium of the electricity market 
+equilibrium model. Section IV simulates different cases and 
+analyze the impacts of CET on electricity market. Section V 
+makes a conclusion of this paper. 
+II. ELECTRICITY MARKET EQUILIBRIUM MODEL 
+A. Market Framework 
+The market proposed in this paper includes a single-period 
+electricity spot market and a carbon emission trading market. 
+Firstly, each GENCO bidder offers its bidding price to the 
+independent system operator (ISO), the price can be the true cost 
+of its power generation or a higher strategic offer to obtain more 
+profit. Then the ISO clears the market based on the offers of all 
+GENCO bidders and the parameters of the power network. The 
+nodal electricity price of each node and the output of each 
+GENCO are provided from market clearing process, then the 
+carbon emission of each GENCO during power generation and 
+its profit from electricity market can be calculated. Compared 
+individual’s carbon emissions with the free carbon emission 
+quota, each GENCO sells all remaining carbon emission rights 
+or buys missing carbon emission rights from the CET market. 
+After the CET market clearing, the GENCO can obtain its profit 
+from CET market, and calculate its total profit during the market 
+clearing process. It is worth noting that GENCOs just offer the 
+generation cost in electricity market strategically, they don’t 
+need to decide how much of the remaining carbon emission 
+rights to sell in CET market. 
+The bi-level model of electricity market equilibrium 
+problem includes the upper-level model for GENCO, and the 
+lower-level model for market clearing process, which is 
+formulated in the following. 
+B. Upper-Level: Profit Maximization Strategy of GENCO 
+We choose the linear supply function equilibrium model to 
+formulate the electricity market. The cost of power generation is 
+a quadratic function of the generator’s output as (1), where i  
+indicates the number of generator, 
+Gi
+P  indicates the output of 
+generator i , 
+ia  and 
+ib  are the coefficients. The GENCO 
+bidders bid based on the marginal cost function, which is 
+calculated by (2). 
+ 
+2
+1
+2
+G
+i
+i
+Gi
+i
+Gi
+C
+a P
+b P
+=
++
+ 
+() 
+ 
+d
+d
+G
+G
+i
+i
+i
+Gi
+i
+i
+C
+M
+a P
+b
+P
+=
+=
++
+ 
+() 
+All the GENCO bidders can increase the profit through 
+strategic bidding, and they can strategically bid the slope 
+ia  or 
+intercept 
+ib . In this paper, the GENCO bidders only 
+strategically bid intercept coefficient 
+stra,i
+b
+, and its strategic 
+bidding price function is calculated as (3): 
+ 
+stra,
+bid
+i
+i
+Gi
+i
+p
+a P
+b
+=
++
+ 
+() 
+Power plants emit carbon dioxide during power generation, 
+and the amount of the carbon emissions can be expressed as (4), 
+where 
+i is the carbon emission factor, and 
+2
+co
+ie
+ represents the 
+carbon emissions of generator i . Considering the CET market, 
+the carbon emission cost of the generator can be calculated as 
+(5), where 
+2
+co
+p
+ is the carbon emission price, and 
+fe  is the free 
+carbon emission quota. If the carbon emissions of the generator 
+exceed the free carbon emission quota, the GENCO needs to 
+purchase the additional carbon emission rights. If the carbon 
+emissions are lower than the free carbon emission quota, then 
+the remaining carbon rights can be sold to the carbon emission 
+trading market for profit. 
+ 
+2
+co
+i
+i
+Gi
+e
+P
+
+=
+ 
+() 
+ 
+2
+2
+2
+co
+co
+co
+(
+)
+i
+i
+f
+C
+p
+e
+e
+=
+−
+ 
+() 
+For GENCO i , its profit includes three parts: income from 
+electricity market clearing, cost of power generation, and cost of 
+carbon emission. The profit maximization strategy model can be 
+formulated as follows: 
+1850
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on November 09,2026 at 14:27:47 UTC from IEEE Xplore.  Restrictions apply. 
+
+ 
+2
+2
+co
+co
+2
+,
+1
+max
+(
+)
+2
+i
+n
+Gi
+i
+f
+i
+Gi
+stra i
+Gi
+P
+p
+e
+e
+a P
+b
+P
+
+
+
+−
+−
+−
++
+
+
+
+
+ 
+() 
+Subject to: 
+ 
+,
+i
+stra i
+i
+b
+b
+b
+
+
+
+ 
+() 
+where 
+i
+ indicates the set of nodes that GENCO i  belonging 
+to. Equation (7) limits the upper bound and lower bound of 
+stra,i
+b
+, 
+where parameter  is set to decide the upper limit of quote 
+space for each GENCO. 
+C. Lower-Level: Electricity Market Clearing Model 
+In this paper, we use DC power flow for electricity market 
+model, considering the node power balance constraints, 
+generator output constraints, and transmission line capacity 
+constraints. The optimization object is to minimize the total 
+power generation cost, also known as maximizing the social 
+welfare. The clearing model is as follows: 
+ 
+2
+,
+1
+min
+2
+i
+i
+stra i
+i
+i
+a P
+b
+P
++
+
+ 
+() 
+Subject to: 
+ 
+, (
+)
+0 :
+n
+n
+n
+Gi
+Dj
+n m
+n
+m
+n
+i
+j
+m
+P
+P
+B
+
+
+
+
+
+
+−
+−
+−
+=
+
+
+
+ 
+() 
+ 
+min
+max
+Gi
+Gi
+Gi
+P
+P
+P
+
+
+ 
+() 
+ 
+,
+,
+,
+(
+)
+n m
+n m
+n
+m
+n m
+S
+B
+S
+
+
+−
+
+−
+
+ 
+() 
+where 
+n
+ is the set of generators belonging to node n , 
+n
+ is 
+the set of branches connected to node n , 
+Dj
+P  is the power 
+demand of user j , 
+,n m
+B
+ is the susceptance of the branch 
+between node n  and m , 
+n
+ and 
+m
+ are respective the voltage 
+angle of node n  and m , 
+max
+Gi
+P
+ and 
+min
+Gi
+P
+ are the maximize and 
+minimize output of generator, and 
+,n m
+S
+ is the transmission 
+capacity limit of the branch between node n  and m . 
+III. MULTI-AGENT DEEP REINFORCEMENT LEARNING 
+ALGORITHM 
+A MATD3 approach is proposed to solve the electricity 
+market equilibrium problem formulated in Section II. TD3 is a 
+reinforcement learning algorithm [8], which has 
+the 
+characteristics of model-free, off-policy and continuous state-
+action space. TD3 is applicable to deal with the single-agent 
+decision-making problem. MATD3 is an extension of TD3 
+algorithm considering the dynamic environment when multiple 
+agents make decision at the same time, which is applicable to 
+solve the electricity market equilibrium problem with multiple 
+GENCO bidders bidding. 
+A. Multi-agent Twin Delayed Deep Deterministic Policy 
+Gradient Approach 
+Multi-agent deep deterministic policy gradient (MADDPG) 
+is a commonly used multi-agent deep reinforcement learning 
+algorithm [9]. However, MADDPG has the problems of 
+overestimation and high variance. MATD3 is designed to solve 
+the problems above [10]. To solve the overestimation problem, 
+the critic of TD3 consists of two Q-networks and two target Q-
+networks to estimate the Q value independently. The smaller Q 
+value is chosen to calculate and update networks, which 
+effectively alleviates the overestimation. Delayed policy update 
+and target policy smoothing regularization are applied to deal 
+with the high variance problem. Delayed policy update approach 
+reduces the update frequency to improve the learning stability of 
+actor network, and target policy smoothing regularization 
+approach adds Gaussian noise when updating the critic network 
+to estimate the Q value more accurately and enhance the 
+robustness of the network. 
+MATD3 algorithm implements the framework of centralized 
+training with decentralized execution [11] which ensures all 
+agents operate independently. The centralized training means 
+that the input variables of critic network include the actions and 
+states of all agents in training process, and the decentralized 
+execution means that after finishing the training, only actor 
+network with private observation is needed in the test 
+environment. The framework guarantees that the learning 
+process of the networks is stable, and all agents operate 
+independently in testing. 
+B. Implementation of the Proposed Method 
+In this paper, the general-purposed MATD3 method is used 
+to deal with the repeated game of electricity market equilibrium 
+problem. Key elements of MATD3 method for solving the 
+market equilibrium are stated as follows. 
+1) Agent: Strategic GENCO bidders are the agents, who 
+gradually learn the optimal bidding strategy by repeatedly 
+interacting with the environment. 
+2) Environment: The environment is defined as the process 
+of electricity market clearing and carbon emission rights trading. 
+After agents taking actions, the environment provides their 
+rewards and the states for the next time step. 
+3) State: The state is the output of each generator from the 
+electricity market progress, and the private observation of each 
+agent is its own output in the last game. 
+4) Action: The action of agent is the bidding price of each 
+GENCO bidder in one game, the action space of agent can be 
+expressed as (7). 
+5) Reward: The reward of agent is its profit in one market 
+clearing process, considering its power generation cost, carbon 
+emission cost and the income from electricity market and carbon 
+emission trading market. The function of its reward can be 
+expressed as (6). 
+The proposed MATD3 algorithm flow for the market 
+problem is shown as follows. 
+1851
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on November 09,2026 at 14:27:47 UTC from IEEE Xplore.  Restrictions apply. 
+
+Algorithm 1: MATD3 for electricity market equilibrium 
+considering CET mechanism 
+1: Initialize Q-function parameters 
+( , ;
+)
+Q
+Q s a 
+ of the critic 
+networks and policy parameters 
+( ;
+)
+o
+
+
+
+ of the actor 
+network. 
+2: Initialize the parameters of target critic networks 
+,
+,
+,
+Q
+Q
+targ a
+targ b
+
+
+ and target actor network 
+targ
+
+
+. 
+3: for 
+1
+t =  to 
+T
+N  do 
+4:       Obtain the current state of critic network and target  
+critic network 
+1
+2
+( )
+[ (
+1),
+(
+1),...,
+(
+1)]
+N
+s t
+P t
+P t
+P t
+=
+−
+−
+−
+ 
+5:       Select the bid price 
+( )
+(
+( );
+)
+bid
+g
+g
+g
+p
+t
+o t
+
+
+
+=
+ of each 
+GENCO bidder, where 
+( )
+[
+(
+1)]
+g
+g
+o t
+P t
+=
+−
+ 
+6:       Run the electricity market clearing program, get 
+the output 
+( )
+gP t , nodal electricity price 
+( )
+g t
+
+, and 
+the total profit 
+( )
+gr t  of each agent. 
+7:       Store the transition ( ( ),
+( ),
+( ), (
+1))
+bid
+g
+g
+s t
+p
+t r t s t +
+ of  
+            each agent to the replay buffer 
+8:       for GENCO 
+1
+g =  to N  do 
+9:            Sample a minibatch of transitions 
+ ( ( ),
+( ),
+( ), (
+1))
+bid
+g
+g
+s t
+p
+t r t s t +
+ from the replay buffer 
+10:             Set 
+( )
+( )
+(
+1)
+targ
+g
+g
+g
+Q
+t
+r t
+Q t
+
+=
++
++
+ 
+11:             Update the critic network: 
+2
+1
+(
+( )
+( ))
+Q
+Q
+Q
+targ
+Q
+g
+g
+j
+s
+Q
+t
+Q t
+N
+
+
+
+
+=
+−
+
+−
+
+ 
+12:             Update the actor network: 
+1
+( )
+g
+g
+g
+j
+s
+Q t
+N
+
+
+
+
+
+
+
+
+
+=
+−
+
+
+
+
+ 
+13:       end for 
+14:       Soft update the target critic networks: 
+            
+,
+,
+(1
+)
+Q
+Q
+Q
+targ a
+targ a
+
+
+
+=
+−
++
+ 
+            
+,
+,
+(1
+)
+Q
+Q
+Q
+targ b
+targ b
+
+
+
+=
+−
++
+ 
+15:       Soft update the target actor networks: 
+16:       
+(1
+)
+targ
+targ
+
+
+
+
+
+
+=
+−
++
+ 
+17: end for 
+IV. CASE STUDY 
+We simulate the proposed method on a modified IEEE-30 
+bus system, which includes six generators, and we assume that 
+each GENCO owns a generator. The parameters for generators 
+are shown in Table I. We define that G1, G2 and G4 are high 
+carbon emission generators with low generation cost, and G3, 
+G5, G6 are low carbon emission generators with high generation 
+cost. The total power demand of the system is 189.2MW. To 
+analyze the effects of CET on electricity market, we ignore the 
+transmission line capacity constraints. 
+TABLE I.  
+ELECTRICITY GENERATOR PARAMETERS 
+Generator 
+Bus 
+Number 
+Capacity
+(MW) 
+ia
+($/MW2) 
+ib
+($/MW) 
+i
+φ
+(t/MWh) 
+G1 
+1 
+80 
+0.2 
+20 
+0.8 
+G2 
+2 
+80 
+0.175 
+17.5 
+0.88 
+G3 
+13 
+40 
+0.25 
+30 
+0.64 
+G4 
+22 
+50 
+0.625 
+10 
+0.85 
+G5 
+23 
+30 
+0.25 
+30 
+0.68 
+G6 
+27 
+55 
+0.0834 
+32.5 
+0.6 
+A. Impacts on the Amount of Carbon Emissions 
+The purpose of CET is to reduce carbon emissions. We set 
+two scenarios with higher and lower carbon quota, where the 
+free carbon quotas are respective 50 tCO2 and 30tCO2, and the 
+carbon price is 14 $/tCO2. We compare the carbon emission 
+reductions of the two scenarios, which is shown in Table II. We 
+can see that, in the context of CET, the scalar quantities of low 
+carbon emission generators increase, and the market power of 
+high carbon emission generators is weakened. Additionally, 
+there is little carbon emission reduction in the scenario with 
+higher carbon quota. Therefore, the carbon quota should be set 
+appropriately lower, so that CET can better play its role. 
+TABLE II.  
+CARBON EMISSION REDUCTION WITH CET MARKET 
+2
+co
+p
+($/tCO2) 
+fe  
+(tCO2) 
+Carbon Emission Reduction 
+(tCO2) 
+14 
+50 
+0.78 
+14 
+30 
+8.23 
+ 
+The carbon price can also have an influence on the carbon 
+reduction. We simulate and analyze the carbon reduction with 
+the carbon price from 0$ to 20$. The result is shown in Fig. 1. 
+The figure indicates that the carbon emission reduction does not 
+always increase with the carbon price. Carbon emission 
+reduction is greatest when the carbon price is around 15$, and it 
+falls sharply when carbon price continues to rise. The main 
+reason is that in the scenario with an excessive carbon price, low 
+carbon emission generators are more inclined to profit from the 
+carbon emission trading market by generating less electricity 
+and selling more carbon emission rights, so they lack motivation 
+to generate electricity. Therefore, the setting of carbon price 
+should be carefully considered when designing CET mechanism. 
+ 
+Fig. 1. Relationship between carbon emission reduction and carbon price 
+1852
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on November 09,2026 at 14:27:47 UTC from IEEE Xplore.  Restrictions apply. 
+
+B. Impacts on the Nodal Price 
+Considering the CET market, the existence of carbon price 
+increases the marginal cost of generation, which leads to a 
+higher nodal price. We simulate the nodal price in the two 
+carbon quota scenarios with the carbon price from 0$ to 20$, and 
+the result is shown in Fig. 2. We can see that whether the free 
+carbon emission quota is higher or lower, the nodal price tends 
+to rise with the carbon price. An excessive nodal price can have 
+negative effects on the electricity market, it increases both the 
+generation cost of GENCOs and the electricity cost of users. 
+This situation should be avoided because it seriously disrupts the 
+market order. 
+ 
+Fig. 2. Relationship between nodal electricity price and carbon price 
+C. Comparison with MADDPG Algorithm 
+We compare the learning progress of the electricity market 
+equilibrium and the profit of each agent at the equilibrium point 
+by MATD3 algorithm and MADDPG algorithm, where the 
+common parameters of the two algorithms are set to the same. 
+The result is displayed in Fig. 3 to Fig. 6. 
+ 
+Fig. 3. Learning process by MATD3 algorithm 
+ 
+Fig. 4. Profit of each GENCO by MATD3 algorithm 
+ 
+Fig. 5. Learning process by MADDPG algorithm 
+ 
+Fig. 6. Profit of each GENCO by MADDPG algorithm 
+The figures show that the learning process of MATD3 is 
+stable and it converges in a reasonable equilibrium solution. 
+However, the learning process of MADDPG is unstable and it is 
+hard to converge. Moreover, the profit of each GENCO at 
+1853
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on November 09,2026 at 14:27:47 UTC from IEEE Xplore.  Restrictions apply. 
+
+equilibrium point is higher by MATD3 than MADDPG, which 
+indicates that the equilibrium point found by MATD3 is more 
+reasonable and closer to Nash equilibrium as it leads to a win-
+win situation with higher social welfare. Therefore, the MATD3 
+algorithm is more suitable for solving the equilibrium point for 
+the electricity market bidding problem. 
+V. CONCLUSION 
+This paper proposes a multi-agent deep reinforcement 
+learning algorithm for solving the electricity market equilibrium 
+problem with multi-agent competition considering carbon 
+emission trading. The electricity market equilibrium problem is 
+formulated as a bilevel model. The upper-level model indicates 
+power producers profit maximization problem, the goal of each 
+GENCO bidder is to maximize its profit. The lower-level model 
+indicates electricity market clearing model to minimize the total 
+power generation cost of GENCOs. The CET market 
+mechanism is taken into account in electricity market clearing 
+model, where the influence of carbon price and free carbon 
+emission quota on the electricity market are studied. The 
+simulation result shows that an appropriately lower carbon 
+emission quota can promote carbon reduction and increase the 
+market competitiveness of low carbon emission generator. 
+Additionally, the carbon price can raise the nodal electricity 
+price, so the carbon price should be set appropriately low to 
+reduce its impact on nodal electricity price. 
+The research of this paper provides a reference for solving 
+the electricity market equilibrium and help for CET market 
+mechanism design, the proposed MATD3 algorithm can also be 
+applied to solving other problems in the field of power system, 
+such as optimal power dispatching problem and integrated 
+energy system management. The model proposed in this paper 
+can be extent to consider electricity spot market with multi-
+timescale and multi-stage, and include other markets such as 
+tradable green certificates market and consumption trading 
+market. 
+REFERENCES 
+[1] G. Wang, Q.Zhang, B. Su, B. Shen, Y. Li and Z. Li. “Coordination of 
+Tradable Carbon Emission Permits Market and Renewable Electricity 
+Certificates Market in China.” Energy Economics, vol. 93, 2021, p. 
+105038. 
+[2] T. Feng, Y. Yang, Y. Yang. “What Will Happen to the Power Supply 
+Structure and Co2 Emissions Reduction When Tgc Meets Cet in the 
+Electricity Market in China?” Renewable and Sustainable Energy 
+Reviews, vol. 92, 2018, pp. 121-132. 
+[3] H. Guo, Q. Chen, Q. Xia and C. Kang, “Market Power Mitigation 
+Clearing Mechanism Based on Constrained Bidding Capacities,” in IEEE 
+Transactions on Power Systems, vol. 34, no. 6, pp. 4817-4827, Nov. 2019. 
+[4] C. Wang, W. Wei, J. Wang, F. Liu and S. Mei, “Strategic Offering and 
+Equilibrium in Coupled Gas and Electricity Markets,” in IEEE 
+Transactions on Power Systems, vol. 33, no. 1, pp. 290-306, Jan. 2018. 
+[5] T. Dai and W. Qiao, “Finding Equilibria in the Pool-Based Electricity 
+Market With Strategic Wind Power Producers and Network Constraints,” 
+in IEEE Transactions on Power Systems, vol. 32, no. 1, pp. 389-399, Jan. 
+2017. 
+[6] Y. Ye, D. Qiu, M. Sun, D. Papadaskalopoulos and G. Strbac, “Deep 
+Reinforcement Learning for Strategic Bidding in Electricity Markets,” in 
+IEEE Transactions on Smart Grid, vol. 11, no. 2, pp. 1343-1355, March 
+2020. 
+[7] Y. Ye, D. Qiu, J. Li et al., “Multi-period and multi-spatial equilibrium 
+analysis in imperfect electricity markets: a novel multi-agent deep 
+reinforcement learning approach,” IEEE Access, vol. 7, pp. 130515-
+130529, Sept. 2019. 
+[8] Fujimoto, S. , H. V. Hoof , and D. Meger . “Addressing Function 
+Approximation Error in Actor-Critic Methods.” , 2018. 
+[9] Y. Liang, C. Guo, Z. Ding and H. Hua, “Agent-Based Modeling in 
+Electricity Market Using Deep Deterministic Policy Gradient Algorithm,” 
+in IEEE Transactions on Power Systems, vol. 35, no. 6, pp. 4180-4192, 
+Nov. 2020. 
+[10] F. Zhang, J. Li , and  Z. Li, “A td3-based multi-agent deep reinforcement 
+learning method in mixed cooperation competition environment,” 
+Neurocomputing 411 (2020) 206–215. 
+[11] R. Lowe, Y. Wu, A. Tamar, and J. Harb, “Multi-agent actor-critic for 
+mixed cooperative-competitive environments,” in Proceedings of 2017 
+Advances in Neural Information Processing Systems (NIPS 2017), Long 
+Beach, USA, Jan. 2017, pp. 6379-6390. 
+ 
+1854
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on November 09,2026 at 14:27:47 UTC from IEEE Xplore.  Restrictions apply. 

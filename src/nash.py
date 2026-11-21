@@ -69,7 +69,7 @@ def _evaluate_payoffs(args):
     """
     agents, config, T, stage, action_variant, target_name = args
     try:
-        result = clear_market(agents, T, stage, action_variant, config)
+        result = clear_market(agents, T, stage, action_variant, config, horizon_type="full_day")
     except Exception:
         return target_name, float('-inf'), None
     sched = result["schedules"][target_name]
@@ -108,9 +108,49 @@ _RHOBEG_FRACTION = 0.05 / 1.5
 _SIGMA_FRACTION = 0.06
 
 
+#: Decimal places a strategy is quantized to when it forms a cache key.
+#:
+#: The key has to call two profiles equal when no step of this search can tell
+#: them apart, because that is what makes a cached payoff reusable. 1e-5 is
+#: three orders below the smallest step the optimizer will take -- `_rhobeg_for`
+#: gives ~5.0 CNY/MWh on a storage quote and ~0.05 on a multiplier -- so two
+#: profiles this key equates are two profiles the search would explore
+#: identically. Quantizing much coarser would start merging profiles it would
+#: not; much finer would stop the cache being reused at all, because a returned
+#: profile is a fresh array every time.
+_KEY_DECIMALS = 5
+
+
 def _action_names(agent):
     """The action names this agent's quotes live in."""
     return action_spec_for(agent).action_names
+
+
+def _canonical_action(values, agent_name: str, action_name: str) -> Tuple[float, ...]:
+    """One action sequence as a comparable tuple of Python floats.
+
+    Lists, tuples and arrays all reach the key, and a key built out of whatever
+    the caller happened to pass would answer the same question two ways. NumPy
+    scalars are converted rather than left in the tuple: they compare and hash
+    like floats today, but they are not the same objects, and a key whose
+    equality depends on that is one library upgrade from changing silently.
+
+    An action the profile does not declare, or one carrying a non-finite value,
+    is refused rather than folded into a key. Either would produce a key that
+    never matches a later identical profile -- an empty tuple collides with
+    every other empty tuple, and NaN is not equal to itself -- so the cache
+    would miss forever and look like it was working.
+    """
+    arr = np.asarray(values, dtype=float).ravel()
+    if arr.size == 0:
+        raise ValueError(
+            f"strategy declares no values for {agent_name}.{action_name}; "
+            f"there is nothing to key a cached payoff on")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(
+            f"strategy has non-finite values for {agent_name}.{action_name}; "
+            f"a key built from them could not match a later identical profile")
+    return tuple(float(v) for v in np.round(arr, _KEY_DECIMALS))
 
 
 def _rhobeg_for(spec) -> float:
@@ -353,12 +393,22 @@ class NashEquilibriumTester:
         computed against Agent A's old strategy. Every action name the agent's
         spec declares is hashed, so an action that stops being represented
         cannot go on being cached.
+
+        The key is a tuple of tuples of Python floats, ordered by the agents'
+        names and then by each agent's own action order. Nothing in it is an
+        object identity, a `repr` or a NumPy type, so the same profile built by
+        two different code paths produces the same key.
         """
         parts = [target_name]
         for a in sorted(self.agents, key=lambda x: x.name):
             s = strategy.get(a.name, {})
             for n in _action_names(a):
-                parts.append(tuple(np.round(s.get(n, []), 5)))
+                if n not in s:
+                    raise ValueError(
+                        f"strategy declares no {n!r} for {a.name}; a profile "
+                        f"that declares every action it is searched over is "
+                        f"the only one a cached payoff can be attributed to")
+                parts.append(_canonical_action(s[n], a.name, n))
         return tuple(parts)
 
     def _clear_cache(self):

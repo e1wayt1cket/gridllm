@@ -1,0 +1,3296 @@
+Risk-averse quantal response equilibrium based optimal bidding strategy of 
+battery energy storage systems in the double-sided auction market
+Zhihai Liu a, Yongzhuo Cheng b, Zhilong He c, Qiang Yang a,*
+a College of Electrical Engineering, Zhejiang University, Hangzhou, 310027, China
+b China Datang Corporation Overseas Investment Co., Ltd., Beijing, 100052, China
+c East China Electric Power Test & Research Institute, China Datang Corporation Science and Technology General Research Institute Co., Ltd., Hefei, 230061, China
+H I G H L I G H T S
+• The day-ahead double-sided auction market for BESS is established.
+• Bounded rationality and risk-aversion are considered in the electricity market game.
+• RQE-based MASAC algorithm is proposed to solve the MARL model.
+• Test scenarios used for case studies are generated from PJM by GAN.
+A R T I C L E  I N F O
+Keywords:
+Battery energy storage systems
+Day-ahead electricity market
+Bidding strategy
+Multi-agent reinforcement learning
+Risk-averse quantal response equilibrium
+A B S T R A C T
+To address the increasing penetration of renewable energy sources (RES), battery energy storage systems (BESS) 
+play an increasingly vital role in power systems, making it strategically important to investigate their bidding 
+strategies for participation in electricity markets. However, traditional market models generally rely on perfectly 
+rational agents and deterministic optimization, which limits their ability to capture the bounded rationality and 
+risk preferences observed in real-world market behavior. To overcome these limitations, this paper proposes a 
+novel multi-agent reinforcement learning (MARL) paradigm that integrates a risk-averse quantal response 
+equilibrium (RQE) model into a multi-agent soft actor–critic (MASAC) architecture. The RQE formulation jointly 
+embeds bounded rationality and risk-aversion into decision-making, enabling agents to respond smoothly to 
+uncertain rival strategies while maintaining robustness against adverse market conditions. The proposed solution 
+is assessed based on the IEEE 30-bus system under multiple different operational scenarios. Numerical results 
+show that RQE-based MASAC achieves a higher overall reward than the baseline MASAC algorithm in approx­
+imately 80% of the test scenarios. In the three extreme scenarios, BESS profit increases by 22.52%, 13.16%, and 
+48.2%, respectively. These results demonstrate the value of jointly modeling bounded rationality and risk- 
+aversion in strategic BESS bidding.
+1. Introduction
+The recent statistics released by the International Energy Agency(IEA) 
+indicated that renewable energy will maintain strong growth by 2030 with 
+an average annual growth rate of 8.4% [1]. To address the inherent inter­
+mittency and variability of renewable energy sources (RES) such as wind 
+and solar power, energy storage systems are crucial for achieving the 
+seamless integration of renewable energy into power grids [2]. Among 
+available storage technologies, battery energy storage systems (BESS) have 
+become a more attractive solution for applications in power systems due to 
+cost reductions [3]. BESS have significant advantages in power systems, 
+including operational flexibility, fast response speed, high ramp rates, and 
+no geographical restrictions [4,5]. To promote the sustainable development 
+of BESS, the expanding scale of such systems should act as active market 
+participants, generating profits and recovering investment costs through 
+market-based behaviors [6].
+A growing body of literature has investigated the participation of BESS 
+in market transactions. Existing studies have examined the economic value 
+of storage in arbitrage, reserve provision, frequency regulation, and multi- 
+market coordination, and have developed various bidding strategies for 
+day-ahead or real-time environments (e.g., [7–10]). In [7], a bi-level 
+* Corresponding author.
+E-mail address: qyang@zju.edu.cn (Q. Yang). 
+Contents lists available at ScienceDirect
+Applied Energy
+journal homepage: www.elsevier.com/locate/apenergy
+https://doi.org/10.1016/j.apenergy.2026.129088
+Received 6 May 2026; Received in revised form 9 September 2026; Accepted 13 October 2026  
+Applied Energy 427 (2027) 129088 
+Available online 27 October 2026 
+0306-2619/© 2026 Elsevier Ltd. All rights are reserved, including those for text and data mining, AI training, and similar technologies. 
+
+optimization model was established to determine the profitable trading 
+strategy for price-making BESS in the energy and reserve markets, as well as 
+in balancing settlement. In addition, the authors in [8] proposed a bi-level 
+optimization model for BESS considering the coordination between the 
+energy market and the primary frequency regulation market. In [9], the 
+optimal capacity allocation of BESS was also considered apart from the 
+revenue from ancillary services. To evaluate the impact of demand 
+response, the authors in [10] established a multi-stage market framework 
+considering demand response and BESS. However, most of these models 
+rely on assumptions of complete information, deterministic or perfectly 
+known cost structures, or full rationality among market participants, which 
+are often considered not feasible in practice [11].
+Driven by the rapid development of artificial intelligence technol­
+ogy, reinforcement learning has increasingly attracted research 
+attention in the field of power systems [12]. Q-learning algorithms, as a 
+type of reinforcement learning method, are widely applied to explore 
+bidding strategies in electricity markets [13]. In [14], an optimal bid­
+ding strategy for electricity markets based on the fuzzy Q-learning al­
+gorithm was proposed and compared with model-based algorithms. 
+However, Q-learning algorithms tend to suffer from problems, e.g., the 
+curse of dimensionality due to the requirement of discretizing the state 
+space and action space [11,12]. Therefore, combining the advantages of 
+reinforcement learning in terms of training samples, interaction modes 
+and decision-making, deep reinforcement learning has been proposed as 
+a novel machine learning algorithm [15]. In [16], the authors developed 
+optimal bidding strategies for renewable energy sites equipped with 
+BESS using deep reinforcement learning algorithms. The work in [17]
+pointed out that when single-agent deep reinforcement learning 
+Nomenclature
+Abbreviation
+IEA
+International Energy Agency
+RES
+Renewable energy source
+BESS
+Battery energy storage system
+MARL
+Multi-agent reinforcement learning
+TG
+Traditional generator
+VPP
+Virtual power plant
+EV
+Electric vehicle
+MAPPO
+Multi-agent proximal policy optimization
+MADDPG Multi-agent deep deterministic policy gradient
+MASAC
+Multi-agent soft actor-critic
+RQE
+Risk-averse quantal response equilibrium
+SoC
+State of charge
+MDP
+Markov decision process
+ISO
+Independent system operator
+PV
+Photovoltaic panel
+WT
+Wind turbine
+LMP
+Locational marginal price
+QRE
+Quantal response equilibrium
+KL
+Kullback Leibler
+RKL
+Reverse Kullback Leibler
+CTDE
+Centralized training with decentralized execution
+GAN
+Generative adversarial network
+CDF
+Cumulative distribution function
+KS
+Kolmogorov-Smirnov
+MATD3
+Multi-agent twin delayed deep deterministic policy 
+gradient
+CVaR
+Conditional value-at-risk
+LLM
+Large language model
+KKT
+Karush-Kuhn-Tucker
+Functions
+CG
+i,t
+Operational cost of TG
+RG
+i
+Profit of TG in one day
+Mg,t
+Linear marginal cost function of TG
+CBESS,t
+Operational cost of BESS
+RBESS
+k
+Profit of BESS in one day
+RPV
+m ,RWT
+n
+Profit of PV and WT in one day
+Cd,t
+Benefit of retailers
+Rd
+Profit of retailers in one day
+F
+Total operation cost of ISO
+Parameters
+t,T
+Index and total number of scheduling time slots with a 
+resolution of 1 h
+kG
+i ,hG
+i ,fG
+i
+Constant coefficients of the quadratic cost model
+αmax,αmin
+Maximum and minimum of the strategic variable
+bi,max,bi,min
+Maximum and minimum of the bidding price of TG
+PGmax
+i
+,PGmin
+i
+Maximum and minimum power generation of TG
+γBESS
+Operational cost coefficient of BESS
+bch
+k,max,bch
+k,min,bdis
+k,max,bdis
+k,min
+Maximum and minimum bidding prices for 
+charging and discharging
+bm,max,bm,min, bn,max,bn,min
+Maximum and minimum bidding prices of 
+PV and WT
+kd,hd,fd
+Constant coefficients of the quadratic cost model
+bd,max,bd,min
+Maximum and minimum of the bidding price of retailers
+Xn,q
+Reactance of the line connecting nodes n and q
+pmax
+nq
+Maximum capacity of the transmission line connecting 
+nodes n and q
+ΔpGd
+i ,ΔpGu
+i
+Maximum up and down running rate of TG
+SE
+k,max,SE
+k,min
+Maximum and minimum SoC of BESS
+ηch
+k ,ηdis
+k
+Charging and discharging efficiency of BESS
+Variables
+CG
+i
+Operational cost of TG
+pG
+i,t
+Power generation of TG
+λda
+i,t
+LMP at node i
+bi,t
+Bidding price of TG
+pGbid
+i,t
+Bidding quantity of TG
+αprice
+i,t
+,αquantity
+i,t
+Strategic variable of TG
+pch
+k,t,pdis
+k,t
+Charging and discharging power of BESS
+αch
+k,t,αch,quantity
+k,t
+,αdis
+k,t,αdis,quantity
+k,t
+Strategic variable of charging and 
+discharging
+bch
+k,t,bdis
+k,t
+Bidding price for charging and discharging
+Pch
+k,max,Pdis
+k,max
+Bidding quantity of charging and discharging
+pPV
+m,t,pWT
+n,t
+Power generation of PV and WT
+bm,t,bn,t
+Bidding price of PV and WT
+pd,t
+Electricity that retailers purchase from ISO and sell to 
+consumers
+bd,t
+Strategic variable of retailers
+pbid
+d,t
+Bidding quantity of retailers
+αd,t,αquantity
+d,t
+Strategic variable of retailers
+Pmax
+d,t
+The maximum electricity quantity of retailers
+pfix
+fixd,t
+Fixed load at node fix
+pn,q,t
+Power flow between bus n and q
+θn,t,θq,t
+Voltage angle at bus n, q
+SE
+k,t
+SoC of BESS
+μch
+k,t,μdis
+k,t
+Binary variable for charging and discharging
+PPV,for
+m,t
+,PWT,for
+n,t
+Predicted power of PV and WT
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+2 
+
+methods are directly applied to multi-agent scenarios, the continuous 
+changes in each agent's policy during training lead to non-stationarity of 
+the environment from the perspective of an individual agent. In this 
+regard, multi-agent reinforcement learning (MARL) has emerged as a 
+promising approach for modeling strategic bidding behaviors in elec­
+tricity markets. Recent studies have applied MARL to traditional gen­
+erators (TG) (e.g., [11,18–20]), virtual power plants (VPP) (e.g., 
+[17,21,22]) and electric vehicles (EV) (e.g., [13,23]), demonstrating its 
+capability to capture dynamic interactions and learn near-equilibrium 
+strategies from repeated market simulations. MARL methods such as 
+multi-agent proximal policy optimization (MAPPO) [24], multi-agent 
+deep deterministic policy gradient (MADDPG) [25], and multi-agent 
+soft actor-critic (MASAC) [26] have been used to approximate market 
+equilibrium under stochastic supply–demand conditions. Although 
+these methods can learn strategic bidding policies under incomplete 
+information, their policy stochasticity primarily supports exploration 
+and is not, by itself, an explicit behavioral model. In particular, con­
+ventional risk-neutral MARL maximizes an expected return and there­
+fore cannot distinguish two behaviorally different effects: (1) bounded 
+rationality, under which agents respond probabilistically rather than 
+selecting an exact best response; (2) risk-aversion, under which agents 
+place greater weight on unfavorable outcomes induced by uncertain 
+rival bids. Modeling only the former may still expose an agent to adverse 
+opponent actions, whereas modeling only the latter under a determin­
+istic best-response assumption does not capture observed response 
+dispersion. A unified equilibrium-learning framework is therefore 
+needed to represent both effects within the policy update.
+To address these methodological challenges, there is a growing need 
+for learning frameworks that can simultaneously accommodate incom­
+plete information, uncertainty in renewable and load forecasts, and 
+realistic human-like decision behavior. According to behavioral eco­
+nomics theory, the defining characteristics of human decision-making 
+are imperfect optimization [27] and risk-aversion [28]. It is known 
+that the inclusion of risk-aversion can explain the observed tendency of 
+subjects to choose the safer strategy more often, as suggested in [29]. In 
+addition, individuals are naturally prone to making mistakes and often 
+fail to be perfectly optimal, known as bounded rationality, which is often 
+captured in games through the idea of a quantal response equilibrium 
+(QRE) [30]. Building on these findings, authors in [31] proposed a new 
+natural equilibrium concept: risk-averse quantal response equilibrium 
+(RQE), which could be easily calculated in matrix and finite-horizon 
+Markov games. The results show that endowing artificial agents with 
+human decision-making characteristics derived from behavioral eco­
+nomics gives rise to an equilibrium in the game. Integrating such 
+behavioral models into MARL can produce bidding strategies that are 
+both robust and consistent with practical market behavior.
+In addition to these behavioral considerations, applying MARL to BESS 
+bidding introduces a unique modeling challenge: the state of charge (SoC) 
+constraint couples decisions across all time periods, creating strong tem­
+poral dependence in both state transitions and action feasibility. The bid­
+ding strategy for any given hour directly affects the SoC in subsequent 
+hours, which in turn constrains future charging/discharging capability and 
+economic outcomes. When participating in day-ahead markets, BESS must 
+determine a 24-h bidding vector in a fully coupled optimization landscape. 
+It should be highlighted that conventional MARL modeling based on 
+sequential multi-step Markov decision processes often struggles with such 
+high-dimensional temporal coupling and often leads to slow convergence or 
+infeasible action exploration. To overcome this limitation, this study adopts 
+a 24-dimensional vector representation for both the action space and the 
+state space, aligning the MARL decision with the market's unified 24-h 
+clearing mechanism. By modeling the day-ahead bidding problem as a 
+single-step Markov decision process (MDP) with vectorized decisions, we 
+decouple temporal transitions while preserving the global inter-temporal 
+constraints. This may significantly enhance training tractability and 
+ensure that SoC constraints are respected across the entire scheduling 
+horizon.
+In summary, the key technical challenges requiring further in­
+vestigations in the day-ahead bidding of BESS in the double-sided auc­
+tion market can be stated as follows: (1) most existing game-theoretic 
+models for BESS participation in day-ahead electricity market trans­
+actions are established under the assumption of complete information, 
+while relevant research that accounts for the dynamic bidding strategies 
+of competing market participants remains scarce; (2) current MARL al­
+gorithms applied under incomplete information conditions presume that 
+all market entities are perfectly rational, with limited consideration for 
+bounded rationality and risk-aversion preferences derived from behav­
+ioral economics; and (3) within the bidding optimization framework, the 
+all-day SoC constraints of BESS couple the decision-making processes 
+across all time intervals, which poses significant computational chal­
+lenges in solving the sequential continuous Markov game.
+To this end, this paper proposes a risk-averse quantal response equi­
+librium based optimal bidding solution for battery storage systems 
+considering the double-sided auction market. In particular, a novel MARL 
+paradigm is developed that integrates an RQE model into a MASAC archi­
+tecture. Extensive experiments are conducted on an IEEE 30-bus system 
+under multiple wind–solar generation and load forecast scenarios to eval­
+uate the robustness and performance of the proposed method against 
+benchmark MARL algorithms. The results demonstrate that the proposed 
+approach achieves superior revenue stability, improved convergence 
+characteristics, and enhanced adaptability to uncertainty compared with 
+existing methods. The technical contributions made in this work are as 
+follows: 
+(1) A day-ahead double-sided auction market is established involving 
+TG, RES, BESS, and retailers. The bidding task is formulated as a 
+single-step vectorized MDP that resolves the intrinsic multi- 
+period coupling caused by BESS SoC dynamics. This design en­
+ables efficient convergence and realistic representation of stra­
+tegic interactions across the full 24-h scheduling horizon.
+(2) An RQE model is integrated into the MASAC architecture to 
+jointly capture behavioral imperfections and risk-sensitive deci­
+sion-making under incomplete information. The resulting RQE- 
+based MASAC algorithm yields smoother equilibrium-seeking 
+behavior, stronger robustness to uncertainty, and improved 
+profit stability across diverse operating conditions.
+The remainder of this paper is constructed as follows: Section 2
+outlines the proposed mechanism framework for BESS participation in 
+the day-ahead double-sided auction market, as well as the correspond­
+ing bidding models for each participant. In Section 3, the detailed 
+mathematical models of RQE with algorithm descriptions are presented. 
+Numerical results and analysis are discussed in Section 4. Section 5
+concludes the paper and outlines future work.
+2. Problem formulation
+2.1. Overview of the double-sided auction market
+Fig. 1 illustrates the structure of the proposed double-sided auction 
+market. The day-ahead electricity market consists of multiple heteroge­
+neous participants interacting through a centralized market-clearing 
+mechanism operated by an independent system operator (ISO). The main 
+market participants include TG, photovoltaic panels (PV), wind turbines 
+(WT), BESS, electricity retailers, and fixed loads. Before market clearing, 
+generation-side agents submit their bidding strategies to the ISO. TG and 
+RES primarily submit energy supply bids, while BESS participants submit 
+both charging and discharging bids reflecting their operational flexibility. 
+On the demand side, the retailers aggregate end-user demand and submit 
+purchase bids representing expected electricity consumption, while fixed 
+loads represent inelastic demand in the system. In the bidding strategy 
+declaration, the declared electricity quantity of each agent is determined by 
+the level of the declared bidding price.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+3 
+
+After collecting bids from all market participants, the ISO performs a 
+centralized day-ahead market clearing process subject to network and 
+operational constraints. The clearing procedure determines the sched­
+uled power output of generators, the charging or discharging schedules 
+of BESS, and the cleared electricity purchases of retailers. At the same 
+time, the market-clearing results generate locational marginal prices 
+(LMP) that reflect the marginal cost of electricity supply at each node in 
+the network. These LMP signals, together with the cleared power 
+quantities, are then communicated back to all participants as market 
+outcomes.
+2.2. Bidding model of each agent
+Each trading agent aims to maximize its daily market profit, defined 
+as total revenue minus total cost.
+2.2.1. TG'S bidding model
+The cost of TG is expressed as follows: 
+CG
+i,t
+(
+pG
+i,t
+)
+= 1
+2kG
+i
+(
+pG
+i,t
+)2
++ hG
+i pG
+i,t + f G
+i
+(1) 
+where pG
+i,t is the power generation of TG at time t, kG, hGand fGrepresent 
+the constant coefficients of the quadratic cost model. The daily TG profit 
+of is calculated by (2). 
+RG
+i =
+∑
+T
+t=1
+[
+λda
+i,t pG
+i,t −CG
+i,t
+(
+pG
+i,t
+) ]
+(2) 
+where λda
+i,t is the LMP corresponding to the TG at time t. The bidding 
+functions of TG are determined by the bidding variable αprice
+i,t 
+and αquantity
+i,t
+, 
+as shown in (3). 
+⎧
+⎪
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎪
+⎩
+bi,t = αprice
+i,t
+−αmin
+αmax −αmin
+(
+bi,max −bi,min
+)
++ bi,min
+pGbid
+i,t
+= αquantity
+i,t
+−αmin
+αmax −αmin
+(
+PGmax
+i
+−PGmin
+i
+)
++ PGmin
+i
+(3) 
+where αprice
+i,t
+,αquantity
+i,t 
+denote the strategic variable of TG at time t. 
+[αmin, αmax] defines the admissible range of this strategic variable, bi,max, 
+bi,min represent the maximum and minimum of the bidding function, 
+which is determined by the linear marginal cost function of TG. 
+pGbid
+i,t
+represents the bid quantity of TG at time t, PGmax
+i
+, PGmin
+i 
+are the 
+maximum and minimum power generation of TG, respectively. The 
+linear marginal cost function of TG is given by (4). 
+Mg,t
+(
+pG
+i,t
+)
+= kgpG
+i,t + hg
+(4) 
+2.2.2. BESS'S bidding model
+The cost and profit of BESS can be calculated by (5) and (6), 
+respectively. 
+CBESS
+k,t
+= βBESS
+(
+pch
+k,t + pdis
+k,t
+)
+(5) 
+RBESS
+k
+=
+∑
+T
+t=1
+[
+λda
+k,t
+(
+pdis
+k,t −pch
+k,t
+)
+−CBESS
+k,t
+]
+(6) 
+where γBESS represents the operational cost coefficient of BESS, pch
+k,t, pdis
+k,t 
+are the charging and discharging power of BESS at time t, λda
+k,t is the LMP 
+corresponding to the BESS at time t. The charging and discharging 
+bidding functions are given in (7). 
+⎧
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎩
+bchbid
+k,t
+= αch
+k,t −αmin
+αmax −αmin
+(
+bch
+k,max −bch
+k,min
+)
++ bch
+k,min
+bdisbid
+k,t
+= αdis
+k,t −αmin
+αmax −αmin
+(
+bdis
+k,max −bdis
+k,min
+)
++ bdis
+k,min
+pchbid
+k,t
+= αch,quantity
+k,t
+−αmin
+αmax −αmin
+Pch
+k,max
+pdisbid
+k,t
+= αdis,quantity
+k,t
+−αmin
+αmax −αmin
+Pdis
+k,max
+(7) 
+where αch
+k,t, αdis
+k,t, αch,quantity
+k,t
+, αdis,quantity
+k,t 
+denote the strategic variables of 
+charging and discharging at time t, bch
+k,max, bch
+k,min, bdis
+k,max, bdis
+k,min denote the 
+Fig. 1. Structure of the double-sided auction market.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+4 
+
+maximum and minimum values of the charging and discharging bids for 
+BESS, respectively, pchbid
+k,t
+, pdisbid
+k,t 
+are the bid quantity of charging and 
+discharging at time t, Pch
+k,max, Pdis
+k,max are the maximum power of charging 
+and discharging.
+2.2.3. RES'S bidding model
+The profit of PV and WT can be modeled by (8). 
+⎧
+⎪
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎪
+⎩
+RPV
+m =
+∑
+T
+t=1
+λda
+m,tpPV
+m,t
+RWT
+n
+=
+∑
+T
+t=1
+λda
+n,tpWT
+n,t
+(8) 
+where λda
+m,t, λda
+n,t denote the LMPs corresponding to PV and WT, pPV
+m,t, pWT
+n,t 
+denote the power generation of PV and WT at time t. The bidding 
+functions of PV and WT are expressed as follows. 
+⎧
+⎪
+⎪
+⎨
+⎪
+⎪
+⎩
+bm,t = αm,t −αmin
+αmax −αmin
+(
+bm,max −bm,min
+)
++ bm,min
+bn,t = αn,t −αmin
+αmax −αmin
+(
+bn,max −bn,min
+)
++ bn,min
+(9) 
+where αm,t, αn,t are the strategic variables of PV and WT, bm,t, bn,t are the 
+bidding prices of PV and WT at time t, bm,max, bm,min, bn,max, bn,min denote 
+the maximum and minimum bidding prices of PV and WT, respectively.
+2.2.4. Retailer's bidding model
+Retailers are electricity-selling companies with elastic demand, 
+acting as intermediaries between the electricity market and consumers. 
+Their objective is to reduce electricity procurement costs through bid­
+ding strategies, thereby increasing profits. The benefit of retailers can be 
+modeled by (10). 
+Cd,t
+(
+pd,t
+)
+= −1
+2kdpd,t
+2 + hdpd,t + fd
+(10) 
+where pd,t is the electricity quantity that retailers purchase from the ISO 
+and sell to consumers at time t, kd, hdand fdrepresent the cost co­
+efficients. The profit of retailers in one day is calculated by (11). 
+Rd =
+∑
+T
+t=1
+[
+Cd,t
+(
+pd,t
+)
+−λda
+d,tpd,t
+]
+(11) 
+where λda
+d,t is the LMP corresponding to retailers at time t, pd,trepresents 
+the electricity quantity at time t. The bidding functions of retailers are 
+expressed as (12). 
+⎧
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎩
+bd,t = αd,t −αmin
+αmax −αmin
+(
+bd,max −bd,min
+)
++ bd,min
+pbid
+d,t = αquantity
+d,t
+−αmin
+αmax −αmin
+Pmax
+d,t
+(12) 
+where bd,t is the bidding price of retailers at time t, αd,t, αquantity
+d,t 
+denote 
+the strategic variables of retailers at time t, bd,max, bd,mindenote the 
+maximum and minimum values of the bidding price of retailers, pbid
+d,t 
+represents the bid quantity of retailers at time t, andPmax
+d,t is the maximum 
+electricity quantity of retailers at time t.
+2.3. Market-clearing model
+In the market-clearing process, the ISO collects the bidding infor­
+mation from each agent and calculates the clearing price according to 
+power grid security constraints and unit operation constraints. The 
+objective is to minimize the total operation cost. Mathematically, the 
+model can be expressed as follows:
+Objective function 
+F
+= ∑
+T
+t=1
+[ ∑
+NG
+i=1
+bi,tpG
+i,t +
+∑
+NPV
+m=1
+bm,tpPV
+m,t +
+∑
+NWT
+n=1
+bn,tpWT
+n,t
++ ∑
+NE
+k=1
+(
+bdis
+k,tpdis
+k,t −bch
+k,tpch
+k,t
+)
+−
+∑
+Nd
+d=1
+bd,tpd,t
+]
+(13) 
+Constraints 
+(1) Constraints of grid operation
+∑
+i∈Φg
+pG
+i,t +
+∑
+m∈Φpv
+pPV
+m,t +
+∑
+n∈Φwt
+pWT
+n,t +
+∑
+k∈Φess
+(
+pdis
+k,t −pch
+k,t
+)
+=
+∑
+d∈Φd
+pd,t +
+∑
+fixd∈Φfixd
+pfix
+fixd,t +
+∑
+n,q∈Φ
+pn,q,t
+(14) 
+where (14) is the power balance constraint, pfix
+fixd,tdenotes the baseline 
+electricity demand at bus fixd at time t,pn,q,t denotes the power flow 
+between bus n and q at time t, which is calculated by (15). 
+pn,q,t = θn,t −θq,t
+Xn,q
+, ∀(n, q) ∈Φ, ∀t
+(15) 
+where θn,t, θq,t denote the voltage angle at bus n, q and time t, Xn,q is the 
+reactance of the line connecting bus n and q. (16) represents the trans­
+mission capacity constraint. 
+−pmax
+nq
+≤pn,q,t ≤pmax
+nq , ∀(n, q) ∈Φ, ∀t
+(16) 
+where pmax
+nq is the maximum capacity of the transmission line connecting 
+bus n and q. In addition, the LMP can be derived from the dual variables 
+of (14) and (16). 
+(2) Constraints of TG
+(17) and (18) define the constraints for TG. 
+PGmin
+i
+≤pG
+i,t ≤pGbid
+i,t
+≤PGmax
+i
+(17) 
+−ΔpGd
+i
+≤pG
+i,t −pG
+i,t−1 ≤ΔpGu
+i
+(18) 
+where (17) represents the capacity limits of TG. (18) is the ramping 
+constraint of TG, ΔpGd
+i 
+and ΔpGu
+i 
+are the maximum ramp-up and ramp- 
+down rates of TG, respectively. 
+(3) Constraints of BESS
+Here, Eqs. (19)–(22) represent the constraints for BESS. 
+SE
+k,min ≤SE
+k,t ≤SE
+k,max
+(19) 
+SE
+k,t = SE
+k,t−1 + ηch
+k pch
+k,t −1
+/
+ηdis
+k pdis
+k,t
+(20) 
+SE
+k,1 = SE
+k,24 = SE
+k,initial
+(21) 
+⎧
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎩
+μch
+k,t + μdis
+k,t ≤1
+0 ≤pdis
+k,t ≤pdisbid
+k,t
+≤μdis
+k,tPdis
+k,max
+0 ≤pch
+k,t ≤pchbid
+k,t
+≤μch
+k,tPch
+k,max
+(22) 
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+5 
+
+where (19)–(21) are the SoC constraints of BESS, SE
+k,t denotes the SoC of 
+BESS, SE
+k,max, SE
+k,minare the maximum and minimum SoC of BESS, ηch
+k , 
+ηdis
+k are the charging and discharging efficiencies of BESS. (21) constrains 
+the initial and final SoC of BESS to be equal. (22) are the charging and 
+discharging constraints of BESS, where μch
+k,t and μdis
+k,t denote the binary 
+variables for charging and discharging at time t, respectively. 
+(4) Constraints of RES
+⎧
+⎨
+⎩
+0 ≤pPV
+m,t ≤PPV,for
+m,t
+0 ≤pWT
+n,t ≤PWT,for
+n,t
+(23) 
+where PPV,for
+m,t 
+and PWT,for
+n,t 
+represent the predicted outputs of PV and WT, 
+respectively. 
+(5) Constraints of retailers
+0 ≤pd,t ≤pbid
+d,t ≤Pmax
+d
+(24) 
+3. RQE-based MASAC algorithm
+Electricity markets are characterized by high volatility, intense 
+competition, and profound uncertainty. The traditional Nash Equilib­
+rium paradigm fundamentally assumes that market participants are 
+perfectly rational and risk-neutral. However, in modern power markets 
+with deep renewable energy penetration, this assumption often fails to 
+capture the true strategic behaviors of market participants, who face 
+severe risks from volatile clearing prices and the unpredictable bidding 
+behaviors of their competitors. Therefore, RQE is considered appro­
+priate for application in the multi-agent electricity market games. The 
+RQE and the corresponding MASAC algorithm based on RQE are 
+adopted and briefly described as follows.
+In 
+an 
+n-player 
+general-sum 
+finite-action 
+game, 
+a =
+(a1, …, an) ∈A := ∏n
+i=1A iindicates each tuple of players' joint strate­
+gies, corresponding to the reward Ri(a) for each player. Player i's ex­
+pected utility in this case can be written as a function Ui : P →ℝ: 
+Ui(π1, …, πn) = Ea∼π[Ri(a) ]
+(25) 
+where π = (π1, …, πn) ∈P := ∏n
+i=1ΔAi is the joint strategy of all the 
+players; ΔAirepresents the probability simplex over Ai. A natural 
+outcome in this class of games is the notion of a Nash equilibrium.
+3.1. Equilibrium in multi-agent electricity market games
+3.1.1. Bounded rationality for bidding strategies
+A common way to constrain the players' strategies to lie within the 
+quantal response set is to regularize the objective function using an 
+appropriate strongly convex regularizer νi [30]. Then the expected 
+utility can be written as follows: 
+Uεi
+i (π1, …, πn) = Ea∼π[Ri(a) ] −εiν(πi)
+(26) 
+where εi denotes player i's degree of bounded rationality. Along with the 
+increase of εi, the degree of bounded rationality increases accordingly.
+Common quantal response functions include the logit response 
+function: 
+πi(ai|π−i) =
+exp
+(
+1
+εiUi(ai, π−i)
+)
+∑
+ai'∈Aiexp
+(
+1
+εiUi(ai', π−i)
+)
+(27) 
+The negative entropy regularizer ν(πi) corresponding to the logit 
+response function can be expressed as follows: 
+νi(πi) =
+∑
+ai∈Ai
+πi(ai)logπi(ai)
+(28) 
+Here, the detailed derivation is given in Appendix A.
+3.1.2. Risk-aversion under adversarial bidding games
+Rather than optimizing the pure expected profit, a risk-averse agent 
+evaluates the worst -case scenarios caused by the erratic bidding be­
+haviors of its rivals. According to [31], the form of risk-aversion can be 
+expressed as action-dependent risk-aversion and aggregate risk-aversion 
+as given in (29) and (30). 
+f act
+i
+(πi, π−i) = Еπi
+[ρi,π−i(Ri(a) )
+]
+=
+∑
+a∈Aiπi(ai)ρi,π−i(Ri(ai, a−i) )
+(29) 
+fagg
+i
+(πi, π−i) = ρi,π−i
+[
+Еπi(Ri(a) )
+]
+= ρi,π−i
+∑
+a∈Aiπi(ai)(Ri(ai, a−i) )
+(30) 
+where ρi,π−i captures player i's risk preference determined by the product 
+distribution of opponents' strategies π−i = (π1, …, πi−1, πi+1, …, πn). In 
+this paper, action-dependent risk-aversion is applied to denote the 
+agent's risk-aversion.
+In this work, the dual representation theorem for convex risk mea­
+sures is adopted, as suggested in [32], 
+fact
+i
+(πi, π−i) = Eai∼πi
+[
+sup
+pi∈P −i
+−eT
+i Ripi −1
+τi
+Di(pi, π−i)
+]
+∀i = 1, …, n
+(31) 
+where pi ∈P denotes adversary's strategy of each player i, eT
+i Ripi de­
+notes the negative value of the expected payoff for player i under the 
+worst-case adversary strategy, A−i = ∏
+j∕=iAj, τi denotes a player's degree 
+of risk-aversion. The detailed derivation process is given in Appendix B.
+Specifically, the risk-averse Nash Equilibrium can be formulated as 
+follows: a joint strategy π* ∈P such that no player has any incentive to 
+unilaterally 
+deviate 
+in 
+the 
+game, 
+i.e., 
+for 
+all i =
+1,
+…,
+n : fact
+i
+( π*
+i , π*
+−i
+)
+≤fact
+i
+( πi, π*
+−i
+)
+∀πi ∈ΔAi.
+The penalty function Di(pi, π−i) can be divided into the following 
+categories: Kullback-Leibler (KL), Reverse KL (RKL), ϕ-Divergence and 
+Utility-based Shortfall. Here, KL is used to measure the risk that can be 
+calculated by 
+KL(p, q) =
+∑
+ipilog
+(pi
+qi
+)
+(32) 
+Then we can get the penalty function Di(pi, π−i) as follows: 
+DKL(pi, π−i) =
+∫
+pi(a−i)log pi(a−i)
+π−i(a−i)da−i
+(33) 
+In this study, the reference distribution in the KL divergence is the 
+current joint policy distribution of agent i’s opponents. It is updated 
+whenever the opponents' actor policies are updated. The distribution q−i 
+is not a historical frequency distribution; it is an auxiliary adversarial 
+distribution constrained to remain close to π−i through the KL penalty. 
+The closed-form optimizer exponentially tilts π−i toward opponent ac­
+tions that produce lower values for agent i.
+3.1.3. RQE in multi-agent electricity market games
+Previous studies have confirmed the effectiveness of the combination 
+of risk-aversion and bounded rationality for human behavior prediction 
+[29]. RQE is expressed as follows: A risk-averse quantal response equi­
+librium of a general-sum finite-action game consisting of n players is a 
+joint strategy π* ∈Psuch that for each player i = 1,…,n: 
+fεi
+i
+( π*
+i , π*
+−i
+)
+≤fεi
+i
+( πi, π*
+−i
+)
+∀πi ∈ΔAi
+(34) 
+where fεi
+i (πi, π−i) = fact
+i
+(πi, π−i) + εiνi(πi) ∀i = 1,…,n.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+6 
+
+3.2. RQE-based MASAC algorithm
+To approximate the RQE of the electricity-market bidding game, we 
+develop RQE-based MASAC. Baseline MASAC and RQE-based MASAC 
+use the same CTDE architecture, stochastic actors, double-Q critics, and 
+adaptive entropy temperature; they differ in the value used for the actor 
+update. MASAC evaluates an action using the soft Q-value of a sampled 
+joint action. RQE-based MASAC instead samples multiple joint actions 
+from the rivals' current policies and aggregates the corresponding Q- 
+values with an entropic risk operator. Because the operator assigns 
+exponentially greater weight to low-Q outcomes, it discounts bidding 
+actions that are profitable on average but vulnerable to plausible 
+adverse rival bids.
+The stochastic entropy-regularized actor provides a continuous 
+quantal response: actions with higher utility receive greater probability, 
+but the policy does not collapse immediately to a perfectly rational 
+deterministic best response. The risk operator then modifies the action 
+ranking by emphasizing unfavorable rival responses. For BESS, this 
+mechanism balances transaction margins against the probability of 
+market clearing. Under supply surplus or intense seller competition, for 
+example, the learned policy may raise charging bids and lower dis­
+charging offers, increasing the likelihood that both types of bids are 
+accepted.
+3.2.1. Centralized critic evaluation
+The critic networks are responsible for accurately estimating the true 
+expected market returns (Q-values) without direct risk distortion, as the 
+risk evaluation is explicitly handled by the risk operator. We adopt the 
+centralized training with decentralized execution (CTDE) paradigm and 
+double Q-learning to mitigate overestimation bias. The critic network 
+parameterized by is trained to minimize the Bellman residual: 
+Lcritic(ϕi) = ED
+[(
+Qϕi(st, at) −yi,t
+)2 ]
+(35) 
+yi,t = ri,t + γEai'∼πθi (□|s')
+(
+Qrisk
+i,ϕ (si
+', ai
+') −αilogπθ(ai
+'|si
+')
+)
+(36) 
+where Lcritic(ϕi) represents the loss function of the critic network, D is the 
+data selected from the replay buffer, Qϕi(st, at) represents the action 
+output of the critic network with parameter ϕi, ri,tis the current reward, γ 
+is the discount factor. The risk-adjusted Q-value is calculated by 
+Qrisk
+i
+(s, ai) = minpi∈Δ
+(
+Ea−i∼pi[Qi(s, ai, a−i) ] + 1
+τi
+Di(pi, π−i)
+)
+(37) 
+where Δ is the probability simplex, enforcing the normalization con­
+straint∫pi(a−i)da−i = 1 and pi ≥0.
+Since there is no state transition in a single-step MDP,γ = 0. There­
+fore, the loss function formula degenerates to (38). 
+Lcritic(ϕi) = ED
+[(
+Qϕi(st, at) −ri,t
+)2 ]
+(38) 
+3.2.2. Risk-averse actor update
+The actor network parameterized by generates the bidding strategy. 
+The actor loss function to be minimized via gradient descent is formu­
+lated as follows: 
+Lactor(θi) = Es∼D ,ai∼πθi (⋅|s)
+[αilogπθ(ai|s) −Qrisk
+i
+(s, ai)
+]
+(39) 
+A critical challenge in executing the RQE-based MASAC algorithm is 
+the analytical intractability of the expectation over opponents' contin­
+uous action spaces within the exponential function. The finite-action 
+definition extends to continuous bidding actions by replacing proba­
+bility vectors with policy densities and finite sums with integrals. Let 
+A i⊂ℝdi be agent i ‘s bounded continuous action space and πi(ai|s) its 
+stochastic policy density. A continuous-action RQE is a fixed point at 
+which each πi solves an entropy-regularized risk-sensitive best-response 
+problem against π−i. For a sampled state and differentiable action 
+ai ∼πi, the opponents' expectation in the entropic risk operator is 
+approximated using K independent samples a(k)
+−i ∼π−i(⋅|s). The critic 
+Table 1 
+Correspondence of the elements in the proposed model and MDP.
+Elements in MDP
+Elements in the proposed Model
+Environment
+The clearing model of the day-ahead electricity market
+State space
+(1) The predicted power curve of PV and WT for one day 
+(2) The system load profile for one day 
+(3) Clearing results and prices from the last episode
+Action space
+The daily bidding decisions of each agent
+Reward
+The total profit in one day for each agent
+Fig. 2. Interaction and learning process between agent and environment.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+7 
+
+values Qi
+(
+s, ai, a(k)
+−i
+)
+are aggregated by the log-mean-exp operator. The 
+estimator converges to the continuous-policy expectation as K→∞; for 
+finite K, it introduces a computation–accuracy trade-off. Therefore, 
+given a sampled state s and action ai, we draw K independent joint 
+bidding samples from the current policies of all competitors: 
+a(k)
+−i ∼π−i(⋅|s), ∀k ∈{1, …, K}
+(40) 
+The discrete empirical estimation of the risk-adjusted Q-value is 
+computed as: 
+Qrisk
+i
+(s, ai) ≈−1
+τi
+log
+(
+1
+K
+∑
+K
+k=1
+exp
+(
+−τi⋅Qϕi
+(
+s, ai, a(k)
+−i
+) ) )
+(41) 
+The detailed derivation process is given in Appendix D.
+3.2.3. Regularization coefficient update
+The entropy regularization coefficient αi is adaptively updated as 
+follows: 
+Lαi = Eai∼πθi
+[
+−αi
+(
+logπθ(ai|s) + Htarget
+) ]
+(42) 
+where Htarget is the target entropy, which is determined by the action 
+dimension.
+3.3. Electricity market Markov game formulation
+To solve the bidding problem for each participant in the day-ahead 
+electricity market by the RQE-based MASAC algorithm, we formulate 
+it as a single-step MDP. The state space consists of the 24-period daily 
+system load curve and wind-solar power prediction curve published by 
+the ISO one day in advance, as well as the clearing results from the last 
+episode. The continuous action [ai]1:T = 24dim represents the strategic 
+bidding coefficients submitted by each agent to the ISO. The reward of 
+each agent is expressed as (2), (6), (8) and (11). The correspondence of 
+the elements in the proposed model and MDP is shown in Table 1. Fig. 2
+summarizes the interaction and learning workflow.
+The proposed RQE-based MASAC framework for optimizing bidding 
+strategy is summarized in Algorithm 1. 
+Algorithm 1.
+RQE-based MASAC framework.
+4. Case study
+To verify the proposed market framework and algorithm, the IEEE 
+30-bus standard test system is adopted to conduct a case study. The 
+hardware platform for simulation operation includes an AMD Ryzen 
+79,700 × 8-core processor (5.5 GHz), 48 GB RAM, and NVIDIA GeForce 
+RTX 5080 GPU (16 GB). The software environment is Python 3.11.14: a 
+reinforcement learning neural network is built based on the PyTorch 
+framework, and the Gurobi ver.12.0.3 commercial solver is used to solve 
+the electricity market clearing model.
+4.1. Simulation parameters
+In this section, the modified IEEE 30-bus network topology diagram 
+is illustrated in Fig. 3. The simulation parameters of TG, RES, retailers 
+and BESS are presented in Table 2 and Table 3, as suggested in [20]. The 
+bidding limits of TG are determined by the linear marginal cost function. 
+The upper and lower bidding limits for charging and discharging are set 
+as 20–40 $/MWh and 12–24 $/MWh. The upper and lower bidding 
+limits for RES are set at 10–20 $/MWh, and they default to bidding their 
+predicted power. The upper and lower bidding limits for retailers are set 
+at 15–40 $/MWh, and they determine their bidding quantity based on 
+the load forecast value. The hyper-parameter settings of the RQE-based 
+MASAC algorithm are shown in Table 4.
+Forecast profiles for baseline demand, retailer demand, and RES 
+output are constructed through scenario generation and clustering. The 
+underlying hourly load and RES data are obtained from the PJM market 
+[33], covering January 1, 2025, to December 31, 2025. A total of 3600 
+original scenarios are generated using the generative adversarial 
+network (GAN), and 60 representative scenarios are further obtained by 
+the k-medoids clustering method [34]. Each hourly dimension is min- 
+max normalized to [-1,1], after which a single GAN learns the joint 
+distribution. The trained generator then produces 3600 joint daily sce­
+narios. The parameters of the GAN are listed in Table 5. K-medoids 
+reduction is then performed jointly rather than separately. A CLARA- 
+style implementation evaluates ten random subsets of 3600 joint sce­
+narios, retains the initialization with the lowest full-data assignment 
+cost, and then refines the medoids using all 3600 scenarios. The number 
+of clusters is set to 60.
+The generated scenarios and the cumulative distribution function 
+(CDF) of the real and generated electricity demand profiles are 
+Fig. 3. IEEE 30-bus network topology diagram.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+8 
+
+illustrated in Fig. 4. The Kolmogorov-Smirnov (KS) test results between 
+the historical and GAN-generated samples are listed in Table 6. The KS 
+statistic D measures the maximum difference between the two empirical 
+cumulative distribution functions, and the null hypothesis is that the 
+historical and generated samples are drawn from the same distribution. 
+A significance level of 0.05 is adopted. When the p-value is less than 
+0.05, there is a significant difference between the generated data and the 
+historical data. The hourly KS tests show no statistically significant 
+differences for load or WT and no significant differences for PV during 
+the main daytime production period. Significant PV differences remain 
+during nighttime and sunrise/sunset transition periods because of the 
+concentrated probability mass near zero. Therefore, the KS results sup­
+port the overall distributional fidelity of the generated trajectories.
+Five scenarios are selected for training and characterized by their 
+daily means and standard deviations within the 60-scenario set. 
+Together, they represent high RES output with high load, high RES 
+output with low load, low RES output with high load, low RES output 
+with low load, and strongly fluctuating RES conditions. Table 7 sum­
+marizes these operating characteristics.
+4.2. Convergence analysis of each algorithm
+To verify the effectiveness of the proposed algorithm, we compare it 
+against several representative reinforcement learning methods, 
+including MATD3, MADDPG, MASAC, and the proposed RQE-based 
+MASAC. Fig. 5(a) illustrates the convergence curves of the reward 
+functions during training for the different algorithms. The results show 
+that, in the initial exploration phase, the traditional MADDPG and 
+MATD3 algorithms exhibit unstable exploration due to the absence of 
+entropy regularization. As a consequence, agents frequently adopt sub­
+optimal actions, leading to noticeable fluctuations and occasional de­
+clines in reward. In contrast, both MASAC and the proposed RQE-based 
+MASAC demonstrate significantly smoother reward evolution during the 
+exploration stage. This behavior highlights the intrinsic advantages of 
+the MASAC framework: entropy regularization effectively balances 
+exploration and exploitation, while the dual Q-network structure pro­
+vides more stable value estimation.
+During the convergence phase, MADDPG and MATD3 exhibit rela­
+tively slow and unstable convergence. In contrast, MASAC and RQE- 
+based MASAC demonstrate a much faster learning rate. It can also be 
+observed that the RQE-based MASAC algorithm converges faster than 
+the MASAC algorithm during the convergence process. This indicates 
+that the RQE with the consideration of risk aversion can accelerate the 
+convergence speed and reach the game equilibrium more quickly.
+Fig. 5(a) shows that both MADDPG and MATD3 fail to converge 
+within the total training episodes, indicating that these algorithms are 
+unable to fully exploit the strategic value of the game under high 
+complexity and uncertainty. In contrast, MASAC and RQE-based MASAC 
+remain stable within a high-reward region, achieving approximately a 
+50% improvement in returns compared with the former two methods, 
+which demonstrates the superiority and stability of their learned stra­
+tegies. Comparing MASAC with RQE-based MASAC, it can be observed 
+that both algorithms converge to similar final reward levels. This in­
+dicates that incorporating risk-aversion through the RQE mechanism 
+does not degrade performance under standard multi-scenario 
+conditions.
+Fig. 5(b) presents the convergence behavior of the reward functions 
+for several representative agents under the RQE-based MASAC algo­
+rithm. As shown, the rewards of ES1 evolve smoothly with limited 
+variation, whereas G1 and D1 exhibit substantial improvement as 
+training progresses. This difference arises because the bidding strategies 
+of G1 and D1 have a stronger impact on the locational clearing price at 
+their respective nodes, requiring multiple rounds of learning to optimize 
+their strategic behavior. In contrast, ES1 has limited ability to influence 
+market prices due to its node location, capacity constraints, and 
+charging/discharging power limits, resulting in relatively stable reward 
+dynamics.
+4.3. Performance of the market-clearing and bidding strategy
+In this work, two particular operational scenarios are selected for 
+performance assessment: the high-demand scenario (Scenario #1) and 
+the low-demand scenario (Scenario #2), to assess the performance of the 
+proposed bidding strategies of BESS. The simulation results of market- 
+clearing and bidding performance for Scenario #1 and Scenario #2 
+are presented in Fig. 6 and Fig. 7, respectively.
+Fig. 6(a) and (b) show that the market-clearing results reflect the 
+system's physical response to load variations. In Scenario #1, the total 
+demand is substantially higher, requiring increased output from TG and 
+RES and more frequent discharging from BESS to maintain balance. This 
+pressure on the grid is reflected in the LMP. As shown in Fig. 6(c), the 
+locational marginal price (LMP) surface for Scenario #1 exhibits 
+Table 2 
+Parameters of TG, RES and retailers.
+Agent
+Node
+Pmax 
+(MW)
+Pmin 
+(MW)
+k 
+($/(MWh)2)
+h 
+($/MWh)
+f
+Ru/Rd 
+(MW/h)
+G1
+1
+150
+15
+0.13
+18
+0
+38
+G2
+2
+110
+20
+0.10
+20
+0
+38
+G3
+5
+80
+15
+0.10
+22
+0
+35
+G4
+8
+80
+15
+0.13
+16
+0
+30
+G5
+11
+60
+5
+0.10
+22
+0
+20
+G6
+13
+80
+10
+0.10
+25
+0
+10
+PV1
+15
+80
+/
+/
+/
+/
+/
+PV2
+22
+60
+/
+/
+/
+/
+/
+WT1
+16
+70
+/
+/
+/
+/
+/
+WT2
+20
+60
+/
+/
+/
+/
+/
+D1
+7
+60
+/
+0.15
+56
+0
+/
+D2
+14
+100
+/
+0.1
+60
+0
+/
+D3
+30
+80
+/
+0.13
+54
+0
+/
+Table 3 
+Parameters of BESS.
+Agent
+Node
+PESmax (MW)
+EESmax (MWh)
+η
+Smax
+Smin
+Sinitial
+β ($/MWh)
+ES1
+19
+50
+100
+0.9
+0.9
+0.1
+0.5
+1
+ES2
+24
+60
+120
+0.9
+0.9
+0.1
+0.5
+1
+Table 4 
+Hyper-parameter.
+Hyper-parameter
+Learning rate of the actor network
+0.0003
+Hidden dim
+512
+Learning rate of the critic network
+0.0001
+Maximum training 
+episodes
+250
+Maximum replay buffer size
+10,000
+Risk-aversion coefficient
+0.8
+Batch size
+128
+Soft update coefficient
+0.01
+Table 5 
+GAN parameter.
+GAN parameter
+Gaussian latent vector 
+dimension
+32
+Maximum training 
+episodes
+1200
+Generator hidden layers
+128/ 
+256
+Discriminator hidden 
+layers
+256/ 
+128
+Batch size
+64
+Learning rate
+0.0001
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+9 
+
+significant volatility and elevated price levels, peaking near 90 $/MWh 
+at specific buses and time intervals (bus No. 17, 18:00–19:00). 
+Conversely, in Scenario #2, the reduced demand leads to a more relaxed 
+supply-demand balance. The LMP distribution in Fig. 6(d) is notably 
+flatter and maintains a lower average price range compared to Scenario 
+#1. The abundance of RES relative to the load in Scenario #2 creates a 
+surplus, often leading to lower marginal costs of generation. Meanwhile, 
+it can be observed that during periods (11:00–14:00) with high 
+Fig. 4. Renewable power generation and demand profiles.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+10 
+
+generation of RES in both scenarios, LMP decreases significantly, indi­
+cating that the market prioritizes RES with low marginal costs and low 
+bidding prices as the main power suppliers.
+According to the clearing results of BESS, under both scenarios, BESS 
+tends to charge during periods with high generation of RES and low 
+electricity prices, and discharge when RES generation is low and elec­
+tricity prices are high. However, further comparison demonstrates that, 
+relative to Scenario #1 with pronounced load and price spikes, BESS in 
+Scenario #2 tend to conduct milder and more frequent charge-discharge 
+cycles across a broader range of periods to mitigate market risks.
+The core strength of the RQE-based MASAC algorithm lies in its 
+ability to model the bounded rationality and risk-aversion of partici­
+pants. This is particularly evident when comparing the bidding strate­
+gies of ES1 and ES2 across the two scenarios according to Fig. 7. In 
+Scenario #1, market competition is less intense for sellers, so BESS 
+prioritizes profit margins, bidding higher for discharging and lower for 
+charging to capitalize on the high LMPs. For example, during periods 
+6:00–7:00 and 22:00–23:00, where ES1 has a large awarded discharge 
+quantity, as well as periods of 5:00–6:00 and 19:00–20:00, where ES2 
+has a large awarded quantity, their bidding prices are all at a high level. 
+In scenario #2, the risk of failing to get dispatched increases due to the 
+surplus of generation and lower demand. To hedge against the 
+Table 6 
+KS test results.
+Time
+Load
+PV
+WT
+D
+p
+D
+p
+D
+p
+1
+0.050
+0.393
+0.253
+0.000
+0.054
+0.294
+2
+0.060
+0.183
+0.204
+0.000
+0.058
+0.219
+3
+0.049
+0.418
+0.167
+0.000
+0.043
+0.586
+4
+0.053
+0.315
+0.084
+0.019
+0.053
+0.307
+5
+0.052
+0.343
+0.182
+0.000
+0.052
+0.329
+6
+0.033
+0.867
+0.206
+0.000
+0.046
+0.500
+7
+0.042
+0.619
+0.319
+0.000
+0.052
+0.332
+8
+0.037
+0.772
+0.053
+0.316
+0.043
+0.577
+9
+0.046
+0.485
+0.062
+0.159
+0.048
+0.445
+10
+0.055
+0.277
+0.059
+0.208
+0.068
+0.094
+11
+0.055
+0.277
+0.043
+0.568
+0.032
+0.894
+12
+0.044
+0.540
+0.071
+0.070
+0.043
+0.578
+13
+0.054
+0.296
+0.036
+0.783
+0.036
+0.782
+14
+0.059
+0.206
+0.043
+0.591
+0.033
+0.860
+15
+0.049
+0.413
+0.057
+0.238
+0.046
+0.475
+16
+0.057
+0.245
+0.066
+0.111
+0.029
+0.947
+17
+0.054
+0.291
+0.049
+0.416
+0.026
+0.977
+18
+0.045
+0.508
+0.095
+0.006
+0.033
+0.854
+19
+0.050
+0.387
+0.167
+0.000
+0.031
+0.904
+20
+0.054
+0.287
+0.225
+0.000
+0.029
+0.940
+21
+0.050
+0.387
+0.177
+0.000
+0.036
+0.783
+22
+0.048
+0.427
+0.228
+0.000
+0.052
+0.347
+23
+0.058
+0.216
+0.558
+0.000
+0.065
+0.119
+24
+0.056
+0.258
+0.273
+0.000
+0.030
+0.930
+Table 7 
+Operating characteristics of the five training scenarios.
+Scenario 
+index
+WT
+PV
+Load
+Daily 
+mean
+Standard 
+deviation
+Daily 
+mean
+Standard 
+deviation
+Daily 
+mean
+Standard 
+deviation
+1
+0.144
+0.072
+0.214
+0.218
+0.664
+0.133
+2
+0.457
+0.206
+0.147
+0.205
+0.570
+0.086
+3
+0.45
+0.195
+0.374
+0.422
+0.510
+0.041
+4
+0.730
+0.072
+0.036
+0.059
+0.419
+0.030
+5
+0.366
+0.148
+0.231
+0.252
+0.339
+0.032
+Fig. 5. Convergence curves of the reward function.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+11 
+
+uncertainty of market clearing and ensure their assets are utilized, the 
+agents exhibit a clear risk-averse strategy. As observed in Fig. 7(c) and 
+(d), BESS tend to increase their charging bid prices and decrease their 
+discharging bid prices. For periods of 0:00–1:00 and 2:00–3:00, where 
+ES1 is awarded discharge capacity, and periods of 3:00–4:00 and 
+19:00–20:00, where ES2 is awarded discharge capacity, both lower their 
+discharging bidding prices. Meanwhile, during the period of 
+12:00–14:00, when ES1 is awarded a charging capacity, its charging 
+bidding price is also raised accordingly.
+The shift in bidding behavior from Scenario #1 to Scenario #2 
+demonstrates that the agents are not merely seeking instantaneous profit 
+but are optimizing their “expected utility” under uncertainty. The RQE 
+framework allows the agents to internalize the probability of clearing. In 
+Scenario #2, the agents recognize that an aggressive bid (low charging 
+price/high discharging price) carries a high risk of being rejected by the 
+market operator during clearing. To mitigate this risk, the agents adopt a 
+more conservative strategy, namely appropriately raising the charging 
+bidding price and lowering the discharging bidding price to secure 
+market-clearing awards. This behavior ensures system stability and 
+improves the BESS's utilization rates under low-load conditions, proving 
+that the RQE-based MASAC algorithm effectively quantifies the uncer­
+tainty introduced by external risks.
+4.4. Discussions with comparative experiments
+4.4.1. Comparison between single-step and sequential Markov-game 
+formulations
+To further justify the vectorized single-step formulation, an addi­
+tional comparison is conducted against a conventional sequential 
+Markov-game 
+formulation. 
+The 
+reinforcement 
+learning 
+hyper­
+parameters of the two models remain consistent. The differences lie in 
+two aspects: the action and observation spaces of each agent are reduced 
+from 24 dimensions to 1 dimension, and a penalty coefficient for SoC 
+deviation is added to the BESS agent. Both formulations are trained 
+using the same five scenarios for the same number of episodes. Table 8
+shows the training performance between the two formulations. Table 9
+reports the average reward of the final policies on the same five training 
+scenarios.
+We define practical convergence as the first episode at which a 50- 
+episode moving average remains within ±5% of the mean reward over 
+the final 50 episodes for at least 50 consecutive episodes. The single-step 
+formulation reaches the stated convergence criterion at episode 195, 
+whereas the sequential formulation reaches it at episode 251. The 
+recorded sequential run required 2906.26 s (48.44 min); the recorded 
+single run required 1357.95 s (22.63 min). The results reveal that the 
+Fig. 6. Market-clearing results and LMP in two scenarios.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+12 
+
+single-step formulation exhibits superior convergence performance 
+compared with the continuous Markov game model.
+As shown in Table 9, the single-step formulation achieves an average 
+total reward of $106,256, compared with $84,683 for the sequential 
+formulation. It can be observed from the variation in rewards that TG 
+and BESS are affected most significantly. This is because they are subject 
+to constraints over consecutive time periods, while the reward values of 
+unrestricted RES and retailers are relatively close.
+To distinguish the economic return of BESS from the effect of ter­
+minal energy imbalance, its reward is decomposed into the market 
+reward before the SoC penalty, the SoC-deviation penalty, and the 
+resulting net reward. The single-step formulation obtains an average 
+BESS market reward of $1972 and incurs no terminal-SoC penalty 
+because the complete hourly SoC trajectory and terminal energy con­
+dition are jointly enforced within the 24-h market-clearing process. The 
+Fig. 7. Bidding strategy of BESS for two operational scenarios.
+Table 8 
+Comparison of training performance between single-step and sequential 
+Markov-game formulations.
+Training 
+episodes
+Single-step normalized 
+reward
+Sequential normalized 
+reward
+1–100
+74.52%
+65.20%
+101–200
+93.60%
+90.93%
+201–300
+98.65%
+96.54%
+301–400
+100.00%
+100.00%
+Table 9 
+Comparison of average total reward between single-step and sequential Markov- 
+game formulations.
+Single-step Markov game (102$)
+Sequential Markov-game (102$)
+TG
+246.28
+144.77
+PV
+126.40
+117.89
+WT
+331.08
+319.87
+Retailers
+339.09
+325.71
+BESS
+19.72
+13.80
+SoC penalty
+0
+−75.20
+Total
+1062.56
+846.83
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+13 
+
+sequential formulation obtains an average BESS market reward of $1380 
+but incurs an average terminal-SoC deviation penalty of $7520.
+These results highlight both the benefit and the limitation of the 
+single-step formulation. The daily aggregate reward provides coarser 
+temporal credit assignment, but joint daily clearing prevents the learner 
+from repeatedly exploring trajectories that violate SoC constraints. 
+Under the matched training budget, this trade-off yields higher rewards 
+for the constrained agents and is consistent with the unified clearing 
+procedure used in a day-ahead energy market.
+4.4.2. Profit under different scenarios
+In this section, we conduct comparative experiments between the 
+MASAC algorithm, which performs well during training, and the pro­
+posed RQE-based MASAC algorithm. The models trained by the two 
+algorithms are used for decentralized testing in the CTDE framework, 
+and the total payoffs are compared across 60 different scenarios. The 
+experimental results are presented in Fig. 8 and Table 10. The total profit 
+of the RQE-based MASAC algorithm exceeds that of the MASAC algo­
+rithm in 78.3% of scenarios (47 out of 60). Meanwhile, analysis of the 
+average profits in Table 10 shows that the proposed RQE-based MASAC 
+algorithm achieves higher average profits for all four types of units, 
+namely TG, PV, WT, and BESS, compared with the MASAC algorithm. 
+The average total profit is increased by $2825 (2.68%), demonstrating 
+the favorable adaptability and robustness of the proposed method.
+To further assess the risk-related performance, we evaluate the BESS 
+profits over the 60 test scenarios using six statistics: the mean, standard 
+deviation, minimum observed profit, 5th-percentile profit, and lower- 
+tail conditional value-at-risk (CVaR) at the 10% and 5% levels. As 
+shown in Fig. 9, the absolute standard deviation remains essentially 
+unchanged, increasing only from 11.178 to 11.183. More importantly, 
+the minimum observed profit increases from 0 to 0.761, while the 5th- 
+percentile profit increases from 1.466 to 2.788. The lower-tail CVaR at 
+the 10% level increases from 1.152 to 2.223, and that at the 5% level 
+increases from 0.467 to 1.167. The results support improved downside- 
+profit robustness and mean-normalized stability.
+4.4.3. Market-clearing and line load results under different scenarios
+To evaluate the adopted single-step formulation under operating 
+conditions that stress both the network and the intertemporal BESS 
+constraints, two scenarios are selected from the test set. Scenario #3: its 
+daily mean load ranks sixth among the test scenarios, and its maximum 
+hourly load ramp ranks first; Scenario #4: its daily mean PV output 
+ranks third, while both its PV peak and maximum hourly PV ramp rank 
+first.
+The clearing results in Fig. 10(a) and (b) show different balancing 
+patterns. In Scenario #3, thermal generation supplies most of the high 
+demand, while PV output increases around midday and the BESS shifts 
+energy across hours. In Scenario #4, the larger PV injection reduces the 
+required thermal output during the solar-production period and induces 
+substantially more BESS charging and discharging. The two clearings 
+remain balanced without load shedding or renewable surplus.
+Fig. 10(c) and (d) report the absolute branch flow divided by its 
+corresponding transmission limit for all 41 lines and 24 periods, giving 
+984 branch-hour observations per scenario. The maximum loading ratio 
+is 1.000 in both cases, and no branch-hour exceeds 1.000 with a nu­
+merical tolerance of 0.000001. Scenario #3 contains six branch-hours at 
+or above 95% loading, on lines 6–8 and 14–15. Scenario #4 contains 58 
+branch-hours at or above 95% loading, including sustained binding of 
+the 14–15 corridor, which confirms that the high-PV case creates 
+materially greater congestion. The bids nevertheless remain network- 
+feasible because the ISO clears every bid vector jointly with the 
+branch-flow limits; the bidding policy changes which limits become 
+binding, but a converged feasible clearing cannot violate those limits.
+The SoC trajectories in Fig. 11 provide a direct stress test of the 
+intertemporal constraints. In Scenario #3, the SoC ranges are 
+0.500–0.813 for ES1 and 0.500–0.663 for ES2, with no boundary con­
+tact. In Scenario #4, ES1 remains at the lower bound of 0.1 during pe­
+riods 2–10 and reaches the upper bound once, whereas ES2 remains at 
+the lower bound during periods 7–9 and at the upper bound during 
+periods 18–20. Thus, 12 lower-bound and four upper-bound contacts 
+occur across the two BESSs. No SoC value leaves the feasible interval 
+[0.1, 0.9], and both units return to the terminal target of 0.5.
+As a throughput-based indicator of cycling exposure, the daily 
+equivalent full cycles are 0.314 for ES1 and 0.164 for ES2 in Scenario 
+#3, and 0.804 for both units in Scenario #4. These results show that 
+Fig. 
+8. Comparison 
+of 
+rewards 
+between 
+two 
+algorithms 
+under 
+different scenarios.
+Table 10 
+Comparison of average rewards between two algorithms under different 
+scenarios.
+Reward of RQE-based MASAC (102$)
+Reward of MASAC (102$)
+TG
+288.78
+271.39
+PV
+164.26
+154.69
+WT
+309.37
+300.96
+Retailers
+301.22
+309.94
+BESS
+18.65
+17.06
+Total
+1082.28
+1054.03
+Fig. 9. Detailed risk measure of BESS.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+14 
+
+Fig. 10. Market-clearing and line load results under high load and PV scenario.
+Fig. 11. SoC curves under high load and PV scenario.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+15 
+
+joint 24-h clearing can maintain feasibility even when renewable output 
+produces repeated SoC-boundary contact. They do not imply universal 
+superiority of the single-step formulation. Its intended domain is day- 
+ahead clearing in which the complete 24-h forecast trajectory and 
+intertemporal constraints are optimized jointly. A sequential or rolling- 
+horizon formulation is more appropriate when uncertainty is revealed 
+online, intraday recourse is required, battery health is a state variable, or 
+the horizon is too long for joint action optimization.
+4.4.4. Results under extreme scenarios
+Further, to verify the adaptability of the proposed solution under 
+extreme scenarios, three cases are exploited as follows. 
+Case #1: One electricity retailer loses communication with ISO.
+Case #2: One TG is out of service.
+Case #3: One PV malfunctions.
+The corresponding experimental results are shown in Fig. 12 and 
+Table 11. In Case 1, the market-clearing function fails to converge under 
+one scenario using the MASAC algorithm; therefore, this scenario is 
+excluded, and the rewards are calculated over 59 scenarios. Fig. 12
+shows that the RQE-based MASAC algorithm outperforms the MASAC 
+algorithm in most extreme scenarios. The total profit of the proposed 
+algorithm is higher than that of the MASAC algorithm in 84.7% (50 out 
+of 59) of scenarios for Case #1, 73.3% (44 out of 60) for Case #2, and 
+78.3% (47 out of 60) for Case #3. Table 11 presents a comparison of the 
+average profits of each agent and the total profits obtained by the two 
+algorithms under three cases. From the results, it can be observed that 
+under all three scenarios, the RQE-based MASAC algorithm achieves 
+higher average profits for most generating units and a higher overall 
+average profit than the MASAC algorithm. Specifically, the total average 
+profit is increased by $4355(5.23%) in Case #1, $2351(2.18%) in Case 
+#2, and $2780(2.62%) in Case #3. Among them, the profits of BESS are 
+improved by 22.52%, 13.16%, and 48.2%, respectively. This 
+Fig. 12. Comparison of rewards between two algorithms under extreme scenarios.
+Table 11 
+Comparison of average rewards between two algorithms under extreme scenarios.
+Reward in Case 1(102$)
+Reward in Case 2(102$)
+Reward in Case 3(102$)
+RQE-based MASAC
+MASAC
+RQE-based MASAC
+MASAC
+RQE-based MASAC
+MASAC
+TG
+202.68
+178.41
+324.97
+313.50
+354.83
+342.09
+PV
+150.72
+143.25
+182.78
+178.59
+100.47
+94.03
+WT
+274.43
+259.47
+336.71
+332.97
+345.59
+337.46
+Retailers
+231.96
+238.17
+245.91
+243.37
+278.61
+280.93
+BESS
+16.65
+13.59
+13.50
+11.93
+8.64
+5.83
+Total
+876.44
+832.89
+1103.87
+1080.36
+1088.14
+1060.34
+Fig. 13. Detailed risk measure of BESS under extreme scenarios.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+16 
+
+demonstrates the superiority of the proposed algorithm and verifies that 
+the RQE framework based on bounded rationality and risk-aversion 
+provides better profit stability and stronger adaptability to 
+uncertainties.
+Fig. 13 reports the same six risk statistics for the extreme cases. RQE- 
+based MASAC improves the lower tail of BESS profit in all three cases. 
+The minimum profit increases from 0 under MASAC to 1.543, 1.766, and 
+0.706 under RQE-based MASAC in Cases #1–3, respectively, while the 
+5th-percentile profit increases from 0 to 3.590, 2.481, and 2.172. Lower- 
+tail CVaR at the 10% level rises from 0.113, 0.054, and 0 to 3.044, 2.419, 
+and 1.821; at the 5% level, it rises from 0 in all three MASAC cases to 
+2.073, 2.047, and 1.277. No zero-profit outcome occurs in the tested 
+scenario sets under RQE-based MASAC. These results provide direct 
+evidence of improved downside-profit robustness under market 
+disturbances.
+To explore how RQE-based MASAC affects BESS's bidding strategy 
+and profit, we take Case #3 with a relatively large overall drop in BESS 
+profit for detailed analysis. Under this case, RQE-based MASAC achieves 
+a higher combined BESS reward than MASAC in 49 out of 60 (81.7%) 
+testing scenarios. For the 49 profit-improving scenarios, RQE-based 
+MASAC reduced the discharge bid by 3.534 $/MWh on average during 
+active discharge periods and increased the charging bid by 0.465 
+$/MWh during active charging periods. Lower discharge bids are 
+observed in 78.4% of active discharge observations, while higher 
+charging bids are observed in 66.0% of active charging observations. 
+These adjustments increased the cumulative cleared charging and 
+discharging power by approximately 126.1%. In addition, a typical 
+scenario is selected to analyze the bidding strategies of the two methods, 
+which is illustrated in Fig. 14. Within this scenario, among the 20 active 
+discharging periods, the discharging bids of RQE-based MASAC are 
+lower in 16 periods, accounting for 80%; among the 19 active charging 
+periods, the charging bids of RQE-based MASAC are higher in 12 pe­
+riods, accounting for 63.2%. The average discharge bid during active 
+periods decreases by 3.029 $/MWh, the average charging bid during 
+active periods rises by 0.755 $/MWh, and the cumulative cleared 
+discharge power increases by 24.2%.The results indicate that RQE-based 
+MASAC improves BESS profitability primarily by submitting more 
+competitive bids and reducing the probability of bid rejection, rather 
+than merely maximizing the profit margin of individual transactions.
+Fig. 14. Comparison of bidding strategies between two algorithms under a typical scenario.
+Table D1 
+Error analysis under different K values.
+K
+Mean signed 
+value error
+Value 
+RMSE
+Relative action- 
+gradient RMSE
+Average 
+reward
+1
+0.250
+0.796
+11.27%
+1608.90
+5
+0.051
+0.368
+5.34%
+4075.35
+10
+0.0256
+0.262
+3.92%
+4624.41
+20
+0.0192
+0.186
+2.86%
+4750.06
+40
+0.0111
+0.132
+2.03%
+4854.76
+80
+0.0074
+0.097
+1.39%
+4862.11
+160
+0.0028
+0.071
+1.01%
+4860.23
+320
+0.0008
+0.049
+0.72%
+4885.19
+Fig. 15. Average total reward and BESS reward under different risk-aversion 
+coefficients in three extreme cases.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+17 
+
+4.4.5. Sensitivity analysis
+To investigate the influence of the risk-aversion coefficient, a sensi­
+tivity analysis is conducted by varying τ from 0.5 to 1.1 while keeping 
+the other algorithmic parameters unchanged. The trained policies are 
+evaluated under the three extreme cases. The average total reward of all 
+market participants and the average combined reward of BESS are used 
+as performance indicators. The sensitivity of the Monte Carlo risk 
+evaluation to the number of opponent-action samples K is further 
+summarized in Table D1.
+As shown in Fig. 15 and Table 12, the influence of the risk-aversion 
+coefficient is nonlinear. When τ is relatively small, the adversarial dis­
+tribution is strongly restricted by the KL-divergence penalty, and the 
+risk-adjusted policy remains close to the nominal expected-reward pol­
+icy. Increasing τ gives greater weight to unfavorable competitor re­
+sponses and encourages the BESS agents to submit more conservative 
+and clearing-oriented bids. The average BESS reward increases within 
+the moderate range of τ and reaches its highest value at τ = 0.8.
+The average total reward reaches its maximum at approximately τ =
+1.0, whereas the BESS reward decreases markedly at this value. This 
+result reveals a trade-off between system-level reward and the profit­
+ability of the focal BESS agents. An excessively large risk-aversion co­
+efficient allows the adversarial distribution to deviate further from the 
+nominal rival policy, leading the BESS agents to overemphasize unfa­
+vorable outcomes and potentially sacrifice profitable bidding opportu­
+nities. Therefore, τ = 0.8 is selected because it provides the highest 
+average BESS reward while maintaining the total market reward within 
+a high and stable range. This value achieves an appropriate balance 
+between downside-risk protection and profit-seeking behavior.
+5. Conclusions and future work
+This paper presents an RQE-based MASAC framework for modeling 
+optimal bidding strategies of BESS in the day-ahead double-sided auc­
+tion market. The primary contributions are threefold. First, a compre­
+hensive market structure is constructed that integrates strategic 
+interactions among TG, RES, BESS, and electricity retailers under 
+network constraints. Second, the proposed learning architecture embeds 
+risk-aversion and bounded rationality into MARL through the RQE 
+formulation, providing a more realistic representation of market 
+decision-making behavior under incomplete information. Third, the 24- 
+dimensional single-step MDP design effectively resolves the intrinsic 
+temporal coupling imposed by SoC constraints and enables efficient 
+convergence of BESS bidding strategies.
+Extensive simulations on the IEEE 30-bus system verify the effec­
+tiveness of the proposed method. Compared with other MARL algo­
+rithms, the MASAC and RQE-based MASAC algorithms exhibit 
+significantly superior convergence performance. In day-ahead elec­
+tricity market bidding, the agents trained by the RQE-based MASAC 
+algorithm demonstrate strong risk-aversion capabilities under uncertain 
+conditions, e.g., low demand levels, and achieve higher total profits 
+across 60 test scenarios than the baseline algorithms. In the three 
+extreme simulation cases, the proposed algorithm outperforms the 
+baseline algorithms in terms of total profit in 84.7%, 73.3%, and 78.3% 
+of the scenarios, respectively, with the average profit of BESS increased 
+by 22.52%, 13.16%, and 48.2%, verifying the strong adaptability and 
+robustness of the proposed method.
+Nevertheless, the current framework has several limitations. The 
+behavioral and risk-related parameters are primarily determined 
+through numerical experiments, while the underlying behavioral as­
+sumptions have not yet been sufficiently validated using real-world 
+market data. In addition, the simulations are conducted on a relatively 
+small test system and are limited to a day-ahead market framework. 
+Future research will therefore focus on calibrating and validating the 
+proposed model using historical bidding records and market-clearing 
+data. Scalable learning architectures, including parameter sharing, 
+mean-field MARL, hierarchical MARL, and distributed or federated 
+training, will also be explored to improve its scalability to larger power 
+systems with more numerous and heterogeneous market participants, e. 
+g., VPPs and EVs. The framework can be extended to the coordinated 
+participation of BESS in energy, reserve, and frequency regulation 
+markets by considering coupled capacity constraints, service-stacking 
+decisions, battery degradation, regulation deployment, and multi- 
+timescale market clearing. Employing advanced artificial intelligence 
+tools, e.g., Large Language Models (LLMs), to support decision-making 
+for trading entities also represents a promising research direction.
+CRediT authorship contribution statement
+Zhihai Liu: Writing – original draft, Software, Methodology, Data 
+curation, Conceptualization. Yongzhuo Cheng: Writing – review & 
+editing, Supervision. Zhilong He: Writing – review & editing. Qiang 
+Yang: Writing – review & editing, Supervision, Funding acquisition.
+Ethics declaration
+The author(s) declare(s) that the study does not involve humans nor 
+animal subjects.
+Declaration of competing interest
+The authors declare that they have no known competing financial 
+interests or personal relationships that could have appeared to influence 
+the work reported in this paper.
+Acknowledgments
+The work is supported by the National Natural Science Foundation of 
+China (52177119) and the Natural Science Foundation of Zhejiang 
+Province (LBMHD25E070001).
+Table 12 
+Average reward under different risk-aversion coefficients in three extreme cases.
+Average reward (102$)
+0.5
+0.6
+0.7
+0.8
+0.9
+1.0
+1.1
+TG
+293.52
+299.92
+298.77
+294.16
+309.56
+332.62
+307.94
+PV
+141.78
+147.03
+146.97
+144.66
+152.8
+155.45
+151.36
+WT
+321.03
+325.21
+328.45
+318.91
+330.95
+338.68
+329.15
+Retailers
+221.37
+215.17
+198.05
+252.16
+218.15
+214.86
+231.13
+BESS
+12.41
+11.99
+12.64
+12.93
+12.45
+9.86
+11.23
+Total
+990.11
+999.32
+984.88
+1022.82
+1023.91
+1051.47
+1030.81
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+18 
+
+Appendix A. Appendix
+Appendix A provides the detailed derivation process of (28).
+The logit response function defines the probability of selecting bidding action as: 
+πi(ai|πi) =
+exp
+(
+1
+εiUi(ai, π−i)
+)
+∑
+ai'∈Aiexp
+(
+1
+εiUi(ai', π−i)
+)
+(A1) 
+Within the context of smoothed games or regularized MDP, the boundedly rational agent inherently solves a constrained optimization problem 
+incorporating a generic, strictly convex regularization term ν(πi): 
+Uεi
+i (π1, …, πn) = Ea∼π[Ri(a) ] −εiν(πi(ai) )
+(A2) 
+We solve the constrained optimization using the Lagrangian multiplier method. Define the Lagrangian: 
+L (πi, λ) =
+∑
+ai∈Aiπi(ai)Ui(ai, π−i) −εiν(πi) −λ
+(∑
+ai∈Aiπi(ai) −1
+)
+(A3) 
+The first-order Karush-Kuhn-Tucker (KKT) optimality condition with respect to the probability variable requires that the partial derivative equals 
+zero: 
+∂L
+∂πi(ai) = Ui(ai, π−i) −εi∂ν(πi(ai) )
+∂πi(ai)
+−λ = 0
+(A4) 
+We now return to the Logit Response expression defined in (A1). Taking the natural logarithm of both sides yields: 
+logπi(ai) = 1
+εi
+Ui(ai, π−i) −log
+∑
+ai'∈Aiexp
+(1
+εi
+Ui(ai
+', π−i)
+)
+(A5) 
+Then Ui(ai, π−i) can be expressed as follows: 
+Ui(ai, π−i) = εilogπi(ai) + εilog
+∑
+ai'∈Aiexp
+(1
+εi
+Ui(ai
+', π−i)
+)
+(A6) 
+For the theoretical optimization solution to exactly match the empirical logit behavior, the expression for Ui(ai, π−i) must satisfy the KKT optimality 
+condition. Substituting (A6) into (A4) yields: 
+εilogπi(ai) + εilog
+∑
+ai'∈Aiexp
+(1
+εi
+Ui(ai
+', π−i)
+)
+−εi
+∂ν(πi(ai) )
+∂πi(ai)
+−λ = 0
+(A7) 
+εi∂ν(πi(ai) )
+∂πi(ai)
+= εilogπi(ai) + εilog
+∑
+ai'∈Aiexp
+(1
+εi
+Ui(ai
+', π−i)
+)
+−λ
+(A8) 
+Dividing both sides by εi, we note that the term log∑
+ai'∈Aiexp
+(
+1
+εiUi(ai', π−i)
+)
+is entirely independent of the specific action. Therefore, it acts as a 
+global constant C when integrating with respect to πi. The gradient equation thus elegantly simplifies to: 
+∂ν(πi(ai) )
+∂πi(ai)
+= logπi(ai) + C
+(A9) 
+By integration, we obtain the expression as follows: 
+ν(πi(ai) ) =
+∑
+ai∈Ai
+(πi(ai)logπi(ai) −πi(ai) + Cπi(ai) )
+(A10) 
+Given that ∑
+ai∈Aiπi(ai) = 1, the expression can be further collapsed: 
+ν(πi(ai) ) =
+∑
+ai∈Ai
+(
+πi(ai)logπi(ai) −1 + C
+(A11) 
+In the context of mathematical optimization, adding a constant to the objective function shifts the baseline of the value but does not alter the 
+location of the optimal solution. Therefore, these constant terms can be safely discarded, isolating the fundamental regularization term as: 
+νi(πi) =
+∑
+ai∈Ai
+πi(ai)logπi(ai)
+(A12) 
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+19 
+
+Appendix B. Appendix
+Appendix B provides the detailed derivation process of (31).
+First, let the payoff of player i be ri(ai, a−i). The action-dependent risk-aversion in (30) can be written as: 
+fact
+i
+(πi, π−i) = Eai∼πi(ρi[ri(ai, a−i) ] )
+(B1) 
+Define the loss random variable related to the opponent's actions as follows: 
+Xi(a−i) = ri(ai, a−i)
+(B2) 
+Then (30) is abbreviated as: 
+f act
+i
+(πi, π−i) = Eai∼πi[ρi(Xi) ]
+(B3) 
+According to the dual representation of convex risk measures in [32], for the benchmark probability distribution P, we have: 
+ρi(X) = sup
+Q≪P
+{ −EQ[X] −αi(Q) }
+(B4) 
+where Q << Pmeans that Q is absolutely continuous with respect to P, and αi(Q) denotes the penalty function for deviation from the reference 
+distribution.
+In this paper, we have: 
+⎧
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎩
+P = π−i
+Q = q−i
+αi(q−i) = 1
+τi
+DKL(q−i‖π−i)
+(B5) 
+Substitute the dual representation to obtain: 
+ρi(X) = sup
+{
+−
+∑
+q−i<<π−i
+q−ir(ai, a−i) −1
+τi
+DKL(q−i‖π−i )
+}
+(B6) 
+Then we get the expression of (31): 
+fact
+i
+(πi, π−i) = Eai∼πi
+[
+sup
+pi∈P −i
+−eT
+i Ripi −1
+τi
+Di(pi, π−i)
+]
+∀i = 1, …, n
+(B7) 
+Appendix C. Appendix
+Consider an n-player bidding game. Suppose that:
+1. for each player i, the continuous action set Ai⊂ℝdiis nonempty and compact, with finite positive Lebesgue measure: Vi =
+∫
+Aidai ∈(0, ∞).
+2. The joint action set is A =
+∏
+n
+i=1
+Ai, and the players use independent policy densities, so thatπ−i(a−i|s ) = ∏
+j∕=i
+πj
+(
+aj|s
+)
+3. Qi(s, ai, a−i) is jointly Borel measurable and uniformly bounded 
+Qi ≤Qi(s, ai, a−i) ≤Qi,
+ΔQi := Qi −Qi < ∞
+(C1) 
+4. the risk-aversion coefficient and entropy temperature satisfy 
+0 < τi < ∞,
+αi > 0
+(C2) 
+Then the continuous-action game defined by (37) and (39) admits at least one risk-averse quantal response equilibrium. In particular, there exists a 
+joint policy densityπ* =
+( π*
+1, …, π*
+n
+)
+such that, for each player i and each admissible policy density hi with finite entropy, 
+Ji
+( π*
+i , π*
+−i
+)
+≥Ji
+(
+hi, π*
+−i
+)
+(C3) 
+where 
+Ji(πi, π−i) =
+∫
+Ai
+πi(ai|s)Qrisk
+i
+(s, ai; π−i)dai −αi
+∫
+Ai
+πi(ai|s)logπi(ai|s)dai
+(C4) 
+Thus, π* is a fixed point of the entropy-regularized risk-sensitive best-response mapping.
+Proof.
+First, fix player i, its action ai and the opponents' joint policy π−i. With KL-divergence penalty, define: 
+Zi(ai, π−i) =
+∫
+A−i
+exp[ −τiQi(s, ai, a−i) ]π−i(a−i|s)da−i
+(C5) 
+The exponentially tilted adversarial density is 
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+20 
+
+p*
+i (a−i|s, ai) = π−i(a−i|s)exp[ −τiQi(s, ai, a−i) ]
+Zi(ai, π−i)
+(C6) 
+For any adversarial density pi that is absolutely continuous with respect to π−i, direct substitution into the KL divergence gives 
+∫
+A−i
+Qi(s, ai, a−i)pi(a−i)da−i + 1
+τi
+DKL(pi, π−i) =
+−1
+τi
+logZi(ai, π−i) + 1
+τi
+DKL
+(
+pi, p*
+i
+)
+(C7) 
+Because DKL
+(
+pi, p*
+i
+)
+≥0, with equality only when pi = p*
+i , the minimization in (37) has the unique solution (C6), and 
+Qrisk
+i
+(s, ai, π−i) = −1
+τi
+logZi(ai, π−i)
+(C8) 
+Eq. C8 is the population counterpart of the log-mean-exp estimator in (41). From (C1), 
+e−τiQi ≤Zi(ai, π−i) ≤e−τiQi 
+and hence 
+Qi ≤Qrisk
+i
+(s, ai, π−i) ≤Qi
+(C9) 
+Next, for fixed π−i, define the Gibbs best-response density 
+Bi(π−i)(ai|s) = exp
+(
+Qrisk
+i
+(s, ai, π−i)
+/αi
+)
+Wi(π−i)
+(C10) 
+where 
+Wi(π−i) =
+∫
+Ai
+exp
+(
+Qrisk
+i
+(s, x, π−i)
+/αi
+)
+dx
+(C11) 
+For any policy density hi with finite entropy, using 
+logBi(π−i) = Qrisk
+i
+αi
+−logWi(π−i)
+the objective in C4 can be written as 
+Ji(hi, π−i) = αilogWi(π−i) −αiDKL(hi, Bi(π−i) )
+(C12) 
+Consequently, Bi(π−i) is the unique maximizer of (C4). Moreover, (C9) implies the policy-independent bounds: 
+e−ΔQi/αi
+Vi
+≤Bi(π−i)(ai|s ) ≤eΔQi/αi
+Vi
+≕Ci
+(C13) 
+These bounds allow the fixed-point argument to be conducted on a compact set of densities. Define 
+Ki =
+{
+πi ∈L∞(Ai) : 0 ≤πi ≤Ci a.e. ,
+∫
+Ai
+πi
+(
+ai|s)dai = 1
+}
+(C14) 
+And let 
+K =
+∏
+n
+i=1
+Ki
+(C15) 
+Each Ki is nonempty because the uniform density 1
+Vi belongs to Ki. It is also convex. Endow L∞(Ai) with the weak-star topology σ
+(
+L∞, L1)
+. Non­
+negativity, the upper bound, and normalization in C14 are weak-star closed conditions. Since Ki lies in the closed L∞-ball of radius Ci, the Banach- 
+Alaoglu theorem implies that Ki is weak-star compact. Therefore, the finite product K is a nonempty compact convex subset of a Hausdorff locally 
+convex space. In addition, because L1(Ai) is separable, the weak-star topology is metrizable on Ki.
+It remains to prove the continuity of the joint response mapping 
+B(π) = (B1(π−1) , …, Bn(π−n) )
+(C16) 
+Suppose that π(m)
+j
+→πjweak-star in Kj for every j. For player i, write π(m)
+−i
+= ∏
+j∕=i
+π(m)
+j
+,π−i = ∏
+j∕=i
+πj.
+For every measurable rectangle E−i = ∏
+j∕=i
+Ej, 
+∫
+E−i
+π(m)
+−i (a−i|s)da−i =
+∏
+j∕=i
+∫
+Ej
+π(m)
+j
+(
+aj|s
+)
+daj
+→
+∏
+j∕=i
+∫
+Ej
+πj
+(
+aj|s
+)
+daj =
+∫
+E−i
+π−i(a−i|s)da−i
+(C17) 
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+21 
+
+Finite linear combinations of rectangle indicators are dense in L1(A−i). Together with the uniform bound π(m)
+−i ≤∏
+j∕=i
+Cj, (C17) implies 
+π(m)
+−i ⇀
+* π−i in L∞(A−i)
+(C18) 
+For each fixed ai, the function a−i↦exp[ −τiQi(s, ai, a−i) ] is bounded and belongs to L1(A−i). Hence (C18) gives 
+Zi
+(
+ai, π(m)
+−i
+)
+→Zi(ai, π−i)
+(C19) 
+The quantities in (C19) have the common positive lower bound e−τiQi. Therefore 
+Qrisk
+i
+(
+s, ai, π(m)
+−i
+)
+→Qrisk
+i
+(s, ai, π−i)
+(C20) 
+By (C9) and the dominated convergence theorem, the numerators and normalization constants in (C10)–(C11) converge in L1(Ai). Thus, 
+⃦⃦⃦Bi
+(
+π(m)
+−i
+)
+−Bi(π−i)
+⃦⃦⃦
+L1(Ai)→0
+(C21) 
+Because all these response densities satisfy the common L∞ boundCi, the L1 convergence in (C21) also implies weak-star convergence. Indeed, for 
+any φ ∈L1(Ai), let φM be its bounded truncation. Then 
+⃒⃒⃒⃒
+∫
+Ai
+φ
+(
+B(m)
+i
+−Bi
+)
+dai
+⃒⃒⃒⃒≤‖φM‖∞
+⃦⃦⃦B(m)
+i
+−Bi
+⃦⃦⃦
+1 + 2Ci‖φ −φM‖1
+(C22) 
+and the right-hand side tends to zero by first taking m→∞ and then M→∞. Hence B : K→K is continuous. The Schauder-Tychonoff fixed-point theorem 
+now yields a policy profile π* ∈K satisfying 
+π*
+i = Bi
+( π*
+−i
+)
+, i = 1, …, n
+(C23) 
+Finally, applying (C12) at this fixed point gives, for any finite-entropy unilateral deviation hi, 
+Ji
+( π*
+i , π*
+−i
+)
+−Ji
+(
+hi, π*
+−i
+)
+= αiDKL
+(
+hi, π*
+i
+)
+≥0
+(C24) 
+A policy with infinite entropy has objective value −∞ and therefore cannot be profitable. Thus (C3) holds over the entire admissible policy-density 
+space, not merely over the bounded set Ki used in the fixed-point construction. Therefore, π*is a continuous-action RQE.
+Appendix D
+Appendix D provides the detailed derivation process of (41).
+By defining the penalty function as the KL divergence, this evaluation is formalized as the following constrained variational optimization problem: 
+Qrisk
+i
+(s, ai) = minpi∈Δ
+{
+Ea−i∼pi[Qi(s, ai, a−i) ] + 1
+τi
+DKL(pi‖π−i)
+}
+(D1) 
+where DKL(pi‖π−i) =
+∫
+pi(a−i)log pi(a−i)
+π−i(a−i)da−i.
+To solve the constrained minimization problem in (D1), we introduce a Lagrangian multiplier λ ∈R to handle the probability normalization 
+constraint. The Lagrangian functional L (pi, λ) is constructed as follows: 
+L (pi, λ) =
+∫
+pi(a−i)Qi(s, ai, a−i)da−i + 1
+τi
+∫
+pi(a−i)log pi(a−i)
+πi(a−i)da−i + λ
+(
+1 −
+∫
+pi(a−i)da−i
+)
+(D2) 
+Then we take the functional derivative of the Lagrangian with respect to the probability density function pi(a−i) and set it to zero to find the 
+extremum: 
+∂L
+∂pi(a−i) = Qi(s, ai, a−i) + 1
+τi
+(
+log pi(a−i)
+π−i(a−i) + 1
+)
+−λ = 0
+(D3) 
+Rearranging the terms to isolate the logarithmic fraction yields: 
+log pi(a−i)
+π−i(a−i) = τiλ −1 −τiQi(s, ai, a−i)
+(D4) 
+By exponentiating both sides, we obtain the expression for the optimal worst-case adversarial distribution p*
+i (prior to normalization): 
+p*
+i (a−i) = π−i(a−i)⋅exp(τiλ −1)⋅exp( −τiQi(s, ai, a−i) )
+(D5) 
+The distribution p*
+i must be a valid probability density function. Therefore, its integral over the entire action space of competitors must equal 1: 
+∫
+p*
+i (a−i)da−i = exp(τiλ −1)
+∫
+π−i(a−i)exp( −τiQi(s, ai, a−i) )da−i = 1
+(D6) 
+Recognizing that the integral on the right-hand side is simply the expectation over the true competitor distribution π−i, we can solve for the 
+constant term exp(τiλ −1): 
+exp(τiλ −1) =
+1
+Ea−i∼π−i
+[
+exp
+(
+−τiQi(s, ai, a−i)
+]
+(D7) 
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+22 
+
+Substituting (D7) back into (D5) provides the explicit, normalized form of the optimal adversarial distribution p*
+i : 
+p*
+i (a−i) = π−i(a−i)exp( −τiQi(s, ai, a−i)
+Ea−i∼π−i
+[
+exp
+(
+−τiQi(s, ai, a−i)
+]
+(D8) 
+Then we substitute the optimal distribution p*
+i back into (D1) to find the analytical form of Qrisk
+i
+: 
+Qrisk
+i
+=
+∫
+p*
+i Qi(s, ai, a−i)da−i +
+∫(
+p*
+i
+(
+−Qi(s, ai, a−i) −1
+τi
+logEπ−i
+[
+exp( −τiQi(s, ai, a−i)] )da−i
+(D9) 
+The terms p*
+i Qi(s, ai, a−i) perfectly cancel out: 
+Qrisk
+i
+=
+∫
+p*
+i
+(
+−1
+τi
+logEπ−i
+[
+exp( −τiQi(s, ai, a−i)] )da−i
+(D10) 
+Given that 
+∫
+p*
+i da−i = 1, the expression collapses to the final closed-form Entropic Risk Measure: 
+Qrisk
+i
+(s, ai) = −1
+τi
+logEa−i∼π−i
+[
+exp
+(
+−τiQi(s, ai, a−i)
+]
+(D11) 
+Finally, we employ Monte Carlo sampling and draw K independent joint bidding samples from the current policies of all competitors: 
+Qrisk
+i
+(s, ai) ≈−1
+τi
+log
+(
+1
+K
+∑
+K
+k=1
+exp
+(
+−τi⋅Qϕi
+(
+s, ai, a(k)
+−i
+) ) )
+(D12) 
+Data availability
+Data will be made available on request.
+References
+[1] IEA. Electricity 2026. Paris: IEA; 2026. https://www.iea.org/reports/electrici 
+ty-2026. Licence: CC BY 4.0.
+[2] Khan MK, Raza M, Shahbaz M, Farooq U, Akram MU. Recent advancement in 
+energy storage technologies and their applications. J Energy Storage 2024;92: 
+112112.
+[3] Hu Y, Armada M, Jesus Sanchez M. Potential utilization of battery energy storage 
+systems (BESS) in the major European electricity markets. Appl Energy 2022;322: 
+0–18.
+[4] Ren W, Guan Y, Feng B. Bidding strategies for battery energy storage addressing 
+uncertain market clearance. IEEE Trans Power Syst 2025;40(6):4534–46.
+[5] Doenges K, Egido I, Sigrist L, Lobato Miguelez E, Rouco L. Improving AGC 
+performance in power systems with regulation response accuracy margins using 
+battery energy storage system (BESS). IEEE Trans Power Syst 2020;35(4):2816–25.
+[6] Fang X, Guo H, Zhang X, Wang X, Chen Q. An efficient and incentive-compatible 
+market design for energy storage participation. Appl Energy 2022;311:0–13.
+[7] Nasrolahpour E, Kazempour J, Zareipour H, Rosehart WD. A bilevel model for 
+participation of a storage system in energy and reserve markets. IEEE Trans Sustain 
+Energy 2018;9(2):582–98.
+[8] Wang X, Ying L, Wen K, Lu S. Bi-level non-convex joint optimization model of 
+energy storage in energy and primary frequency regulation markets. Int J Electr 
+Power Energy Syst 2022;134:107408.
+[9] Wang X, Liu J, Wen F. Optimal allocation of bi-level energy storage based on the 
+dynamic ancillary service price. Electr Power Syst Res 2024;227:109953.
+[10] Goyal A, Bhattacharya K. Design of multi-settlement electricity markets 
+considering demand response and battery energy storage systems participation. 
+IEEE Trans Energy Markets Policy Regul 2024;2(2):226–39.
+[11] Du Y, Li F, Zandi H, Xue Y. Approximating Nash equilibrium in day-ahead 
+electricity market bidding with multi-agent deep reinforcement learning. J Mod 
+Power Syst Clean Energy 2021;9(3):534–44.
+[12] Ye Y, Qiu D, Sun M, Papadaskalopoulos D, Strbac G. Deep reinforcement learning 
+for strategic bidding in electricity markets. IEEE Trans Smart Grid 2020;11(2): 
+1343–55.
+[13] Gao X, Chan KW, Xia S, Zhang X, Zhang K, Zhou J. A multiagent competitive 
+bidding strategy in a pool-based electricity market with price-maker participants of 
+WPPs and EV aggregators. IEEE Trans Industr Inform 2021;17(11):7256–68.
+[14] Kebriaei H, Rahimi-Kian A, Nili Ahmadabadi M. Model-based and learning-based 
+decision making in incomplete information cournot games: a state estimation 
+approach. IEEE Trans Syst Man Cybern Syst 2015;45(4):713–8.
+[15] Wu J, Wang J, Kong X. Intelligent strategic bidding in competitive electricity 
+markets using multi-agent simulation and deep reinforcement learning. Appl Soft 
+Comput 2024;152:111235.
+[16] Cardo-Miota J, Beltran H, P´erez E, Khadem S, Bahloul M. Deep reinforcement 
+learning-based strategy for maximizing returns from renewable energy and energy 
+storage systems in multi-electricity markets. Appl Energy 2025;388:125561.
+[17] Li X, Luo F, Li C. Multi-agent deep reinforcement learning-based autonomous 
+decision-making framework for community virtual power plants. Appl Energy 
+2024;360:122813.
+[18] Qiu D, Wang J, Ruan G, Zhang Q, Strbac G. Robust reinforcement learning for 
+decision making under uncertainty in electricity markets. IEEE Trans Power Syst 
+2025;40(3):2750–63.
+[19] Weng H, Hu Y, Liang M, Xi J, Yin B. Optimizing bidding strategy in electricity 
+market based on graph convolutional neural network and deep reinforcement 
+learning. Appl Energy 2025;380:124978.
+[20] Yin B, Weng H, Hu Y, Xi J, Ding P, Liu J. Multi-agent deep reinforcement learning 
+for simulating centralized double-sided auction electricity market. IEEE Trans 
+Power Syst 2025;40(1):518–29.
+[21] Jiang Y, Dong J, Huang H. Optimal bidding strategy for the price-maker virtual 
+power plant in the day-ahead market based on multi-agent twin delayed deep 
+deterministic policy gradient algorithm. Energy 2024;306:132388.
+[22] Siqin Z, Diao R, Zhao M. Two-stage distributionally robust bidding strategies for 
+multi-energy virtual power plants in energy, reserve and carbon markets. Energy 
+2025;334:137455.
+[23] Zhang Y, Meng L, Carlos Zambroni A, Hu Q, Liu H, Lebedev A, et al. Multi-agent 
+deep reinforcement learning for EV aggregator bidding in renewable-dominated 
+electricity markets. Int J Electr Power Energy Syst 2026;174:111444.
+[24] Yu C, Velu A, Vinitsky E, Gao J, Wang Y, Bayen A, et al. The surprising 
+effectiveness of PPO in cooperative multi-agent games. In: Advances in neural 
+information processing systems (NIPS). Vol. 35; 2022.
+[25] Lowe R, Wu Y, Tamar A, Harb J, Abbeel P, Mordatch I. Multi-agent actor-critic for 
+mixed cooperative-competitive environments. In: Advances in neural information 
+processing systems (NIPS); 2017. Vol 30.
+[26] Haarnoja T, Zhou A, Abbeel P, Levine S. Soft actor-critic: off-policy maximum 
+entropy deep reinforcement learning with a stochastic actor. In: International 
+conference on learning representations (ICLR); 2018.
+[27] Luce R D. Individual choice behavior. A theoretical analysis. Reprint of the 1959 
+original ed. Wiley.
+[28] Tversky A, Kahneman D. Advances in prospect theory: cumulative representation 
+of uncertainty. J Risk Uncertain 1992;5(4):297–323.
+[29] Goeree J, Holt C, Palfrey T. Risk averse behavior in generalized matching pennies 
+games. Games Econ Behav 2003;45(1):97–113.
+[30] McKelvey RD, Palfrey TR. Quantal response equilibria for normal form games. 
+Games Econ Behav 1995;10(1):6–38.
+[31] Mazumdar E, Panaganti K, Shi L. Tractable multi-agent reinforcement learning 
+through behavioral economics. In: International conference on learning 
+representations (ICLR); 2025.
+[32] F¨ollmer H, Schied A. Convex measures of risk and trading constraints. Finance 
+Stochast 2002;6(4):429–47.
+[33] “PJM market data,” 2025. [Online]. Available, https://www.pjm.com/.
+[34] Chen X, Dong W, Yang Q. Robust optimal capacity planning of grid-connected 
+microgrid considering energy management under multi-dimensional uncertainties. 
+Appl Energy 2022;323:119642.
+Z. Liu et al.                                                                                                                                                                                                                                       
+Applied Energy 427 (2027) 129088 
+23 

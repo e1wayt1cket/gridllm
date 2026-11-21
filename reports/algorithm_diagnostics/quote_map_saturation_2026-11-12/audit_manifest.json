@@ -1,0 +1,56 @@
+{
+  "written_at": "2026-11-12T01:11:24+0800",
+  "label": "NON_FORMAL_DIAGNOSTIC",
+  "map_under_audit": "linear_core_v1",
+  "action_schema": "storage_quote_v4",
+  "audited_trainer": "rl_da_gate.DAGateTrainer",
+  "out_of_scope": "rl_b_c2_gate v2 sigmoid map (base B+C2 stack)",
+  "git": {
+    "revision": "63b008d725e391d98b55f9d563b0d712cd710793",
+    "dirty": true,
+    "branch": "review"
+  },
+  "environment": {
+    "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 16:36:49) [MSC v.1944 64 bit (AMD64)]",
+    "executable": "C:\\Users\\26036\\.conda\\envs\\energy_env\\python.exe",
+    "torch": "2.11.0+cpu",
+    "numpy": "1.24.3",
+    "gurobi": [
+      13,
+      0,
+      1
+    ],
+    "cwd": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB"
+  },
+  "status": "ADMITTED_Z10.0",
+  "phases": [
+    "0 evidence",
+    "1 observations",
+    "2 distribution",
+    "3 candidates",
+    "4 gradients",
+    "5 decision"
+  ],
+  "artifacts": {
+    "actor_update_gradient_stats.csv": "f6fe2359762ee11d2d4b5cb1a229922b88d323a1a94f86345e5808bd5b1c4821",
+    "audit_manifest.json": "2ec5251ce51be915b6b24b4b402ceb4c79ee33577dae6fbbf72ed8f12dbdb3b5",
+    "buffer_raw_logits_seed11.npz": "a27ac12e0c7919e47cddf73564097f143dc452fc8b1483794b6ec209095adb99",
+    "buffer_raw_logits_seed23.npz": "4768c19b3900ec5ec34eb4734c64bf64a3bc4dc89c6cbb700dba38ec97043c52",
+    "candidate_comparison.json": "73af10c89777920bd54fbf32e49895dd425e0b6e62b7c5c96996dded20421642",
+    "candidate_ess_leg.csv": "e8943915137298cab81d89179f16295d40b2d2312657e42075784350a9bc8dde",
+    "decision_report.md": "99ffd9631f664000f36d4d5ab24df40e964535576feffe73d936b500bafdd25f",
+    "ess_leg_summary.csv": "40f3bde1579451e6d15f4916e984e95639ec0905b265457fdf2e14b45d6ec701",
+    "execution_mapping_stats.csv": "31f45d18eab58a56043858de964ec209e07935e23c2f5dfeebb454056c84cfcc",
+    "input_hashes.json": "695edce9c4c6a6cd11302cb0f20672af130b03f33381f9976533db0a7ae2b6f9",
+    "mapping_candidates.json": "4459f17d476ef7cc520bbd0ffd768327337e09f7ef98cc545b77a0f5092cce6f",
+    "mapping_unit_test_results.json": "e340b82b10907d550c783aaaed43daa76a093bfbf946fc6fddda3b612e918bbd",
+    "output_hashes.json": "24101f31e5423ca9803fe0b2a2a64386269de8cccafef3400128a049312d053a",
+    "phase1.log": "2e751ad24398840b7970885b2376b5db83155a6faea5e51e0033faedf12b6519",
+    "phase1_observations.json": "f0a7adf46a895b2bddb3f40cc5eeebeab172f155a65625bda2ec60f4e77e13d6",
+    "phase2_distribution.json": "827cd50d612e30cea00ca882ee56a944c53da77384e33b056b1a629e496fea8d",
+    "phase3_candidates.json": "b22101e396d23131abea2f6cba031ffd3ff85692e5c42bce5965316550c0be43",
+    "phase4_gradients.json": "bfb66c3c8cc4f63309e0f8d417f8ed375676ed1b67b9c2a40de89a0b4449a7f3",
+    "probe_trace.csv": "83c3ca8025aa56672d3c128150d6dd9cba38d333c2e47006ff0d7f2579f800da",
+    "seed_summary.csv": "583102c327bd49b8f9e67ba875c16e184920c511d0f02b38e6fcafe41b9d9188"
+  }
+}

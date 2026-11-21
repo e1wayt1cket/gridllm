@@ -1,0 +1,28 @@
+{
+  "git_revision": "875d648",
+  "git_dirty": true,
+  "candidate": "P21_candidate_001",
+  "hypothesis": "the actor loss must differentiate the v3 linear-core quote map, not the v2 sigmoid map",
+  "source_sha256": {
+    "src/rl_b_c2_gate.py": "0269e93108deefdb1bc55637b7e08c46ee53d24f254f23403f13859b7c6ffc41",
+    "src/rl_da_gate.py": "9ed0b8335f7061a9cd89cc4366a30257217b14202d9d7f63b0d297fda1c12eb1",
+    "src/train_da_gate.py": "c32b7fec591c5f0e2a7b42b91778f0931217d5c60207c3644e385a54e564b9b6",
+    "src/da_quote_map.py": "79e96c8eb8f0a343c52d31bee3690663a2e6a32c37233fde943e6669867845bf",
+    "src/da_replay.py": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+    "src/truthful_gate_actor_adapter.py": "c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b",
+    "src/rl_spec.py": "156aa7a7b09688e9881e0d9b173bd27e5c44ea8ced75a3f25ba59050f8382e68",
+    "src/rl_env.py": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+    "src/c2_reward.py": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+    "src/daily_reward_b.py": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+    "src/b1_daily_baseline.py": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+    "src/dispatch_socp.py": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+    "src/v2_cy_jn_env.py": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+    "tests/test_da_quote_mapping.py": "b0f316976d3936d0efdf1e0ee58d62bb694ba977e569e82a4132dcdbb1c542b2",
+    "tests/test_train_da_gate_guards.py": "1a5d36ac3cad8600d9922714831377b60323ac7e84969aaa3e3298568276e085",
+    "src/audit_phase20_oracle_surrogate.py": "dbe905b174660e85ecdcad8a0faa5621d1d300746afe98a86998e110bf8a56dd",
+    "src/audit_phase20_bellman_diagnostics.py": "ef75d949fa3de5406051c8d538a081f5ceaa9d053bd767b4054f7960d05da882",
+    "src/audit_phase20_own_action_sensitivity.py": "dd6c14b2a9255b1ac19dfccd5e972e4086508786cfaa4d70330dce6bcc8e5d69",
+    "src/audit_phase20_action_routing.py": "899c0d0ba9e6035c87033e48838eb96969187262ee3d2781aa96450c3aafded5",
+    "src/audit_phase21_smoke.py": "5615c14e17d78a926a440ba01a84502ed9471418830e1973f65effd14331438f"
+  }
+}

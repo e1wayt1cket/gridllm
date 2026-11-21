@@ -1,0 +1,61 @@
+{
+  "candidate": "P21_candidate_001",
+  "source_sha256": {
+    "rl_da_gate.py": "9ed0b8335f7061a9cd89cc4366a30257217b14202d9d7f63b0d297fda1c12eb1",
+    "rl_b_c2_gate.py": "0269e93108deefdb1bc55637b7e08c46ee53d24f254f23403f13859b7c6ffc41",
+    "train_da_gate.py": "4ae66f12a48775fbf0f2bbda293c631dffc77baac8e6789add2a5db815cd72a7",
+    "da_quote_map.py": "79e96c8eb8f0a343c52d31bee3690663a2e6a32c37233fde943e6669867845bf",
+    "da_replay.py": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+    "truthful_gate_actor_adapter.py": "c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b",
+    "rl_spec.py": "156aa7a7b09688e9881e0d9b173bd27e5c44ea8ced75a3f25ba59050f8382e68",
+    "rl_env.py": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+    "c2_reward.py": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+    "daily_reward_b.py": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+    "b1_daily_baseline.py": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+    "dispatch_socp.py": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+    "v2_cy_jn_env.py": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+    "checkpoint_writer_v2.py": "0f973f6589b5594efa93d91e185254a765e43684076c197a30abf05ba80f7cd1",
+    "checkpoint_loader_v2.py": "23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe",
+    "run_formal_training.py": "7208c9e5fca0899b93167cea64b9c5e415efdda5022c595c9335965a50e10916",
+    "training_contract.py": "e79d9d655667c44441a39f933d4593782bcbdbdd7167fcb1b54cfda702edba3a",
+    "audit_run.py": "88fe2d3bc9f4202ddd8671c17077914123c0342c734034ec2c8098be27e220fd",
+    "make_formal_training_manifests.py": "ca93e0990ec17e7bb4d46c6621100f67d2a5536e0531375044ea34fa9ac8f5a1"
+  },
+  "git": {
+    "revision": "63b008d",
+    "dirty": true,
+    "dirty_paths": [
+      "LAUDE.md",
+      "src/make_formal_training_manifests.py",
+      "src/run_formal_training.py",
+      "src/train_da_gate.py",
+      "tests/test_train_da_gate_guards.py",
+      ".claude/",
+      ".tmp_report_updates.py",
+      "TECHNICAL_DEBT.md",
+      "data/processed/node_loads/multiday_industry_subset/",
+      "data/processed/v2/",
+      "data/processed/v2_cy_jn_2025/",
+      "reports/cc01/",
+      "reports/cc02/",
+      "reports/v2_cy_jn_2025/formal_training_v3/",
+      "review.md",
+      "scripts/",
+      "snapshots/",
+      "src/audit_run.py",
+      "src/diagnose_seed53_clearing.py",
+      "src/training_contract.py",
+      "tests/test_frozen_guard.py",
+      "tests/test_train_da_gate_resume.py",
+      "tests/test_training_contract.py"
+    ]
+  },
+  "tests": {
+    "test_da_quote_mapping.py": "b0f316976d3936d0efdf1e0ee58d62bb694ba977e569e82a4132dcdbb1c542b2",
+    "test_train_da_gate_guards.py": "d794ff6360ae8134677837d0d53c7350eb433bde1a7aa2c02289df9555b89624",
+    "test_train_da_gate_resume.py": "39d0ab7c4af2f24afefd2a8b07a3a83bc74852b6ab01dbd610d14ebc595b8304",
+    "test_training_contract.py": "28f9c934d93e5127da5ebcba75ed238754cda157f5fdf00d16af8118de9d4976",
+    "test_frozen_guard.py": "dea7e7c8d35018c694cbc6bf6e928c2ae8c00f4885eb403c62a6a3c2d1219b69",
+    "audit_phase20_action_routing.py": "899c0d0ba9e6035c87033e48838eb96969187262ee3d2781aa96450c3aafded5"
+  }
+}

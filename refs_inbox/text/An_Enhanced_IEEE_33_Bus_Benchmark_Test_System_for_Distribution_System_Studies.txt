@@ -1,0 +1,554 @@
+=== page 1 ===
+IEEETRANSACTIONSONPOWERSYSTEMS,VOL.36,NO.3,MAY2021 2565
+An Enhanced IEEE 33 Bus Benchmark Test System
+for Distribution System Studies
+SarinehHacopianDolatabadi ,MaedehGhorbanian ,PierluigiSiano ,SeniorMember,IEEE,
+andNikosD.Hatziargyriou ,LifeFellow,IEEE
+Abstract—Thetransformationofpassivedistributionsystemsto (RERs), demand side management (DSM) mechanisms and
+moreactiveonesthankstotheincreasedpenetrationofdistributed noveloperationalmethodsdictatethenecessityofanextended
+energy resources, such as dispersed generators, flexible demand,
+testbenchmarktoaddressnewchallengesinresearch.
+distributed storage, and electric vehicles, creates the necessity of
+This paper presents an attempt to provide an enhanced
+an enhanced test system for distribution systems planning and
+operation studies. The value of the proposed test system, is that benchmarkfordistributionsystemssuitableforstudiesaddress-
+it provides an appropriate and comprehensive benchmark for ing research needs in modern power distribution grids. The
+future researches concerning distribution systems. The proposed main features of the proposed benchmark is the introduction
+testsystemisdevelopedbymodifyingandupdatingthewell-known
+of distributed RERs and demand response (DR) mechanisms,
+33busdistributionsystemfromBaran&Wu.Itcomprisesboth
+together with appropriate reactive power compensation units.
+forms of balanced and unbalanced three-phase power systems,
+including new details on the integration of distributed and re- Finally,bothbalancedandunbalancedthree-phaseversionsare
+newable generation units, reactive power compensation assets, provided, since the integration of single-phase production and
+reconfiguration infrastructures and appropriate datasets of load storageunitshasincreasedtheasymmetryamongthenetwork
+andrenewablegenerationprofilesfordifferentcasestudies.
+phases. Notably, [2] presents the motivation and preliminary
+Index Terms—Balanced three-phase system, benchmarking, planningstudiesfortheprovisionoftheIEEE33bustestsystem
+distribution system, IEEE 33 bus distribution test system, presented in this paper. The studies presented in [2] are based
+operation,planning,unbalancedthree-phasesystem. onthemodificationofBaran&Wu33busdistributionsystem
+usingvoltagesensitivityanalysestofacilitatetheintegrationof
+DRmechanisms,distributedgeneration(DG)unitsandreactive
+I. INTRODUCTION
+powercompensators(RPCs).
+FORseveraldecades,theIEEEhasprovidedvarioustestsys- The proposed test system tries to correct some of the short-
+temstosupportresearchinpowersystems.Inthiscontext, comingsofBaran&Wu33busdistributionsystemandatthe
+theauthorsofthispaperproposeamulti-purposetestbenchmark sametimeimprovesthetestbenchmarkbringingittonearreal
+for distribution systems studies based on the well-known 33 operationlimitations.Byproposingtwodifferentconfigurations,
+busdistributionsystem.Thissystemwasdevelopedin1989by thestudyofbothradialandmesheddistributionsystemsismade
+Baran&Wu[1]tostudytheimpactofreconfigurationindistri- possible.Moreover,supplementarydatatoimproveimplemen-
+bution systems on power losses reduction and load balancing. tation of case studies have been added to the proposed test
+Inthenextyears,the33busdistributiontestsystemhasgained system.Itisofcoursenotpossibletoproposeatestsystemthat
+popularityandhasbeenwidelyusedtostudydifferentproblems specifies all the parameters needed for every application. The
+intraditionaldistributionsystems.Recentdevelopmentsinsmart goal is to develop a test system which can represent a typical
+power systems, associated with the integration of new tech- distribution system close to real networks, considering opera-
+nologies, such as distributed and renewable energy resources tionalandperformanceaspects,thatcanbeusedasareference
+for testing the impact of different technologies. Notably, new
+featurescanbesupplementedbytheusersinordertoadaptthe
+ManuscriptreceivedMay26,2020;revisedSeptember30,2020;accepted
+November9,2020.DateofpublicationNovember16,2020;dateofcurrent proposedtestbenchmarkforparticularapplications.Resultsof
+versionApril19,2021.Paperno.TPWRS-00874-2020.(Correspondingauthor: a suite of analyses conducted on the proposed test benchmark
+SarinehHacopianDolatabadi.)
+are presented. The details of conducted study are shared via
+Sarineh Hacopian Dolatabadi and Maedeh Ghorbanian are with the
+Department of Electrical and Computer Engineering, Isfahan University publicly available repository to enable and encourage online
+of Technology, Isfahan 84156-83111, Iran (e-mail: s.hacopian@ec.iut.ac.ir; collaborationandcontinuedevolutionofthetestbenchmarkby
+m.ghorbanian@alumni.iut.ac.ir).
+otherusers[3].
+Pierluigi Siano is with the Department of Management and Innovation
+Systems, University of Salerno, Fisciano 84084, (Salerno), Italy (e-mail: Theremainderofthispaperisorganizedasfollows.InSec-
+psiano@unisa.it). tionII,abriefhistoryoftheexisting33busdistributionsystem
+NikosD.HatziargyriouiswiththeSchoolofElectricalandComputerEn-
+andsomeofthefeatureswhichareimprovedandenhancedin
+gineering, National Technical University of Athens, Athens 157 80, Greece
+(e-mail:nh@power.ece.ntua.gr). themodifiedIEEE33busdistributiontestsystemarediscussed.
+Colorversionsofoneormoreofthefiguresinthisarticleareavailableonline SectionIII,presentsthedetailsoftheproposedtestbenchmark.
+athttps://doi.org/10.1109/TPWRS.2020.3038030.
+Furtherdetailsofthebasicanalysesconductedontheproposed
+DigitalObjectIdentifier10.1109/TPWRS.2020.3038030
+0885-8950©2020IEEE.Personaluseispermitted,butrepublication/redistributionrequiresIEEEpermission.
+Seehttps://www.ieee.org/publications/rights/index.htmlformoreinformation.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 2 ===
+2566 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.36,NO.3,MAY2021
+test system as a reference for future studies are presented in specifically,thefollowingfeaturesareconsideredimportantfor
+SectionIV.Finally,SectionVconcludesthispaper. futureresearch.
+1) Reconfigurable radial and meshed distribution systems
+II. HISTORYOFTHEEXISTING33BUSDISTRIBUTION withswitchablelines.
+TESTSYSTEMS 2) Balanced and unbalanced three-phase distribution sys-
+tems.
+The original version of the 33 bus distribution system pro-
+3) Differenttypesofthree,twoandsingle-phaseloadswith
+posedbyBaran&Wu[1]in1989,consistsof33buses,32fixed
+YandΔconnections.
+and 5 switchable lines, and no reactive power compensating
+4) Threeandfour-wiredistributionsystems.
+units. The grid is supplied by a feeder connected to the first
+5) Distribution systems equipped with RPCs, OLTC trans-
+bus,andnootherpowergenerationunitsexistinthegrid.The
+formerandphaseshifter.
+voltagelimitsofbusesare0.9to1.1(p.u.).Intheproposedtest
+6) Distribution systems with interconnected DG units, in-
+system, limits are changed to 0.95 to 1.05 (p.u.), which is an
+cludingRERsandenergystoragesystems(ESSs).
+acceptable range for practical distribution systems. In order to
+Itisnoticeablethateachoftheaforementionedexistingbench-
+relax these limits, addition of RPCs are necessary. Moreover,
+marks has some of the features provided by the proposed test
+thepossibilityofvoltagecontrolatthefeedersubstation,using
+benchmarkbutnoneofthemhasallthefeaturesfully.Moreover,
+on-loadtap-changing(OLTC)transformerandphaseshifterat
+the main goal of this test benchmark is the provision of a
+the branch number 1 is considered. These options facilitate
+smallscaleandatthesametimecomprehensivetestbenchmark
+voltage control in order to guarantee acceptable buses voltage
+including nearly all features of real smart distribution systems
+limitsandpowerlosses[4].TheoperationrangeoftheOLTCand
+even quite unusual configurations to facilitate a wide range of
+thephaseshifteris0.95to1.05(p.u.)and,−5to5(degrees),
+future researches and analyses. To provide a test benchmark
+respectively.
+for unbalanced distribution systems studies, the proposed test
+Moreover,intheproposedtestsystemthenumberofswitch-
+benchmark is provided in both balanced and unbalanced ver-
+able branches are reduced to three branches, in order to avoid
+sions.Thedetailsofbothmodelsarepresentedinthispaper.
+unnecessarycomplexitiesandwithoutlosingthepossibilityof
+meshed grid operation. It is noticeable that this modification
+does not affect or restrict the reconfiguration possibility in the A. SystemTopology
+proposed test system. As the reconfiguration is an important
+The topology of the proposed IEEE 33 bus distribution test
+function of modern smart grids, this modification simplifies
+systemisshowninFig.1.Thetestsystemisa12.66(kV)system
+the reconfiguration procedure by elimination of unnecessary
+withonefeedersubstation,4DGunits,2reactivepowercompen-
+complexities.ToaddressthegrowingtrendofdistributedRERs
+sationsystems,33buses,and3loopingbranches(switchabletie
+integration, the proposed test system is enhanced with DG
+lines).Itisnoticeablethatthetestbenchmarkispreparedintwo
+units. Additionally, an hourly and an subhourly load profile
+versionstosimulatebothbalancedandunbalancedthree-phase
+compatible with the proposed test system are provided. In the
+systems.
+nextsection,detaileddescriptionoftheproposedtestsystemand
+Bus Data: Except of the bus types and maximum and min-
+itscomponentsdiscussingalsothetheoreticalrationaleusedin
+imum voltage limitations, the bus data has not changed from
+theevolutionoftheproposedtestbenchmarkarepresented.
+the Baran & Wu 33 bus distribution system data. Table I lists
+the bus data for the proposed test benchmark. Buses 18, 22,
+III. PROPOSEDIEEE33BUSDISTRIBUTIONTESTSYSTEM
+25, and 33 which contain DG units can be considered as PV
+This research is aimed at providing a small scale and com- buses,whentheyarevoltagecontrolled,andtheacceptablebus
+prehensive benchmark for smart distribution systems analytic voltagesduringsystemoperationshouldbelimitedintherange
+studies. According to the existing literature, there are several 0.95to1.05(p.u.).Totalactiveandreactivedemandisequalto
+distributiontestsystems[5]–[14].Thecurrenttestbenchmarks 3.715(MW)and2.3(MVAR),respectively.
+canbedividedintotwocategories:smallscaleandlargescale GeneratingUnitsData: TableIIpresentsthegeneratingunits
+testcases.ThemostfamoussmallscaletestsystemsareIEEE4, data,includingtheirproductioncostfunctions.Thesecostfunc-
+13,34and37-bustestgrids[5],[7],[8],[14].Thewellknown tionsarederivedbasedontheapproachesusedin[2],[15],[16].
+largescaletestbenchmarksareIEEE123-busTestGrid,IEEE It is noticeable that, due to the relatively low amount of DG
+342-NodeLowVoltageNetworkedTestSystem(LVNTS),IEEE powergenerationoutputscomparedtolargerunits(greaterthan
+8500NodeTestFeeder,IEEEComprehensiveTestFeeder(CFT) 100 MW) in transmission systems, the quadratic terms of the
+andIEEEEuropeanLowVoltageTestFeeders[6],[7],Electric costfunctionsarenegligibleandthetypicalquadraticfunction
+Power Research Institute (EPRI) Test Grids including six test isapproximatelylinear.ItisnoteworthythatthesizingoftheDG
+grids:K1,M1,J1,Ckt5,Ckt7andCkt24[9],PNNLTaxonomy unitsinthemaintestbenchmarkisdeterminedsothattheDGs
+Feeders [10], and PG&E Prototypical Feeders comprising a penetrationlimitsadoptedinpracticearerespected,e.g.thetotal
+set of 12 test feeders from approximately 100 nodes to 2000 capacity of DG units is limited to less than 30% according to
+nodes[11]. Ontario’sstandard[17].TheproposedDGunitsareconsidered
+To the authors’ knowledge, none of these has all features dispatchablebiomass-fueledunits,whileitispossibletoreplace
+consideredinthetestbenchmarkpresentedinthispaper.More them with RERs, such as wind and PV units. Considering the
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 3 ===
+DOLATABADIetal.:ENHANCEDIEEE33BUSBENCHMARKTESTSYSTEMFORDISTRIBUTIONSYSTEMSTUDIES 2567
+Fig.1. TheenhancedIEEE33busdistributiontestsystem.
+TABLEI
+BUSDATAOFTHEENHANCEDIEEE33BUSDISTRIBUTIONTESTSYSTEM
+TABLEII
+GENERATORSDATAOFTHEENHANCEDIEEE33BUSDISTRIBUTIONTESTSYSTEM
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 4 ===
+2568 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.36,NO.3,MAY2021
+TABLEIII
+REACTIVEPOWERCOMPENSATORSDATAOFTHEENHANCEDIEEE33BUS
+DISTRIBUTIONTESTSYSTEM(ONLYFORRADIALDISTRIBUTIONSYSTEM)
+geographicaldistributionofDGs,severalwindandsolarprofiles
+can be used in studies related to RERs integration. Due to
+theimportanceofRERsintegrationinthemoderndistribution
+systems,arelativelycomprehensivedatasetforwindandsolar
+powergenerationispresentedin[3].Moreover,theproposedDG
+unitscanbereplacedorequippedwithlocalESSstobeableto
+studytheeffectsofthegrowingtrendofESSintegrationinpower
+Fig.2. Convexifiedreactivepowertotalcostcurve.
+systemsplanningandoperation[18].TheESScanbeconsidered
+as generator or load with determined stored energy amount.
+The maximum and minimum power injections determine the
+consideredassuitablecandidatesfortheinstallationofDGsand
+charging and discharging power limits and the limitations on
+RPCs.Notably,duetotheresistivenatureofthetestbenchmark,
+stored energy specifying the energy capacity. ESS units have
+it is necessary to consider the effects of both injected, active
+losses during charging and discharging procedures, depending
+and reactive, power to determine the appropriate locations for
+ontheirtechnologies[19],[20].Intheproposedtestsystemtwo
+the installation of DG units and reactive power compensation
+100(kW)andtwo200(kWh)ESSslocatedinbuses18,22,25,
+assets.
+and33,areconsidered.
+Finally,anovelmethodforevaluatingthecostsofproviding
+ReactivePowerCompensatorsData: Inordertoaddressthe
+reactivepowersupportforthegrid,inordertosupportthenodal
+required voltage restrictions in all cases, it is necessary to use
+voltageispresented.Thissimplifiedapproachcanhelpsystem
+reactivepowercompensation.Inthecaseofradialdistribution
+operator in decision making with the integration of RPCs to
+system compensators at buses 18 and 33 are considered. The
+achieve the desired operational conditions. The total cost of
+detailsofRPCsarepresentedinTableIII.Itisnoticedthatfor RPCs(TCRPC($))isdefinedas:
+meshed distribution system structures, reactive compensation
+(cid:6)
+is not required. The approach used for siting and sizing of
+TC RPC = A RPC q RPC +B RPC (4)
+RPCsandDGunitsisbasedonthevoltageandlosssensitivity r r r
+r
+analysespresentedin[2],[21].Thevoltagesensitivitymethod
+aimsatvoltagestabilityimprovementaccordingtotheamount
+oflocationalpowerinjection,whilethelosssensitivitymethod
+Where,AR
+r
+PCandB
+r
+RPCarethevariableandfixedcostsofr-
+determines the impact of power injection at each bus on grid
+threactivepowercompensator.AR
+r
+PCandB
+r
+RPCareconsidered
+losses[2],[21].
+equalto1000($)and3000($/MVAR),respectively,andq
+r
+RPC
+ThelocationofthecandidatebusesforDGsandRPCsinstal- isthesizeofeachRPC(MVAR)[22].Alternatively,thetotal
+lationbasedonthevoltagestabilitysensitivitytotheamountof cost of reactive power compensation can be expressed in the
+locationalpowerinjectioncanbeexpressedintheformof:[2]. form of the total cost of reactive power required for bringing
+(cid:2) (cid:3) (cid:2) (cid:3)(cid:2) (cid:3) thesystemminimumvoltageinacertainlevel.Fig.2presents
+ΔP
+=
+JPθ JPV Δθ
+(1)
+the relation of the total cost of reactive power and the system
+ΔQ JQθ JQV ΔV minimumvoltage.Thesemethodsforpowersystemseconomic
+(cid:4) (cid:5) analysisarepresentedinseveralreferences,suchas[23]–[26],
+S
+Q
+V =diag Δ
+Δ
+V
+Q
+=diag[(JQV −JQθJ
+P
+−
+θ
+1 JPV )−1] (2) s
+e
+h
+co
+ow
+no
+in
+m
+g
+ic
+th
+s
+a
+tu
+t
+d
+t
+i
+h
+e
+i
+s
+s
+.
+cost function can be used appropriately for
+(cid:4) (cid:5)
+ΔV Inthefollowing,asuitablepricingmethodforreactivepower
+S P V =diag ΔP =diag[(JPV −JPθJ Q − θ 1 JQV )−1] (3) compensationisproposed.Thisistheconvexhullpricingmodel,
+which is a well-behaved convex approximation of the total
+Where, JPθ, JPV, JQθ and JQV are the submatrices of cost function. The convex hull of a function (in some cases
+Jacobian matrix. ΔV and Δθ represent the changes of bus non-convexfunction)isthelargestandclosestconvexfunction
+voltage magnitudes and angles, respectively. ΔP and ΔQ are approximatingthefunctionfrombelowthatdoesnotexceedthe
+theactiveandreactivepowerchangesateachbus,respectively. givenfunctionatanypointinthedomain(i.e.convexenvelope).
+ThehighervaluesofdiagonalelementsofS
+Q
+V andS
+P
+V,matrices TheconvexhullfCH (x)off(x)isthegreatestconvexfunction
+indicate the most sensitive buses to reactive and active power thatsatisfies∀x, fCH (x)≤f(x)[23]–[25].
+changesandthusarethecandidatebusesforDGunitsandRPCs Inotherwords,theconvexhullpricingtriestoconvexifynon-
+installation.Inordertoconsidergridlosses,theirsensitivityto convex functions [23], [25], [26]. The convexification can be
+theinjectedactiveandreactivepowerateachbuscanbecalcu- realizedbyreplacingtheactualtotalcostfunctionwithitsconvex
+latedinasimilarwayandthebuseswithhighestsensitivitiesare envelope.Fig.2illustratesthisapproach.Itisnoticeablethat,as
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 5 ===
+DOLATABADIetal.:ENHANCEDIEEE33BUSBENCHMARKTESTSYSTEMFORDISTRIBUTIONSYSTEMSTUDIES 2569
+TABLEIV
+BRANCHESDATAOFTHEENHANCEDIEEE33BUSDISTRIBUTION
+TESTSYSTEM
+Fig.3. Bidfunctionormarginalbenefitofdispatchableloads.
+showninFig.2,theconvexenvelopecanbeexpressedas:
+TC
+C
+R
+H
+PC =643600V
+m
+2
+in
+−1056007Vmin +427786 (5)
+Where, Vmin is the system minimum voltage in (p.u.). No-
+tably, this representation of reactive power total cost can be
+used by system planners and operators for the enhancement
+of the distribution system aimed to satisfy certain operational
+conditions.
+ItshouldbenotedthattheRERspenetrationlevelinthemain
+testbenchmarkisabout21%,howeveritisextendabletostudies
+ofveryhighpenetrationofRERs.AlthoughRERspenetration
+beyond 30% is studied in few papers [27], there is a growing
+trendinRERsutilizationandaneedforhighRERspenetration
+studiesarises.Therefore,anevaluationofthefeasibilityofthis
+testbenchmark tobeusedforstudiesofveryhighpenetration
+ofdistributedrenewablegeneration(e.g.80%)isprovided.
+A very high penetration of RERs very highly leads to bidi-
+rectional or other uncontrolled power flows, therefore the ap-
+plication of flexible AC transmission systems (FACTS) in the
+distribution system, known as distributed FACTS (D-FACTS),
+might be needed [28]–[30]. Due to the proliferation of power
+electronic-basedD-FACTSdevices,integrationofthesedevices
+inactivedistributionsystemscanimproveelectricpowerquality,
+and performs voltage regulation, unbalance compensation and TABLEV
+power factor improvement, losses reduction and congestion HOURLYLOADPROFILEOFTHEENHANCEDIEEE33BUSDISTRIBUTION
+TESTSYSTEM
+management[28],[31].Intheproposedtestbenchmarkseveral
+control (D-FACTS) devices, such as OLTCs, phase shifters,
+RPCs, including static capacitors, are considered [28], [29].
+Their steady state modeling uses the node incidence matrix
+in order to avoid the difficulties of inverting the admittance
+matrix[32].
+BranchesData: Asignificantchangeintheproposedbench-
+mark is the reduction of the number of switchable branches
+to three in order to avoid unnecessary complexities. Notably,
+this modification does not affect the possibilities of general
+reconfigurations. Table IV presents the branches data for the
+proposed test benchmark. The ratio of the reactance to the
+resistance(X/R)ofthebranchesisrelativelylow(i.e.0.33to
+3.31),asmetinpracticaldistributionsystems.
+LoadData: Inmodernactive distributiongrids DSMmeth-
+odstotreatdispatchableandcurtailableloadsaredevelopedand
+needtobeconsideredinpowersystemstudies.Intheproposed
+benchmarkaprice-sensitivemodelforDSMofactivedemands
+is considered. In a simplified way, as illustrated in Fig. 3,
+thedemandisnon-curtailable(Pnc)forpricesbetweenVoLL
+and λ curtailable, and curtailable for prices below λ curtailable
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 6 ===
+2570 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.36,NO.3,MAY2021
+TABLEVI
+THEPOWERFLOWRESULTS
+[19], [20], [33]. This model is able to split the load into an TABLEVII
+interruptible and non-interruptible block to be used for social
+THEPOWERFLOWRESULTSFORVERYHIGHPENETRATIONOF
+RENEWABLEGENERATION
+welfaremaximization.Apossiblesplitbetweentheamountof
+non-curtailableandcurtailableloadis80%and20%oftotalload
+(Pd), respectively. This percentage can be of course changed
+basedontheassumptionsofdifferentstudies.Itisalsopossible
+to consider voltage dependent loads specially located at buses
+equippedwithvoltagecontrolsystems(i.e.busesnumber1,18, distribution systems, although like any other corrective proce-
+and33). dure,ithasitsimplementationdifficultiesandchallenges[39],
+Table V gives an hourly load profile compatible with the [40].Inthispaper,awell-designedunbalancedthree-phasedis-
+proposedtestbenchmarkwithoutconsideringDRprogramssuch tributionsystemwithlowunbalanceisproposed.Severalsingle
+asloadshiftingandloadreductionmechanisms.Itisnoticeable andtwo-phaseloadswithvariousconnectionpatternshavebeen
+thatadatasetforloadandRERs(i.e.windandsolargeneration) considered,howeverbyusingphasebalancing,thearrangement
+withthetimegranularity of 15minutes tosimulate theeffects oftheloadsisdeterminedinarelativelyuniformdistributedway
+of renewable intermittency are provided in [3]. The provided toreducethenecessityofrephasingmethods.Theconsequences
+datasetscomefrom[34]. oftheadoptedapproacharediscussedinthefollowingSection.
+B. TwoDifferentConfigurationsoftheTestBenchmark IV. DISCUSSIONSANDFURTHERDETAILS
+The proposed benchmark can be used to study radial dis- A key characteristic of the proposed benchmark is its
+tribution systems or meshed ones. In the following, the radial capabilitytobeusedasarealisticradialormesheddistribution
+andmeshedconfigurationsoftheproposedbenchmarkaredis- system. This can be used for different distribution system
+cussed. operationandplanningstudiesthatincludethereconfiguration
+RadialDistributionSystemConfiguration: Intheradialcon- of the system. Additionally, the dataset of the proposed
+figurationbranches33,34and35areswitchedout(noloops). benchmarkiscompatiblewithpowersystemanalysisplatforms,
+Buses18and33areequippedwithreactivepowercompensation such as MATPOWER, MATLAB/Simulink, GAMS and
+assetsof0.4and0.6(MVAR)capacities,respectively. DIgSILENT [19], [20], [41]–[44]. Note that the details of
+Meshed Distribution System Configuration: In the meshed the proposed test benchmark are publicly available online in:
+configurationbranches33,34and35areswitchedin,whilereac- https://github.com/PowerSystemsTestBenchmarks/IEEE33Bus
+tivepowercompensationisnotrequired.Itisofcoursepossible [3]. In this section results from some basic power systems
+tostudyotherconfigurationsbyswitchinginoroutthebranches analyses are presented for the both the radial and the meshed
+oftheproposedbenchmark.Itisnoteworthythattheproposed configurationsoftheproposedbenchmark.Itisnoticeablethat
+testbenchmarkiswell-compensatedandpresentsanacceptable thepowerflowandoptimalpowerflowanalysesarepresented
+amountofpowerlossestomodelanear-realmoderndistribution for8-9PMpeakloadhour,usingMATPOWER[19],[20].
+system. Moreover, due to its power procurement capacity and
+operational limitations, it is able to integrate electric vehicles A. PowerFlowAnalyses
+which is a growing trend in modern power systems [35]–[38].
+Theresultsofpowerflowanalysisforboththeradialandthe
+Theconsiderationofelectricvehiclesasenergystoragedevices
+meshedconfigurationsofbalancedtestbenchmarkarepresented
+whichcanimprovetheperformanceofthemodernsmartgrids
+in Table VI. As seen, the results conform completely with the
+andatthesametimebringseveralchallengestothemisanactive
+operationallimitationsofminimumvoltagelevelandtotalgrid
+areaofresearchnowadays.
+losses(2.34and2.61%oftotalloadinradialandmeshedcon-
+figurations, respectively). Moreover, the proposed benchmark
+C. UnbalancedTestBenchmark
+presentsaconsiderableloadabilityfactorcalculatedbasedonthe
+Unequal connection of single and two-phase loads, load voltagestabilitylimitations,asproposedin[2].Itisalsopossible
+increaseinonephaseandunequalimpedancesofbranchescan to be used for simulating DSM applications, RERs and ESSs
+cause unbalance in three-phase distribution systems having an integration studies and power electronic-based custom power
+impactonpowerquality,voltageprofilesandpowerlosses[39]. devices implementation. Notably, in the meshed configuration
+To overcome this challenge, phase balancing is commonly switchable lines 33, 34, 35 are considered active. The voltage
+applied for the correction of unbalance. This can be realized profileofthetestsystematallbusesforthepowerflowandopti-
+by appropriate reconnection of single and two-phase loads. malpowerflowarepresentedinFig.4.TableVIIrepresentsthe
+Rephasingisaneffectiveapproachtorealizephasebalancingin resultsofpowerflowforthecasewithveryhighpenetrationof
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 7 ===
+DOLATABADIetal.:ENHANCEDIEEE33BUSBENCHMARKTESTSYSTEMFORDISTRIBUTIONSYSTEMSTUDIES 2571
+TABLEVIII
+THEOPTIMALPOWERFLOWRESULTS
+Fig.4. Voltageprofileofbalancedtestsysteminradialandmeshedconfigu- Fig.5. Voltageprofileofunbalancedthree-phasetestsysteminradialconfig-
+rations. uration.
+RERs.Theresultsdemonstratetheapplicabilityandadaptability hasrelativelylowactiveandreactivepowerlosses(0.055(MW)
+of the proposed test benchmark for these studies. According and0.04(MVAR),respectively).Inotherwords,relativelylow
+totheresults,theproposeddistributionsystem,equippedwith powerlossesalongwithflatvoltageprofileverifytheefficiency
+D-FACTS,isabletoefficientlymanageahighlevelofrenew- oftheproposedunbalancedtestbenchmark.
+able generation causing bidirectional power flows and ensure In this paper, the case studies and numerical analyses are
+low grid losses and a satisfactory voltage profile. It should be mainly directed on fundamental studies, such as power flow
+notedthatbidirectionalpowerflowscancauseproblemsinthe analysis. The studies are conducted on both balanced and un-
+protectionofradialnetworks,designedforunidirectionalpower balanced versions of the proposed benchmark. The proposed
+flows[45].Inordertoaddresstheseproblems,theprovisionof benchmarkhowevercanbeusedinfutureresearchforvarious
+a reconfigurable meshed grid equipped with switchable lines, aspects of distribution systems. Some of the most significant
+as proposed in this test benchmark is important for relevant furtherresearchdirectionsare:
+studies [45], [46]. Moreover, the study of OLTCs and phase 1) Theconsiderationofuncertainties.Theproposedbench-
+shifters in order to facilitate power flow control can provide mark could be used for studies of distribution systems
+significantresults[47]. withahighamountofuncertaintiesinpowerdemandand
+RERs.
+2) Theconsiderationofunbalanceddistributiontestsystems.
+B. OptimalPowerFlowAnalyses
+Thisisalreadyprovidedintheproposedunbalancedver-
+The results presented in Table VIII, illustrate the economic sionofthetestbenchmarkintroducedinthispaper.Unbal-
+results of the optimal power flow analysis of the proposed ance in nowadays distribution systems is increasing due
+balancedtestsystem.Asseen,theproposedtestsystemisableto to the higher penetration of interconnected single-phase
+performeconomicpowerprocurementindifferentwaysaiming DGs.
+at minimizing total generation costs by the integration of DG
+units. This characteristic provides the potential for economic V. CONCLUSION
+andmarket-basedstudies.
+The established 33 bus benchmark distribution system has
+been extended by several enhancements, such as distributed
+C. UnbalancedSystemAnalyses
+generationunits,reactivepowercompensationdevices,switch-
+As a numerical case study, power flow analysis for the pro- able branches and the capability of integrating energy storage
+posed unbalanced three-phase test benchmark as a three-wire systems in both balanced and unbalanced configurations. It
+distributionsystemcomprisingYconnectedloadsandequipped alsoprovidesloadprofilesathourlyandsubhourlyresolutions.
+with OLTC is presented. The voltage profile of all buses of Numeroussystemconfigurationshavebeenconsideredforthe
+the test system is presented in Fig. 5. According to Fig. 5, it development of this test benchmark system, in order to make
+isobviousthattheadoptedprocedurefordesigningtheunbal- it suitable for planning and operational studies. According to
+ancedtestbenchmarkalongwiththeconsiderationofOLTCfor the considered data, the proposed model presents excessive
+voltagecontrolandregulation,similartoRPCs[4],providesa generationcapacitythatfacilitateseconomicstudiestakinginto
+well-designedunbalancedthree-phasedistributionsystemwith account participation in electricity markets. The consideration
+arelativelyflatvoltageprofile,asshowninFigure5.Moreover, ofreactivepowercompensationandbranchswitchingprovides
+the results demonstrate that the proposed unbalanced system further opportunities for balanced and unbalanced distribution
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 8 ===
+2572 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.36,NO.3,MAY2021
+systemstudies.Theresultsofsimulationsverifythefeasibility [22] F.Ugranli,E.Karatepe,andA.H.Nielsen,“MILPapproachforbilevel
+andadaptabilityoftheproposedtestbenchmarkunderdifferent transmissionandreactivepowerplanningconsideringwindcurtailment,”
+IEEETrans.PowerSyst.,vol.32,no.1,pp.652–661,Jan.2017.
+operationalconditions.
+[23] P.R.Gribik,W.W.Hogan,andS.L.Pope,“Market-clearingelectric-
+The authors have tried their best to create an appropriate itypricesandenergyuplift,”2007.[Online].Available:http://www.hks.
+dataset for modern distribution system studies, however they harvard.edu/fs/whogan/Gribik_Hogan_Pope_Price_Uplift_123107.pdf
+[24] R.Rockafellar,ConvexAnalysis(PrincetonLandmarksinMathematics).
+recognize that this is only the first step and further research is
+Princeton,NJ,USA:PrincetonUniv.Press,1997.
+needed.Theproposedtestbenchmarkisavailableonline,forfur- [25] D.A.Schiro,T.Zheng,F.Zhao,andE.Litvinov,“Convexhullpricing
+therupdates[3].Inadditiontothedatapresentedinthispaper,the inelectricitymarkets:Formulation,analysis,andimplementationchal-
+lenges,”IEEETrans.PowerSyst.,vol.31,no.5,pp.4068–4075,Sep.2016.
+online repository includes formatted datasets for several com-
+[26] B.HuaandR.Baldick,“AconvexprimalformulationforconvexHullpric-
+monanalysissoftwarepackages,includingMATPOWER,MAT- ing,”IEEETrans.PowerSyst.,vol.32,no.5,pp.3814–3823,Sep.2017.
+LAB/Simulink,GAMSandDIgSILENT[19],[20],[41]–[44]. [27] P.DenholmandM.Hand,“Gridflexibilityandstoragerequiredtoachieve
+veryhighpenetrationofvariablerenewableelectricity,”EnergyPolicy,
+vol.39,no.3,pp.1817–1830,2011.
+[28] W.N.Chang,C.M.Chang,andS.K.Yen,“Improvementsinbidirectional
+REFERENCES power-flow balancing and electric power quality of a microgrid with
+unbalanceddistributedgeneratorsandloadsbyusingshuntcompensators,”
+[1] M.E.BaranandF.F.Wu,“Networkreconfigurationindistributionsystems Energies,vol.11,no.12,2018,Art.no.3305.
+forlossreductionandloadbalancing,”IEEETrans.PowerDel.,vol.4, [29] J.Daietal.,“Optimalconfigurationofdistributedpowerflowcontroller
+no.2,pp.1401–1407,Apr.1989. to enhance system loadability via mixed integer linear programming,”
+[2] M. Ghorbanian, S. H. Dolatabadi, and P. Siano, “Game theory-based J. Modern Power Syst. Clean Energy, vol. 7, no. 6, pp.1484–1494,
+energy-managementmethodconsideringautonomousdemandresponse Nov.2019.
+anddistributedgenerationinteractionsinsmartdistributionsystems,”in [30] D.M.Divanetal.,“Adistributedstaticseriescompensatorsystemfor
+Proc.IEEESyst.J.,vol.15,no.1,pp.905–914,Mar.2021. realizingactivepowerflowcontrolonexistingpowerlines,”IEEETrans.
+[3] “Power systems test benchmarks,” doi: 10.5281/zenodo.4030695. PowerDel.,vol.22,no.1,pp.642–649,2007.
+Accessed: Dec. 2019. [Online]. Available: https://github.com/ [31] K.M.RogersandT.J.Overbye,“Someapplicationsofdistributedflexible
+PowerSystemsTestBenchmarks/IEEE33Bus ACtransmissionsystem(D-FACTS)devicesinpowersystems,”inProc.
+[4] T.Tewari,A.Mohapatra,andS.Anand,“Coordinatedcontrolofoltcand 40thNorthAmer.PowerSymp.,Calgary,AB,2008,pp.1–8.
+energystorageforvoltageregulationindistributionnetworkwithhighPV [32] P.Arboleya,C.Gonzalez-Moran,andM.Coto,“ModelingFACTSfor
+penetration,”IEEETrans.Sustain.Energy,vol.12,no.1,pp.262–272, powerflowpurposes:Acommonframework,”Int.J.Elect.PowerEnergy
+Jan.2021. Syst.,vol.63,pp.293–301,Dec.2014.
+[5] W.H.Kersting,“Radialdistributiontestfeeders,”IEEETrans.PowerSyst., [33] P. Siano and D. Sarno, “Assessing the benefits of residential demand
+vol.6,no.3,pp.975–985,Aug.1991. response in a real time distribution energy market,” Applied Energy,
+[6] R. F. Arritt and R. C. Dugan, “The IEEE 8500-node test feeder,” vol.161,pp.533–551,Jan.2016.
+in IEEE PES T&D, New Orleans, LA, USA, 2010, pp. 1–6, [34] “Dataplatformtimeseries,”[Online].Available:https://data.open-power-
+doi:10.1109/TDC.2010.5484381. system-data.org/time_series/
+[7] “Instituteofelectricalandelectronicsengineers(IEEE),”[Online].Avail- [35] E.L.Karfopoulos,K.A.Panourgias,andN.D.Hatziargyriou,“Distributed
+able:https://www.ieee.org/ coordinationofelectricvehiclesprovidingV2Gregulationservices,”IEEE
+[8] “IEEEPESAMPSDSAStestfeederworkinggroup,”[Online].Available: Trans.PowerSyst.,vol.31,no.4,pp.2834–2846,Jul.2016.
+https://site.ieee.org/pes-testfeeders/ [36] E. L. Karfopoulos and N. D. Hatziargyriou, “Distributed coordination
+[9] “Electric power research institute (EPRI),” [Online]. Available: https:// ofelectricvehiclesprovidingV2Gservices,”IEEETrans.PowerSyst.,
+www.epri.com/ vol.31,no.1,pp.329–338,Jan.2016.
+[10] “Pacific northwest national laboratory (PNNL),” [Online]. Available: [37] N.Hatziargyriou,“Guesteditorialspecialsectiononmicrogridsforsus-
+https://www.pnnl.gov/ tainable energy systems,” IEEE Trans. Sustain. Energy, vol. 5, no. 4,
+[11] “Pacificgasandelectriccompany(PG&E),”[Online].Available:www. pp.1309–1309,Oct.2014.
+pge.com [38] E.L.KarfopoulosandN.D.Hatziargyriou,“Amulti-agentsystemfor
+[12] A.M.Stanisavljevic,V.A.Katic,B.P.Dumnic,andB.P.Popadic,“Abrief controlledchargingofalargepopulationofelectricvehicles,”IEEETrans.
+overviewofthedistributiontestgridswithadistributedgenerationinclu- PowerSyst.,vol.28,no.2,pp.1196–1204,May.2013.
+sioncasestudy,”SERBIANJ.ELECTR.ENG.,vol.15,no.1,pp.115–129, [39] M.Dilek,R.P.Broadwater,J.C.Thompson,andR.Seqiun,“Simultane-
+Feb.2018. ousphasebalancingatsubstationsandswitcheswithtime-varyingload
+[13] F.P.Marcosetal.,“Areviewofpowerdistributiontestfeedersinthe patterns,”IEEETrans.PowerSyst.,vol.16,no.4,pp.922–928,Nov.2001.
+unitedstatesandtheneedforsyntheticrepresentativenetworks,”Energies, [40] C.Lin,C.Chen,H.Chuang,M.Huang,andC.Huang,“Anexpertsystem
+vol.10,no.11,pp.1896–1909,Nov.2017. forthree-phasebalancingofdistributionfeeders,”IEEETrans.PowerSyst.,
+[14] W.H.Kersting,“Radialdistributiontestfeeders,”inProc.IEEEPower vol.23,no.3,pp.1488–1496,Aug.2008.
+Eng. Soc. Winter Meeting. Conf. Proc. (Cat. No. 01CH37194), vol. 2, [41] MathWorks, “Matlab/simulink 9.3,” 2019. [Online]. Available: https://
+Jan.2001,pp.908–912. www.mathworks.com
+[15] D.KirschenandG.Strbac,FundamentalsofPowerSystemEconomics. [42] J. Y. Wong, “IEEE 33 Bus System,” 2020, MATLAB Central File
+Hoboken,NJ,USA:Wiley,2004. Exchange. Accessed: Sep. 15, 2020. [Online]. Available: https://www.
+[16] A. J. Wood, B. F. Wollenberg, and G. B. Shebl, Power Generation, mathworks.com/matlabcentral/fileexchange/73127-ieee-33-bus-system.
+Operation,andControl.Hoboken,NJ,USA:Wiley.,2014. [43] G.D.Corporation,“Generalalgebraicmodelingsystem(GAMS)release
+[17] “Ontario power authority,” [Online]. Available: http://www. 27.1.0,”Fairfax,VA,USA,2019.[Online].Available:https://www.gams.
+powerauthority.on.ca/ com/
+[18] M.R.Sheibani,G.R.Yousefi,M.A.Latify,andS.H.Dolatabadi,“Energy [44] “Digsilent powerfactory,” 2019. [Online]. Available: https://www.
+storage system expansion planning in power systems: A review,” IET digsilent.de/
+Renew.PowerGener.,vol.12,pp.1203–1221,Aug.2018. [45] J.Kim,S.Cho,andH.Shin,“Advancedpowerdistributionsystemconfig-
+[19] R. D. Zimmerman, C. E. Murillo-Sanchez, and R. J. Thomas, “MAT- urationforsmartgrid,”IEEETrans.SmartGrid,vol.4,no.1,pp.353–358,
+POWER:Steady-stateoperations,planning,andanalysistoolsforpower Mar.2013.
+systemsresearchandeducation,”IEEETrans.PowerSyst.,vol.26,no.1, [46] R.Rajaram,K.SathishKumar,andN.Rajasekar,“Powersystemreconfig-
+pp.12–19,Feb.2011. urationinaradialdistributionnetworkforreducinglossesandtoimprove
+[20] R.D.ZimmermanandC.E.Murillo-Sanchez,“Matpower[software],” voltage profile using modified plant growth simulation algorithm with
+2018.[Online].Available:https://matpower.org distributedgeneration,”EnergyRep.,vol.1,pp.116–122,Nov.2015.
+[21] V.V.S.N.MurtyandA.Kumar,“Reactivepowercompensationinubrds [47] V.Levi,M.Kay,andI.Povey,“Reversepowerflowcapabilityoftap-
+basedonlosssensitivityappraoch,”inProc.6thIEEEPowerIndiaInt. changers,”inProc.CIRED2005-18thInt.Conf.Exhib.Elect.Distrib.,
+Conf.,Dec.2014,pp.1–5. 2005,pp.1–5.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 13:49:05 UTC from IEEE Xplore. Restrictions apply.

@@ -1,0 +1,1748 @@
+=== page 1 ===
+3016 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+Optimal Coordination for Multiple
+Network-Constrained VPPs via Multi-Agent
+Deep Reinforcement Learning
+Xiao Liu , Student Member, IEEE, Sinan Li , Member, IEEE, and Jianguo Zhu , Senior Member, IEEE
+Abstract—This paper proposes a multi-agent deep reinforce- in the multiple VPP framework has recently become a hot
+ment learning method to coordinate multiple microgrids owned researchtopic[2].Ultimately,theVPPcoordinationshouldbe
+virtual power plants (VPPs) connected in the active distribution
+abletosimultaneously:(i)beresponsibleforthesafeoperation
+network.Acommunication-basedindependenttwindelayeddeep
+of the electricity network to ensure the feasibility of dispatch
+deterministic policy gradient method is proposed to implement
+a partially observable Markov game for coordinating multiple solutions [3], [4]; (ii) participate in a dynamically optimized
+VPPs (agents). The decentralized training process can protect market at their corresponding dispatch level to maximize the
+the privacy of the agent-based entity participating in the frame- economic benefits of all entities [5], [6]; (iii) provide a robust
+work, and each entity can share equal rights with simultaneous
+solutionagainsttheuncertaintiesthatariseduetotheintermit-
+decision-making. Internal markets are proposed in our frame-
+tency of DERs and the volatility of load demand and market
+work that the price contains the information of energy trading
+and network information. The price quota curve based exter- prices[7];(iv)implementreal-timeexecutionagainsttheflexi-
+nal market is proposed for further exploiting distributed energy ble market-clearing strategy [8]; (v) preserve privacy [9], [10]
+resource operation potential to enable VPPs with market power and fairness [11] of all participating entities. However, the
+to be price-makers. The proposed method has been verified
+simultaneousrealizationoftheobjectivesmentionedabovehas
+in a modified IEEE test system to prove its effectiveness. The
+been challenging.
+resultsconfirmthattheproposedframeworkcansimultaneously
+improve the operation cost and maintain network operational Extensive studies have been conducted on market opera-
+safety. tion strategies for multiple VPP coordination based on the
+ADN and MG configurations at transmission and distribution
+IndexTerms—VPPs,multi-agentdeepreinforcement learning,
+price-maker, optimal coordination. levels. At the transmission level, historical data-based meth-
+ods, e.g., the price quota curve (PQC), are typically applied
+to ADN to simplify the bidding process and protect bid-
+ders’ privacy while reflecting the bidders’ actions and market
+I. INTRODUCTION information in the wholesale market [1], [12]. At the distribu-
+WITH the increasing penetration of distributed energy tion level, a fixed-price or time-differentiated but pre-defined
+resources (DERs) and energy storage devices into pricing strategy has been adopted [13], [14]. However, such
+power systems, a growing number of microgrids (MGs) strategies usually do not consider simultaneous network and
+are becoming prosumers connected to the active distribution market operations, such as voltage binding constraints and
+network (ADN). The current energy trading framework of energy trading. Thus, they cannot fully exploit the poten-
+MGs and the ADN is often accomplished centrally through tial of DERs to maximize the entities’ profits while ensuring
+a distribution system operator (DSO), where the DSO serves network operation. Recently, many efforts have been dedi-
+as a price-taker at the transmission level. These MGs can be cated to ADN market operation strategies with consideration
+aggregatedintovirtualpowerplants(VPPs)toachievesimulta- ofspatial-temporalcouplingprice.Thestate-of-the-artsolution
+neousnetworkandmarketoperations,andthisframeworkcan isthedistributedlocationalmarginalprice(DLMP)[10], [15].
+be extended to include multiple VPPs for improved network However, DLMP is derived by extracting the Lagrangian
+coordination and economic profits, where the ADN (typically multiplier from power balance constraints, which can only
+having sufficient power capacity) can be a prosumer bidder reflect the market operation for active energy trading in the
+in the wholesale market and thereby be a price-maker [1]. distribution level, lacking information for ADN market oper-
+Designing a coordinated energy management system (EMS) ations in the upper level, such as wholesale market bidding
+information.Moreover,themathematicalapproachtoderiving
+Manuscriptreceived14June2022;revised14October2022;accepted26 the DLMP in a distribution network has to linearize the AC
+November2022.Dateofpublication1December2022;dateofcurrentversion power flow [16], resulting in modelling errors compared with
+21June2023.Paperno.TSG-00840-2022.(Correspondingauthor:XiaoLiu.)
+the real system model which is typically nonlinear.
+The authors are with the School of Electrical and Information
+Engineering, The University of Sydney, Sydney, NSW 2006, Australia Regardingsafeoperationfortheentiresystem,conventional
+(e-mail:xiao.liu1@sydney.edu.au). methods often rely on price signals to implicitly incentivize
+Color versions of one or more figures in this article are available at
+MG aggregators to support ADN [17]. The state-of-the-art
+https://doi.org/10.1109/TSG.2022.3225814.
+DigitalObjectIdentifier10.1109/TSG.2022.3225814 explicit method to provide voltage support is to operate
+1949-3053(cid:2)c 2022IEEE.Personaluseispermitted,butrepublication/redistributionrequiresIEEEpermission.
+Seehttps://www.ieee.org/publications/rights/index.htmlformoreinformation.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 2 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3017
+TABLEI
+COMPARISONOFRELATEDCOORDINATIONSTRATEGIESINTHEEXISTINGLITERATURE
+lower-level MGs cooperatively to support the upper-level has been well studied in power system applications. For
+networkwithglobalinformationandconstraintssharedamong example, [24], [25], [26], [27] adopted MADRL to achieve
+MGs and with direct active and reactive power control [4]. It multi-area voltage/var control, and [28] used multi-agent
+can be concluded that most existing work does not consider twin delayed deep deterministic policy gradient (MATD3) to
+both price signal and explicit cooperation for voltage support. coordinatedifferentagent-basedMGstoformulatethepeer-to-
+Analytical and heuristic iterative bi-level programming peer trading in the community-based market. However, these
+approacheshavebeenwidelyreportedregardingthecoordina- reportedworksrelyonthecentralizedtraininganddecentralized
+tion strategy. The analytical bi-level model can be solved by execution(CTDE)trainingstrategy.AlthoughtheCTDEframe-
+mathematical programming with equivalent constraint meth- work needs only the local information at the execution stage,
+ods and can be further transformed into a single level saving communication costs and solving the non-stationary
+for tractable solving [1], [5], [18]. However, analytical bi- problemcausedbytheMADRLenvironment.However,global
+level methods rely on the Karush–Kuhn–Tucker condition information needs to be exchanged at the training stage. As
+and strong duality theory. It becomes problematic when ADN/MG-basedVPPagentswithheterogeneitymayhavecon-
+solving non-convex and non-linearity problems. The global flicting optimization interests, they are unwilling to share the
+information from all individual entities is available, indicat- global information even at the training stage.
+ingthatentities’privacycannotbeprotected.Iterativebi-level Addressing the above limitations and gaps, our main con-
+models based on heuristic methods, such as the decentralized tributions are as follows:
+bi-levelmodelandbi-levelmodelbasedondeepreinforcement 1) We propose the internal market operation to coordinate
+learning (DRL) [9], have been proposed to tackle these chal- theADN-basedVPPagentswithmarketpowerandMG-
+lenges. The iterative bi-level model plays the lead-follower basedVPPagentswithsmallcapacity,wheretheinternal
+game for each iteration to pursue the Stackelberg equilib- marketpricecontainstheinformationofboththenetwork
+rium until convergence [22]. For each round, the follower andmarketoperations.TheADN-basedVPPagentscan
+first observes the leader’s action and then provides the best submitabidintheexternalwholesalemarketasaprice-
+response accordingly. While this coordination strategy is ben- maker, and the market will be cleared by the modified
+eficial for approaching stationary solutions and solves the PQC method, and the MGs serve as price-takers in the
+problems of the analytical bi-level model, it suffers from the internal market. The proposed internal/external market
+issue of first-mover advantage for the leader agent [23], vio- canimprovetheprofitsforallagentsinthishierarchical
+lating the fairness of each VPP. The unfairness may decrease framework and protect the privacy and fairness of all
+the interest of the market participants and harm the overall entities in an end-to-end fashion.
+coordination performance. 2) Weconsiderthenetwork-constrainedmodel.Eachagent
+Multi-agent deep reinforcement learning (MADRL) is an runs the AC optimal power flow model inside the VPP.
+alternative strategy for coordinating multi-agent systems, The MG-based VPP agents can also support the voltage
+which may potentially realize fairness and privacy pro- for the upstream electricity network-based agent with
+tection while considering the non-convexity of the ADN a global reward signal to improve the overall system
+system model with simultaneous decision making. MADRL coordination performance.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 3 ===
+3018 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+Fig.2. Supplypricequotacurveanddemandpricequotacurve.
+agents. Selected neighbor information will be shared
+between the ADN-VPP and MG-VPPs to improve the
+convergence.
+B. External Market and Internal Market
+Fig.1. TheproposedcoordinationframeworkformultipleVPPs.
+1) PQC-Based External Market Clearing Process: The
+PQC strategy is adopted to simplify the wholesale mar-
+ket’s clearing process and protect all bidders’ privacy. The
+3) Inspired by [31] and [36], we proposed a
+PQC-based market-clearing process is described as follows.
+communication-based independent twin delayed deep
+Firstly, the transmission system operator (TSO) collects
+deterministic policy gradient (C-ITD3) algorithm to
+information from other candidate bidders (quantity and price
+coordinate multiple VPPs under the partially observable
+bids) and the ADN-based VPP agent. The wholesale market
+Markov game (POMG). The training scheme is decen-
+implements the collected information to formulate PQC to
+tralized training with decentralized execution (DTDE)
+simplify the clearing process. The model of how PQC clears
+framework. DTDE can maintain privacy at the training
+the market is shown below:
+stage such that each agent can be treated as an indepen- (cid:2) (cid:3)
+dent learner in the environment [29]. Communication Pclear =F xbid,πbid , (1)
+t t t
+and low-dimensional fingerprints [30] are leveraged to (cid:2) (cid:3)
+enhance the stationarity of an independent learner and χ t set =ξx t clearπ t clear =FPQC x t bid,π t bid , (2)
+better coordination performance.
+where Pclear represents the clearing results for active power
+t
+in the wholesale market and F() the market clearing process.
+II. THEPROPOSEDFRAMEWORKANDMATHEMATICAL
+Equation (1) shows that Pclear is determined by xbid and πbid
+MODEL
+simultaneously. Equation (
+t
+2) shows how FPQC()
+t
+derives t
+t
+he
+A. Overview of the Proposed Framework wholesalemarketclearingresultsbythePQCandξ theparam-
+The proposed VPP cluster framework, as shown in Fig. 1, eterintheclearingprocess.Intheactivepowermarket,ξ =1,
+contains three layers which are described briefly as the while in the regulation service market, it is determined by
+following: the historical data and ξxclearπclear denotes the market clear-
+t t
+1) In the physical layer, the framework consists of one ing clear set and xclear denotes the cleared quantity in the
+t
+ADN prosumer with sufficient market power to par- day ahead market. πclear denotes the market clearing price
+t
+ticipate in the wholesale market bidding, multiple MG in the day ahead market. These two variables can be deter-
+prosumers with insufficient market power to participate mined when the PQC is formulated in the environment, and
+intheinternalmarket,andthepointofcommoncoupling the market-clearing process is finished.
+(PCC) connecting the ADN and MGs. As discussed in [31], the PQC can be further classified
+2) Inthemarketlayer,theframeworksconsistofanexternal as the demand price quota curve (DPQC) and supply price
+(activepower)marketandaninternalmarket.Theexter- quota curve (SPQC) in our proposed framework to allow the
+nalmarketprovides anenergytradingplatformbetween participants to become prosumers with spontaneous interest
+the ADN and the wholesale market. It determines the depending on their current states. Meanwhile, the PQC-based
+marketclearingresults,suchasclearingpriceandcleared method does not need to build an explicit model for inter-
+quantityfortheADN,allowingittobeaprosumerbidder actions with other market participants, which can ease the
+in the wholesale market. The internal market provides computation complexity of this multi-agent system problem.
+an energy trading platform between the ADN and MGs Besides that, the PQC can also be forecasted in nature [32],
+through the price signals, which reflect the information and experience replay in DRL with Markov property can
+of both market operation and network operations. also handle uncertainty with better generalization according
+3) Inthecoordinationstrategylayer,thecoordinationstrat- to temporal dependencies.
+egy is realized by DTDE MADRL, consisting of one InFig. 2,weplotSPQCandDPQCasstepwisecurves.The
+ADN-based VPP agent and multiple MG-based VPP ADN-based VPP agent can submit quantity and price bids
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 4 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3019
+to participate in the wholesale market. Through the market- Algorithm 1 PQC-Based Wholesale Market Clearing Process
+clearingprocesspresentedin(1)and(2),theagent-basedVPPs (SPQC&DPQC)
+will receive the clearing results from the market for each time Input: x t bid,π t bid,Quantity t,n , Price t,m
+slot t, as the following: t ∈[1,T], ∀ t∈Z
+(cid:4) (cid:5) (cid:6) n∈[1,N], ∀ n∈Z
+Pclear =
+x
+t
+bid,x
+(cid:5)t
+bid ≤
+(cid:6)
+x
+t
+PQC π
+t
+bid
+(cid:5) (cid:6) (3)
+m∈[1,M], ∀ m∈Z
+t x PQC πbid ,xbid >x PQC πbid 1. For t=1:T do (cid:5) (cid:6)
+t t t t t
+2. If |xbid|≤x PQC πbid
+t t t (cid:5) (cid:6)
+where x PQC(πbid) represents the maximum bid quantity when 3. Pclear = xbid and πclear =πPQC xbid and
+t t t t t t t
+the bid price is πbid. Inspired by [1], we can determine Pclear 4. πPQC can be determined via (5) (7) (9) (11) and
+t t t
+by (3) for both DPQC and SPQC. x PQC can be determined via (6) (8) (10) (12)
+t
+The clearing price π t clear can be calculated by 5. Else (cid:5) (cid:6)
+(cid:4) (cid:5) (cid:6) (cid:5) (cid:6) 6. Pclear =x PQC πbid and πclear = πbid and x PQC can
+πclear = π t PQC x t bid ,x t bid ≤ (cid:5) x t PQ (cid:6) C π t bid (4) be t determ t ined v t ia (6) (8) t (10) (12) t t
+t πbid,xbid >x PQC πbid 8. End
+t t t t
+Return πclear and Pclear as the clearing results
+t t
+where
+πPQC(xbid)
+represents the expected market clearing
+t t
+price in the PQC when quantity bid is xbid.
+t
+The following algorithm presents how we formulate PQC 2) Internal Market: The internal market is the coordina-
+with the MADRL approach in this paper: tion strategy to manage multiple MG-based controllable VPP
+⎡ ⎤
+agentsconnectedtotheADN-basedVPPwithasmallcapacity.
+Quantity t,n =⎣ P . o . 1 . ,1 . . . . . . Po .. 1, . N ⎦, (5) M
+im
+o
+p
+r
+a
+e
+c
+o
+t
+v
+p
+er
+o
+,
+w
+th
+e
+e
+r
+M
+sy
+G
+ste
+-b
+m
+as
+s
+e
+e
+d
+cu
+V
+r
+P
+it
+P
+y
+s
+a
+l
+n
+o
+d
+ca
+e
+te
+c
+d
+on
+a
+o
+t
+m
+di
+i
+f
+c
+fe
+c
+r
+o
+e
+s
+n
+t
+t
+d
+n
+i
+o
+f
+d
+fe
+e
+r
+s
+en
+m
+tl
+a
+y
+y
+.
+⎡
+Po 24,1 ... Po 24,N⎤
+Thus, the incentive price-based internal market mechanism
+Pr 1,1 ··· Pr 1,M considers spatial-temporal coupling for various entities to
+Price t,m =⎣ ··· ··· ··· ⎦. (6) coordinatethenetworkandmarketoperations.Comparedwith
+Pr 24,1 ··· Pr 24,M theconceptofDLMPin[10],[15],theproposedinternalmar-
+ketpricecontainstheinformationofthevoltage,activeenergy
+The matrices in (5) and (6) represent the information from
+trading, and bidder action space simultaneously from ADN
+therestofthebiddersinthewholesalemarket.Quantity t,n rep-
+in terms of the expected return. The optimal internal market
+resents the amount of active power quantity bid in the market price, λInternal∗ , under the policy π can be obtained by:
+at the nth block for time instant t and Price t,n denotes the i
+pri
+N
+ce
+ot
+b
+in
+id
+g
+i
+t
+n
+he
+th
+q
+e
+u
+m
+an
+a
+t
+r
+i
+k
+ty
+et
+b
+a
+id
+t t
+a
+h
+n
+e
+d
+m
+th
+th
+e
+b
+s
+l
+u
+o
+b
+c
+m
+k
+i
+f
+s
+o
+si
+r
+o
+t
+n
+im
+o
+e
+f A
+in
+D
+st
+N
+ant
+ag
+t.
+ent
+λI
+i
+nternal∗ =arg maxπJ(π). (13)
+at time t are:
+The internal market price for node i in an ADN at time t,
+(cid:11) (cid:12) λInternal, is bounded by its upper and lower decision bound-
+x t b , i n d = (cid:11) |x t bid 1 | ... |x t bid N(cid:12) | , (7) ar i, i t es as:
+where x t b , i n d and π t b , π m id t b ,m i = d ar π e t bi N d 1 × 1 .. a . nd π M t bid × M 1 , vectors for t ( h 8 e ) λI i, n t t , e m rn in al ≤λI i, n t ternal≤λI i, n t t , e m rn a a x l. (14)
+real-time Quantity t,n and Price t,m , respectively. The expected return can be written by the reward function
+We can then obtain the matching strategy as: J(π)=E o∼π[R(o)]underthetrajectoryofo,wherethereward
+R(o) contains the information of the penalty function of con-
+u t =Quantity t,n ≤x t b , i n d =[0 0 0... ...1], (9) straints and the market operation in the wholesale market as
+h t =Price t,m ≤π t b ,m id =[0 0 0... ... 1], (10) a prosumer bidder. The detail of the reward function design
+will be discussed in Section III.
+n quantity =−sum(u −1), (11)
+t t The boundaries for prices can be defined as the input vari-
+m p t rice =−sum( h t −1), (12) ables for market participants. In a real case of application, we
+can define the boundary for each time slot to fit the market
+whereuistheresultantbinaryvectortomatchQuantity t,n and conditions.
+x t b , i n d,andthenthblockcanbedeterminedbysummingthevec-
+torsinmatrixu.Similarthingscanbedoneformatrixh.Both
+C. Active Distribution Network-Based VPP Agent
+u and h can jointly determine the PQC curve formulation in
+theMADRLenvironment.Thealgorithmindicatesthegeneral Theagent-based ADNaimstooptimizeitsday-ahead oper-
+caseforasingleperiodwhichisapplicableforbothSPQCand ation cost. The objective function of the ADN-based agent
+DPQC according tothe sign of x t b , i n d submitted fromthe ADN- consists of three parts: the operation cost within ADN, the
+basedVPP.Themulti-periodPQCformulationstrategycanbe transaction cost within the wholesale market, and the trans-
+referred to Algorithm 1. action cost in the internal market with the MG-based VPP
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 5 ===
+3020 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+agents, as the following: D. MG-Based VPP Agent
+Since MG-based VPP agents have a similar operation fea-
+(cid:14) (cid:15) (cid:16)
+(cid:13)T (cid:13)N (cid:13)K ture to the ADN agent, the aforementioned model will not be
+MinfVPP,ADN =(cid:6)T C(MT)+ λI i, n t ternalPb i, u t y−λI i, n t ternal Ps i, e t ll discussed in the MG model. This subsection introduces the
+1 1 1 (cid:17) model in an MG that is different from the ADN model.
++λE
+bu
+x
+y
+te
+,t
+rnalPb
+t
+uy,clear−λE
+se
+x
+l
+t
+l
+e
+,t
+rnalPs
+t
+ell,clear , (15)
+Like the model of ADN, the MG-based VPP agent intends
+to minimize the day-ahead operation cost. Note that the MG-
+subject to: based VPP only receives dynamic incentive prices in the
+internal market. The objective function for MG j located at
+(cid:2) (cid:2) (cid:5) (cid:6) bus i in the ADN can be written as:
+P i,j,t =V i,t V i,t G i,j −V j,t G i,j cos (cid:6)θ i,j,t (cid:14) (cid:21)
+(cid:2) (cid:3)(cid:3)(cid:3) (cid:13)T (cid:13)N
++B i,j sin (cid:6)θ i t ,j MinfVPP,MG,j =(cid:6)T C(MT)+λI i, n t ternalPb i, u t y−λi i n ,t ternal Ps i, e t ll .
+(cid:5) (cid:5) (cid:5) (cid:6)
+1 1
+Q i,j,t =−V i,t V i,t B i,j + (cid:5) V j,t G (cid:6)i, (cid:6)j(cid:6) cos (cid:6)θ i,j,t (30)
+⎧
+−B i,j sin (cid:6)θ i,j,t , (16)
+subject to (16), (19)–(29), and
+⎨x t bid−PL t oad i=1 ⎧
+PA
+i,t
+DN =
+⎩
+PP
+i,
+C
+t
+C−PL
+i,t
+oad+PB
+i,t
+ess
+i>1,
+(17) ⎨ PP
+t
+CC−PL
+t
+oad i=1
++PM i,t T +PC i,t L+PR i,t ES PM i,t G = ⎩ PM i,t T −PL i, o t ad,+PB i,t ess i>1 (31)
+Q i =QP i, C t C−QL i,t +QB i,t ess+QM i,t T +QC i,t L, (18) +PC i,t L+PR i,t ES
+PB i,t e , s m s in ≤ PB i,t ess ≤PB i,t e , s m s ax , (19) Q i =QP i,t CC−QL i,t +QB i,t ess+QM i,t T +QC i,t L. (32)
+(cid:5) (cid:6) (cid:5) (cid:6) (cid:5) (cid:6)
+PB i,t ess 2+ QB i,t ess 2 ≤ S i B ,t e , s m s ax 2, (cid:2) (cid:3) (20)
+III. MULTI-AGENTDEEPREINFORCEMENTLEARNING
+ηchargaePBess PBess >0 (cid:6)t
+SOC i,t =SOC i,t−1 + i,t−
+E
+1
+Bes
+i
+s
+,t−1 A. Twin Delayed Deep Deterministic Policy Gradient
+(cid:2) (cid:3) i The twin delayed deep deterministic policy gradient
++
+PB
+i,t
+e
+−
+ss
+1
+PB
+i,t
+e
+−
+ss
+1
+<0 (cid:6)t
+, (21) (TD3) [34] is a model-free, off-policy actor-critic algorithm,
+ηdischargae·EBess and DNN is applied for function approximation. And TD3
+i
+SOC i,t,min ≤ SOC i,t ≤SOC i,t,max , (22) is an upgraded version of deep deterministic policy gradient
+(DDPG) [32].
+PC
+t,m
+L
+in
+≤ PC
+t
+L ≤PC
+t,m
+L
+ax
+, (23)
+DDPG is a policy gradient-based method that consists of a
+QC
+i,t
+L =ωCLPC
+i,t
+L, (24)
+critic and actor network. The critic network can be presented
+ωCL =tan(arccos(φ ), (25) by a Q function, and the target value y can be written as
+CL
+PM
+i,t
+T
+,min
+≤ PM
+i,t
+T ≤PM
+i,t
+T
+,max
+, (26) y
+ne
+=
+two
+r
+rk
++
+, w
+γQ
+he
+θ
+r
+(
+e
+s (cid:8)
+r
+,a
+re
+(cid:8))
+pr
+t
+e
+o
+se
+u
+n
+p
+t
+d
+s
+a
+t
+t
+h
+e
+e
+i
+r
+t
+e
+s
+w
+p
+a
+a
+r
+r
+d
+a
+,
+m
+a
+e
+n
+t
+d
+er
+γ
+θ
+is
+in
+th
+t
+e
+h
+d
+e
+is
+n
+c
+e
+o
+u
+u
+r
+n
+a
+t
+l
+QM
+i,t
+T =ωMTPM
+i,t
+T, (27)
+factor. The Q function can be updated as:
+ωMT =tan(arccos(φ MT ), (28) (cid:5) (cid:6) (cid:5) (cid:6) (cid:22) (cid:5) (cid:6) (cid:5) (cid:6)(cid:17)
+V i,min ≤ V i,t ≤V i,max . (29) Q s (cid:8),a (cid:8) ←Q s (cid:8),a (cid:8) +α r (cid:8)(cid:8)+γ m a ax,Q s (cid:8)(cid:8),a (cid:8)(cid:8) −Q s (cid:8),a (cid:8) ,
+(33)
+The AC power flow model in (16) can be referred to [21]. where α represents the step size for updating.
+Constraints(17)and(18)representthepowerbalanceforboth
+The critic network will be updated by the following loss
+active and reactive power flows, where PPCC represents the
+i,t function:
+active power transaction from MG-based VPP agent on bus i
+at time t, and PRES the active power generated by renewable 1
+(cid:13)B
+energy resources
+i,t
+on bus i at t. Bus i = 1 is the slack bus of
+L
+critic
+=
+|B|
+(Qθ (s,a)−y)2, (34)
+i=1
+ADN, and the power injected into this bus will be traded with
+a superior network, e.g., MV/HV network in the wholesale The actor network parameter φ will be updated using the
+market as a participant bidder. For bus i > 1, this equation deterministic policy gradient method as the following:
+represents the real-time balance. (cid:13)B (cid:23) (cid:24) (cid:25)
+1 (cid:24)
+the Eq p u o a w ti e o r ns co ( n 1 d 9 i ) ti – o ( n 2 a 2 l ) s a y r s e te t m he (P ba C t S te ) ry to op c e o r n a t t r i o o l n th m e od re e a l ct a i n v d e ∇ φJ ≈ |B|
+i=1 (cid:5)
+∇ a Q
+(cid:6)
+(s,a)| s=(oi ),a=πφi (s) ∇ φ π φ (s)(cid:24) s=oi , (35)
+power [33]. y=r+γQ (cid:8) s (cid:8),a (cid:8) . (36)
+In (23)–(28), the constraints represent the model of micro-
+turbine and controllable loads as the demand response, where B represents the size of mini-batches.
+where ωMT and ωCL represent the constant power factor, and However, the DDPG-based method always suffers from
+it can be derived from the tan() function. an overestimation of Q, which could cause sub-optimal
+Constraint (29) represents the nodal voltage limitation decision-making in real-world applications [35] and unstable
+for ADN. performance. TD3 can ease the overestimation by deploying
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 6 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3021
+a double critic network. The target value is updated with two
+critic networks by
+(cid:5) (cid:6)
+y 1 =r+γQθ 1 (cid:8) (cid:5) s (cid:8),a (cid:8) (cid:6)
+y
+2
+=r+γQθ(cid:8) s (cid:8),a (cid:8) . (37)
+2
+Instead of updating the target function as DDPG in (36),
+TD3 selects the minimum Q from the two critic networks by
+(cid:5) (cid:6)
+y=r+γ min Q (cid:8) s (cid:8),a (cid:8) , (38)
+i=1,2 i
+Fig.3. Communicationstrategyformulti-agentsetting.
+and then the issues can be mitigated.
+be written as O i,t = Ol i, o t cal ∪ON t− e 1 i, where ot i represents the
+B. Communication-Based Independent TD3 observation from agent i, ONei is the selected information
+t−1
+From the overview of the proposed framework, our VPP exchange which will be stored in the previous time step t−1,
+framework is a multi-agent system. Moreover, both the MG- ONei = [ONei ] j ∈ N, and f denotes the encoding pro-
+t−1,N
+i
+t−1,j i
+based VPPs and the ADN-based VPP are owned by self- cess via long short term memory neural network to better
+interested entities. The basic MADRL method is that each capture the temporal feature from the neighboring agents and
+VPP’s EMS is controlled by a DRL agent, and it is the idea environment [40].
+ofindependentQlearning(IQL)whichhasonlylocalobserva- Meanwhile,selectingONei thatsatisfiesMarkovian[39]for
+t−1
+tion in the state space [36]. This IQL architecture can also be all agents in the environment can speed up the convergence
+upgraded to the TD3 algorithm as independent TD3 (ITD3). and stabilize the training. The proposed framework overview
+However, since each agent acts independently when Q is can also ease the computational burden by compressing the
+updated as Q(s,a)≈Q(s,a), the MADRL environment for observation/state space in the critic network, which is more
+i i i
+eachagentisnon-stationary[29],[37].Non-stationaritycanbe scalablethanacentralizedapproachwithhugedimensionality,
+written as P(x (cid:8) |x,u,π1,...,πN)(cid:12)=P(x (cid:8) |x,u,π1,...,πN), assuming there is no communication delay as in [42].
+where πi (cid:12)= πi ∀i ∈ N, and from the assumption of the As suggested by [39], [40] and [30], low-dimensional fin-
+Markov decision process, the local observation does not con- gerprint selection can be realized by satisfying the following
+tain the information of other agents in the environment. A two principles:
+non-stationary environment for each agent may cause each (1) Neighboring communication: Firstly, we only consider
+agent hard to converge to a stable policy. The state-of-the- the neighboring agents to exchange low-dimensional
+art method is centralized training and decentralized execution fingerprints. In the case of networked agents in the
+(CTDE) [38]. The CTDE approach applies the centralized environment, MG-based VPP agents and ADN-based
+critic with global information to guide all agents to converge VPPagentarephysicallyconnectedforpowerexchange
+to a stable policy. This method, however, suffers from the and trading at the point of common coupling. A strong
+exposure of privacy and the curse of dimensionality. interactionexistedbetweenneighboringagents,andthus,
+We utilize the DTDE training strategy to address the con- the neighboring communication is considered between
+cern of privacy and propose a stabilization strategy in this theADN-basedVPPagentandtheMG-basedVPPagent.
+networked multi-agent system. Inspired by [30], [39], [40], (2) Markovian:Theneighboringcommunicationshouldsat-
+to handle the non-stationary environment, the neighboring isfy the Markovian condition, which means the selected
+agents communicate with each other to exchange the selected information can speed up and stabilize the convergence
+information during the training, unlike a centralized critic, foreachagentintheenvironment.Forexample,forMG
+which requires all information to be shared in the train- based agent, the fingerprint is selected as the internal
+ing progress, such that the selected information does not market price from the previous time step. As a result,
+sacrifice privacy. The communication strategy can include the MG-based VPP agents can make more appropriate
+the parameter sharing from the policy neural network θ −i decisions by observing the previous price signal from
+as Q i (s,u) ≈ Qθ i (s,u i ,θ −i ) [41]. We can also apply low- the ADN-based agent. On the other hand, the power
+dimensional fingerprint information as a communication strat- exchange from the previous time step can be consid-
+egy. The Q function for each local agent can be approximated ered as a power signal from MG-based VPP agents to
+as Q
+i
+(s,u) ≈ Qθ
+i
+(s,u
+i
+,x−i ) , and with the low dimensional ADN-based VPP agents. Both the internal market price
+fingerprint, the model is completely scalable under the struc- signal and power exchange signal from the previous
+ture of DTDE [39]. The Q function fo(cid:26)r each agent i can time step can be considered as the state for each agent,
+then be written as Q i (s,a)≈Q i (s,a i )+ j∈V i M j (s,a j ,aV j ), which satisfies the Markovian condition in the environ-
+where j represents the neighboring agent, M the selected ment. For both MG-based VPP agents and ADN-based
+j
+information from the neighboring agent j, and V the neigh- VPP agents, they can estimate the policy for other
+i
+borhood for agent i. To simplify the notation, we use ONei agents according to the neighboring information from
+t−1
+to represent the information from the neighboring agents. As theprevioustimestep,andithasbeenfurtherexplained
+shown in Fig. 3, for each agent i, the observation space can in [43] for policy estimation.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 7 ===
+3022 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+(cid:28) (cid:2)
+ThelossfunctionforC-ITD3foragentitoupdatethecritic where PRES and PLOAD are the active power profiles of the
+i,t t
+network can be written as: renewablegenerationandloadconsumptionintheVPPagent;
+(cid:13)B (cid:23)(cid:2) (cid:2) (cid:3) (cid:3) (cid:25) SOC i,t isthestateofchargeofthebatteryatbusiintimeslott;
+L c i ritic = |B 1 | Qθ i Ol i, o t cal,ON i,t e − i 1 ,a i −yt i 2 . (39) λb t id and Pb t id are the price bid and ac (cid:3) tive power (cid:3) quantity bid
+i=1 submitted to the wholesale market; λPQC and P PQC are the
+L,t L,t
+The loss functions considering the selected information market price and active power quantity as the PQC value, and
+oN i,t e − i 1 for agent i to exchange with the neighboring networked L represents the L th block in the PQC. To have a better gen-
+agents can be expressed as: eralization ability and handle the uncertainty for our proposed
+(cid:2) (cid:3) framework, we add the symbol(cid:30)in the observation space to
+y i =r i +γ u m =1 in ,2 Q (cid:8) u Ol i, o t cal,ON i,t e − i 1 ,a i . (40) r f e ra p m re e s w en o t rk t , he su G ch au a ss s ia t n he no w is h e ol f e o s r al t e he m u a n rk c e e t rta in in fo ty rm s a ta ti t o e n in fr o o u m r
+According to (39), the target value function for agent i can other bidders, intermittently renewable generation, and fluctu-
+be modified according to (38), and the action for agent i with atedloadprofile.TheproposedMADRL-basedmethodcanbe
+policy π φ(cid:8) can be written as: more robust considering different uncertainty scenarios [27].
+(cid:2) (cid:3) Action space: The continuous action space for the ADN-
+(cid:27)a i =π φ Ol i, o t cal,ON i,t e − i 1 +(cid:13),(cid:13) ∼clip(N(0,σ),−c,c). (41) based agents consists of the DER control and internal mar-
+ket price signal. The wholesale market operation can be
+The deterministic policy gradient for each agent i is expressed as:
+(cid:31)
+∇ ≈ φi Ji |B 1 | (cid:13)
+i=
+B
+1
+⎡ ⎣∇ aQ(oi ,ai )| oi= (cid:2) Ol
+i
+o,t cal,ON
+i,t
+e
+−
+i
+1
+(cid:3) ,ai=πφi (oi) ∇φi πφi (oi ) (cid:24) (cid:24) (cid:24) (cid:24)
+Oi=
+(cid:2)
+,Ol i o,t cal,ON i,t e − i 1
+(cid:3) ⎤ ⎦
+where th
+a
+e
+A t D
+di
+N
+m
+=
+ensi
+P
+o
+M i
+n
+,t
+a
+T
+l
+,
+it
+P
+y
+B i,t e
+o
+s
+f
+s,
+P
+Q
+M i,
+B i
+t
+,
+T
+t es
+,
+s,
+P
+P
+B i,
+C t
+t es
+L
+s
+,λ
+an
+I i, n
+d
+t ter
+λ
+na
+I i, n
+l
+t te
+,
+rnal sho
+(4
+u
+5
+ld
+)
+(42)
+be determined by the number of microturbines, batteries, and
+MG-based VPPs connected to the distribution network. The
+The observation/state for agent i includes the communi-
+cation information, and the set can be written as O = upper and lower boundary in discussed in Section IV.
+i
+(Ol i, o t cal,ON i,t e − i 1 )andactiona i =π φ i (O i )withpolicyπ φ i consid- bas R e e d wa a r g d en fu ts nc f t o io r n s : a T fe he op g e lo ra b t a io l n rew in ar t d he fu d n i c s t t i r o i n bu f t o io r n th n e e A tw D o N rk -
+ering that O is concatenated with the neighbored information
+i
+consists of both network and market operations:
+set.
+!(cid:26) (cid:11) (cid:12)
+C ADN,penalty = (cid:26) W i=1 ψ (cid:11)V i,t −V i min (cid:12) ,V i,t <V i min (46)
+C. Formulation of Partially Observable Markov Game t W i=1 ψ V i,t −V i max ,V i,t >V i max,
+The proposed mathematical model we discussed in
+Section II can be formulated as a POMG, which is where the square bracket indicates the penalty level for con-
+an extended version of the Markov decision process in straints, ψ indicates the parameter to modify the penalty
+a multi-agent setting. The tuple can be expressed as function, and W denotes the number of buses in ADN. The
+POMG(N,O ,{A},{O},P, {R},γ), where N represents linear constraint in (29) is reformulated as a strong penalty
+global i i i
+the number of interacting agents in the environment, O function in (46) to constrain the voltage violation.
+global
+the global observation but cannot be observed, and A denotes Combining the penalty of operation constraint and
+the set of individual action set of space {A}. The state tran- economic-based cost function, we can write the reward func-
+i
+sition probability is denoted as P , and {R} is the reward tion for the ADN-based VPP agent at time slot t as:
+i
+function for agent i in the environment. γ is the discount fac-
+(cid:13)N
+tor the same as the single-agent Markov decision process. As RADN =−C ADN,penalty−C Bess,penalty− CMT
+we have heterogeneous agents in our MADRL environment, t t t t
+n=1
+each agent in the environment aims to maximize its expected
+(cid:13)K
+return over a time horizon T as − C j M ,t G−C t External, (47)
+(cid:13)T n=1
+R i = γtr i,t . (43) (cid:26)
+n=1 where N n=1 C t MT is the sum of all microturbine operation
+Bess,penalty
+1) ADN-Based VPP Model: The ADN VPP agent consists
+costs in the ADN;(cid:26)C
+t
+can be derived from (19)–(22)
+similarly to (46); K CMG is the sum of transaction cost of
+of the observation space, action space, and reward function. n=1 j,t
+connectedMGsattimeslott,anditcanbederivedfrom(15);
+The model is transformed from (15)–(29).
+CExternal is the transaction cost with the external wholesale
+Observation space: The observation space of ADN-based t
+market for the market clearing process, which can be derived
+VPP can be written as:
+(cid:4) (cid:29) from (15) as well.
+OADN = P (cid:28) R i,t ES,P (cid:2) L t OAD,SOCi,t λb t id,Pb t id,λ (cid:3) P L, Q t C,P (cid:3) P L, Q t C,λI i, n t t − er 1 nal,ON t− e 1 i, , 2) MG-Based VPP Model: There are multiple MG-based
+t
+Vi,t VPPagentsinourframework.Agentjintheenvironmentcan
+(44) have its own policy from the given observation space.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 8 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3023
+Observationspace:TheobservationspaceinanMGcanbe Algorithm 2 Optimal Coordination of VPPs With C-ITD3
+written as: 1 Initialize γ,τ,θ ,θ ,φ and replay buffer DADN,DMG
+! " i1 i2 i j
+OM j,t G = P (cid:28) R t ES,P (cid:2) L t OAD,SOC i,t V i,t PP t CC, O N t− e 1 r , (48) 2 3 Fo I r ni e ti p a i l s i o z d e e ra 1 nd to om M pr d o o cessN asN(p|λ)∼ 1 exp(−|α−φ|)
+2λ λ
+for action exploration
+a w t h t e h r e eP P P t C − C C 1 C , re w p h re ic s h en c ts an the le a a c rn tiv t e h p e o t w em er p t o ra ra n l sa p c a ti t o te n rn wi s t a h m A e D a N s 4 Receive initial states for all agents and initial ON t− e 1 r
+5 For time step 1 to T do
+λInternal from the ADN agent.
+i,t−1 6 For ADN based VPP agent do
+Action space: For each MG j in the environment at time 7 Observe OADN in (45)
+t
+slot t, the action spa (cid:31) ce can be written as: 8 Choose action aA t DN according to OA t DN
+a j,t = PM i,t T,PB i,t ess,QB i,t ess,PC t L . (49) 9 End
+10 For each MG agent j do
+since we have multiple MG agents in the environment. For 11 Observe OMG in (48)
+t
+eachMGagentjattimeslott,theactionspacecanbedefined 12 Choose action aMGaccording to OMG
+t t
+as a j,t . 13 End
+Reward function: The transaction with the MG may impact 14 AC Power flow calculation for all agents-based
+theupper-levelagent,andtheMG-basedagentcansupportthe networks via (16). Implement wholesale market
+superior network [3] when a reward function is applied as the bidding process via Algorithm 1 and receive
+following: market-clearing results set θset =(Pclear,λclear).
+t t t
+RM j,t G =−(cid:16) j C t ADN,penalty−C t MG,penalty−C t Bess,penalty A ON ll E a R g f e r n o t m s r n ec e e tw iv o e rk th e e d c n o e m ig m hb u o n r i e c d ati a o g n en i t n s fo to rm f a o t r i m on
+(cid:13)N ne t w OADN and O microgrid
+− C t MT −C j P ,t CC. (50) t+1 t+1 microgrid
+15 EachMGagentjreceivesrewardR via(50)
+n=1 j,t
+microgrid
+where (cid:16) j is the willingness coefficient of the MG-based agent and observe new O t+1
+j to support the voltage safety operation of ADN [25]; item 16 Store(OM t G,aM t G,RM j,t G,OM t+ G 1 )inreplaybufferDM j G
+−(cid:16)C ADN,penalty is set as a global reward for MG agent j in 17 Each ADN agent receives RADN via (47) and
+j t t
+the environment at time slot t to implement voltage support observe new OA t+ D 1 N
+fromlocalagents;CPCC indicatestheactivepowertransaction 18 Store (OADN,aADN,RADN,OADN) in replay
+j,t t t t t+1
+with the ADN-based VPP in the internal market. buffer DADN
+For both the ADN-based VPP agent and MG-based VPP 19 End
+agents,theyhaveactionconstraints,asmentionedin(19)–(29). 20 For MG VPP agent = 1:K do
+For the setting in MADRL, the action bounds are constrained 21 Sample mini-batch B from DMG
+j
+by the last layer of the deep neural network and then mapped 22 Update the parameter critic network via (39) (40)
+into the action space for the environment. for the concern of overestimation by double critic
+23 Updatetheparameterintheactornetworkvia(41)
+D. Training and Implementation of the Proposed Algorithm 24 End
+25 For ADN agent do
+As we can observe from the Algorithm 2 and Fig. 4. The
+26 Sample mini-batch B from DADN
+proposed algorithm starts with initializing the replay buffer
+27 Update the parameter critic network via (39) (40)
+and parameter for the neural network. After all agents make
+for the concern of overestimation by double critic
+decisions based on the initial observation, and the AC power
+28 Updatetheparameterintheactornetworkvia(41)
+flow will be calculated by Newton’s method. The PQC-based
+End
+wholesale market will implement the market clearing process
+For each agent in the environment
+by Algorithm 1, and the clearing results for this process can
+bepresentedassetθset =(Pclear,λclear).ONer willbestoredin 29 Update double target critic network via (51)
+t t t t
+stepttobeconcatenatedintothenewobservationspacesOMG 30 Update target policy network via (52)
+t+1
+andOADN inthenexttimestept+1.EachMGagentjreceives 31 End
+t+1
+32 End
+R microgrid and ADN receives RADN. All agents sample mini
+j,t t 33 End
+batches from the replay buffer to update the neural network
+parameters θ , and θ in the double critic and φ in actor
+i1 i2 i
+network, respectively, as the following:
+θ(cid:8) ←τθ +(1−τ)θ(cid:8) IV. EXPERIMENTSANDRESULTS
+i1 i1 i1
+θ(cid:8) ←τθ +(1−τ)θ(cid:8) , (51) Inthissection,weaimtodemonstratetheeffectiveness and
+i2 i2 i2
+φ(cid:8) ←τφ +(1−τ)φ(cid:8). (52) efficiency of the proposed framework and algorithm in the
+i i i IEEE-33 bus distribution network with network constrained
+Finally,thetargetnetworkwillbeupdatedbythesoftupdate MGs [13]. The load for all buses is multiplied by the ratio
+parameter τ in (51) and (52). It can be fine-tuned to smooth with respect to the time slot. Since congestion is not consid-
+the training progress. ered in this case, the internal market price is mainly affected
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 9 ===
+3024 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+4) C-ITD3(DTDE)approach:Theproposedapproachhan-
+dles the non-stationary problem of DTDE MADRL
+by introducing communications between neighboring
+agents.
+5) IDDPG(DTDE)approach:IDDPGdoesnotincludethe
+tricks for handling overestimation or smoothing target
+action as TD3 does [44].
+6) MPEC (Model-based centralized method) approach:
+Heretheproblemisformulatedasacentralizedproblem
+with bi-level programming with KKT condition [5].
+Implementation details are given in Appendix A.
+7) ADMM (Model-based distributed method) approach:
+The problem is decomposed in the distributed fash-
+ion [20]. The internal market is not considered as the
+bilinear term in the objective function cannot be solved.
+Implementation details are given in Appendix B.
+The three scenarios are:
+1) Pre-defined time-differentiated price: A pre-defined
+time-differentiated price profile is used for training and
+Fig.4. TheschematicfortheproposedC-ITD3. execution. All MG VPP agents receive identical retailer
+prices for energy transactions without any update.
+2) Internal market without global voltage support: In this
+by voltage constraints similar to [10]. The tested system case, no global reward is considered for ADN’s safety
+includes one ADN-based VPP and three MG-based VPPs operation, i.e., each agent only works for its individual
+connected to ADN buses 19, 21, and 30. All VPPs contain optimization interest without ADN’s voltage constraint
+DERs such as renewable generation and battery. All DER considered.
+parameters,ADN/MGnetworkinformation,PV,windturbine, 3) Proposed Internal market and global voltage support:
+load profiles, and the hyperparameter of the neural network The proposed framework considers both economic
+are included in a separate document due to the page limita- interests and operation safety.
+tion.ThesimulationisimplementedintheMATLAB/Simulink
+2021benvironmentonacomputerwithCPUCorei7-10875H,
+B. Performance Results Comparison
+a 32 GB RAM, and an NVIDIA GeForce GTX 1650 Ti
+GPU. The testing at execution stage is based on multiple test- Basedontheassumptionofexperimentsandthealgorithms
+ing days and calculate the average value based on trained listedabove,therescaledaveragerewardsbasedontheabove-
+model. The decision space is set as follow, for the ADN- mentioned five MADRL based coordination strategies and
+based VPP agent, the decision space for MT 1-3, battery and market operation scenario 3 in a simulation of three-thousand
+internalmarketpriceissetas[0,400]kW,[−400,400]kWand episodes are shown in Fig. 5. The following observations can
+[40,60] $/kWh. be made:
+For the MG-based VPP agents, decision space for MT, 1) Bi-level approach attains the most stable policy, as it
+battery and demand response are selected as [0,200] kW, formulates a closed-loop framework where each agent
+[−100,100] kW, and [50,50] kW, respectively. knows its competitors’ actions during each time step;
+2) ITD3 cannot converge to a stable policy as it does not
+have a non-stationary handling strategy;
+A. Setup of Experiments
+3) CTDE-TD3 converges slowly because it requires a cen-
+To benchmark the performance of the proposed framework tralized Q function with a huge dimensionality to guide
+and algorithm, we evaluate the performance of five MADRL- all agents’ decision-making.
+based coordination strategies with identical model parameters 4) IDDPGperformspoorercomparedtoothercoordination
+and two Model-based method under three market operation strategiesregardingtheamountoftherewardandpolicy
+scenarios. In particular, the coordination strategies are: stableness, as it tends to attain sub-optimum decisions.
+1) Bi-levelapproach:TheBi-levelMADRLapproachcon- As shown, the proposed C-ITD3 outperforms the other
+sists of an upper-level and a lower-level model. This algorithms in the average reward, policy stableness, and
+closed-loop iterative method can be found in [9], [21], convergence speed.
+aiming to pursue the Stackelberg equilibrium [23]. Table IIcompares thevoltage violationrateofeach coordi-
+2) CTDE-TD3 (CTDE) approach: CTDE-TD3 is the form nation strategy. Here, IDDPG is excluded in the comparison
+of MATD3, which is the state-of-the-art model with owing to its relatively poorer overall performance shown in
+global information in the critic network [28]. Fig. 4. The following observations can be made:
+3) ITD3 (DTDE) approach: ITD3 is the basic DTDE 1) The Bi-level approach heavily violates the voltage con-
+method and lacks communication between them. straintsetforADN(seetheredbarsinTable II)because
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 10 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3025
+Fig.6. Operationcostforallentitieswithdifferentalgorithmswithrespect
+tothenumberoftrainingepisodes.
+Fig.5. Rescaledaveragerewardcomparisonbetweendifferentalgorithms.
+TABLEIII
+TABLEII AVERAGEOPERATIONCOSTWITHDIFFERENTALGORITHMS
+VOLTAGEVIOLATIONRATEWITHDIFFERENTALGORITHMS
+itcannotexploittheentiredecisionspaceduetothefirst
+move advantage set for the upper-level leader agent;
+2) The ITD3 approach also violates the constraint because
+only local observation is used for each agent, lacking
+coordination between agents;
+3) Both CTDE-TD3 and the proposed C-ITD3 approaches
+do not violate the operation constraint.
+4) The Model-based approach violates the voltage con-
+straint by 1.20% even with hard constraints. The reason
+for voltage violation is due to the mismatch between
+theapproximatedlinearizedmathmodelandtheoriginal
+nonlinearly AC power flow model.
+Fig. 6 and Table II further evaluate each coordination strat-
+Fig. 7. Further comparison between MADRL methods and model-based
+egy’seconomicperformancebyshowingeachentity’saverage methodintermsoftotalcost.
+(move mean method) day-ahead operation cost with respect
+to the training progress. Here, Bi-level TD3 is excluded in
+the comparison as it significantly violates the voltage con- is, C-ITD3 can achieve the best economic benefits for
+straints according to Table II. The following observations can each entity and the social welfare, i.e., the total profits
+be made: of all agents. The proposed C-ITD3 can achieve 83%
+1) ITD3 cannot converge to a stable policy, as shown in more than CTDE-TD3, and 14% more than ITD3 in
+Fig. 5, due to its local observation and non-stationarity total profits.
+problem for each agent, and also it cannot effectively The further comparison is implemented between the
+reduce the operation cost in VPPA-VPPC compared to MADRL method and model-based method in the Fig. 7
+CTDE-TD3 and C-ITD3; and Table III, we can observe that model-based method and
+2) CTDE-TD3caneffectivelyreducetheoperationcostsin MADRL method converge to different equilibrium point.
+VPPA-VPPCbutcannotreducethatinADN-basedVPP; There are three reasons:
+3) The proposed C-ITD3 can achieve comparably higher 1) The formulated model-based problem is a deterministic
+operation costs in VPPA-VPPC while significantly problem for simplicity, while the MADRL model is a
+reducingtheoperationcostoftheADN-basedVPP.That data-driven method that covers most of scenarios.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 11 ===
+3026 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+TABLEV
+COMPUTATIONTIMEFORDIFFERENTALGORITHMS
+Fig.8. InternalmarketpricesforCTDE-TD3andproposedmethodC-ITD3.
+TABLEIV
+FEATURECOMPARISONOFDIFFERENTMADRLALGORITHMS
+Fig.9. Rescaledaveragerewardfordifferentscenarios.
+2) The model-based method is a closed-loop solution that
+formulates the problem as a bi-level program with the
+C. Impact of the Internal Market and Global Voltage Support
+leader and follower assumption, while the MADRL is
+The overall performance of the proposed framework is fur-
+an open-loop method.
+ther assessed with different market operation scenarios by
+3) The model-based method applied linearized techniques
+using the average total reward, and the test is implemented
+as in (16a) and (29c), which may have errors com-
+with the proposed C-ITD3. The average total reward for all
+pared with the data generated by the real model with
+agents can reflect the social welfare and component/network
+nonlinearity.
+operation constraint. The results are depicted in Fig. 9. The
+FromtheobservationfromFig. 7,eventhoughtheMADRL
+following observations can be made:
+and MPEC methods converge to different policies, the
+1) The scenario without introducing explicit voltage sup-
+MADRLmethodcanstillapproachtheMPECmethodinterms
+port into global reward cannot converge to a sta-
+of the total cost. And the ADMM method does not consider
+ble policy. Even though the price signal contains the
+the internal market for more efficient coordination.
+information on voltage constraint, the reward is still
+Fig. 8 further compares the internal market price based
+lower than the proposed scenario. With the explicit
+on CTDE-TD3 and C-ITD3. As depicted, C-ITD3 results in
+cooperation of MG VPP, the proposed coordination
+a more flexible market price than CTDE-TD3. This higher
+framework can be more resilience when encountering
+flexibility in market operation means the coordination among
+unpredictable uncertainties
+all VPP entities is better promoted, thereby achieving better
+2) Theproposedinternalmarketcanresultinagreateraver-
+performance for ADN-based VPP in the wholesale market.
+age total reward than the pre-defined time-differentiated
+While the CTDE-TD3 approach cannot adjust the price flexi-
+price strategy. The internal market price contains mar-
+blyduetothecentralizedQfunctionwithhugedimensionality
+ket and network operation information that can improve
+thatincludesallinformation,theperformancewillbeimpacted
+the overall coordination performance, which can be
+by the growing number of agents [38].
+observed from the total reward for all agents.
+Table IV compares the features of different MADRL algo-
+rithms.Asshown,theproposedC-ITD3algorithmcanprovide
+D. Performance in the External/Internal Market
+the best features of fairness, privacy, and stationarity.
+Table Vcomparesthetrainingandexecutiontimeofseveral This section further discusses the ADN-based VPP
+coordinationstrategies.Asshown,theproposedC-ITD3strat- performance in the external wholesale market. To present
+egy outperforms all other strategies in terms of training time how PQC can exploit the potential of VPP agents, we com-
+andhasbetterperformancethanCTDE-TD3andBi-level-TD3 pare CTDE-TD3 with the proposed C-ITD3 strategy in both
+and comparable performance to ITD3 in terms of execu- the external wholesale market and internal coordination mar-
+tion time. The execution time of all four strategies can be ket. Based on the results shown in Fig. 10, the following
+completed in seconds despite such a complex coordination observations can be made:
+framework,indicatingthefeasibilitiesofreal-timecontroland 1) Fig. 10 (a) and (b) show that the proposed coordina-
+short-time market-clearing settlement compared with model- tion strategy allows ADN to sell more active power
+based methods. in the wholesale bidding market, i.e., ADN can gain
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 12 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3027
+Fig.10. (a)-(b)comparisonofperformanceintheexternalwholesalemarket, Fig.11. (a)averagerewardtotalcostofallagentswithrespecttothenumber
+and(c)-(d)comparisonofperformanceininternalmarket. ofepisodes,(b)averagevoltageineachbusinADN,(c)theADNtransaction
+andmarketclearingresultsintheexternalwholesalemarket(d)activepower
+transactionintheinternalmarket.
+more profits as a producer bidder during 1:00–3:00,
+12:00–15:00, and 23:00–24:00. In contrast, the CTDE-
+coordinationstrategyforVPPscoordinationtotheothercoun-
+TD3-based ADN VPP agent almost always plays a
+terpart strategies. The scalability check can also confirm the
+consumer bidder in the wholesale market.
+feasibilityofhavingmoreVPPaggregatorsintheenvironment,
+2) Fig. 10 (c) and (d) show the transactions between the
+which forges practicability in the future.
+ADN-based and MG-based VPP agents. The proposed
+C-ITD3canensureflexibleinternalpricetoenhancethe
+renewable energy consumption from each VPP agent,
+F. Discussion About the Impact of Communication Delay
+and less additional energy has to be traded from the
+Although we assume the ideal condition for communica-
+upstream electricity network, as we have discussed
+tion,thedelaymaystillhappeninthecommunicationprocess
+previously in Fig. 8 and Table II.
+during both the training and execution stages in the real
+application, which may cause the training performance to be
+E. Scalability Check With More MG VPP Agents uncontrollable due to the missing information. The missing
+Tofurtheranalyzethescalabilityoftheproposedframework informationmaycausetheobservationspacetobeincomplete
+and C-ITD3 strategy, we design a second test system with in that time step. However, we can compensate for it with
+six MG-based VPP agents connected to one ADN-based VPP missing value prediction, which is a normally used machine
+agent. The test data for this model is similar to the first test learning technique [45]. The missing value prediction relies
+system with three MGs. The PCC in ADN is selected as 5, onanotherneuralnetworktopredictitbyextractingtheexist-
+17, 19, 21, 24, and 30. Based on the results shown in Fig. 10, ingdatafromtheexperience replaybuffer.Thispredictionfor
+the following observations can be made: the missing value can mitigate the impact of communication
+1) Figs. 11 (a) again confirms that the model can converge delay. This point also deserves further research in the future.
+to a stable policy. Due to the page limit, we only plot
+the total cost for all agents. As shown, it decreases with
+respect to the episode of training.
+V. CONCLUSION
+2) Figs. 11 (b) shows the voltage at each bus for day- This paper proposes the network-constrained coordination
+ahead operation. Again, the model satisfies the voltage ofmultipleVPPs.Fromtheobservationofresults,theinternal
+constraint in ADN. and external PQC-based markets can provide flexible market
+3) Figs. 11 (c) and (d) show the system transactions in the participation for VPP owners with various market power. The
+external and internal markets, respectively. Again, we proposedC-ITD3canachievemoreprofitsfortheADN-based
+observe that the ADN-based VPP agent can be a pro- VPP in the bidding market and provide a flexible internal
+ducer bidder in the wholesale market in multiple time market price to improve the total social welfare. Meanwhile,
+slots for day-ahead operation, reducing the overall cost the network safety and resilience are guarded in the proposed
+while increasing the total social welfare. implicit internal market operation and explicit global voltage
+Thescalabilitycheck requires118hoursforoffline training support network operation. The proposed C-ITD3 can satisfy
+and7.60secondsforonlineexecution.Theabovecomparisons the privacy and network operation constraints even in the sce-
+andanalysescansolidlyverifythesuperiorityoftheproposed narioswithmoresmallcapacityVPPagents,whichiscloseto
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 13 ===
+3028 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+real applications. Meanwhile, the neural network-based repre- The lower-level MG model can be modeled as complemen-
+sentationforMADRLcanbeextendedtothecaseofreal-time tary slackness via KKT condition:
+coordination and short-time market settlement due to its fast Lower-level MG model:
+executiontimeandgeneralizationabilityagainstuncertainties. Objective function:
+Withtheproposedframeworkandcoordinationstrategy,pri- (cid:14) (cid:21)
+(cid:13)T (cid:13)N
+vacy, profits, fairness, and operational safety can be improved MinfVPP,MG,j =(cid:6)T C(MT)+λI i, n t ternalPb i, u t y−λi i n ,t ternal Ps i, e t ll .
+in an end-to-end fashion. Future work will be focused on
+1 1
+stability and better coordination performance via multi-agent (30)
+reinforcement learning.
+The derivation for the KKT condition for complementary
+slackness is presented below:
+APPENDIXA
+First order Partial differentiation:
+DERIVATIONFORCENTRALIZEDPROBLEM (cid:14)
+fied
+Th
+a
+e
+s
+p
+a
+ri
+M
+m
+a
+a
+t
+r
+h
+y
+em
+op
+a
+t
+t
+i
+i
+m
+ca
+a
+l
+l
+P
+m
+ro
+a
+b
+th
+le
+e
+m
+ma
+w
+ti
+i
+c
+th
+al
+E
+p
+q
+r
+u
+o
+i
+b
+l
+l
+i
+e
+b
+m
+riu
+c
+m
+an
+C
+b
+o
+e
+ns
+c
+tr
+l
+a
+a
+i
+s
+n
+s
+t
+i
+s
+-
+∂P
+∂L
+M i,t T
+=(cid:6)T
+(cid:13)T
+1
+(cid:13)N
+1
+(cid:5)
+2a∗PM
+i,t
+T +b
+(cid:6)
++μ
+3,i,t
+(ta
+(cid:21)
+n(arccos(∅
+MT
+)
+(MPEC).
+The bi-level model is transformed into a single-level model −λ 8,i,t +λ 9,i,t +μ 1,i,t =0
+using KKT conditions. Since the lower-level model is convex,
+theKKTconditionsarenecessaryandsufficientforoptimality. ∂L (cid:13)T (cid:22) (cid:17) ∂L
+T
+fo
+h
+l
+e
+low
+K
+s
+K
+:
+T conditions of the lower-level model are stated as ∂P b
+i,
+u
+t
+y
+=(cid:6)T
+1
+λI
+i,
+n
+t
+ternal−λ
+10,i,t
++μ
+1,i,t
+=0
+∂Ps
+i,
+e
+t
+ll
+(cid:13)T (cid:22) (cid:17)
+Model in the upper -level:
+Objective function: =(cid:6)T −λI i, n t ternal−λ 11,i,t −μ 1,i,t =0. (A1)
+1
+(cid:14) (cid:15) (cid:16)
+MinfVPP,ADN =(cid:6)T
+(cid:13)T (cid:13)N
+C(MT)+
+(cid:13)k
+λI i, n t ternalPb i, u t y−λI i, n t ternal Ps i, e t ll Inequali (cid:2) ty constraints: (cid:3)
+1
++λE
+bu
+1
+x
+y
+te
+,t
+rnalP
+t
+buy,clear
+1
+−λE
+se
+x
+l
+t
+l
+e
+,t
+rnalPs
+t
+ell,clear
+(cid:17)
+(15)
+0≤λ
+1,i,t
+⊥
+(cid:2)
+PB
+i,t
+ESS−PB
+i,t
+E
+,m
+SS
+ax (cid:3)
+≥0
+0≤λ
+2,i,t
+⊥ −PB
+i,t
+ESS+PB
+i,t
+E
+,m
+SS
+in
+≥0
+The constraint is modified for mathematical programming (cid:2) (cid:3)
+in (16a), which is different from the RL model (16), as we 0≤λ 3,i,t ⊥ (cid:5) S i B ,N ESSf m BESS−eB m E ,1 SS (cid:6) PB i,t ESS+eB m E ,2 SSQB i,t ESS ≥0
+mentioned in the man
+(cid:13)
+uscript. 0≤λ 4,i,t ⊥
+(cid:5)
+SOCi,t −SOCi,t,min
+(cid:6)
+≥0
+P ij,t = P jk,t +p j,t 0≤λ 5,i,t ⊥ (cid:2) −SOCi,t +SO (cid:3) Ci,t,max ≥0
+(cid:13)k 0≤λ 6,i,t ⊥ PC t L−PC t,m L in ≥0
+(cid:2) (cid:3)
+Q ij,t = Q jk,t +q j,t 0≤λ
+7,i,t
+⊥ −PC
+t
+L+PC
+t,m
+L
+ax
+≥0
+k (cid:5) (cid:6) (cid:5) (cid:6)
+v j,t =v i,t − r ij P ij,t +x ij Q ij,t v 1,t (16a) 0≤λ 8,i,t ⊥ (cid:5) PM i,t T−PM i,t T ,min ≥ (cid:6) 0
+The PQC-based market clearing strategy has been modeled
+0≤λ
+9,i,t
+⊥
+(cid:2)
+−PM
+i,t
+T
+(cid:3)
++PM
+i,t
+T
+,max
+≥0
+by binary auxiliary variables and PQC data as in [1].
+0≤λ
+10,i,t
+⊥
+(cid:2)
+Pb
+i,
+u
+t
+y
+(cid:3)
+≥0
+(cid:13)NS (cid:5) (cid:6) 0≤λ 11,i,t ⊥
+(cid:2)
+Ps i, e t ll ≥0
+(cid:3)
+x t bid = b=1 x t v , a b r+v t,b (cid:27)x t,b (29a) 0≤λ 12,i,t ⊥ (cid:2) SOCi,t ∗E i BESS+η chaPc i, h t a(cid:6)t−η disPd i, i t s(cid:6)t−E m BE in SS (cid:3) ≥0
+(cid:13)NS (cid:5) (cid:6) 0≤λ 13,i,t ⊥ −SOCi,t ∗EB i ESS−η chaPc i, h t a(cid:6)t+η disPd i, i t s(cid:6)t+E B m E a S x S ≥0.
+π t bid = π t v , a b r+u t,b (cid:27)π t,b , (29b) (A2)
+b=1
+Equality constraint:
+where x t bid and π t bid can be represented by a binary vari- (cid:2) (cid:3)
+able v t,b and u t,b to determine the quantity bid and price bid, μ 1,i,t (cid:2) PM i,t T+PP i,t V+PW i,t T−Pc i, h t a+Pd i, i t s− (cid:3) Pl i o ,t ad+P b i, u t y−Ps i, e t ll =0
+which is the mathematical formulation of Algorithm 1 in the
+manuscript.
+μ
+2,i,t
+QP
+i,
+C
+t
+C−QL
+i,t
++QB
+i,t
+ess+QM
+i,t
+T+QC
+i,t
+L =0
+(cid:11) (cid:5) (cid:12)
+Note the bilinear constraints in (20) have been trans- μ 3,i,t(cid:22) tan (cid:2) arccos(∅ MT )PM i,t T−QM i,t T (cid:17) =0
+formed into linear constraints, as shown in (29c) and (29d),
+where eBESS, eBESS, and SBESS are constant values for linear μ 4,i,t tan arccos(∅ CL )PC i,t L−QC i,t L =0, (A3)
+m,1 m,2 i,N
+approximation. where μ i,t is the dual variable associated with equality con-
+⎡ eBESS eBESS ⎤ (cid:23) (cid:25) ⎡ fBESS ⎤ straint (16), and λ k,i,t ,k = 1,...,13 is the dual variables
+⎣ 1 · , · 1 · 1 · , · 2 · ⎦· Q PB i B ,t E E S S S S ≤S i B ,N ESS·⎣ 1 ··· ⎦ (29c) a i s a s t o t c i i m at e ed sl w ot it t h . inequality constraints for the MG-based VPP
+eBESS eBESS i,t fBESS
+Nseg ,1 Nseg ,2 Nseg The bilinear equations in (A2) can be rearranged into an
+eB m E ,1 SSPB i,t ESS+eB m E ,2 SSQB i,t ESS−S i B ,N ESSf m BESS ≤0 (29d) equivalentlinearexpressionusingthebig-Mmethod.Foreach
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 14 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3029
+bilinear equation λf(x) = 0(λ ≥ 0, f(x) ≥ 0), it can be agent. ρ represents the penalty value, which is predefined in
+substituted by the following: the setting.
+Withthesamesetting,theobjectiveforMGbasedVPPcan
+0≤μ≤M·δ,δ ∈{0,1}
+bederivedfrom(30)bysubtractingthetermofinternalmarket
+0≤f(x)≤M·(1−δ), (A4) transaction.
+where δ represents the newly introduced binary variables. M Objective function for MG based VPP agent under each
+iteration:
+is a sufficient large constant that can affect the correctness of (cid:22) (cid:5) (cid:6)
+the equivalence. minxTDx + λr−1 x −xr∗
+Transformation for the bi-linear term in objective function: xm , m m m # a # (cid:17)
+The optimal value of the lower-level primal problem is equal + 0.5ρ# x m −x a r∗#2 2
+to that of the dual problem according to the strong duality Subject to (19)−(28), (29c), (29d). (B2)
+theorem.Theoptimalsolutiontotheproblemcanbeexpressed
+as follows: We applied the linear approximation as we have discussed
+in the MPEC model. The parameter in MG is the same as we
+(cid:13)Neq (cid:5) (cid:6) N(cid:13)ineq(cid:5) (cid:6)
+W ∗ = b μ∗ + d λ∗ =(cid:20)∗ , (A5) set in ADN.
+MG n n m m MG Then the convergence criteria can be presented as primary
+n=1 m=1
+and dual residual tolerance.
+whereW
+∗ and(cid:20)∗
+representtheoptimalvalueoftheprimal # #
+problem M a G nd dual M p G roblem, and μ∗ n and λ∗ m are the optimal ε p r =# x #m r∗−x a r∗# 2 #
+solution of the Lagrange multipliers. εr =ρ # #xr∗−xr−1∗,xr∗−xr−1∗ # # (B3)
+T (cid:26) herefore, for each MG, the bi-linear terms d m m a a 2
+(cid:6)T T (λInternalP buy−λ internal Psell) in the upper-level The Lagrange multiplier will be updated as:
+t=1 i,t i,t i,t i,t
+(cid:5) (cid:6)
+objective function can be replaced by the following rela- λr =λr−1+ρ xr∗−xr∗ (B4)
+tionship according to the strong duality of the lower-level m a
+problems:
+ACKNOWLEDGMENT
+(cid:13)T (cid:2) (cid:3)
+(cid:6)T λI
+i,
+n
+t
+ternalP b
+i,
+u
+t
+y −λI
+i,
+n
+t
+ternalPS
+i,
+e
+t
+ll The authors would like to thank Dr. Cuo Zhang of the
+t=1 University of Sydney for his valuable discussion and sugges-
+(cid:14) (cid:21)
+(cid:13)T (cid:13)N (cid:13)Neq N(cid:13)ineq tion.
+=(cid:6)T C(MT) + (b μ )+ (d λ ), (A6)
+n n m m
+1 1 n=1 m=1 REFERENCES
+substituting(A6) into the (15), one can rearrange the objective
+[1] Z. Yi, Y. Xu, H. Wang, and L. Sang, “Coordinated operation strategy
+function for the upper-level VPP agent into a linear form. foravirtualpowerplantwithmultipleDERaggregators,”IEEETrans.
+The entire centralized problem can be formulated as: Sustain.Energy,vol.12,no.4,pp.2445–2458,Oct.2021.
+[2] Y. Wang, X. Ai, Z. Tan, L. Yan, and S. Liu, “Interactive dispatch
+min (15) modes and bidding strategy of multiple virtual power plants based on
+demand response and game theory,” IEEE Trans. Smart Grid, vol.7,
+s.t. (14),(16a)−(29), (29a)−(29d), (A3)−(A4)
+no.1,pp.510–519,Jan.2016.
+[3] J.Naughton,H.Wang,M.Cantoni,andP.Mancarella,“Co-optimizing
+In summary, the entire problem can be formulated as cen- virtualpowerplantservicesunderuncertainty:Arobustschedulingand
+tralized MILP problem and solved by a commercial solver, recedinghorizondispatchapproach,”IEEETrans.PowerSyst.,vol.36,
+no.5,pp.3960–3972,Sep.2021.
+such as CPLEX/GUROBI.
+[4] Q. Zhang, K. Dehghanpour, Z. Wang, F. Qiu, and D. Zhao, “Multi-
+agent safe policy learning for power management of networked
+microgrids,” IEEE Trans. Smart Grid, vol.12, no.2, pp.1048–1062,
+APPENDIXB
+Mar.2021.
+ADMM-BASEDMETHODFORDISTRIBUTEDTREADING [5] Z. Yi, Y. Xu, J. Zhou, W. Wu, and H. Sun, “Bi-level programming
+for optimal operation of an active distribution network with multiple
+Augmented Lagrange function for the ADN-based VPP
+virtual power plants,” IEEE Trans. Sustain. Energy, vol.11, no.4,
+agent: pp.2855–2869,Oct.2020.
+(cid:23) (cid:2) (cid:3) # # (cid:25) [6] X. Wang et al., “Tri-level scheduling model considering residential
+min Ax + λr−1 xr−1∗−x +0.5ρ # #xr−1∗−x # # 2 demand flexibility of aggregated HVACs and EVs under distribu-
+xa a m a m a 2 tion LMP,” IEEE Trans. Smart Grid, vol.12, no.5, pp.3990–4002,
+Subject to (16a)−(29), (29a)−(29d). (B1) Sep.2021.
+[7] Y. Cao et al., “Optimal energy management for multi-microgrid
+under a transactive energy framework with distributionally robust
+Note we do not consider the internal market in the setting
+optimization,” IEEE Trans. Smart Grid, vol.13, no.1, pp.599–612,
+of ADMM based methods. The only information exchange Jan.2022.
+between ADN and MG is active power through PCC. [8] Y. Du and F. Li, “Intelligent multi-microgrid energy manage-
+ment based on deep neural network and model-free reinforcement
+The first term Ax can be derived from (15) by subtracting
+a learning,” IEEE Trans. Smart Grid, vol.11, no.2, pp.1066–1076,
+the term of internal market transaction. Where x a represents Mar.2020.
+theoptimaldecisionvariablefromtheADNbasedmodel,and [9] C. Guo, X. Wang, Y. Zheng, and F. Zhang, “Optimal energy manage-
+λr−1
+represents the dual variable from the last iteration,
+xr−1∗ mentofmulti-microgridsconnectedtodistributionsystembasedondeep
+m reinforcement learning,” Int. J. Electr. Power Energy Syst., vol.131,
+represents the optimal decision variable from MG based VPP Oct.2021,Art.no.107048.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 15 ===
+3030 IEEETRANSACTIONSONSMARTGRID,VOL.14,NO.4,JULY2023
+[10] L. Wang, Z. Zhu, C. Jiang, and Z. Li, “Bi-level robust optimization [30] J. Foerster et al., “Stabilising experience replay for deep multi-agent
+fordistributionsystemwithmultiplemicrogridsconsideringuncertainty reinforcement learning,” in Proc. 34th Int. Conf. Mach. Learn., 2017,
+distributionlocationalmarginalprice,”IEEETrans.SmartGrid,vol.12, pp.1146–1155.
+no.2,pp.1104–1117,Mar.2021. [31] J. Arteaga and H. Zareipour, “A price-maker/price-taker model for the
+[11] X. Sun, J. Qiu, Y. Tao, Y. Ma, and J. Zhao, “Coordinated real-time operationofbatterystoragesystemsinelectricitymarkets,”IEEETrans.
+voltagecontrolinactivedistributionnetworks:Anincentive-basedfair- SmartGrid,vol.10,no.6,pp.6912–6920,Nov.2019.
+nessapproach,”IEEETrans.SmartGrid,vol.13,no.4,pp.2650–2663, [32] A.Coronati,J.R.Andrade,andR.J.Bessa,“Adeeplearningmethodfor
+Jul.2022. forecasting residual market curves,” Electr. Power Syst. Res., vol.190,
+[12] H. M. I. Pousinho, J. Contreras, A. G. Bakirtzis, and J. P. S. Catalão, Jan.2021,Art.no.106756.
+“Risk-constrained scheduling and offering strategies of a price-maker [33] D.Caoetal.,“Deepreinforcementlearningbasedapproachforoptimal
+hydro producer under uncertainty,” IEEE Trans. Power Syst., vol.28, power flow of distribution networks embedded with renewable energy
+no.2,pp.1879–1887,May2013. andstoragedevices,”J.ModernPowerSyst.CleanEnergy,vol.9,no.5,
+[13] Z. Wang, B. Chen, J. Wang, M. M. Begovic, and C. Chen, pp.1101–1110,Sep.2021.
+“Coordinated energy management of networked microgrids in distri- [34] S.Fujimoto,H.Hoof,andD.Meger,“Addressingfunctionapproxima-
+bution systems,” IEEE Trans. Smart Grid, vol.6, no.1, pp.45–53, tionerrorinactor-criticmethods,”inProc.35thInt.Conf.Mach.Learn.,
+Jan.2015. 2018,pp.1587–1596.
+[14] D. T. Nguyen, H. T. Nguyen, and L. B. Le, “Dynamic pric- [35] X.Chen,G.Qu,Y.Tang,S.Low,andN.Li,“Reinforcementlearning
+ing design for demand response integration in power distribution for selective key applications in power systems: Recent advances and
+networks,” IEEE Trans. Power Syst., vol.31, no.5, pp.3457–3472, futurechallenges,”2021,arXiv:2102.01168.
+Sep.2016. [36] M. Tan, “Multi-agent reinforcement learning: Independent ver-
+[15] Y. Du and F. Li, “A hierarchical real-time balancing mar- sus cooperative agents,” in Proc. Int. Conf. Mach. Learn., 1993,
+ket considering multi-microgrids with distributed sustainable pp.330–337.
+resources,” IEEE Trans. Sustain. Energy, vol.11, no.1, pp.72–83, [37] K. Zhang, Z. Yang, and T. Bas¸ar, “Multi-agent reinforcement learn-
+Jan.2020. ing: A selective overview of theories and algorithms,” in Handbook
+[16] H.Wang,Z.Bie,andH.Ye,“Locationalmarginalpricingforflexibility of Reinforcement Learning and Control. Cham, Switzerland: Springer,
+and uncertainty with moment information,” IEEE Trans. Power Syst., 2021,pp.321–384.
+earlyaccess,Aug.4,2022,doi:10.1109/TPWRS.2022.3196155. [38] R.Lowe,Y.I.Wu,A.Tamar,J.Harb,O.P.Abbeel,andI.Mordatch,
+[17] L. Bai, J. Wang, C. Wang, C. Chen, and F. Li, “Distribution loca- “Multi-agent actor-critic for mixed cooperative-competitive environ-
+tionalmarginalpricing(DLMP)forcongestionmanagementandvoltage ments,”inAdvancesinNeuralInformationProcessingSystems,vol.30.
+support,” IEEE Trans. Power Syst., vol.33, no.4, pp.4061–4073, RedHook,NY,USA:Curran,2017.
+Jul.2018. [39] T.Chu,J.Wang,L.Codecà,andZ.Li,“Multi-agentdeepreinforcement
+[18] B. Wang, C. Zhang, C. Li, G. Yang, and Z. Y. Dong, “Transactive learningforlarge-scaletrafficsignalcontrol,”IEEETrans.Intell.Transp.
+energy sharing in a microgrid via an enhanced distributed adaptive Syst.,vol.21,no.3,pp.1086–1095,Mar.2020.
+robustoptimizationapproach,”IEEETrans.SmartGrid,vol.13,no.13, [40] D.Chenetal.,“PowerNet:Multi-agentdeepreinforcementlearningfor
+pp.2279–2293,May2022. scalable powergrid control,” IEEE Trans. Power Syst., vol.37, no.2,
+[19] Y. Li, M. Han, Z. Yang, and G. Li, “Coordinating flexible demand pp.1007–1017,Mar.2022.
+response and renewable uncertainties for scheduling of community [41] G. Tesauro, “Extending Q-learning to general adaptive multi-agent
+integrated energy systems with an electric vehicle charging station: systems,” in Advances in Neural Information Processing Systems,
+A bi-level approach,” IEEE Trans. Sustain. Energy, vol. 12, no. 4, vol.16.Cambridge,MA,USA:MITPress,2003.
+pp.2321–2331,Oct.2021. [42] Y. S. Nasir and D. Guo, “Multi-agent deep reinforcement learn-
+[20] L. Wang, C. Jiang, K. Gong, R. Si, H. Shao, and W. Liu, “Data- ing for dynamic power allocation in wireless networks,” 2018,
+drivendistributionallyrobusteconomicdispatchfordistributionnetwork arXiv:1808.00490.
+withmultiplemicrogrids,”IETGener.Transm.Distrib.,vol.14,no.24, [43] Z. Zhu, K. W. Chan, S. Xia, and S. Bu, “Optimal bi-level bidding
+pp.5712–5719,2020. and dispatching strategy between active distribution network and vir-
+[21] Q.Zhang,K.Dehghanpour,Z.Wang,andQ.Huang,“Alearning-based tual alliances using distributed robust multi-agent deep reinforcement
+powermanagementmethodfornetworkedmicrogridsunderincomplete learning,” IEEE Trans. Smart Grid, vol. 13, no. 4, pp.2833–2843,
+information,” IEEE Trans. Smart Grid, vol.11, no.2, pp.1193–1204, Jul.2022.
+Mar.2020. [44] Y. Liang, C. Guo, Z. Ding, and H. Hua, “Agent-based modeling
+[22] D.Shi,L.Li,T.Ohtsuki,M.Pan,Z.Han,andH.V.Poor,“Makesmart in electricity market using deep deterministic policy gradient algo-
+decisionsfaster:DecidingD2Dresourceallocationviastackelberggame rithm,” IEEE Trans. Power Syst., vol.35, no.6, pp.4180–4192,
+guided multi-agent deep reinforcement learning,” IEEE Trans. Mobile Nov.2020.
+Comput.,vol.21,no.12,pp.4426–4438,Dec.2022. [45] N. A. Setiawan, P. A. Venkatachalam, and A. F. M. Hani, “Missing
+[23] H. Dong, Z. Ding, and S. Zhang, Deep Reinforcement Learning: attribute value prediction based on artificial neural network and
+Fundamentals, Research and Applications. Singapore: Springer Pte. rough set theory,” in Proc. Int. Conf. BioMed. Eng. Inform., 2008,
+Ltd.,2020. pp.306–310.
+[24] D. Cao, J. Zhao, W. Hu, F. Ding, Q. Huang, and Z. Chen, “Attention
+enabled multi-agent DRL for decentralized volt-VAR control of active
+distributionsystemusingPVinvertersandSVCs,”IEEETrans.Sustain.
+Energy,vol.12,no.3,pp.1582–1592,Jul.2021.
+[25] H. Liu and W. Wu, “Online multi-agent reinforcement learning for
+decentralizedinverter-basedvolt-VARcontrol,”IEEETrans.SmartGrid,
+vol.12,no.4,pp.2980–2990,Jul.2021.
+[26] D. Cao et al., “Data-driven multi-agent deep reinforcement learning
+fordistributionsystemdecentralizedvoltagecontrolwithhighpenetra-
+tion of PVs,” IEEE Trans. Smart Grid, vol.12, no.5, pp.4137–4150,
+Sep.2021.
+[27] H.Liu,C.Zhang,Q.Chai,K.Meng,Q.Guo,andZ.Y.Dong,“Robust
+XiaoLiu(StudentMember,IEEE)receivedtheB.S
+regional coordination of inverter-based volt/var control via multi-agent
+degree in electrical engineering from University of
+deep reinforcement learning,” IEEE Trans. Smart Grid, vol. 12, no. 6,
+Idaho, Moscow, ID, USA, in 2019, and the M.E.
+pp.5420–5433,Nov.2021.
+degreeinelectricalengineeringfromTheUniversity
+[28] T. Chen, S. Bu, X. Liu, J. Kang, F. R. Yu, and Z. Han, “Peer-
+ofSydney,Sydney,Australia,in2021,respectively,
+to-peer energy trading and energy conversion in interconnected
+whereheiscurrentlypursuingthePh.D.degree.His
+multi-energy microgrids using multi-agent deep reinforcement learn-
+current research interests include multiagent deep
+ing,” IEEE Trans. Smart Grid, vol. 13, no. 1, pp.715–727,
+reinforcement and their application in electricity
+Jan.2022.
+marketandvirtualpowerplantandpowersystem.
+[29] S.GronauerandK.Diepold,“Multi-agentdeepreinforcementlearning:
+Asurvey,”Artif.Intell.Rev.,vol.55,pp.895–943,Apr.2021.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 16 ===
+LIUetal.:OPTIMALCOORDINATIONFORMULTIPLENETWORK-CONSTRAINEDVPPsVIAMULTI-AGENTDRL 3031
+SinanLi(Member,IEEE)receivedtheB.S.degree Jianguo Zhu (Senior Member, IEEE) received
+in electrical engineering from the Harbin Institute the B.E. degree in electrical engineering from the
+of Technology, Harbin, China, in 2009, and the Jiangsu Institute of Technology, Jiangsu, China, in
+Ph.D. degree in electrical and electronic engineer- 1982,theM.E.degreeinelectricalengineeringfrom
+ingfromTheUniversityofHongKong,HongKong, the Shanghai University of Technology, Shanghai,
+in 2014. He has been with the University of Bath, China, in 1987, and the Ph.D. degree in electri-
+Bath, U.K., as an Assistant Professor, and with cal engineering from the University of Technology
+The University of Hong Kong, Hong Kong, as a Sydney(UTS),Sydney,Australia,in1995.Hewas
+Postdoctoral Research Fellow. He is currently an appointed as a Lecturer with UTS in 1994 and
+AssistantProfessorwiththeSchoolofElectricaland promoted to a Full Professor in 2004, and an
+InformationEngineering,TheUniversityofSydney, DistinguishedProfessorofelectricalengineeringin
+Sydney, NSW, Australia. He has authored or coauthored more than 50 2017.AtUTS,hehasheldvariousleadershippositions,includingtheHeadof
+transactions and conference papers and holds five worldwide patents (three SchoolfortheSchoolofElectrical,MechanicalandMechatronicSystemsand
+transferred to industry). His current research focuses on all areas of power theDirectorfortheCentreofElectricalMachinesandPowerElectronics.In
+electronics. 2018,hejoinedTheUniversityofSydney,Australia,asaFullProfessorand
+Dr.LiistheDiscoveryEarlyCareerResearchAward(DECRA)Fellowof theHeadofSchoolfortheSchoolofElectricalandInformationEngineering.
+Australian Research Council. He was a Founding Member of the IEEE-Eta His research interests include computational electromagnetics, measurement
+Kappa Nu (HKN) at The University of Hong Kong. He was the recipi- and modeling of magnetic properties of materials, electrical machines and
+ent of the Best Paper Award (Second Place) of the IEEE TRANSACTIONS drives, power electronics, renewable energy systems, smart microgrids, and
+ONPOWERELECTRONICS in 2019. He is a Guest Associate Editor for the digitalenergysystems.
+IEEEJOURNALOFEMERGINGANDSELECTEDTOPICSOFCIRCUITSAND
+SYSTEMS.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on March 30,2026 at 13:16:18 UTC from IEEE Xplore. Restrictions apply.

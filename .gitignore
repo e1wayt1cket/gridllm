@@ -40,6 +40,12 @@ dash.log
 # 场景才与工作簿的可得性无关，重建也能被逐值比对。
 !data/processed/industry_typical_profiles.csv
 
+# 母线映射：这是研究输入而非数据产物。`da_market_data` 用它把表计负荷摊到
+# 33 个母线，`run_historical_da` 的复现清单把它逐字列为依赖；不入库则该清单
+# 无法从版本库重建。证据侧的同一份映射与筛选结果同理。
+!data/processed/industry_meter_bus_map_v2.csv
+!reports/multi_user_load_2026-11-13/evidence/*.csv
+
 # 系统文件
 .DS_Store
 Thumbs.db
@@ -57,6 +63,14 @@ raw/
 # 其他
 *.deb
 plots/
+
+# Gurobi 本地授权环境：与具体机器绑定，逐机不同，不是项目输入。
+gurobi.env
+
+# 论文工作副本、临时报告与参考文献：不是交付物。其中确有长期价值的部分
+# 应逐项审核后移入 docs/，不整目录入库。
+b/
+
 # 生成产物
 outputs/
 output/

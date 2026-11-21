@@ -1,0 +1,68 @@
+{
+  "gamma_per_block": 0.99,
+  "block_size_periods": 4,
+  "blocks_per_episode": 24,
+  "episode_periods": 96,
+  "block_hours": 1.0,
+  "discount_weights": [
+    1.0,
+    0.99,
+    0.9801,
+    0.970299,
+    0.96059601,
+    0.9509900498999999,
+    0.941480149401,
+    0.9320653479069899,
+    0.9227446944279201,
+    0.9135172474836408,
+    0.9043820750088044,
+    0.8953382542587164,
+    0.8863848717161292,
+    0.8775210229989678,
+    0.8687458127689782,
+    0.8600583546412884,
+    0.8514577710948755,
+    0.8429431933839268,
+    0.8345137614500875,
+    0.8261686238355866,
+    0.8179069375972308,
+    0.8097278682212584,
+    0.8016305895390459,
+    0.7936142836436554
+  ],
+  "weight_sum": 21.4321859192781,
+  "weight_last": 0.7936142836436554,
+  "first_over_last": 1.2600579659539177,
+  "effective_discount_per_15min": 0.9974905699336811,
+  "action_bounds": {
+    "charge_price": [
+      0.0,
+      150.0
+    ],
+    "discharge_price": [
+      0.0,
+      300.0
+    ]
+  },
+  "truthful": {
+    "charge_price": 0.0,
+    "discharge_price": 0.0
+  },
+  "truthful_is_lower_bound": {
+    "charge_price": true,
+    "discharge_price": true
+  },
+  "box_midpoint": {
+    "charge_price": 75.0,
+    "discharge_price": 150.0
+  },
+  "truthful_at_tanh": {
+    "charge_price": -1.0,
+    "discharge_price": -1.0
+  },
+  "reward_standardized": "buffer.reward_std() divides every reward before the critic target",
+  "terminal_bootstrap": "gamma * (1 - done) * min(target Q)",
+  "terminal_soc_in_training_window": false,
+  "terminal_soc_in_settlement": true,
+  "reward_unit": "CNY per block (4 periods), before standardization"
+}

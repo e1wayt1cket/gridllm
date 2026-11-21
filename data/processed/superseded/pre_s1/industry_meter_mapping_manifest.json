@@ -1,0 +1,499 @@
+{
+  "frozen_case": {
+    "rule": "R3_meter_spread",
+    "unsupported_buses": [
+      22,
+      29,
+      32
+    ],
+    "fabricated_dates": [
+      "2022-05-26"
+    ],
+    "meters_mapped": 72,
+    "nodes_in_use": 29,
+    "days": 729,
+    "days_with_all_nodes_covered": 312,
+    "reading_unit": null,
+    "reading_unit_source": null,
+    "mw_path": "refused while READING_UNIT is None"
+  },
+  "workbook_sha256": "63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb",
+  "scenario": "typical_day_industry",
+  "candidate_rules": [
+    "R1_industry_bus",
+    "R2_user_block",
+    "R3_meter_spread"
+  ],
+  "frozen": false,
+  "simulation_mapping": true,
+  "qualified_meters": 84,
+  "dates_in_workbook": 730,
+  "cells": 61320,
+  "status_totals": {
+    "complete": 39364,
+    "partial": 904,
+    "absent": 16532,
+    "all_zero": 4513,
+    "conflicting": 2,
+    "placeholder": 5
+  },
+  "meters_passing_gate_without_a_block": [
+    "M316fd74d20e9",
+    "M778133cf9e03",
+    "M85260b4c737e"
+  ],
+  "candidates": {
+    "R1_industry_bus": {
+      "mapped_meters": 48,
+      "buses_used": [
+        16,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "dates_with_every_used_bus_populated": 0,
+      "per_bus": {
+        "16": {
+          "meters": 5,
+          "complete_days": 1781,
+          "any_days": 2647,
+          "dates_covered": 730
+        },
+        "22": {
+          "meters": 3,
+          "complete_days": 82,
+          "any_days": 2188,
+          "dates_covered": 82
+        },
+        "23": {
+          "meters": 6,
+          "complete_days": 3550,
+          "any_days": 3586,
+          "dates_covered": 730
+        },
+        "24": {
+          "meters": 4,
+          "complete_days": 1598,
+          "any_days": 2310,
+          "dates_covered": 728
+        },
+        "25": {
+          "meters": 2,
+          "complete_days": 824,
+          "any_days": 1459,
+          "dates_covered": 711
+        },
+        "26": {
+          "meters": 2,
+          "complete_days": 976,
+          "any_days": 984,
+          "dates_covered": 725
+        },
+        "27": {
+          "meters": 9,
+          "complete_days": 4966,
+          "any_days": 5051,
+          "dates_covered": 730
+        },
+        "28": {
+          "meters": 2,
+          "complete_days": 804,
+          "any_days": 881,
+          "dates_covered": 648
+        },
+        "29": {
+          "meters": 2,
+          "complete_days": 28,
+          "any_days": 224,
+          "dates_covered": 25
+        },
+        "30": {
+          "meters": 4,
+          "complete_days": 1875,
+          "any_days": 1899,
+          "dates_covered": 730
+        },
+        "31": {
+          "meters": 3,
+          "complete_days": 1560,
+          "any_days": 1618,
+          "dates_covered": 712
+        },
+        "32": {
+          "meters": 6,
+          "complete_days": 156,
+          "any_days": 156,
+          "dates_covered": 32
+        }
+      }
+    },
+    "R2_user_block": {
+      "mapped_meters": 83,
+      "buses_used": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        16,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "dates_with_every_used_bus_populated": 0,
+      "per_bus": {
+        "1": {
+          "meters": 2,
+          "complete_days": 328,
+          "any_days": 330,
+          "dates_covered": 164
+        },
+        "2": {
+          "meters": 14,
+          "complete_days": 6965,
+          "any_days": 7201,
+          "dates_covered": 729
+        },
+        "3": {
+          "meters": 11,
+          "complete_days": 7587,
+          "any_days": 7944,
+          "dates_covered": 730
+        },
+        "4": {
+          "meters": 2,
+          "complete_days": 1447,
+          "any_days": 1460,
+          "dates_covered": 730
+        },
+        "5": {
+          "meters": 6,
+          "complete_days": 4366,
+          "any_days": 4377,
+          "dates_covered": 730
+        },
+        "16": {
+          "meters": 5,
+          "complete_days": 1781,
+          "any_days": 2647,
+          "dates_covered": 730
+        },
+        "22": {
+          "meters": 3,
+          "complete_days": 82,
+          "any_days": 2188,
+          "dates_covered": 82
+        },
+        "23": {
+          "meters": 6,
+          "complete_days": 3550,
+          "any_days": 3586,
+          "dates_covered": 730
+        },
+        "24": {
+          "meters": 4,
+          "complete_days": 1598,
+          "any_days": 2310,
+          "dates_covered": 728
+        },
+        "25": {
+          "meters": 2,
+          "complete_days": 824,
+          "any_days": 1459,
+          "dates_covered": 711
+        },
+        "26": {
+          "meters": 2,
+          "complete_days": 976,
+          "any_days": 984,
+          "dates_covered": 725
+        },
+        "27": {
+          "meters": 9,
+          "complete_days": 4966,
+          "any_days": 5051,
+          "dates_covered": 730
+        },
+        "28": {
+          "meters": 2,
+          "complete_days": 804,
+          "any_days": 881,
+          "dates_covered": 648
+        },
+        "29": {
+          "meters": 2,
+          "complete_days": 28,
+          "any_days": 224,
+          "dates_covered": 25
+        },
+        "30": {
+          "meters": 4,
+          "complete_days": 1875,
+          "any_days": 1899,
+          "dates_covered": 730
+        },
+        "31": {
+          "meters": 3,
+          "complete_days": 1560,
+          "any_days": 1618,
+          "dates_covered": 712
+        },
+        "32": {
+          "meters": 6,
+          "complete_days": 156,
+          "any_days": 156,
+          "dates_covered": 32
+        }
+      }
+    },
+    "R3_meter_spread": {
+      "mapped_meters": 83,
+      "buses_used": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "dates_with_every_used_bus_populated": 0,
+      "per_bus": {
+        "1": {
+          "meters": 2,
+          "complete_days": 1089,
+          "any_days": 1132,
+          "dates_covered": 728
+        },
+        "2": {
+          "meters": 2,
+          "complete_days": 1101,
+          "any_days": 1147,
+          "dates_covered": 727
+        },
+        "3": {
+          "meters": 2,
+          "complete_days": 836,
+          "any_days": 894,
+          "dates_covered": 673
+        },
+        "4": {
+          "meters": 2,
+          "complete_days": 1376,
+          "any_days": 1457,
+          "dates_covered": 727
+        },
+        "5": {
+          "meters": 2,
+          "complete_days": 1137,
+          "any_days": 1153,
+          "dates_covered": 730
+        },
+        "6": {
+          "meters": 2,
+          "complete_days": 1148,
+          "any_days": 1160,
+          "dates_covered": 730
+        },
+        "7": {
+          "meters": 2,
+          "complete_days": 1094,
+          "any_days": 1157,
+          "dates_covered": 729
+        },
+        "8": {
+          "meters": 2,
+          "complete_days": 886,
+          "any_days": 895,
+          "dates_covered": 722
+        },
+        "9": {
+          "meters": 2,
+          "complete_days": 1148,
+          "any_days": 1160,
+          "dates_covered": 730
+        },
+        "10": {
+          "meters": 2,
+          "complete_days": 1407,
+          "any_days": 1446,
+          "dates_covered": 730
+        },
+        "11": {
+          "meters": 2,
+          "complete_days": 1450,
+          "any_days": 1459,
+          "dates_covered": 730
+        },
+        "12": {
+          "meters": 2,
+          "complete_days": 1105,
+          "any_days": 1156,
+          "dates_covered": 729
+        },
+        "13": {
+          "meters": 2,
+          "complete_days": 1414,
+          "any_days": 1454,
+          "dates_covered": 729
+        },
+        "14": {
+          "meters": 2,
+          "complete_days": 1103,
+          "any_days": 1146,
+          "dates_covered": 729
+        },
+        "15": {
+          "meters": 2,
+          "complete_days": 1447,
+          "any_days": 1459,
+          "dates_covered": 730
+        },
+        "16": {
+          "meters": 5,
+          "complete_days": 1781,
+          "any_days": 2647,
+          "dates_covered": 730
+        },
+        "17": {
+          "meters": 1,
+          "complete_days": 419,
+          "any_days": 429,
+          "dates_covered": 419
+        },
+        "18": {
+          "meters": 1,
+          "complete_days": 728,
+          "any_days": 730,
+          "dates_covered": 728
+        },
+        "19": {
+          "meters": 1,
+          "complete_days": 728,
+          "any_days": 729,
+          "dates_covered": 728
+        },
+        "20": {
+          "meters": 1,
+          "complete_days": 418,
+          "any_days": 430,
+          "dates_covered": 418
+        },
+        "21": {
+          "meters": 1,
+          "complete_days": 659,
+          "any_days": 719,
+          "dates_covered": 659
+        },
+        "22": {
+          "meters": 3,
+          "complete_days": 82,
+          "any_days": 2188,
+          "dates_covered": 82
+        },
+        "23": {
+          "meters": 6,
+          "complete_days": 3550,
+          "any_days": 3586,
+          "dates_covered": 730
+        },
+        "24": {
+          "meters": 4,
+          "complete_days": 1598,
+          "any_days": 2310,
+          "dates_covered": 728
+        },
+        "25": {
+          "meters": 2,
+          "complete_days": 824,
+          "any_days": 1459,
+          "dates_covered": 711
+        },
+        "26": {
+          "meters": 2,
+          "complete_days": 976,
+          "any_days": 984,
+          "dates_covered": 725
+        },
+        "27": {
+          "meters": 9,
+          "complete_days": 4966,
+          "any_days": 5051,
+          "dates_covered": 730
+        },
+        "28": {
+          "meters": 2,
+          "complete_days": 804,
+          "any_days": 881,
+          "dates_covered": 648
+        },
+        "29": {
+          "meters": 2,
+          "complete_days": 28,
+          "any_days": 224,
+          "dates_covered": 25
+        },
+        "30": {
+          "meters": 4,
+          "complete_days": 1875,
+          "any_days": 1899,
+          "dates_covered": 730
+        },
+        "31": {
+          "meters": 3,
+          "complete_days": 1560,
+          "any_days": 1618,
+          "dates_covered": 712
+        },
+        "32": {
+          "meters": 6,
+          "complete_days": 156,
+          "any_days": 156,
+          "dates_covered": 32
+        }
+      }
+    }
+  },
+  "coverage_matrix_column": "destination_bus[R3_meter_spread]"
+}

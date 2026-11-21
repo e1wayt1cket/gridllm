@@ -1,0 +1,144 @@
+{
+  "pilot_config": {
+    "path": "data\\processed\\v2_cy_jn_2025\\pilot\\pilot_config.json",
+    "sha256": "1583be77d0c41a2d2dc47105e7cebcc9602612b34b0aff376252101533bad6bb"
+  },
+  "runs": [
+    {
+      "dataset": "FULL96",
+      "seed": 11,
+      "checkpoints": {
+        "ESS14": {
+          "path": "checkpoints\\FULL96_seed11\\ESS14.pt",
+          "sha256": "33d7271fd5185699590e13c793bdd06037f983b83d2e05f4c49d087930db0498",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS17": {
+          "path": "checkpoints\\FULL96_seed11\\ESS17.pt",
+          "sha256": "b22ef0a28ed1fada96de32a731c7d1e98c9aaeab40423a9ef0b6decec6cf618f",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS27": {
+          "path": "checkpoints\\FULL96_seed11\\ESS27.pt",
+          "sha256": "36d1fafb1605d0d597bb50c18559afa221960871e22ed54c9cb79be3136ac71c",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS9": {
+          "path": "checkpoints\\FULL96_seed11\\ESS9.pt",
+          "sha256": "7100e105e8fc3364fafca312da03d4fc22b72e5373169d4059f482f157a63cfd",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        }
+      }
+    },
+    {
+      "dataset": "FULL96",
+      "seed": 22,
+      "checkpoints": {
+        "ESS14": {
+          "path": "checkpoints\\FULL96_seed22\\ESS14.pt",
+          "sha256": "9575a48b50837060fd416adf0cbfe137369265fbc335810ab8e4599fc8ba3c7b",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS17": {
+          "path": "checkpoints\\FULL96_seed22\\ESS17.pt",
+          "sha256": "4f91354de487f8018e0ad63f947d33619927da4b023d30fd9f3179d3402395ac",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS27": {
+          "path": "checkpoints\\FULL96_seed22\\ESS27.pt",
+          "sha256": "ebe4456d8c8bde616095ccf21c67c45a43f5bc97d0385c871c0511dc54b5809b",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS9": {
+          "path": "checkpoints\\FULL96_seed22\\ESS9.pt",
+          "sha256": "b81913bf2479023b8324ec81cd19278871c9a8be420e2acf0e7ddb15e86f8c6d",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        }
+      }
+    },
+    {
+      "dataset": "NEAR",
+      "seed": 11,
+      "checkpoints": {
+        "ESS14": {
+          "path": "checkpoints\\NEAR_seed11\\ESS14.pt",
+          "sha256": "bd868fd583eab0fe1e829cb92bc5df4dcd068ae02e04eff694c51168f8687ccf",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS17": {
+          "path": "checkpoints\\NEAR_seed11\\ESS17.pt",
+          "sha256": "23a5b17b55aa5471c1ef9e721ede074bade63bc6525266a9b732081d3a0ebb99",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS27": {
+          "path": "checkpoints\\NEAR_seed11\\ESS27.pt",
+          "sha256": "345983a11d88a0f80ffae3d1a4345dac6c362e16f1502bf79e87baa36bd80087",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS9": {
+          "path": "checkpoints\\NEAR_seed11\\ESS9.pt",
+          "sha256": "3edbf6cdbda4d794211327509f86370ae070b62a00e85f0f9588d843d207811b",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        }
+      }
+    },
+    {
+      "dataset": "NEAR",
+      "seed": 22,
+      "checkpoints": {
+        "ESS14": {
+          "path": "checkpoints\\NEAR_seed22\\ESS14.pt",
+          "sha256": "b3f6c23cc2697b61953f3c0ed4f2e0a20326e6d49ad192991ee6e607ce04aae5",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS17": {
+          "path": "checkpoints\\NEAR_seed22\\ESS17.pt",
+          "sha256": "a7ae39b502386a2c3087f2f2234a0497aca66d4da1c59c736b1f3451557a8b06",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS27": {
+          "path": "checkpoints\\NEAR_seed22\\ESS27.pt",
+          "sha256": "68fd324ce4c70aaa39cac9c38c8235f8caa1e32dfaa6a6dc434a7982d02b642a",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        },
+        "ESS9": {
+          "path": "checkpoints\\NEAR_seed22\\ESS9.pt",
+          "sha256": "de577f52f0810fb5eca04448e35711ce5860d642c0d4a6bf17d9d54782ce210d",
+          "obs_spec": "v6_12d",
+          "action_spec": "storage_quote_v2",
+          "obs_dim": 12
+        }
+      }
+    }
+  ]
+}

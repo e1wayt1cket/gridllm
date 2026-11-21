@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "actor_states_equal": true,
+    "critic_states_equal": true,
+    "optimizer_actor_equal": true,
+    "optimizer_critic_equal": true,
+    "deterministic_action": true,
+    "rng_restored": true,
+    "buffer_restored": true,
+    "counters_restored": true,
+    "config_hash_restored": true,
+    "files_present": true,
+    "incomplete_rejected": true
+  },
+  "all_pass": true
+}

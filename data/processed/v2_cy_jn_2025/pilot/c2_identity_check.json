@@ -1,0 +1,22 @@
+{
+  "gamma_per_block": 0.99,
+  "block_size_periods": 4,
+  "blocks_per_episode": 24,
+  "block_hours": 1.0,
+  "weight_sum": 21.4321859192781,
+  "weight_first": 1.0,
+  "weight_last": 0.7936142836436554,
+  "first_over_last": 1.2600579659539177,
+  "effective_discount_per_15min": 0.9974905699336811,
+  "terminal_block_discount": 0.7936142836436554,
+  "base_return_over_day_reward": 0.7936142836436554,
+  "telescope_max_abs_error": 1.9895196601282805e-13,
+  "telescope_boundary_only_max_abs_error": 3.410605131648481e-13,
+  "terminal_zero_max_abs_error": 3.552713678800501e-14,
+  "identity": "sum_t gamma^t (gamma Phi(s_{t+1}) - Phi(s_t)) = gamma^T Phi(s_T) - Phi(s_0)",
+  "episode_length_fixed": true,
+  "early_termination_in_env": false,
+  "reward_standardization": "buffer.reward_std() divides the batch at update time; it is not a fixed scale",
+  "terminal_soc_training_window": false,
+  "terminal_soc_settlement": true
+}

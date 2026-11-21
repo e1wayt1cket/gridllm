@@ -1,0 +1,1209 @@
+Learning-based optimal power bidding of an overseas photovoltaic-battery 
+storage plant in Singapore electricity market
+Yang Xia , Yan Xu *
+Centre for Power Engineering, School of Electrical and Electronic Engineering, Nanyang Technological University, 639798, Singapore
+H I G H L I G H T S
+• A data-driven bidding strategy for a PV-BSS plant is developed using deep reinforcement learning.
+• A realistic, constraint-aware BSS model is embedded in the DRL framework to accurately characterize BSS behavior.
+• Case studies validate that the proposed strategy has a promising performance in Singapore electricity market.
+A R T I C L E  I N F O
+Keywords:
+PV-BSS plant
+Optimal bidding
+BSS modelling
+Deep reinforcement learning
+A B S T R A C T
+Singapore power grid is planning to import clean power such as photovoltaic (PV) power generation from 
+overseas through subsea cables. To participate in the Singapore electricity market, the power output from PV 
+plants is required to be constant during each bidding period and hence battery storage systems (BSSs) need to be 
+deployed to compensate PV power fluctuations. This paper proposes a learning-based bidding strategy to 
+maximize the expected profit of such a PV-BSS plant. The overall bidding process is modelled as a Markov 
+Decision Process (MDP) and the optimal bidding strategy is acquired through deep reinforcement learning (DRL), 
+considering PV power revenues, penalty payments for power shortage, and battery health degradation cost of the 
+BSS. To more accurately characterize the actual operational behavior of the BSS, a detailed BSS model is built to 
+estimate the state of power (SoP) and state of health (SoH) of the BSS. Numerical case studies are carried out to 
+demonstrate that the proposed method can achieve promising profits compared to classic optimization-based 
+methods and preserve BSS with less SoH degradation.
+1. Introduction
+With the global target for a low-carbon and sustainable energy 
+future, Singapore's power sector has set the target to realize net-zero 
+emissions by 2050 [1]. For decarbonization, the Energy Market Au­
+thority of Singapore has proposed several strategies, one of which is to 
+“pursue the adoption of electricity imports to access cleaner and cost- 
+effective energy sources beyond Singapore's borders”. In this context, 
+overseas photovoltaic (PV) plants have been planned for importing 
+electricity into Singapore in the future [2].
+To participate in the electricity market of Singapore, PV power plants 
+(electricity importers) are required to provide bidding offers every 
+dispatch period and maintain a non-intermittent power supply during 
+each dispatch period [3]. However, in practice, the PV generation is 
+highly volatile and hardly predicted. To compensate the intermittent PV 
+generation, a battery storage system (BSS) needs to be deployed in the 
+PV power plant. To maximize the profit of the PV-BSS plant, its optimal 
+bidding is an emerging problem.
+In the literature, several optimization-based bidding strategies have 
+been proposed [4–7], targeted at wind power plants, electric vehicle 
+aggregators, networked microgrids, etc. Targeting at the overseas PV- 
+BSS bidding problem, our recent work [8] reported an optimal power 
+bidding approach, which optimized the offered power of overseas PV 
+plants to maximize the profit through a stochastic programming 
+approach. However, most of these bidding methods neglected the 
+operational characteristics of the BSS, such as its battery health degra­
+dation and maximum available power output that are critical in 
+providing high and frequent charging/discharging power in the 
+wholesale electricity market. Besides, optimization-based methods rely 
+on accurate PV forecasting and uncertainty modelling of the forecasting 
+error and may also suffer from computational challenges during online 
+* Corresponding author.
+E-mail address: xuyan@ntu.edu.sg (Y. Xu). 
+Contents lists available at ScienceDirect
+Applied Energy
+journal homepage: www.elsevier.com/locate/apenergy
+https://doi.org/10.1016/j.apenergy.2025.127328
+Received 10 September 2025; Received in revised form 6 December 2025; Accepted 25 December 2025  
+Applied Energy 407 (2026) 127328 
+Available online 2 January 2026 
+0306-2619/© 2025 Elsevier Ltd. All rights are reserved, including those for text and data mining, AI training, and similar technologies. 
+
+application [9].
+In recent years, deep reinforcement learning (DRL) has attracted 
+considerable interest in solving complex decision-making problems. 
+Learning from interactions between the environment and the agent, DRL 
+can address complex problems with massive state spaces. In the field of 
+power systems, DRL has been applied in frequency/voltage control [10], 
+energy management [11], optimal power flow [12], etc. For the bidding 
+strategy in the electricity market, [13] utilized DRL to design a strategic 
+bidding approach for producers. [14] proposed a DRL-based bidding 
+strategy for EVAs under the information asymmetry in the local energy 
+market. In [15], a risk-averse bidding strategy was proposed for virtual 
+alliances in the active distribution network, learned by a multi-agent 
+DRL algorithm. In [16] [17], proximal policy optimization (PPO) was 
+used for energy bidding in real-time energy market. [18] designed a 
+multi-agent DRL framework for a photovoltaic plant with an energy 
+storage system participating in multi-timescale electricity markets. 
+However, those DRL-based bidding methods are designed for specific 
+use cases, which require pretrained forecast modules for price, renew­
+able energy generation [13,14,17], and cannot be directly applied for 
+PV-BSS bidding in Singapore electricity market due to its unique market 
+rules. Further, since BSS has become a crucial role in the energy bidding 
+market, more detailed battery models should be considered in the 
+learning-based energy arbitrage, which is insufficiently studied in the 
+existing research.
+Besides, the operational characteristic of the BSS has a significant 
+impact on the PV-BSS plant's bidding performance. Hence, the state of 
+the BSS should be accurately and comprehensively estimated, such as 
+state of charge (SoC) [19], state of health (SoH) [20], state of power 
+(SoP) [21], etc. In [22], SoC management was taken into consideration 
+for energy management, which aims to realize an optimal battery energy 
+planning. Besides, battery degradation models were built to estimate 
+BSS's SoH in [23,24]. Compared to SoC and SoH, very limited studies 
+have been reported for SoP, which indicates the ultimate capacity of 
+charging/discharging power of an BSS. Conventionally, the maximum 
+BSS charging/discharging power is determined by its rated power, but in 
+practice, the real available power (SoP) may be influenced by different 
+factors, such as SoC, terminal voltage, current [25]. Hence, it is critical 
+to consider SoP in the energy bidding, enabling more accurate bidding 
+and reliable operation of the BSS. Existing SoP estimation methods can 
+be categorized into model-based and data-driven ones. For the former 
+[26] [27], an equivalent circuit model (ECM) can be built to emulate to 
+reflect battery's dynamic behavior and calculate power capabilities with 
+the current/voltage limits. For the latter [28,29], the mapping rela­
+tionship between SoP and measurements (SoC, temperature, etc.) can be 
+extracted through machine learning, which relies on the quality and 
+quantity of the training data. On the other hand, existing SoP estimation 
+methods mainly focus on battery cell level and SoP for large-scale BSSs is 
+rarely studied in the existing research. Besides, the detailed BSS 
+modelling and state estimation (SoH, SoP) are generally neglected in the 
+field of energy bidding, which shall be further studied to couple with the 
+bidding strategy.
+To fill above research gaps, this paper proposes a novel learning- 
+based bidding strategy for overseas PV-BSS plants participating in 
+Singapore Electricity Market. The proposed bidding agent utilizes his­
+toric BSS SoC and PV power output data as the input to determine the 
+optimal bidding power of the plant, with the objective of maximizing 
+revenue and avoiding economic penalties. The main contributions of 
+this paper are summarized as follows: 
+1) First of all, a detailed BSS model is developed to accurately and 
+comprehensively characterize the BSS. Based on the model, the SoP 
+and SoH of the BSS can be estimated during operation. Note that the 
+contribution does not focus on proposing a new BSS model, but 
+rather in integrating a realistic and constraint-aware BSS model into 
+a DRL framework tailored for the Singapore electricity market.
+2) The bidding process of the PV-BSS plant is modelled as a Markov 
+Decision Process (MDP) according to Singapore electricity market 
+rules, which is then trained by the PPO algorithm. Once trained in 
+Nomenclature
+Abbreviations
+PV
+Photovoltaic
+BSS
+Battery storage system
+MDP
+Markov decision process
+DRL
+Deep reinforcement learning
+SoP
+State of power
+SoH
+State of health
+SoC
+State of charge
+PPO
+Proximal policy optimization
+ECM
+Equivalent circuit model
+OCV
+Open circuit voltage
+DoD
+Depth of discharge
+DNN
+Deep neural network
+RMSE
+Root mean square error
+Parameters
+γ
+Electricity price that PV plant sells power to the grid
+γp
+Electricity price paid for the deficient power
+ηd
+Discharge efficiency
+ηc
+Charge efficiency
+SoCmax
+Upper bound of SoC
+SoCmin
+Lower bound of SoC
+ξ1k, ξ2k, ξ3k, ξ4k Polynomial coefficients
+id,max
+Maximum discharging current
+ic,max
+Maximum charging current
+vb,max
+Upper bound of terminal voltage
+vb,min
+Lower bound of terminal voltage
+PDis,max
+Maximum discharging power
+PCh,max
+Maximum charging power
+κD1, κD2, κD3, κC Empirical degradation coefficients
+χBSS
+BSS capacity degradation cost per kWh
+γR
+Electricity price during SoC restoration
+λV
+Learning rate of critic network
+λπ
+Learning rate of actor network
+Variables
+PBid
+Bidding power from PV power plant
+PPV
+PV generation power
+PDis, PCh
+Discharging, charging power of BSS
+PSho
+Deficient power
+CBSS
+BSS operation cost
+SoPDis SoPCh SoP for discharging, charging
+E
+Capacity of BSS
+voc
+Open-circuit voltage
+vb
+Terminal voltage of a battery cell
+v1
+Polarization voltage of RC circuit
+in
+Current through n-th string
+Cres
+Charging cost of SoC restoration
+π
+Policy network
+V
+Value network
+A
+Advantage function
+JV, Jπ
+Loss function for value network, actor network
+hθ
+Ratio between the updated policy and the old policy
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+2 
+
+the offline stage, the bidding agent can be applied online to deter­
+mine the optimal bidding power without extra forecast modules.
+3) Case studies demonstrate that the proposed bidding strategy has a 
+promising performance compared with optimization-based methods. 
+Furthermore, the proposed strategy has more favourable computa­
+tional performance and simple implementation in practice.
+The rest of the paper is organized as follows: Section II formulates the 
+bidding problem and builds BSS modelling. The proposed methodology 
+is detailed in Section III. Several case studies are given in Section IV for 
+validation. Finally, Section V gives a general conclusion and potential 
+future works of the paper.
+2. Problem description and modelling
+Fig. 1 illustrates a typical overseas PV-BSS power plant connected to 
+Singapore Grid. The PV-BSS plant utilizes the solar panel to transform 
+solar energy into electricity, which can be stored in the BSS device or be 
+sold to the power grid directly through the inverter. As an intermediate, 
+BSS interacts closely with the PV plant via charging/discharging. In this 
+section, the bidding problem formulation and BSS modelling will be 
+explained in detail.
+2.1. Bidding problem formulation
+In Singapore Electricity Market, which only has real-time market, 
+overseas PV-BSS plants are required to provide their electricity offer for 
+sale in every dispatch period (30 min), and the submission window for 
+the bidding will be closed 65 min before the dispatch commencement. 
+Besides, to take communication and processing time into consideration, 
+it is normal to reserve 10 min for the bidding submission. As a result, for 
+conventional optimization-based bidding methods, the lead time of PV 
+forecast shall be at least 75 min [8]. This bidding process is illustrated in 
+Fig. 2.
+This paper assumes the PV-BSS plants to be a price-taker, so only 
+power quantity is bided. Therefore, the bids of PV-BSS plant will not 
+affect the uniform price in this study. In this regard, we do not model the 
+uniform pricing mechanism and only consider wholesale electricity 
+market. Such assumption is appropriate given Singapore Electricity 
+Market structure, where prices are largely determined by system-wide 
+combined-cycle gas turbine generation and are not materially affected 
+by the bidding of individual renewable units. Moreover, the plant 
+operates as an overseas asset under a fixed export contract and is not 
+permitted to engage in strategic price-setting behavior, which further 
+supports the non-price-making assumption. Note that other electricity 
+markets can also be considered by specifying their bidding requirements 
+as the parameter settings to the proposed method.
+After the bidding submission, the offered power must be consistent 
+during the 30-min dispatch period. To smooth PV fluctuation, BSS will 
+release/absorb the power to maintain the total power output at the 
+offered amount. Once the offered amount cannot be satisfied, the PV 
+d
+Fig. 1. Illustration of a PV power plant connected to Singapore Grid.
+Fig. 2. Bidding process of an overseas PV-BSS plant participating in Singapore 
+Electricity Market [8].
+Fig. 3. The equivalent circuit model of BSS.
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+3 
+
+plant will be charged with high penalty payment for the shortfall. In this 
+study, the objective of optimal bidding strategy is to maximize the profit 
+of PV-BSS plant, which can be expressed as: 
+max
+∑
+T
+t=0
+γ(t)⋅PBid(t) −γp(t)⋅PSho(t) −CBSS(t)
+(1) 
+subject to: 
+PBid(t) = PPV(t) + PDis(t) + PCh(t) + PSho(t)
+(2) 
+0 ≤PDis(t) ≤SoPDis(t)
+(3) 
+−SoPCh(t) ≤PCh(t) ≤0
+(4) 
+PDis(t)⋅PCh(t) = 0
+(5) 
+SoPDis(t) = f1(SoC(t) ), SoPCh(t) = f2(SoC(t) )
+(6) 
+SoC(t) = SoC(t −1) −PDis(t)/ηd + PCh(t)⋅ηc
+E
+Δt
+(7) 
+SoCmin ≤SoC(t) ≤SoCmax
+(8) 
+CBSS(t) = f3(SoC(t) , SoH(t) )
+(9) 
+where PBid(t) is the bidding power from PV power plant at time slot t, 
+PPV(t) is PV generation power at time slot t, PDis(t), PCh(t) are discharg­
+ing, charging power of BSS, PSho(t) is the deficient power when the 
+bidding power cannot be satisfied by PV plant. After the bidding power 
+PBid is determined by the agent, BSS output command can be calculated 
+by the residual between bidding power and PV generation. However, the 
+actual BSS output is constrained by the real-time SoP. If PBid −
+PPV is 
+positive (required to discharge) but higher than SoP for discharging 
+SoPDis, in this case, power shortfall PSho is calculated by PSho = PBid −PPV 
+−
+SoPDis.
+γ(t) refers to the electricity price that PV plant sells power to the grid, 
+γp(t) refers to the electricity price paid for the deficient power, i.e., the 
+penalty. Note that PV-BSS plant is defined as a price-taker in this paper.
+CBSS(t) is the BSS operation cost at time slot t. Eqs. (3)–(5) give the 
+constraints of BSS output powers, where SoPDis(t) and SoPCh(t) denote 
+the SoP for discharging and charging. Besides, SoPs can be modelled as 
+functions of SoC as shown in (6). Eqs. (7) and (8) define the constraints 
+of SoC, where ηd, ηc are discharging, charging efficiency, E is the capacity 
+of BSS, SoCmax, SoCmin denote the upper, lower bounds of SoC. Further, 
+the operation cost of BSS, CBSS(t) is modelled as a function of SoC and 
+SoH. Detailed BSS modelling will be explained in the following section.
+2.2. BSS modelling and state of power (SoP)
+To better analyze its discharging/charging characteristic, BSS is 
+modelled based on an equivalent circuit model (ECM) as illustrated in 
+Fig. 3 [30], which is comprised by N parallel strings and M series- 
+connected cells per string. In this paper, the Lithium-ion battery is 
+considered. For each cell in this ECM, the first-order RC model is used to 
+emulate the battery's behavior, which includes a voltage source voc
+(n,m) 
+representing open-circuit voltage (OCV), a resistor R0
+(n,m) representing 
+the internal resistance, and a parallel RC circuit R1
+(n,m), C1
+(n,m) repre­
+senting the ohmic effect and polarization effect, m = 1, 2, …, M, n = 1, 2, 
+…, N. Based on this ECM, the terminal voltage of a battery cell vb
+(n,m) can 
+be obtained as: 
+vb
+(n,m) = voc
+(n,m) −v1
+(n,m) −in⋅R0
+(n,m)
+(10) 
+dv1
+(n,m)
+dt
+=
+in
+C1
+(n,m) −
+v1(n,m)
+R1
+(n,m)C1
+(n,m)
+(11) 
+where v1
+(n,m) indicates the polarization voltage of RC circuit, in indicates 
+the current through nth string. Besides, voc and the electric elements (R0, 
+R1, C1) are modelled as polynomial functions of SoC, which are 
+expressed as: 
+voc(SoC) =
+∑
+k
+ξ1kSoCk
+(12) 
+R0(SoC) =
+∑
+k
+ξ2kSoCk
+(13) 
+R1(SoC) =
+∑
+k
+ξ3kSoCk
+(14) 
+C1(SoC) =
+∑
+k
+ξ4kSoCk
+(15) 
+where ξ1k, ξ2k, ξ3k, ξ4k are polynomial coefficients. Further, considering a 
+discrete time interval [t, t + Δt], v1 can be written as: 
+v1(t+Δt)=v1(t)exp
+(
+−
+Δt
+τ(SoC(t))
+)
++In(t)R1(SoC(t))
+[
+1−exp
+(
+−
+Δt
+τ(SoC(t))
+)]
+(16) 
+where τ is the time constant that τ(SoC) = R1(SoC)⋅C1(SoC). Therefore, 
+the terminal voltage can be rewritten as a function of SoC and current: 
+vb(SoC, in) = voc(SoC) −v1(SoC, in) −in⋅R0(SoC)
+(17) 
+Based on the models above, SoP of BSS can be estimated as the 
+maximum available power at a certain time horizon. For one battery 
+cell, its power can be calculated by P = vb•in [31]. To find the maximum 
+output power, current constraint of the battery cell is first considered. 
+According to the ratings of battery cells, the maximum charging/dis­
+charging currents can be obtained as ic,max, id,max. Besides, the terminal 
+voltage vb can be expressed as a function of SoC and current in according 
+to (17). Therefore, assume that the current reaches the upper/lower 
+bound, the discharging/charging power range can be found as: 
+ic,max ≤in(t) ≤id,max
+(18) 
+{
+0 ≤PDis ≤vb
+(
+SoC, id,max
+)
+⋅id,max, discharging
+vb
+(
+SoC, ic,max
+)
+⋅ic,max ≤PCh ≤0, charging
+(19) 
+Similarly, voltage constraint is also considered to calculate the 
+available discharging/charging range. The upper and lower bounds of 
+terminal voltage can be obtained from battery ratings as vb,max, vb,min. 
+Assume that the terminal voltage reaches the bounds, the available 
+power range is determined by the string current. According to (16), the 
+string current is calculated as: 
+in(t) = voc −vb −v1(t −1)exp( −Δt/τ)
+R0 + R1(1 −exp( −Δt/τ) )
+(20) 
+Besides, since voc, R0, R1, τ are the functions of SoC, (20) can be 
+rewritten as: 
+in(SoC, vb) =
+voc(SoC) −vb −v1⋅exp( −Δt/τ(SoC) )
+R0(SoC) + R1(SoC)⋅(1 −exp( −Δt/τ(SoC) ) )
+(21) 
+Therefore, according to the terminal voltage constraint, another set 
+of available discharging/charging power range can be obtained as: 
+vb,min ≤vb(t) ≤vb,max
+(22) 
+{
+0 ≤PDis ≤vb,max⋅in
+(
+SoC, vb,max
+)
+, discharging
+vb,min⋅in
+(
+SoC, vb,min
+)
+≤PCh ≤0, charging
+(23) 
+Apart from current and voltage constraints, SoC constraint is also 
+considered as: 
+SoCmin ≤SoC(t) ≤SoCmax
+(24) 
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+4 
+
+{
+0 ≤PDis ≤(SoCmax −SoC(t) )⋅E/Δt, discharging
+(SoCmin −SoC(t) )⋅E/Δt ≤PCh ≤0, charging
+(25) 
+By integrating all power ranges given in (19) (23) (25) and consid­
+ering the rated maximum power output, the feasible region of SoP is 
+determined as: 
+SoPDis(t) = min
+⎡
+⎢⎢⎣
+PDis,max
+vb
+(
+SoC(t) , id,max
+)
+⋅id,max
+vb,max⋅in
+(
+SoC(t) , vb,max
+)
+(SoCmax −SoC(t) )⋅E/Δt
+⎤
+⎥⎥⎦
+(26) 
+SoPCh(t) = max
+⎡
+⎢⎢⎣
+PCh,max
+vb
+(
+SoC(t) , ic,max
+)
+⋅ic,max
+vb,min⋅in
+(
+SoC(t) , vb,min
+)
+(SoCmin −SoC(t) )⋅E/Δt
+⎤
+⎥⎥⎦
+(27) 
+where PDis,max, PCh,max indicate the rated maximum power when the 
+battery discharges and charges. In this paper, SoP is first analyzed for 
+one battery cell, and the overall SoP of the whole BSS is obtained by 
+multiplying the number of battery cells. The intent of presenting the cell- 
+level model is for physical interpretability and modular scalability 
+before constructing the full battery bank. In this study, we assume that: 
+all cells in a series/parallel configuration are assumed to have identical 
+initial conditions and ideal cell balancing mechanisms are in place to 
+ensure consistent voltage, current sharing across cells. Such assumptions 
+are valid in real world and have been adopted in many publications/ 
+applications [30,32–34]. By including SoP in the proposed methodol­
+ogy, the bidding agent can learn the policy with physical feasibility, 
+ensuring that bids reflect deliverable power, not just theoretical energy.
+2.3. State of health (SoH)
+To evaluate the health status of BSS, SoH is also taken into consid­
+eration, which, in this study, is defined by the remaining capacity of BSS: 
+SoH(t) = E(t)/Erate × 100%
+(28) 
+where E(t) indicates the remaining capacity at time slot t, Erate indicates 
+the rated capacity. Note that E(t) conceptually reflects SoH of the battery 
+and it is not explicitly computed in the implementation of the proposed 
+method. The SoH can be obtained by SoH(t + 1) = SoH(t) −ΔSoH(t) and 
+the degradation of SoH ΔSoH(t) can be calculated as [35]: 
+ΔSoH(t) = SoH(t)⋅(1 −exp( −δ) )
+(29) 
+δ = δDoD + δCal
+(30) 
+where δ denotes the degradation factor, δDoD denotes the factor of depth 
+of discharging (DoD), δCal denotes the calendar factor. These two factors 
+δDoD, δCal are calculated as: 
+δDoD = (κD1⋅DoDκD2 + κD3)−1
+(31) 
+DoD(t) = 1 −SoC(t)
+(32) 
+δCal = κC⋅Δt
+(33) 
+where κD1, κD2, κD3, κC denote empirical coefficients. Therefore, by 
+combining (29)–(33), the new SoH SoH(t + 1) can be rewritten as: 
+SoH(t + 1) = SoH(t)⋅
+(
+exp
+(
+−(κD1⋅(1 −SoC(t) )κD2 + κD3 )−1 −κC⋅Δt
+) )
+(34) 
+From the equation above, the exponential function at the right in­
+dicates the degradation rate of SoH, which is the function of SoC. Based 
+on this SoH definition, the cost of BSS degradation can be calculated as: 
+CBSS(t) = ΔSoH(t)⋅Erate⋅χBSS
+(35) 
+where χBSS indicates BSS capacity degradation cost per kWh. The benefit 
+of including SoH is to allow the bidding agent to internalize battery 
+degradation cost, which can achieve profit–lifetime trade-off and ensure 
+a sustainable bidding strategy. In this paper, the focus is not on devel­
+oping a novel BSS modelling methodology, but rather on explicitly 
+integrating a realistic and constraint-aware BSS model into a DRL 
+framework tailored for the Singapore electricity market, which will be 
+introduced in the next chapter.
+3. Proposed learning-based method
+This paper designs a learning-based bidding strategy for PV-BSS 
+power plant. First, the overall bidding problem is modelled into a 
+Markov Decision Process (MDP). Then, the general framework of the 
+proposed methodology is explained. After that, policy learning process 
+based on Proximal Policy Optimization (PPO) algorithm is introduced.
+3.1. Markov decision process (MDP) modelling
+The optimization problem (1)–(9) are highly nonlinear and non- 
+convex. As an alternative of classic optimization-based methods, DRL- 
+based methods can solve nonlinear/non-convex problems through the 
+interaction between environment and agent. To apply DRL in this bid­
+ding problem, the main technical challenge includes adapting the bid­
+ding strategy to Uniform Singapore Energy Price, handling the 
+uncertainty of solar generation under tropical weather conditions, and 
+aligning with the market's 30-min settlement intervals. To handle these 
+technical issues, the overall problem is formulated as a Markov Decision 
+Process (MDP), which is introduced as follows.
+At the time slot t, the bidding agent generates the action a(t) (the 
+command of bidding power) based on the observed state s(t) as a =
+π(s|θ), where θ indicates the parameters of π. After action a(t) is 
+executed in the environment, a reward r(t) can be obtained to evaluate 
+the performance under the pair of {s(t), a(t)}. Based on this process, the 
+overall bidding problem is formulated as an MDP:
+State: To deal with the stochastic nature of PV generation and elec­
+tricity price, they are considered in the state formulation. Note that in 
+this study, PV-BSS power plant is considered as a price-taker given its 
+relatively small capacity. According to the bidding process shown in 
+Fig. 2, only the dataset before t −
+75 min is available for utilization. 
+Hence, by combining historic SoC, price, and PV data, the state is 
+formulated as (time step is defined as 1-min): 
+s(t) =
+⎡
+⎢⎢⎢⎢⎢⎣
+Pd−1
+PV (t), Pd−1
+PV (t + 1), …, Pd−1
+PV (t + 29)
+Pd
+PV(t −105), Pd
+PV(t −104), …, Pd
+PV(t −76)
+γ(t −360), γ(t −330), …, γ(t −90)
+SoC(t −105), SoC(t −104), …, SoC(t −76)
+⎤
+⎥⎥⎥⎥⎥⎦
+(36) 
+Since the state contains historic PV, price, SoC information, it 
+implicitly integrates the forecasting of PV, price, SoC into the proposed 
+method. Hence, the proposed bidding strategy does not require extra 
+forecasting modules. Besides, in this study, SoP and SoH have been 
+modelled into functions of SoC, according to Eqs. (26) (27), (29)–(34). 
+Therefore, it is reasonable to only include SoC in the state (does not need 
+to include SoH SoP as a state) since it can still learn the policy with the 
+operational constraint knowledge of SoP and SoH.
+Action: The action is defined as the bidding power of the PV-BSS 
+plant: 
+a(t) = PBid(t)
+(37) 
+The time resolution of the action is defined as 30 min to comply with 
+the electricity market rules in Singapore.
+Reward: To evaluate the performance of an action-state pair {s(t), a 
+(t)}, the reward is designed based on the objective defined in (1): 
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+5 
+
+r(t) = γ(t)⋅PBid(t) −γp(t)⋅PSho(t) −CBSS(t) −CRes(t)
+(38) 
+CRes(t) =
+{
+γR⋅(SoC(t) −50% )⋅E/Δt, t = T
+0, t < T
+(39) 
+where the last item Cres(t) denotes the charging cost of BSS for restoring 
+its SoC to 50 % during nighttime, γR denotes the electricity price during 
+SoC restoration. The second part in (38) represents regulatory penalties 
+due to the power shortages. The last part represents restoration cost, 
+which is only calculated at the end of the day (t = T). Besides, SoH 
+degradation is considered as CBSS. The goal of the optimal bidding 
+strategy is to maximize the accumulated reward.
+Note that this work focuses specifically on the bidding and opera­
+tional strategy of the PV-BSS system at the plant level. Most operational 
+constraints (such as PV generation, storage capacity) have been included 
+in the environment setting. Hence, the impact of submarine cables, such 
+as transmission capacity limits, losses, or reliability, is not modelled 
+explicitly in this study, since these constraints do not affect bid feasi­
+bility in Singapore electricity market.
+3.2. General framework
+To solve this MDP-based bidding problem, a learning-based strategy 
+is developed to find an optimal bidding policy of the agent. The pro­
+posed method is divided into two stages: offline learning and online 
+application, as illustrated in Fig. 4.
+For initialization, the bidding agent is formulated based on a deep 
+neural network (DNN). At offline learning stage, the state, consisting of 
+historic SoC and PV data, can be observed from the environment (PV- 
+BSS plant) as the agent's input. Then, the action (bidding power 
+s
+s
+s
+st
+st
+a
+a
+r
+r
+at
+rt
+Replay Buffer
+st at rt st
+at
+rt
+st
+rt
+at
+Offline Learning
+Bidding Power Command
+Online Application
+Fig. 4. General framework of the proposed method.
+Fig. 5. PV generation data for the first seven days.
+Fig. 6. Price data from National Electricity Market of Singapore.
+Table 1 
+Parameters of PV-BSS plant.
+Parameter
+Value
+Maximum PV generation: PPV,max
+600 MW
+Rated capacity of BSS: Erate
+120 MWh
+Rated power of dc-dc converter: PDis,max, PCh,max
+120 MW, −120 MW
+Upper, lower bounds of SoC: SoCmax, SoCmin
+95 %, 5 %
+BSS discharging, charging efficiency: ηd, ηc
+0.95, 0.97
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+6 
+
+command) is generated based on the agent's policy and then executed in 
+the environment. Meanwhile, the reward is obtained to evaluate the 
+performance of the agent's policy. The transition, including state, action, 
+reward, is stored in a replay buffer, which is used to optimize the policy 
+during the learning process. After iterative learning, the well-trained 
+bidding agent can be applied to online application stage. Based on 
+real-time collected state, the bidding power command is calculated and 
+provided for power plant, which does not require extra PV forecasting 
+modules.
+Noted that the proposed method is not only limited to Singapore 
+market, rather, it can also be used in other scenarios where PV-BSS 
+power plants need to bid in the wholesale market. For other electricity 
+markets, the formats of state, action, and reward can be adjusted ac­
+cording to the specific market rules. Rather than the unique market 
+characteristics, the main contribution of this paper is to develop a data- 
+driven bidding strategy for a PV-BSS plant while considering detailed 
+BSS models. Specifically, the ECM model is only used during the training 
+phase to help the agent learn realistic battery dynamics. Once training is 
+completed offline, the DRL policy generates bidding actions through a 
+simple forward pass of a neural network.
+3.3. Policy learning by proximal policy optimization (PPO)
+In this paper, an actor-critic-based algorithm, PPO [36], is used to 
+search for the optimal bidding policy, which consists of two types of 
+DNN: “actor” and “critic”. The actor indicates the policy function π(s|θ) 
+mapping the state to the action. The critic indicates the value function V 
+(s|θV) mapping the state to a scalar that evaluates the state's quality. The 
+actor is built based on a standard normal distribution for better 
+exploration: 
+a(t) = π(s(t) , ζ|θ) = μθ(s(t) ) + σθ(s(t) )⋅ζ
+(40) 
+where μθ, σθ are two parameterized DNNs that generate mean and 
+covariance, ς is a random variable from a standard normal distribution. 
+During iterations, the algorithm aims to maximize the expectation of 
+rewards Rθ: 
+Rθ =
+∑
+t
+r(t)pθ(t) = Ea(t)∼pθ[a(t) |s(t) ]r(t)
+(41) 
+where pθ is the probability of taking action a(t) under state s(t). The 
+gradient for the expected reward is calculated as: 
+∇Rθ =
+∑
+t
+r(t)pθ(t)∇lgpθ(t) ≈
+∑
+T
+t=1
+r(t)∇lgpθ[a(t) |s(t) ]
+(42) 
+∇Rθ can update the policy in the direction that increases the prob­
+ability of action with a larger reward. To better describe this expected 
+reward, an advantage function A is designed as: 
+A(s(t) , a(t) ) = r(t) + λV(s(t + 1) ) −V(s(t) )
+(43) 
+where λ refers to the discount factor. This advantage function indicates 
+the advantage of performing a(t) under state s(t) over the expected 
+reward of all actions. The parameters θV of the value function V (critic) 
+are optimized by minimizing the loss function JV(θV) as: 
+JV(θV) = E[V(s(t) ) −y(t) ]
+(44) 
+y(t) = r(t) + λV(s(t + 1) )
+(45) 
+θV←θV −λV∇θVJV(θV)
+(46) 
+where y(t) is the training target of the value function, λV is the learning 
+rate. Different from existing off-policy algorithms, such as soft actor- 
+critic, deep deterministic policy gradient, PPO updates the actor in an 
+on-policy manner, which can make better use of samples and provide a 
+better convergence guarantee. Therefore, the loss function for actor 
+training Jπ(θ) is defined as: 
+Jπ(θ) = Es(t),a(t)∼π|θʹ{hθ(t)⋅Aθ(s(t) , a(t) ) }
+(47) 
+Table 2 
+Parameters of BSS modelling.
+Parameter
+Value
+Maximum charging/discharging currents ic,max, id,max
+140 A, −120 A
+Maximum, minimum terminal voltage vb,min, vb,max
+3.6 V, 2.5 V
+Coefficient of the DoD factor: κD1
+1.4e × 105
+Coefficient of the DoD factor: κD2
+−0.503
+Coefficient of the DoD factor: κD3
+−1.2 × 105
+Coefficient of the calendar factor: κC
+4.14 × 10−10
+Fig. 7. The polynomial functions of SoC (a) voc (b) R0 (c) R1 (d) C1.
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+7 
+
+hθ(t) = pθ[a(t) |s(t) ]
+pθʹ[a(t) |s(t) ]
+(48) 
+where θ' indicates the old parameters of policy function before updating 
+the actor, hθ(t) is the ratio between the updated policy and the old 
+policy. During the on-policy learning, the sampled data from θ' can be 
+reused to train θ many times. On the other hand, if θ and θ' have a large 
+difference or a limited number of samples are collected, they would have 
+a large variance, and the learning performance may degrade. To prevent 
+this case, a clipped probability ratio is used to ensure the actor param­
+eters are updated within a trust region. The loss function Jπ(θ) can be 
+written as: 
+Jπ(θ) = min{hθ(t)A(s(t) , a(t) ) , clip(hθ(t) , 1 −ε, 1 + ε)A(s(t) , a(t) ) }
+(49) 
+where ε is the range of the trusted region for updating, clip(•) denotes 
+the clipped function to prevent unsafe policy updates. Based on this loss 
+function Jπ(θ), the parameters of policy function are updated based on 
+gradient descent: 
+θ←θ −λπ∇θJπ(θ)
+(50) 
+where λπ denotes the learning rate.
+To sum up, the overall algorithm is shown in Algorithm 1 as follows: 
+4. Case study
+To validate the proposed methodology, several case studies are 
+carried out in this section. The PV generation data are obtained during 
+the time range from 22-Oct-2017 0:00 to 31-Dec-2017 23:30, with a 
+time resolution of 1 min. In our case, the use of 71-day data was pri­
+marily constrained by the availability of high-resolution PV generation 
+data. Unlike temperate regions, Singapore does not experience distinct 
+seasons, and irradiance as well as demand patterns remain relatively 
+stable throughout the year. Consequently, PV output and price dynamics 
+during October–December are highly representative of typical operating 
+conditions. To exemplify, the PV generation from the first seven days are 
+plotted in Fig. 5. Besides, electricity price data from National Energy 
+Market of Singapore (NEMS) are obtained for training and testing, as 
+shown in Fig. 6. Besides, the parameters of the PV-BSS power plant are 
+summarized in Table 1. All tests are conducted by Matlab R2020b 
+software on a laptop with AMD Ryzen 74800H 2.9 GHz CPU and 16 GB 
+RAM.
+4.1. BSS modelling
+In this section, the BSS model is firstly validated based on the 
+equivalent circuit model in Fig. 2, which contains N = 180 parallel- 
+connected strings and M = 1500 series-connected cells per string. The 
+polynomial parameters of electric elements (voc, R0, R1, C1) in (12)–(15) 
+are from [37], and the curves of these polynomial functions are pre­
+sented in Fig. 7. Besides, the parameters of the BSS model are listed in 
+Table 2. Based on (18), the terminal voltage vb can be calculated ac­
+cording to different values of SoC and charging/discharging current in, 
+which is plotted in Fig. 8. If a different type of battery is used, its 
+nameplate parameters are needed, which can be obtained from battery 
+manuals.
+Based on (26), (27), the SoP-SoC relationship is obtained and shown 
+in Fig. 9. As presented in Fig. 9 (a), discharging SoP will be determined 
+by SoC constraint if SoC is low, since BSS does not have enough stored 
+power to discharge. When SoC increases, discharging SoP will be 
+determined by voltage constraint to ensure that the terminal cell voltage 
+may go beyond the allowable range, i.e. SoP = SoPvb = vb,max•in(SoC(t), 
+vb,max). Besides, there is a certain range (SoC is around 12–20 %) that the 
+current through strings may go beyond the maximum allowable range. 
+So, in such range, discharging SoP is determined by the current 
+constraint, i.e. SoP = SoPin = vb(SoC(t), id,max)•id,max. After that, SoP can 
+be obtained directly as the rated maximum discharging power PDis,max, 
+since other constraints are not significant.
+Fig. 8. The terminal voltage vb-SoC curve under different currents.
+Fig. 9. The SoP-SoC relationship of BSS (a) discharging (b) charging.
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+8 
+
+As shown in Fig. 9 (b), BSS's charging SoP will be low if SoC is high, 
+because the stored energy almost reaches the upper bound. When SoC 
+decreases, charging SoP will be determined by current constraint to 
+make sure that the current through strings shall be lower than the 
+maximum allowable current, i.e., SoP = SoPin = vb(SoC(t), ic,max)•ic,max. 
+When SoC further decreases (lower than around 7–9 %), the voltage 
+constraint will become dominant and charging SoP will equal to SoPvb =
+vb,min•in(SoC(t), vb,min).
+4.2. Offline training
+After system modelling, offline training is conducted based on PPO 
+algorithm, searching for an optimal bidding strategy. According to MDP 
+defined above, the actor network (bidding agent) is built by two DNNs 
+with the structure of 90 × 512 × 128 × 1, for mean and covariance 
+respectively in (39). Besides, the critic network (state function) is also 
+built with the structure of 90 × 512 × 64 × 1. For initialization, these 
+DNNs are assigned random weights and biases. The activation functions 
+of hidden layers are set by “relu” function in both actor and critic. The 
+activation functions of output layers are set by “relu” function in the 
+critic and “tanh” function in the actor. At the beginning of each learning 
+episode, PV historic data are randomly selected for policy exploration. 
+During the learning episode, the bidding agent runs for multiple itera­
+tions and the transition {s(t), a(t), p(t), r(t), s(t + 1)} is stored into a 
+memory cell, which is implemented in Matlab interface. After several 
+episodes, a number of cells can construct as a replay buffer. To update 
+the policy, several memory cells are selected from the replay buffer to 
+update the agent's parameters. Through numerous learning episodes, the 
+bidding agent can be well-trained under various PV generations and is 
+applied to online applications. Note that the agent will not be trained at 
+online stage and only conduct matrix calculations, which can signifi­
+cantly reduce the online computational burden. According to our tests, 
+the online computational time is only 2.470 ms, which is fully 
+compatible with online applications. The parameters for offline training 
+are listed in Table 3.
+The episode rewards are plotted in Fig. 10. Since the initial state is 
+randomly selected in each episode, the reward will fluctuate during the 
+overall training process. To show the clear trend of episode rewards, 
+average rewards per 50 episodes are also calculated and illustrated in 
+Fig. 10, marked by deep colors. For comparison, SAC and DDPG algo­
+rithms are also tested, which reflects the better performance of the 
+adopted PPO. Although SAC has a good capability of policy exploration 
+as an entropy-based algorithm [38], the learning process is unstable, 
+Table 3 
+Parameters of algorithm.
+Parameter
+Value
+Structure of actor network
+90 × 512 × 128 × 1
+Structure of critic network
+90 × 512 × 64 × 1
+Actor learning rate λπ
+2e−5
+Critic learning rate λV
+1e−4
+Optimizer
+Adam
+Range of the trusted region ε
+0.1
+Size of replay buffer NR
+100
+Size of minibatch L
+20
+Fig. 10. Episode rewards during offline training.
+Fig. 11. Test results during one week, day 50–56 (a) PV generations and bid­
+ding results (b) BSS's output power (c) BSS's SoC (d) BSS's SoH.
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+9 
+
+which may not converge. As a result, PPO algorithm shows a better 
+learning process compared to existing DRL algorithms in this bidding 
+problem.
+4.3. Test results
+After multiple iterations of training, the bidding agent can be applied 
+to online stage. To validate the performance of the proposed bidding 
+strategy, several case studies are given in this section. It should be noted 
+that the overall dataset contains PV data of 71 days, where the data of 
+first 40 days are used as training dataset and the remaining 31-day data 
+(day 41–71) are used for testing. Therefore, training and testing datasets 
+do not overlap. 
+1) Test Case of Proposed Method
+Fig. 11 presents the test case within one week (from day 50 to day 
+56). In Fig. 11 (a), the proposed agent can follow variable PV genera­
+tions and generate the bidding power command by historic information, 
+which does not need PV power forecasting. A comparative analysis is 
+provided to explain the necessity for SoP and SoH modelling. Since the 
+real SoP does not match the rated maximum power according to the 
+discussion above, the BSS output may exceed real-time SoPs if not 
+considering SoP, as shown in Fig. 11 (b). Taking SoP into consideration, 
+the real output power of BSS shows a relatively lower level. Besides, the 
+variation of SoC also reflects the smoother operation of BSS when 
+considering SoP in BSS modelling. During the operation, SoC can be kept 
+within the constraints [5 %, 95 %]. In the end of daytime (19:00–20:00), 
+BSS's SoC is restored to 50 %. For SoH modelling, the initial SoH is 
+defined as 99 %, indicating the ratio of the remaining BSS capacity. By 
+taking the cost of SoH capacity into the reward given in (35), the 
+degradation can be improved during operation, as presented in Fig. 11
+(d). 
+2) Comparison with Classic Optimization Methods
+To further explain the effectiveness of the proposed method, it is 
+compared with classic model (optimization)-based methods. The opti­
+mization problem is formulated by (1) as a mixed-integer linear pro­
+gramming (MILP) model that can be efficiently solved by off-the-shelf 
+solvers, where the time resolution is also defined as 30 min.
+The benchmark optimization model is formulated as a two-stage 
+stochastic programming and solved by the sampling average approxi­
+mation (SAA), which is derived from [8] and does not consider SoP and 
+SoH. The first-stage decision variable is revealed before the uncertainty, 
+which corresponds to PBid; the second-stage variables include PDis and 
+PCh, depending on PBid and the realization of uncertainty. Assuming the 
+PV forecasting error follows a specific probabilistic distribution such as 
+normal distribution or beta distribution, the SAA samples a finite 
+number of possible scenarios from its probabilistic distribution, and the 
+expectation of the objective function can be approximated as the 
+average of that of the sampled scenarios. In case study, the optimization 
+model is solved by Gurobi, using 100 samples. The solution accuracy 
+follows Gurobi's default tolerance settings, including a feasibility toler­
+ance of 1 × 10−6, optimality tolerance of 1 × 10−6. To ensure the long- 
+term profit, SoC is required to restore to 50 % in each time horizon (30 
+min). Note that this definition “50% SoC at the end of each 30min ho­
+rizon” is only for optimization-based benchmarks, which is not included 
+in the proposed method, and it is reasonable that SoC is required to 
+restore to 50% in each time horizon. First, if SoC is not required to 
+restore to 50% in each time horizon, BSS cannot be charged timely by 
+the optimization-based method for real-time bidding. Second, to restore 
+SoC to 50% in each time horizon (30 min) can still fully utilize PV 
+generation and will not sacrifice any potential profits. Besides, the 
+optimization-based baseline emulates realistic forecast conditions by 
+adding controlled levels of Gaussian noise to the real PV data, which 
+mimics forecast errors with varying accuracy. More details of the 
+benchmark optimization model can be found in [8].
+In the tests, historical data of day 42–48 are used. First, the bidding 
+results of the proposed and optmization-based method are presented in 
+Fig. 12 (a), where the optimization-based method utilizes real PV data as 
+the input. As shown, these two curves have a similar trend as PV vari­
+ation. SoC curve is also given in Fig. 12 (b). Compared to the 
+optimization-based method, which makes limited use of BSS, the pro­
+posed method is capable to utilize BSS within a larger range of SoC. 
+Moreover, the average profits per 30 min are plotted in Fig. 12 (c). The 
+proposed method can achieve similar profits with the optimization- 
+based method during the operation. It should be noted that in this 
+case, true PV data is used for the optimization-based method.
+However, true PV power outputs are unavailable at real-time stage in 
+Fig. 12. Comparison between the proposed method and the optimization-based 
+method with real PV data (a) bidding results (b) BSS's SoC (c) average profit.
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+10 
+
+practice, which shall be predicted based on historic information. In this 
+regard, the prediction errors could affect the bidding results. In this 
+study, a normally distributed random signal is added to the real PV 
+power to simulate prediction errors. First, an illustration of measured PV 
+and predicted PV with 10 % root mean square error (RMSE) are given in 
+Fig. 13 (a). Based on PV outputs with predicted errors, the performance 
+of the optimization-based method will be degraded, as shown in Fig. 13
+(b). Besides, SoC variations are given in Fig. 13 (c), where the proposed 
+method performs a better utilization of BSS compared to the 
+optimization-based method. Furthermore, to compare the performance 
+under different levels of prediction errors, the average profits per 30 min 
+are presented in Fig. 13 (d). As shown in the figure, when the 
+optimization-based method uses predicted data with small errors (5 %), 
+the proposed method shows a similar profit curve as the optimization- 
+based method. As the prediction error increases (from 5 % to 10 % 
+RMSE), the average profit decreases significantly. In Fig. 13 (e) the 
+accumulated profits are also shown. The proposed method shows a 
+reliable bidding performance with a high accumulated profit, close to 
+the optimization-based method using true PV. When the forecasting 
+error reaches 10 % or a higher level, the proposed bidding strategy can 
+outperform the optimization-based approach.
+5. Conclusion and future works
+In this paper, a learning-based bidding method is proposed for 
+overseas PV plants in Singapore Electricity Market. The proposed 
+method maximizes the profit of the PV power plant, considering selling 
+avenues, penalized payment, BSS cost. For offline training, detailed BSS 
+Fig. 13. Comparison between the proposed method and the optimization-based method (a) measured and predicted PV data with 10 % RMSE (b) bidding results (c) 
+BSS's SoCs under the proposed method, predicted PV with 0 %, 10 % RMSE (d) average profits under the proposed method, predicted PV with 5 %, 10 %, 15 % RMSE 
+(e) accumulated profits under the proposed method, predicted PV with 0 %, 5 %, 10 %, 15 %, 20 % RMSE.
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+11 
+
+modelling is applied to estimate SoP, SoH during operation and PPO 
+algorithm is utilized to search for an optimal bidding strategy of the PV 
+power plant. At the online application stage, the trained agent can 
+generate the optimal bidding power under various PV generations, 
+which does not require extra PV forecast modules. According to case 
+studies, the proposed method can work effectively under different 
+operation conditions and achieve the same level of profit compared with 
+the ideal case, i.e., optimization-based methods with zero/minor PV 
+forecast errors.
+For future work, the effect of submarine cables and longer historical 
+test datasets will be further studied. Besides, incorporating real battery 
+datasets or experimental calibration will also be considered in the future 
+to improve model fidelity. Potential price-maker behavior under higher 
+renewable penetration will also be considered by incorporating price- 
+impact modelling and game-theoretic market interactions.
+CRediT authorship contribution statement
+Yang Xia: Writing – review & editing, Validation, Methodology, 
+Investigation, Conceptualization. Yan Xu: Supervision, Conceptualization.
+Declaration of competing interest
+The work in this paper was supported in part by the Ignition 
+Emerging Research Programme on Energy Storage Systems at School of 
+Electrical 
+and 
+Electronic 
+Engineering, 
+Nanyang 
+Technological 
+University.
+Data availability
+No data was used for the research described in the article.
+References
+[1] Energy 2050 committee report, energy market authority (EMA) of Singapore, 
+https://wwwemagovsg/resources/industry-reports/energy-2050-committee-report 
+Dec. 2023.
+[2] Energy market authority (EMA) to seek proposals for electricity imports. https: 
+//www.ema.gov.sg/news-events/news/media-releases/2021/ema-to-seek-propo 
+sals-for-electricity-imports; Dec. 2023.
+[3] Imports guide to electricity imports-energy market authority (EMA). https://www. 
+ema.gov.sg/our-energy-story/energy-supply/regional-power-grids; Jul. 2022.
+[4] Yang D, He S, Wang M, Pandˇzi´c H. Bidding strategy for virtual power plant 
+considering the large-scale integrations of electric vehicles. IEEE Trans Ind Appli 
+Sept. 2020;56(5):5890–900.
+[5] Hosseini SA, Toubeau J-F, De Gr`eve Z, Vall´ee F. An advanced day-ahead bidding 
+strategy for wind power producers considering confidence level on the real-time 
+reserve provision. Appl Energy 2020;280 [Art. no. 115973].
+[6] Wu H, Shahidehpour M, Alabdulwahab A, Abusorrah A. A game theoretic approach 
+to risk-based optimal bidding strategies for electric vehicle aggregators in 
+electricity markets with variable wind energy resources. IEEE Trans Sustain Energy 
+Jan. 2016;7(1):374–85.
+[7] Hu B, Gong Y, Chung CY, Noble BF, Poelzer G. Price-maker bidding and offering 
+strategies for networked microgrids in day-ahead electricity markets. IEEE Trans 
+Smart Grid Nov. 2021;12(6):5201–11.
+[8] Xu Y. Optimal power bidding of overseas PV plants in Singapore wholesale 
+electricity market. Energy Convers Econ Apr. 2024;5(2):73–7.
+[9] Huang B, Wang J. Deep-reinforcement-learning-based capacity scheduling for PV- 
+battery storage system. IEEE Trans Smart Grid May 2021;12(3):2272–83.
+[10] Xia Y, et al. A data-driven method for online gain scheduling of distributed 
+secondary controller in time-delayed microgrids. IEEE Trans Power Syst May 2024; 
+39(3):5036–49.
+[11] Xia Y, Xu Y, Feng X. Hierarchical coordination of networked-microgrids towards 
+decentralized operation: a safe deep reinforcement learning method. In: IEEE 
+Trans. Sustain. Energy, Early Access; 2025.
+[12] Yan Z, Xu Y. Real-time optimal power flow: a Lagrangian based deep reinforcement 
+learning approach. IEEE Trans Power Syst July 2020;35(4):3270–3.
+[13] Ye Y, Qiu D, Sun M, Papadaskalopoulos D, Strbac G. Deep reinforcement learning 
+for strategic bidding in electricity markets. IEEE Trans Smart Grid Mar. 2020;11(2): 
+1343–55.
+[14] Tao Y, Qiu J, Lai S. Deep reinforcement learning based bidding strategy for EVAs in 
+local energy market considering information asymmetry. IEEE Trans Ind Inform 
+Jun. 2022;18(6):3831–42.
+[15] Zhu Z, Chan KW, Xia S, Bu S. Optimal bi-level bidding and dispatching strategy 
+between active distribution network and virtual alliances using distributed robust 
+multi-agent deep reinforcement learning. IEEE Trans Smart Grid Jul. 2022;13(4): 
+2833–43.
+[16] Jeong J, Kim SW, Kim H. Deep reinforcement learning based real-time renewable 
+energy bidding with battery control. In: IEEE Trans. Energy Markets, Policy 
+Regulation. 1; Jun. 2023. p. 85–96. no. 2.
+[17] Anwar M, Wang C, de Nijs F, Wang H. Proximal policy optimization based 
+reinforcement learning for joint bidding in energy and frequency regulation 
+markets. In: 2022 IEEE Power & Energy Society General Meeting (PESGM), 
+Denver, CO, USA; 2022. p. 1–5.
+[18] Ochoa T, Gil E, Angulo A, Valle C. Multi-agent deep reinforcement learning for 
+efficient multi-timescale bidding of a hybrid power plant in day-ahead and real- 
+time markets. Appl Energy 2022;317 [Art. no. 119067].
+[19] Wei Z, Dong G, Zhang X, Pou J, Quan Z, He H. Noise-immune model identification 
+and state-of-charge estimation for lithium-ion battery using bilinear 
+parameterization. IEEE Trans Ind Electron Jan. 2021;68(1):312–23.
+[20] Gou B, Xu Y, Feng X. State-of-health estimation and remaining-useful-life 
+prediction for lithium-ion battery using a hybrid data-driven method. IEEE Trans 
+Veh Technol Oct. 2020;69(10):10854–67.
+[21] Sun X, et al. State of power capability prediction of lithium-ion battery from the 
+perspective of electrochemical mechanisms considering temperature effect. IEEE 
+Trans Transp Electrif Jun. 2023;9(2):2453–63.
+[22] Li G, Zhang J, He H. Battery SOC constraint comparison for predictive energy 
+management of plug-in hybrid electric bus. Appl Energy May 2017;194:578–87.
+[23] Tian H, Wang X, Lu Z, Huang Y, Tian G. Adaptive fuzzy logic energy management 
+strategy based on reasonable SOC reference curve for online control of plug-in 
+hybrid electric city bus. IEEE Trans Intell Transp Syst May 2018;19(5):1607–17.
+[24] Wu J, Wei Z, Li W, Wang Y, Li Y, Sauer DU. Battery thermal- and health- 
+constrained energy management for hybrid electric bus based on soft actor-critic 
+DRL algorithm. IEEE Trans Ind Inform Jun. 2021;17(6):3751–61.
+[25] Hu X, Feng F, Liu K, Zhang L, Xie J, Liu B. State estimation for advanced battery 
+management: key challenges and future trends. Renew Sustain Energy Rev Oct. 
+2019;114 [Art. no. 109334].
+[26] Farmann A, Sauer DU. Comparative study of reduced order equivalent circuit 
+models for on-board state-of-available-power prediction of lithium-ion batteries in 
+electric vehicles. Appl Energy Sep. 2018;225:1102–22.
+[27] Sun X, et al. State of power capability prediction of lithium-ion battery from the 
+perspective of electrochemical mechanisms considering temperature effect. IEEE 
+Trans Transp Electrific 2023;9(2):2453–63.
+[28] Zheng FD, Jiang JC, Sun BX, Zhang W, Pecht M. Temperature dependent power 
+capability estimation of lithium-ion batteries for hybrid electric vehicles. Energy 
+Oct. 2016;113:64–75.
+[29] Hussein AA. Adaptive artificial neural network-based models for instantaneous 
+power estimation enhancement in electric vehicles’ li-ion batteries. IEEE Trans Ind 
+Appl Jan. 2019;55(1):840–9.
+[30] Han W, Altaf F, Zou C, Wik T. State of power prediction for battery systems with 
+parallel-connected units. IEEE Trans Transp Electrification Mar. 2022;8(1):925–35.
+[31] Wu M, Qin L, Wu G. State of power estimation of power lithium-ion battery based 
+on an equivalent circuit model. J Energy Storage Jul. 2022;51 [Art. no. 104538].
+[32] Zhang X, Wang Y, Wu J, Chen Z. A novel method for lithiumion battery state of 
+energy and state of power estimation based on multitime-scale filter. Appl Energy 
+Apr. 2018;216:442–51.
+[33] Esfandyari MJ, Hairi Yazdi MR, Esfahanian V, Masih-Tehrani M, Nehzati H, 
+Shekoofa O. A hybrid model predictive and fuzzy logic based control method for 
+state of power estimation of series -connected Lithium-ion batteries in HEVs. 
+J Energy Storage Aug. 2019;24:100758.
+[34] Zhang Z, et al. A comparative study of the LiFePO4 battery voltage models under 
+grid energy storage operation. J Energy Storage 2024;75 [Art. no. 109696].
+[35] Xu B, Oudalov A, Ulbig A, Andersson G, Kirschen DS. Modeling of lithium-ion 
+battery degradation for cell life assessment. IEEE Trans Smart Grid Mar. 2018;9(2): 
+1131–40.
+[36] Schulman J, Wolski F, Dhariwal P, Radford A, Klimov O. Proximal policy 
+optimization algorithms. 2017. arXiv: 170706347.
+[37] Shen J, Wang Q, Ma Z, He Y. Nonlinear optimization strategy for state of power 
+estimation of lithium-ion batteries: a systematical uncertainty analysis of key 
+impact parameters. IEEE Trans Ind Inform Oct. 2022;18(10):6680–9.
+[38] Haarnoja T, Zhou A, Abbeel P, Levine S. Soft actor-critic: off-policy maximum 
+entropy deep reinforcement learning with a stochastic actor. 2018. arXiv: 
+1801.01290.
+Y. Xia and Y. Xu                                                                                                                                                                                                                                
+Applied Energy 407 (2026) 127328 
+12 

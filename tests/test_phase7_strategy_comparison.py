@@ -32,6 +32,57 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pytest
 
+
+#: These tests exercise an *interface*: the strategy registry, the settlement
+#: path, the declared-vs-settled reconciliation. Their subject is not the load
+#: and not the price curve, so they run on the native benchmark day with its own
+#: price source. `typical_day_industry` used to serve this role and cannot any
+#: more: it now carries the metered industry load, on which the clearing returns
+#: **no power-balance duals at all** -- every price cell falls back to the
+#: wholesale curve -- which is a degraded day, correctly refused, and not a
+#: fixture an interface test can assert against.
+SCENARIO = "typical_day"
+
+
+@pytest.fixture(autouse=True)
+def _on_the_native_day(monkeypatch):
+    """Point `run_strategy` at that scenario too.
+
+    The module constant above only reaches the tests that call `get_scenario`
+    themselves; `phase7_strategy_comparison.run_strategy` reads **its own**
+    `SCENARIO`. Setting one and not the other left the tests comparing a native
+    day against a metered one.
+    """
+    import phase7_strategy_comparison as p7
+    monkeypatch.setattr(p7, "SCENARIO", SCENARIO)
+
+
+#: The native day's price carries unseeded noise, so which day a test sees
+#: depends on whatever drew before it. These tests assert on one day's quotes,
+#: so the day is pinned.
+_TEST_SEED = 20261015
+
+
+@pytest.fixture(autouse=True)
+def _pinned_day():
+    import numpy as np
+    state = np.random.get_state()
+    np.random.seed(_TEST_SEED)
+    yield
+    np.random.set_state(state)
+PRICE_SOURCE = "dianyicha"
+
+
+@pytest.fixture(autouse=True)
+def _real_price_curve():
+    """Price the native day from the real curve, for this module only."""
+    from config_loader import reload_scenarios, set_scenario_param
+    reload_scenarios()
+    set_scenario_param(SCENARIO, "wholesale_source", PRICE_SOURCE)
+    yield
+    reload_scenarios()
+import pytest
+
 from config_loader import get_default, reload_defaults, set_default
 from ess import build_ess_fleet
 from models import MarketConfig
@@ -186,7 +237,7 @@ def test_the_strategy_returns_quotes_in_each_agents_own_action_space():
     reload_defaults()
     wp.reset_cache()
     config = MarketConfig.from_yaml()
-    agents, _ = get_scenario("typical_day_industry", T=96, config=config,
+    agents, _ = get_scenario(SCENARIO, T=96, config=config,
                              day_id=0)
     actions = adaptive_bidding(agents, config, strategy="greedy_threshold",
                                T=96)
@@ -215,7 +266,7 @@ def test_the_strategy_declares_no_power_variables():
     reload_defaults()
     wp.reset_cache()
     config = MarketConfig.from_yaml()
-    agents, _ = get_scenario("typical_day_industry", T=96, config=config,
+    agents, _ = get_scenario(SCENARIO, T=96, config=config,
                              day_id=0)
     actions = adaptive_bidding(agents, config, strategy="greedy_threshold", T=96)
     for name, payload in actions.items():
@@ -289,14 +340,31 @@ def test_the_real_curves_close_the_arbitrage_window():
 
 @pytest.fixture(scope="module")
 def pair():
-    """The same curve run under two strategies, each freshly built."""
+    """The same curve run under two strategies, each freshly built.
+
+    The scenario is set on the module itself, not only on this file's constant:
+    `run_strategy` reads its own `SCENARIO`, and a fixture of this scope cannot
+    be reached by a function-scoped patch.
+    """
     import phase7_strategy_comparison as p7
 
+    from config_loader import reload_scenarios, set_scenario_param
+
+    previous = p7.SCENARIO
+    p7.SCENARIO = SCENARIO
     reload_defaults()
+    reload_scenarios()
+    # The real curve, on the native day: these two tests assert a finding about
+    # *this curve's* thin spread (the clearing refuses the greedy's declared
+    # intent and nothing trades). That finding needs a day the feeder can serve
+    # whole; the metered day is not one.
+    set_scenario_param(SCENARIO, "wholesale_source", "dianyicha")
     try:
         yield {s: p7.run_strategy(s, 0, 96) for s in ("fixed", "greedy_threshold")}
     finally:
+        p7.SCENARIO = previous
         p7._fresh()
+        reload_scenarios()
 
 
 def test_every_strategy_is_settled_by_the_same_path(pair):
@@ -351,7 +419,7 @@ def test_the_price_scenario_is_not_taken_from_a_stale_cache():
     try:
         p7._fresh()
         config = MarketConfig.from_yaml()
-        _, first = get_scenario("typical_day_industry", T=96, config=config,
+        _, first = get_scenario(SCENARIO, T=96, config=config,
                                 day_id=0)
         from dianyicha_price import read_curves
         curves = read_curves()
@@ -359,7 +427,7 @@ def test_the_price_scenario_is_not_taken_from_a_stale_cache():
 
         p7._fresh()
         config = MarketConfig.from_yaml()
-        _, third = get_scenario("typical_day_industry", T=96, config=config,
+        _, third = get_scenario(SCENARIO, T=96, config=config,
                                 day_id=3)
         assert np.allclose(third, curves["halfyear"].array())
         assert not np.allclose(first, third)
@@ -407,7 +475,7 @@ def test_phase_1_to_6_interfaces_are_intact():
     import wholesale_price as wp
     wp.reset_cache()
     from scenarios import get_scenario
-    agents, _ = get_scenario("typical_day_industry", T=96,
+    agents, _ = get_scenario(SCENARIO, T=96,
                              config=MarketConfig.from_yaml(), day_id=0)
     loads = [a for a in agents if a.load_type != "storage"]
     peak = float(np.sum([np.asarray(a.load_real) for a in loads], axis=0).max())

@@ -45,7 +45,26 @@ from dispatch_core import (
     record_last_solve,
     solver_metadata,
     split_power,
+    LMP_FALLBACK_NO_DUAL,
+    lmp_fallback_report,
 )
+
+# The I2R loss iterate is a fixed point, so it is stopped when the allocation
+# stops moving rather than only when `n_loss_iters` runs out. The cap stays:
+# on a heavily loaded feeder the iterate can oscillate instead of converging.
+LOSS_ALLOCATION_TOL = 1e-4
+
+
+def loss_allocation_residual(prev: dict, new: dict) -> float:
+    """Total change in the loss allocation, relative to that allocation.
+
+    A statement about the iterate, not about the power flow: it says the
+    allocation stopped moving, which is the question the loop asks.
+    """
+    scale = sum(abs(v) for v in new.values())
+    if scale <= 0.0:
+        return 0.0
+    return sum(abs(new[k] - prev.get(k, 0.0)) for k in new) / scale
 
 
 # ===========================================================================
@@ -200,24 +219,41 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
         obj -= config.market_design.lambda_carbon * config.market_design.emission_factor_grid * imp_aux * DT_HOURS
     m.setObjective(obj, GRB.MAXIMIZE)
 
-    # I2R loss iteration
+    # I2R loss iteration. The allocation is a fixed point, not a contraction:
+    # on a heavily loaded radial feeder the losses computed from one iterate can
+    # make the model infeasible at the next, so the last allocation that did
+    # solve is kept and the period is cleared against it rather than dropped.
+    applied = None
     for loss_iter in range(max(1, config.network.n_loss_iters)):
         m.optimize()
 
         if m.status != GRB.OPTIMAL:
-            return False, None, 0.0, {}, 0.0
+            if applied is None:
+                return False, None, 0.0, {}, 0.0
+            for b, val in applied.items():
+                p_loss[b].UB = val
+                p_loss[b].LB = val
+            m.optimize()
+            if m.status != GRB.OPTIMAL:
+                return False, None, 0.0, {}, 0.0
+            break
 
         if loss_iter < config.network.n_loss_iters - 1:
-            for b in buses:
-                p_loss[b].UB = 0
-                p_loss[b].LB = 0
+            new = {b: 0.0 for b in buses}
             for l in lines:
                 p_val = P[l].X
                 q_val = Q[l].X
                 loss_val = r[l] * (p_val ** 2 + q_val ** 2)
-                to_bus = net.line.at[l, 'to_bus']
-                p_loss[to_bus].UB += loss_val
-                p_loss[to_bus].LB += loss_val
+                new[net.line.at[l, 'to_bus']] += loss_val
+            # Break before touching the bounds, so the model keeps the
+            # allocation it actually solved.
+            if applied is not None \
+                    and loss_allocation_residual(applied, new) <= LOSS_ALLOCATION_TOL:
+                break
+            applied = new
+            for b, val in new.items():
+                p_loss[b].UB = val
+                p_loss[b].LB = val
 
     lmp = np.zeros(len(buses))
     for i, b in enumerate(buses):
@@ -245,7 +281,7 @@ def solve_lindist_opf_gurobi(net, agents, t, stage, prev_soc, wholesale_t,
 # Multi-period joint optimization (batch LinDistFlow)
 # ===========================================================================
 def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholesale,
-                            storage_units=None, horizon_type="auto"):
+                            storage_units=None, *, horizon_type):
     """
     Multi-period joint LinDistFlow with storage SOC transition and terminal value.
     Uses a persistent model cache to avoid rebuilding Gurobi model on repeated calls.
@@ -282,7 +318,8 @@ def solve_lindist_opf_batch(net, agents, T, stage, config, action_params, wholes
                            mpc_schedules=mpc_schedules_ldf)
 
     # First call: build and cache the model
-    cached = _CachedOPFModel(net, agents, T, config, su_list, horizon_type)
+    cached = _CachedOPFModel(net, agents, T, config, su_list,
+                             horizon_type=horizon_type)
     _OPF_CACHE[key] = cached
     return cached.solve(agents, T, stage, config, action_params,
                        wholesale, su_list,
@@ -304,17 +341,20 @@ _OPF_CACHE: dict = {}  # key -> _CachedOPFModel
 def _extract_lmp_batch(m, buses, T, wholesale, dt=DT_HOURS):
     """Nodal prices (CNY/MWh) from the batch model's power-balance duals.
 
-    Returns ``(lmp, n_fallback)``. Mirrors ``dispatch_socp._extract_lmp``: a
-    constraint can be missing after presolve, and Gurobi reports no duals at all
-    for a model carrying integers, so both cases fall back to the wholesale
-    curve and are counted rather than silently pricing the day off it.
+    Returns ``(lmp, n_fallback, fallback_periods)``. Mirrors
+    ``dispatch_socp._extract_lmp``: a constraint can be missing after presolve,
+    and Gurobi reports no duals at all for a model carrying integers, so both
+    cases fall back to the wholesale curve and are counted rather than silently
+    pricing the day off it.
 
     ``dt`` is the factor the objective's energy-valued terms were scaled by; the
     dual is per MW over a period, so it has to come back out to yield a price.
     """
     lmp = np.zeros((T, len(buses)))
     n_fallback = 0
+    fallback_periods = []
     for t in range(T):
+        fell_back_here = False
         for i, b in enumerate(buses):
             constr = m.getConstrByName(f"p_bal_{t}_{b}")
             if constr is not None:
@@ -325,7 +365,10 @@ def _extract_lmp_batch(m, buses, T, wholesale, dt=DT_HOURS):
                     pass
             lmp[t, i] = wholesale[t]
             n_fallback += 1
-    return lmp, n_fallback
+            fell_back_here = True
+        if fell_back_here:
+            fallback_periods.append(t)
+    return lmp, n_fallback, fallback_periods
 
 
 def _opf_cache_key(n_buses, T, agent_names, su_names,
@@ -353,7 +396,7 @@ class _CachedOPFModel:
     """
 
     def __init__(self, net, agents, T, config, storage_units,
-                 horizon_type="auto"):
+                 *, horizon_type):
         self.net = net
         self.T = T
         self.horizon_type = horizon_type
@@ -612,16 +655,22 @@ class _CachedOPFModel:
                 m.addConstr(net_tm1 - net_t <= ramp,
                             f"ramp_down_grid_{t}")
 
-        # Terminal state of charge pinned to the initial one on a settled
-        # horizon; see dispatch_core.pins_terminal_soc for what decides that.
-        # Without this the flag is silently ignored here while SOCP honours it,
-        # and the two engines would answer the same request differently.
-        if pins_terminal_soc(config, T, self.horizon_type):
+        # Terminal state of charge pinned on a settled horizon; see
+        # dispatch_core.pins_terminal_soc for what decides that. Without this
+        # the flag is silently ignored here while SOCP honours it, and the two
+        # engines would answer the same request differently. `day_end` pins the
+        # unit's absolute target; the other settled type pins end to start.
+        if pins_terminal_soc(config, self.horizon_type):
+            absolute = self.horizon_type == "day_end"
             for a in storage_agents:
-                m.addConstr(soc[a.name][T] == soc[a.name][0],
+                target = a.storage.terminal_soc_target if absolute else None
+                rhs = soc[a.name][0] if target is None else float(target)
+                m.addConstr(soc[a.name][T] == rhs,
                             f"terminal_soc_{a.name}")
             for su in su_list:
-                m.addConstr(soc[su.name][T] == soc[su.name][0],
+                target = su.storage.terminal_soc_target if absolute else None
+                rhs = soc[su.name][0] if target is None else float(target)
+                m.addConstr(soc[su.name][T] == rhs,
                             f"terminal_soc_{su.name}")
 
     def solve(self, agents, T, stage, config, action_params, wholesale,
@@ -862,30 +911,50 @@ class _CachedOPFModel:
             for b in buses:
                 p_loss[t, b].UB = 0
                 p_loss[t, b].LB = 0
+        # The allocation is a fixed point, not a contraction: an iterate's own
+        # losses can make the model infeasible at the next pass. Keep the last
+        # allocation that solved and clear against it instead of reporting the
+        # whole day as a failed batch.
+        applied = None
         for loss_iter in range(max(1, config.network.n_loss_iters)):
             m.optimize()
             if m.status != GRB.OPTIMAL:
-                record_last_solve("lindistflow", gurobi_solver_record(m))
-                return None
+                if applied is None:
+                    record_last_solve("lindistflow", gurobi_solver_record(m))
+                    return None
+                for (t, b), val in applied.items():
+                    p_loss[t, b].UB = val
+                    p_loss[t, b].LB = val
+                m.optimize()
+                if m.status != GRB.OPTIMAL:
+                    record_last_solve("lindistflow", gurobi_solver_record(m))
+                    return None
+                break
             if loss_iter < config.network.n_loss_iters - 1:
+                new = {(t, b): 0.0 for t in range(T) for b in buses}
                 for t in range(T):
-                    for b in buses:
-                        p_loss[t, b].UB = 0
-                        p_loss[t, b].LB = 0
                     for l in lines:
                         p_val = P_line[t, l].X
                         q_val = Q_line[t, l].X
                         loss_val = r[l] * (p_val ** 2 + q_val ** 2)
-                        to_bus = self.net.line.at[l, 'to_bus']
-                        p_loss[t, to_bus].UB += loss_val
-                        p_loss[t, to_bus].LB += loss_val
+                        new[(t, self.net.line.at[l, 'to_bus'])] += loss_val
+                # Break before touching the bounds, so the model keeps the
+                # allocation it actually solved.
+                if applied is not None \
+                        and loss_allocation_residual(applied, new) <= LOSS_ALLOCATION_TOL:
+                    break
+                applied = new
+                for (t, b), val in new.items():
+                    p_loss[t, b].UB = val
+                    p_loss[t, b].LB = val
 
         # ---- Nodal price re-solve ----
         all_storage = storage_agents + su_list
         lmp = np.zeros((T, n_buses))
         if all_storage and config.storage.use_nodal_price:
             bus_to_idx = {b: i for i, b in enumerate(buses)}
-            nodal_lmp, _ = _extract_lmp_batch(m, buses, T, wholesale, dt_scale)
+            nodal_lmp, _, _ = _extract_lmp_batch(m, buses, T, wholesale,
+                                                dt_scale)
 
             for nodal_iter in range(4):
                 obj2 = gp.LinExpr()
@@ -943,8 +1012,8 @@ class _CachedOPFModel:
                 if m.status != GRB.OPTIMAL:
                     break
 
-                new_lmp, _ = _extract_lmp_batch(m, buses, T, wholesale,
-                                                dt_scale)
+                new_lmp, _, _ = _extract_lmp_batch(m, buses, T, wholesale,
+                                                   dt_scale)
                 max_change = np.max(np.abs(new_lmp - nodal_lmp))
                 nodal_lmp = new_lmp
                 if max_change < 1.0:
@@ -1020,8 +1089,8 @@ class _CachedOPFModel:
                     parent_line[nb] = (b, l)
                     queue.append(nb)
 
-        lmp, lmp_fallbacks = _extract_lmp_batch(m, buses, T, wholesale,
-                                               dt_scale)
+        lmp, lmp_fallbacks, lmp_fallback_periods = _extract_lmp_batch(
+            m, buses, T, wholesale, dt_scale)
         for t in range(T):
             slack_idx = list(buses).index(slack_bus)
             base_lmp = lmp[t, slack_idx]
@@ -1101,7 +1170,7 @@ class _CachedOPFModel:
         # target, matching the SOCP engine's schema so a reader does not have to
         # know which engine produced the day. `soc_final` is retained above for
         # readers that already use it.
-        terminal_pinned = pins_terminal_soc(config, T, self.horizon_type)
+        terminal_pinned = pins_terminal_soc(config, self.horizon_type)
         for a in list(agents_list):
             if a.storage is None or a.name not in schedules:
                 continue
@@ -1139,9 +1208,10 @@ class _CachedOPFModel:
             "carbon_intensity": carbon_intensity,
             "total_curtailment": total_curtailment,
             "shadow_prices": shadow_prices,
-            # Periods priced off the wholesale curve because no balance dual was
-            # available; non-zero means those prices are not nodal.
-            "lmp_fallbacks": lmp_fallbacks,
+            # Which periods are priced off the wholesale curve because no
+            # balance dual was available, and what that makes the price field.
+            **lmp_fallback_report(lmp_fallbacks, lmp_fallback_periods,
+                                  LMP_FALLBACK_NO_DUAL),
             # Same schema as the SOCP engine, so a reader need not know which
             # engine cleared the day.
             "solver": solver_metadata(

@@ -1,0 +1,150 @@
+{
+  "dataset": "b1_daily_rolling",
+  "version": "b1-rolling-24block-v1",
+  "generated_at": "2026-11-01T16:14:26.354870+00:00",
+  "mechanism": "24 blocks, each a 16-period rolling window committing 4; all four RL units truthful (0,0); no terminal SOC pin; block-level participant_payoff summed",
+  "not_jn_base": true,
+  "soc0": 0.5,
+  "config_hash": "5c6c93f16209203b61bfcc11436b110b80206fde5b2c2247a7ea29295b2c4162",
+  "inputs": {
+    "pairing": {
+      "path": "data/processed/v2_cy_jn_2025/load_price_pairing.csv",
+      "sha256": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1"
+    },
+    "bus_loads": {
+      "path": "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz",
+      "sha256": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078"
+    },
+    "price_curves": {
+      "path": "data/processed/v2_cy_jn_2025/price_curves.npz",
+      "sha256": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1"
+    }
+  },
+  "outputs": {
+    "results": {
+      "path": "data/processed/v2_cy_jn_2025/pilot/b1_daily_results.csv",
+      "sha256": "8bb7ec7ec5b33eb6021e79e0ba83a969ca9c4d0cb546cf6ff1e75d4bbd992cc5"
+    },
+    "comparison": {
+      "path": "data/processed/v2_cy_jn_2025/pilot/b1_jnbase_comparison.csv",
+      "sha256": "b5f49eecd57623136c94e2b0e117971df3b9a9b9fb5df388857c4cd32764954e"
+    }
+  },
+  "days": 96,
+  "representative_comparison": [
+    {
+      "pair_id": "2022-10-03|2025-10-03",
+      "group": "national_day_2022",
+      "rolling_G_total": 0.0009145203652452204,
+      "jnbase_G_total": -0.00011846018620433993,
+      "diff_total": 0.0010329805514495602,
+      "rolling_ESS9": 0.00014846819336756368,
+      "rolling_ESS14": 0.00019568061064212717,
+      "rolling_ESS17": 0.0002585088911648384,
+      "rolling_ESS27": 0.00031186267007069114,
+      "jnbase_ESS9": -2.973162868477589e-05,
+      "jnbase_ESS14": -2.9709327165764044e-05,
+      "jnbase_ESS17": -2.9701296816730515e-05,
+      "jnbase_ESS27": -2.931793353706947e-05,
+      "rolling_soc_ESS9": 0.4999992122515006,
+      "rolling_soc_ESS14": 0.49999910669982267,
+      "rolling_soc_ESS17": 0.49999896525593396,
+      "rolling_soc_ESS27": 0.49999889917532103
+    },
+    {
+      "pair_id": "2022-10-04|2025-10-04",
+      "group": "national_day_2022",
+      "rolling_G_total": 554.7863173061708,
+      "jnbase_G_total": 349.8754722993767,
+      "diff_total": 204.91084500679403,
+      "rolling_ESS9": 136.12096807831995,
+      "rolling_ESS14": 135.28691499306407,
+      "rolling_ESS17": 134.4973357454897,
+      "rolling_ESS27": 148.8810984892971,
+      "jnbase_ESS9": 85.24041479463017,
+      "jnbase_ESS14": 84.16807069361255,
+      "jnbase_ESS17": 83.15792744940276,
+      "jnbase_ESS27": 97.30905936173122,
+      "rolling_soc_ESS9": 0.4320647355590981,
+      "rolling_soc_ESS14": 0.4320647143495632,
+      "rolling_soc_ESS17": 0.43206470088696086,
+      "rolling_soc_ESS27": 0.4320645512229563
+    },
+    {
+      "pair_id": "2022-07-22|2025-07-15",
+      "group": "summer",
+      "rolling_G_total": 106.91338889040998,
+      "jnbase_G_total": -0.00022161430155607378,
+      "diff_total": 106.91361050471153,
+      "rolling_ESS9": 12.33051952477948,
+      "rolling_ESS14": 12.204045151166513,
+      "rolling_ESS17": 12.084303817520095,
+      "rolling_ESS27": 70.2945203969439,
+      "jnbase_ESS9": -5.609166353650626e-05,
+      "jnbase_ESS14": -5.623453523580917e-05,
+      "jnbase_ESS17": -5.621780532301469e-05,
+      "jnbase_ESS27": -5.307029746074367e-05,
+      "rolling_soc_ESS9": 0.4320605463341257,
+      "rolling_soc_ESS14": 0.432060336604791,
+      "rolling_soc_ESS17": 0.432060064587449,
+      "rolling_soc_ESS27": 0.16041364534688043
+    },
+    {
+      "pair_id": "2022-07-23|2025-07-13",
+      "group": "summer",
+      "rolling_G_total": 31.00632739028811,
+      "jnbase_G_total": -0.0004979015747154136,
+      "diff_total": 31.006825291862825,
+      "rolling_ESS9": 7.529950254994213,
+      "rolling_ESS14": 7.42993555072391,
+      "rolling_ESS17": 7.335255877310211,
+      "rolling_ESS27": 8.711185707259776,
+      "jnbase_ESS9": -0.00012569871765702597,
+      "jnbase_ESS14": -0.00012646355367435362,
+      "jnbase_ESS17": -0.00012685798326529007,
+      "jnbase_ESS27": -0.00011888132011874397,
+      "rolling_soc_ESS9": 0.43206639207327135,
+      "rolling_soc_ESS14": 0.4320660777130159,
+      "rolling_soc_ESS17": 0.432065868051692,
+      "rolling_soc_ESS27": 0.4320641704003317
+    },
+    {
+      "pair_id": "2022-10-11|2025-10-10",
+      "group": "autumn",
+      "rolling_G_total": 0.0003866754142695552,
+      "jnbase_G_total": -0.0005164699768622432,
+      "diff_total": 0.0009031453911317983,
+      "rolling_ESS9": 4.3960245091906574e-05,
+      "rolling_ESS14": 5.416024040223565e-05,
+      "rolling_ESS17": 6.263746718322967e-05,
+      "rolling_ESS27": 0.0002259174615921833,
+      "jnbase_ESS9": -0.00012977989804446215,
+      "jnbase_ESS14": -0.00013004573322807452,
+      "jnbase_ESS17": -0.00012998878788807863,
+      "jnbase_ESS27": -0.00012665555770162792,
+      "rolling_soc_ESS9": 0.49999958604755673,
+      "rolling_soc_ESS14": 0.4999995664364597,
+      "rolling_soc_ESS17": 0.49999954857084594,
+      "rolling_soc_ESS27": 0.49999924902065623
+    },
+    {
+      "pair_id": "2022-10-12|2025-10-09",
+      "group": "autumn",
+      "rolling_G_total": 0.00042378198251622997,
+      "jnbase_G_total": -0.00022198730671987965,
+      "diff_total": 0.0006457692892361096,
+      "rolling_ESS9": 6.592242136359717e-05,
+      "rolling_ESS14": 7.2800041597273e-05,
+      "rolling_ESS17": 7.801298838641779e-05,
+      "rolling_ESS27": 0.00020704653116894198,
+      "jnbase_ESS9": -5.5720415306736255e-05,
+      "jnbase_ESS14": -5.5760891094095486e-05,
+      "jnbase_ESS17": -5.5823423226653265e-05,
+      "jnbase_ESS27": -5.468257709239465e-05,
+      "rolling_soc_ESS9": 0.49999955497792103,
+      "rolling_soc_ESS14": 0.4999995405545834,
+      "rolling_soc_ESS17": 0.4999995289572101,
+      "rolling_soc_ESS27": 0.4999992287276439
+    }
+  ]
+}

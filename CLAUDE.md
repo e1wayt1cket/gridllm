@@ -2,7 +2,92 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CC engineering framework
+
+- Live formal manifest: `reports/v2_cy_jn_2025/formal_training_v7/`
+  (config hash `0f35fed8`, `protocol_version: 7`,
+  `V7_candidate_004`). `formal_training_v6/` (`ac0f78d2`),
+  `formal_training_v5/` (`6e32398b`), `formal_training_v4/` (`7834d0aa`),
+  `formal_training_v3/` (`1b47e0ed`), `formal_training_v2/` (`2148a577`) and
+  `formal_training_ready/` (`b21a97c1`, `SUPERSEDED_READ_ONLY`) are
+  historical and never the default. v7 carries the re-freeze record in
+  `reports/audit_remediation_2026-11-15/REFREEZE_V7_CONE_TOL.md`; v6's is
+  `REFREEZE_V6.md` beside it.
+- Frozen set: the live code manifest's `source_sha256` entries and its pinned
+  tests/audits, all seven manifest directories, and every
+  `runs/FORMAL_<config>_seed<N>` / `snapshots/FORMAL_<config>_seed<N>` tree.
+  `.claude/hooks/protect_frozen.py` denies Edit/Write on them. Only the live
+  manifest's source pins are checked; older pins are superseded.
+- Formal launch gate: `src/run_formal_training.py --check` must report
+  `all_pass: true` and `budget_contract_ok: true`, and `status` must be
+  `GO_FORMAL_TRAINING`. v7 verifies `all_pass: true` with
+  `status: GO_FORMAL_TRAINING`: its `training_readiness_status` is written only
+  by `--finalize`, from a `pretraining_validation_results.json` produced on the
+  v7 sources by `tools/make_pretraining_validation_v7.py`. A protocol change
+  invalidates the previous protocol's validation, so a re-freeze needs that
+  record regenerated before any launch.
+  The budget invariants live in `src/training_contract.py` for v6 and in
+  `src/training_contract_v7.py` for v7, selected by `protocol_version`.
+- Rules: [training contract](.claude/rules/training_contract.md),
+  [data governance](.claude/rules/data_governance.md),
+  [model constraints](.claude/rules/model_constraints.md),
+  [reporting](.claude/rules/reporting.md).
+- Skills: `/training-preflight`, `/experiment-audit`.
+- Agents: `independent-reviewer`, `experiment-auditor` (both read-only:
+  `Read, Grep, Glob`).
+- PowerShell entrypoints: `scripts/preflight.ps1`, `launch_seed.ps1`,
+  `run_tests.ps1`, `audit_run.ps1`, `finalize_run.ps1`.
+- Never edit a frozen file to make a check pass. Create a new version
+  directory or request an explicit re-freeze.
+- Known open issues: `TECHNICAL_DEBT.md`. Phase record:
+  `reports/cc01/README.md`.
+
+@.claude/rules/training_contract.md
+@.claude/rules/data_governance.md
+@.claude/rules/model_constraints.md
+@.claude/rules/reporting.md
+
+## Project context: read this first
+
+`docs/project_context/` holds the research definition that the frozen protocol
+does not encode. Read them before proposing any change to the market model.
+
+| File | Read it when |
+| --- | --- |
+| `00_PROJECT_CHARTER.md` | Always. Research goal, claim boundaries, frozen storage parameters, the vocabulary that separates official rules from project assumptions. |
+| `01_RESEARCH_SCOPE.md` | Anything touching market scope, timing, or which price/load series is used. |
+| `09_CURRENT_STATE.md` | Before claiming what is done. Includes the G1-G7 gap table between the charter and the current design. |
+| `10_DECISION_LOG.md` | Before re-deciding anything. D-001 to D-009 are user-confirmed. |
+| `11_OPEN_ISSUES.md` | Before starting implementation. I-03 to I-05 are BLOCKER-level design conflicts. |
+
+Hard constraints that override convenience:
+
+- **Day-ahead only.** No real-time, no deviation settlement, no ancillary
+  services, no intraday re-bidding. A single day is one episode with 96 periods.
+- **Terminal SOC is not pinned to 0.5.** It is free and valued separately; the
+  current `terminal_soc.final` pin is a frozen v4 fact, not the research design.
+- **Never present a project assumption as a Jiangsu rule**, and never present an
+  internal cost parameter as a market quantity-price declaration.
+- **A local IEEE33 nodal LMP is not a Jiangsu provincial nodal price.**
+- **The actual day-ahead price must not leak into the D-1 bidding strategy.**
+
+Current phase: the Jiangsu day-ahead rule audit (M1) is complete and awaiting
+review at `reports/market_mechanism_audit/M1_jiangsu_da_rule_audit_2026-11-12/`.
+Its `M1_decision_report.md` lists nine open decisions (Q-D1 to Q-D8, Q-E1) that
+must be settled before any clearing-engine work. No M2 work is authorized.
+
 ## Development commands
+
+On Windows, prefer the wrappers below over raw environment-variable syntax.
+They set `PYTHONPATH=src` and propagate the Python exit code.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch_seed.ps1 -Seed 71
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_tests.ps1 -Level Full
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/audit_run.ps1 -RunDir runs/<run-id>
+```
+
 
 All modules live flat in `src/` and import each other by bare name, so scripts
 run with `src/` on `PYTHONPATH` (or from inside `src/`). `pytest.ini` sets
@@ -84,11 +169,14 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
 - **Result dict schema**: `clear_market` returns `{price, lmp (96×33), schedules (per-agent dicts with p_buy/p_sell/served/unserved/pv_used/wind_used/p_ch/p_dis/soc), clearing_objective, re_consumption_rate, total_re_available, carbon_emissions, carbon_intensity, total_curtailment, shadow_prices}`, plus `bus_voltage` / `line_utilization` / `grid_import_mw` under `socp`. `clearing_objective` is the clearing model's own objective, **not** a participant payoff and not social welfare, and it is emitted under that one name only; `legacy_schema` translates the retired `welfare` spelling when reading older artifacts.
 - **Action space is per participant** (`rl_spec.action_spec_for`, never by whether an agent carries a battery). A battery alone declares `charge_price` / `discharge_price` in CNY/MWh, truthful at **(0, 0)**; a load or prosumer declares `bid_mult` / `offer_adder` shading its own `bid_value` / `offer_cost`, truthful at (1, 0). Every trainer builds each policy in its own agent's box and anchors that agent's deviation penalty to its own truthful point — see `rl_bidding.agent_action_spaces`.
 - **The `raw/` directory** contains an earlier standalone trading agent implementation (`agent_trading.py`) that is independent of the main simulation modules.
-- **RL bidding (CTDE MATD3 / TD3)**: trains on a single fixed scenario by default (pass `--scenarios` a list to rotate); 12-dim compact observation (`OBS_V4`: 3 unique + 9 shared); differential reward (per-block profit minus the truthful-bidding baseline, each agent's own) with a box-normalized L2 deviation penalty in the actor loss (`rl_td3.deviation_penalty`), whose single dimensionless weight is frozen at `rl_td3.CALIBRATED_DEV_PENALTY`.
-- **The observation is causal, and that is a contract.** `OBS_V4` replaced `OBS_V3` because V3's `avg_lmp_norm` was `mean(self.wholesale)` — the whole day's realized price — and the same day-mean was the denominator of `last_lmp_norm` and `pred_lmp_norm` and the block-0 value of `last_lmp`, so four of twelve features read periods the agent had not reached. V4 uses `avg_lmp_hist_norm` (LMPs observed so far) and normalizes every price feature by the frozen `rl_env.PRICE_REF_CNY_MWH`. `OBS_V3` stays registered so old checkpoints are *identifiable* and `load_policy` raises on the name mismatch; nothing selects it by default, and a V3 actor is **not** a valid V4 initialisation. See `reports/phase11_training_readiness.md`.
-- **Voltage bands**: primary `0.93 <= V <= 1.05` (GB/T 12325 ±7%), strict
-  `0.95 <= V <= 1.05` (sensitivity). They differ in the lower bound alone,
-  which is the only one this network binds on. A band is a constraint the
+- **RL bidding (CTDE MATD3 / TD3)**: trains on a single fixed scenario by default (pass `--scenarios` a list to rotate); 12-dim compact observation (`OBS_V6`: 3 unique + 9 shared); differential reward (per-block profit minus the truthful-bidding baseline, each agent's own) with a box-normalized L2 deviation penalty in the actor loss (`rl_td3.deviation_penalty`), whose single dimensionless weight is frozen at `rl_td3.CALIBRATED_DEV_PENALTY`.
+- **The observation is causal, and that is a contract.** `OBS_V4` replaced `OBS_V3` because V3's `avg_lmp_norm` was `mean(self.wholesale)` — the whole day's realized price — and the same day-mean was the denominator of `last_lmp_norm` and `pred_lmp_norm` and the block-0 value of `last_lmp`, so four of twelve features read periods the agent had not reached. V4 uses `avg_lmp_hist_norm` (LMPs observed so far) and normalizes every price feature by the frozen `rl_env.PRICE_REF_CNY_MWH`. **`OBS_V6` keeps that layout and changes two features' meaning**: `avg_other_dev` / `all_dev_std` are the mean and spread of a **signed, direction-normalized** deviation over the fleet — `(a - truthful) / (high - truthful)` above truthful, `(a - truthful) / (truthful - low)` below it, zero at it — so truthful reads 0 for every participant, shading down is negative, shading up is positive, and a participant that has used up its whole room in one direction reads exactly -1 or +1 there. V4's `avg_other_bid` / `bid_std` averaged each participant's *box position* instead, which is distance-from-truthful for a battery (truthful at its box's low edge) and distance-from-the-low-bound for a prosumer (truthful 46% along). The denominator is the reach of the direction the action went, not the box width: the storage charge box has no room below truthful at all and 150 above it, so a full-width denominator would report every downward move as out of range. This is **not** `rl_td3.normalized_deviation`, which is unsigned and divides by the full width because a regularizer wants distance and not direction. `OBS_V3`, `OBS_V4` and `OBS_V5` stay registered so old checkpoints are *identifiable* and `load_policy` raises on the name mismatch — `OBS_V5` held an unsigned magnitude form of the same two features that was replaced before anything was trained on it. Nothing selects them by default, and no V3/V4/V5 actor is a valid V6 initialisation. See `reports/phase11_training_readiness.md`.
+- **Voltage bands**: the old GridLLM engine clears against `0.93 <= V <= 1.05`,
+  i.e. -7%/+5%, not GB/T 12325's +/-7%; its strict sensitivity band is
+  `0.95 <= V <= 1.05`, differing in the lower bound alone, which is the only
+  bound this network binds on. The day-ahead market under construction declares
+  its own band in `local_da_contracts.RadialNetwork`: `0.93 <= V <= 1.07`.
+  A band is a constraint the
   market clears against, never a property to tune the scenarios toward. The
   voltage variables carry no slack, so a cleared day cannot sit outside its
   band at any bus or period; the invariant worth gating is that, not whether a

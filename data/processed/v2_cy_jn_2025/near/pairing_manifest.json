@@ -1,0 +1,85 @@
+{
+  "dataset_id": "JN-Base-NEAR",
+  "dataset_role": "distance sensitivity subset of FULL96",
+  "kind": "cross_year_controlled_simulation",
+  "not_a_same_period_settlement": true,
+  "price_region": "south",
+  "price_unit": "CNY/MWh",
+  "price_unit_confirmed": false,
+  "price_unit_note": "inferred from floor/cap and magnitude; not externally confirmed",
+  "mv_value_enabled": false,
+  "distance_filter": {
+    "column": "month_day_gap_days",
+    "rule": "keep price_date within 14 days of the load day's 2025 month-day",
+    "threshold_days": 14,
+    "status": "sensitivity rule, not a validated scientific boundary and not a property of the source",
+    "source": "the committed FULL96 pairing; no re-pairing"
+  },
+  "group_counts": {
+    "autumn": 34,
+    "national_day_2022": 5,
+    "summer": 18,
+    "winter": 23
+  },
+  "distance_stats": {
+    "pairs": 80,
+    "mean_days": 2.0,
+    "median_days": 1.5,
+    "max_days": 12,
+    "over_14": 0,
+    "over_30": 0,
+    "same_month_day": 27,
+    "type_mismatch": 1
+  },
+  "split": {
+    "seed": 20261031,
+    "counts": {
+      "train": 53,
+      "validation": 11,
+      "test": 11,
+      "holiday_block": 5
+    },
+    "by_group": {
+      "national_day_2022": {
+        "holiday_block": 5
+      },
+      "summer": {
+        "train": 13,
+        "validation": 3,
+        "test": 2
+      },
+      "autumn": {
+        "train": 24,
+        "validation": 5,
+        "test": 5
+      },
+      "winter": {
+        "train": 16,
+        "validation": 3,
+        "test": 4
+      }
+    },
+    "independent_of": "JN-Base-FULL96 split (different seed)",
+    "file": "data/processed/v2_cy_jn_2025/near/split.json"
+  },
+  "inputs": {
+    "full_pairing": {
+      "path": "data/processed/v2_cy_jn_2025/load_price_pairing.csv",
+      "sha256": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1"
+    },
+    "price_file": {
+      "path": "docs/data.csv",
+      "sha256": "1bf06f8d537a5e06911353e4a7348bec8efcedee8bdc76ba84a4bc4d9de8b00c"
+    }
+  },
+  "outputs": {
+    "pairing_csv": {
+      "path": "data/processed/v2_cy_jn_2025/near/load_price_pairing.csv",
+      "sha256": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363"
+    },
+    "split": {
+      "path": "data/processed/v2_cy_jn_2025/near/split.json",
+      "sha256": "19697cb4f8a008ed725497610fbb56c5a0866d774d3f727e89353c11524b96c9"
+    }
+  }
+}

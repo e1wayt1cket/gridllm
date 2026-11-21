@@ -1,0 +1,129 @@
+{
+  "protocol": "DIAGNOSTIC_PLAN_V1",
+  "written_at": "2026-11-08",
+  "status": "PRE_REGISTERED_BEFORE_P1_P2",
+  "rule": "This file is fixed before any P1 or P2 measurement. Any later change is a new versioned file and is reported as a deviation.",
+  "p1": {
+    "checkpoints": {
+      "seed11_best": "runs/FORMAL_1b47e0ed_seed11_best/checkpoints/step_00001272",
+      "seed23_best": "runs/FORMAL_1b47e0ed_seed23_best/checkpoints/step_00005088",
+      "aux_final_seed11": "runs/FORMAL_1b47e0ed_seed11/checkpoints/step_00012720",
+      "aux_final_seed23": "runs/FORMAL_1b47e0ed_seed23/checkpoints/step_00012720"
+    },
+    "train_pairs": [
+      "2022-07-23|2025-07-13",
+      "2022-08-14|2025-08-17",
+      "2022-08-17|2025-08-19",
+      "2022-10-13|2025-10-13",
+      "2022-10-15|2025-10-12",
+      "2022-10-17|2025-10-17",
+      "2022-12-09|2025-12-09",
+      "2022-12-10|2025-12-07"
+    ],
+    "pair_selection_rule": "Train only; per season, sort pair ids lexicographically and take the first N (3 summer, 3 autumn, 2 winter). No outcome-based selection.",
+    "step_arms": [1, 5, 10],
+    "replicates": 5,
+    "batch_size": 128,
+    "critic_mode": "train mode with a fixed torch seed per replicate; an eval-mode forward is recorded as a dropout sensitivity check",
+    "minimum_effect_cny_per_day": 1.0,
+    "bootstrap": {
+      "resamples": 10000,
+      "alpha": 0.05,
+      "unit": "day x replicate paired delta",
+      "ci": "percentile"
+    },
+    "classification": {
+      "IMMEDIATE_DEGRADATION": "arm 1 mean delta <= -1.0 CNY/day and its 95% CI excludes 0",
+      "CUMULATIVE_DEGRADATION": "mean delta non-increasing over arms 1,5,10 and arm 10 <= -1.0 with its 95% CI excluding 0",
+      "SHORT_TERM_IMPROVEMENT_LONG_TERM_DEGRADATION": "arm 1 >= +1.0 with CI excluding 0 and arm 10 <= -1.0 with CI excluding 0",
+      "NO_SIGNIFICANT_CHANGE": "every arm's 95% CI includes 0",
+      "INCONCLUSIVE": "anything else, or the two seeds disagree, or a guard fails"
+    },
+    "direction_probe": {
+      "quote_displacements_cny_per_mwh": [5, 10, 20, 40],
+      "construction": "normalize the mean actor gradient over 5 batches to unit L2, then scale so the largest change among open quotes equals the target displacement",
+      "interpretation": {
+        "B_critic_ranking": "batch Q rises by >0.5% while the full-day payoff falls by >1.0 CNY/day",
+        "A_actor_path": "batch Q falls by >0.5% while the full-day payoff falls, or gate-logit gradient dominates with no quote movement",
+        "aligned_local": "Q and payoff both rise by more than the thresholds",
+        "no_signal": "neither Q nor payoff moves beyond the thresholds",
+        "INCONCLUSIVE": "any other combination"
+      }
+    },
+    "guards": [
+      "checkpoint tree sha256 unchanged before and after",
+      "all critic and critic-target parameters bitwise equal after every arm",
+      "no trainer.save, no buffer add, no target soft update",
+      "no write outside reports/algorithm_diagnostics",
+      "checkpoint da_gate.actor_loss_map == linear_core_v1"
+    ]
+  },
+  "p2": {
+    "primary_checkpoint": "runs/FORMAL_1b47e0ed_seed23_best/checkpoints/step_00005088",
+    "replication_checkpoint": "runs/FORMAL_1b47e0ed_seed11_best/checkpoints/step_00001272",
+    "primary_pairs": [
+      "2022-07-23|2025-07-13",
+      "2022-08-14|2025-08-17",
+      "2022-08-17|2025-08-19",
+      "2022-10-13|2025-10-13",
+      "2022-10-15|2025-10-12",
+      "2022-10-17|2025-10-17",
+      "2022-12-09|2025-12-09",
+      "2022-12-10|2025-12-07"
+    ],
+    "replication_pairs": [
+      "2022-08-18|2025-08-18",
+      "2022-10-20|2025-10-20",
+      "2022-12-11|2025-12-13",
+      "2022-12-12|2025-12-12"
+    ],
+    "blocks": [4, 10, 16],
+    "grid": {
+      "charge_cny_per_mwh": [0.0, 37.5, 75.0, 112.5, 150.0],
+      "discharge_cny_per_mwh": [0.0, 75.0, 150.0, 225.0, 300.0],
+      "design": "one-at-a-time; the swept leg and the other three ESS keep the policy action elsewhere",
+      "gate": "gate open at every grid point; the policy action as executed and the all-truthful (0,0) arm are separate reference rows"
+    },
+    "joint_arms": [
+      "policy",
+      "all_truthful_closed",
+      "all_open_lower",
+      "all_open_upper",
+      "seeded_feasible_random",
+      "box_mirror"
+    ],
+    "tie_tolerance_cny": 1e-06,
+    "ranking": {
+      "valid": "median Spearman(Q_min, payoff) >= 0.5 AND top-1 agreement >= 0.5",
+      "invalid": "median Spearman(Q_min, payoff) <= 0.1 OR top-1 agreement <= 0.25",
+      "ambiguous": "anything between valid and invalid"
+    },
+    "no_signal": "the payoff range across the 5-point grid is < 1.0 CNY/day in >= 75% of sweeps",
+    "reward_mismatch": "median Spearman(training return, payoff) < 0.99; the telescoping identity predicts exactly 1.0",
+    "inversion": "count states where Q(policy) > Q(truthful) and payoff(policy) < payoff(truthful); a rate >= 0.75 supports B",
+    "external_comparability": {
+      "criteria": [
+        "agent submits a price quote to a clearing that sets nodal prices",
+        "observation contains own state and market history, no future prices",
+        "episodic storage SOC dynamics over a multi-block day",
+        "settlement uses nodal or two-settlement prices",
+        "action is a charge/discharge price pair, not a direct quantity"
+      ],
+      "run_threshold": "at least 4 of 5 criteria match on one environment",
+      "rule": "if the threshold is not met, record NOT_COMPARABLE and do not install; a benchmark score is never reported as MakerB policy performance"
+    },
+    "clearing_failure_rule": "a failed clearing on one grid point is recorded as CLEARING_FAILED and excluded from that sweep; it is not retried and does not abort the state"
+  },
+  "p3": {
+    "require_independent_lines": 2,
+    "precedence": ["C", "B", "A", "D"],
+    "decision_table": {
+      "C": "P2 measures a deviation from the discounted-return identity gamma^23 * delta / 1000, or the B1 reference used by the reward differs from the one used by validation",
+      "B": "P2 ranking is invalid and P1 shows batch Q rising while the true payoff falls (or the inversion rate >= 0.75)",
+      "A": "P2 ranking is valid or ambiguous and P1 shows the actor step does not ascend batch Q, or the gate-logit gradient dominates with no quote movement",
+      "D": "P2 reports no_signal in >= 75% of sweeps, with P1 also showing no measurable effect",
+      "NO_GO_ROOT_CAUSE_UNRESOLVED": "evidence is conflicting, below threshold, or rests on one line"
+    },
+    "return_identity": "gamma^23 * delta / 1000; B is paid only at block 23 and C2 shaping telescopes to zero at the terminal"
+  }
+}

@@ -59,16 +59,16 @@ the box-normalized action):
 
 | lambda | penalty @ d=0.5 | \|econ\| | grad ratio | mean dev | corner | quote spread (CNY/MWh) |
 |---|---|---|---|---|---|---|
-| 0.000 | 0.000 | 0.7908 | 0.0000 | 0.5608 | 12.5% | 87.6 |
-| 0.010 | 0.005 | 0.7908 | 0.0090 | 0.5811 | 12.5% | 89.4 |
-| 0.050 | 0.025 | 0.7908 | 0.0452 | 0.5378 | 0.0% | 83.3 |
-| **0.100** | **0.050** | 0.7908 | **0.0903** | **0.5313** | 0.0% | **80.9** |
-| 0.250 | 0.125 | 0.7908 | 0.2258 | 0.4236 | 0.0% | 58.2 |
-| 0.500 | 0.250 | 0.7908 | 0.4515 | 0.2167 | 12.5% | 40.7 |
-| 1.000 | 0.500 | 0.7908 | 0.9030 | 0.1070 | 0.0% | 14.0 |
+| 0.000 | 0.0000 | 0.5813 | 0.0000 | 0.5510 | 0.0% | 87.012 |
+| 0.010 | 0.0050 | 0.5813 | 0.0122 | 0.5439 | 12.5% | 85.509 |
+| 0.050 | 0.0250 | 0.5813 | 0.0608 | 0.5588 | 0.0% | 86.781 |
+| **0.100** | **0.0500** | 0.5813 | **0.1217** | **0.5241** | 0.0% | **80.100** |
+| 0.250 | 0.1250 | 0.5813 | 0.3042 | 0.3425 | 0.0% | 57.594 |
+| 0.500 | 0.2500 | 0.5813 | 0.6084 | 0.1649 | 0.0% | 25.232 |
+| 1.000 | 0.5000 | 0.5813 | 1.2167 | 0.0840 | 0.0% | 12.313 |
 
-`grad ratio` is exactly proportional to `lambda`: `grad_ratio / lambda =
-0.9030373072` for every row (relative spread 1.6e-8, i.e. float rounding). That
+`grad ratio` is exactly proportional to `lambda`: `grad_ratio / lambda` is the
+same number for every row. That
 is a property of the implementation rather than a fitted number —
 `deviation_penalty` multiplies a quantity that does not depend on the weight,
 and the probe seeds its actor and critic identically for every row, so the pull
@@ -76,12 +76,32 @@ is linear in the weight by construction. The test asserts the proportionality
 and not the constant, because the constant belongs to the batch and the frozen
 critic and moves when those move.
 
-### Superseded measurement
+### Superseded measurements
 
-An earlier version of this document recorded the grid below, measured before
-the trainer moved from one environment-wide action spec to **per-agent action
-spaces** and the penalty from logit space to box-normalized action space. It is
-kept for the record; its selection (`lambda = 0.25`) is no longer supported.
+The grid below was measured before the baseline ladder's configuration was
+routed through `scenarios.scenario_model_config`. Every row moved with it: the
+calibration day is a B3 day, and `baseline_ladder._config` had been assembled
+from dataclass defaults, so it cleared at a load power factor of 0.90 against
+the scenario's 0.8503 and with inverters rated 1.0 against the scenario's 1.10.
+**The selection rule's answer did not move** — it still picks `lambda = 0.10` —
+but the numbers supporting it did, and the table above is the current one. See
+`reports/s7_defect_repairs.md`.
+
+| lambda | penalty @ d=0.5 | \|econ\| | grad ratio | mean dev | corner | quote spread (CNY/MWh) |
+|---|---|---|---|---|---|---|
+| 0.000 | 0.000 | 0.7908 | 0.0000 | 0.5608 | 12.5% | 87.6 |
+| 0.010 | 0.005 | 0.7908 | 0.0090 | 0.5811 | 12.5% | 89.4 |
+| 0.050 | 0.025 | 0.7908 | 0.0452 | 0.5378 | 0.0% | 83.3 |
+| 0.100 | 0.050 | 0.7908 | 0.0903 | 0.5313 | 0.0% | 80.9 |
+| 0.250 | 0.125 | 0.7908 | 0.2258 | 0.4236 | 0.0% | 58.2 |
+| 0.500 | 0.250 | 0.7908 | 0.4515 | 0.2167 | 12.5% | 40.7 |
+| 1.000 | 0.500 | 0.7908 | 0.9030 | 0.1070 | 0.0% | 14.0 |
+
+An earlier version of this document recorded the grid below that, measured
+before the trainer moved from one environment-wide action spec to **per-agent
+action spaces** and the penalty from logit space to box-normalized action space.
+It is kept for the record; its selection (`lambda = 0.25`) is no longer
+supported.
 
 | lambda | \|econ\| | grad ratio | mean dev | corner | quote spread |
 |---|---|---|---|---|---|
@@ -107,17 +127,17 @@ number is it":
 - quote spread must stay within **30%** of its `lambda = 0` value
 
 Under those tolerances the largest admissible weight is **`lambda = 0.10`**:
-deviation 0.531 against a no-penalty 0.561 (floor 0.449), spread 80.9 CNY/MWh
-against 87.6 (floor 61.3). Its pull is 9.0% of the economic term's, and it
-costs 0.050 against a normalized economic term of 0.791.
+deviation 0.5241 against a no-penalty 0.5510 (floor 0.4408), spread 80.100
+CNY/MWh against 87.012 (floor 60.908). Its pull is 0.122 of the economic
+term's, and it costs 0.050 against a normalized economic term of 0.5813.
 
-**`lambda = 0.25` no longer passes.** Its mean deviation is 0.424, below the
-0.449 floor: the same weight that once sat within tolerance now narrows the
-policy more, because the policy it acts on is parameterized differently. This
-is the reason the frozen value moved.
+**`lambda = 0.25` does not pass.** Its mean deviation is 0.3425, below the
+0.4408 floor, and its spread is 57.594 against a 60.908 floor: it narrows the
+fleet's quotes past both tolerances, so the regularizer would be deciding for
+the policy rather than shaping it.
 
-`lambda = 0.5` and `1.0` are rejected: they narrow the spread to 40.7 and 14.0
-CNY/MWh, i.e. −54% and −84%. At `lambda = 1.0` the fleet's quotes have
+`lambda = 0.5` and `1.0` are rejected on the same grounds: they narrow the
+spread to 25.2 and 12.3 CNY/MWh. At `lambda = 1.0` the fleet's quotes have
 effectively collapsed onto one another and there is no bidding left to measure.
 
 ## The frozen value

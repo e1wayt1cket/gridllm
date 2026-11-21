@@ -1,0 +1,50 @@
+{
+  "version": "V2-CY-JN-2025",
+  "generated_at": "2026-10-30T13:34:19.936789+00:00",
+  "git_rev": "875d648c621b3ad8ab591bae8eb6058e34b2b0a9",
+  "command": "src/screen_v2_cy_jn_2025.py --arm all",
+  "kind": "cross_year_controlled_simulation",
+  "inputs": {
+    "price_file": {
+      "path": "docs/data.csv",
+      "sha256": "1bf06f8d537a5e06911353e4a7348bec8efcedee8bdc76ba84a4bc4d9de8b00c"
+    },
+    "pairing": {
+      "path": "data/processed/v2_cy_jn_2025/load_price_pairing.csv",
+      "sha256": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1"
+    },
+    "bus_loads": {
+      "path": "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz",
+      "sha256": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078"
+    },
+    "price_curves": {
+      "path": "data/processed/v2_cy_jn_2025/price_curves.npz",
+      "sha256": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1"
+    }
+  },
+  "outputs": {
+    "results": {
+      "path": "reports/v2_cy_jn_2025/results.csv",
+      "sha256": "769d1467b64b7ec76f642860aa3d90fd581daf68aa51abb3362d8f3b212a5eae"
+    },
+    "config": {
+      "path": "reports/v2_cy_jn_2025/config.json",
+      "sha256": "5237cdc753d59f870a3cf715c05295ee84794f644bc16ab57f90927065702737"
+    }
+  },
+  "arms_run": [
+    "JN-Base",
+    "JN-C80",
+    "JN-C90",
+    "JN-C100",
+    "JN-NoESS"
+  ],
+  "rows": 180,
+  "pairing": {
+    "path": "data/processed/v2_cy_jn_2025/load_price_pairing.csv",
+    "sha256": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1",
+    "pairs": 96,
+    "distinct_price_dates": 96,
+    "manifest": "data/processed/v2_cy_jn_2025/pairing_manifest.json"
+  }
+}

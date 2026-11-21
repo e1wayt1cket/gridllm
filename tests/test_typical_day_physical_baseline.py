@@ -54,7 +54,7 @@ def day():
     config = typical_day_config()
     agents, wholesale = get_scenario("typical_day", money.PERIODS_PER_DAY, config)
     result = clear_market(agents, money.PERIODS_PER_DAY, "DA", {}, config,
-                          wholesale=wholesale)
+                          wholesale=wholesale, horizon_type="full_day")
     return config, agents, wholesale, result
 
 

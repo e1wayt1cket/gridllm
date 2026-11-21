@@ -85,7 +85,7 @@ def day():
     agents, wholesale = get_scenario("baseline", T=T, config=config)
     actions = adaptive_bidding(agents, config, strategy="rl")
     return clear_market(agents, T, "DA", actions, config,
-                        wholesale=wholesale), agents, config
+                        wholesale=wholesale, horizon_type="full_day"), agents, config
 
 
 def test_a_freshly_cleared_day_carries_only_the_canonical_name(day):
@@ -109,7 +109,7 @@ def test_the_forest_engine_agrees_on_the_schema(day):
     agents, wholesale = get_scenario("baseline", T=T, config=config)
     actions = adaptive_bidding(agents, config, strategy="rl")
     result = clear_market(agents, T, "DA", actions, config,
-                          wholesale=wholesale)
+                          wholesale=wholesale, horizon_type="full_day")
     assert "clearing_objective" in result
     assert "welfare" not in result
     assert "objective" not in result

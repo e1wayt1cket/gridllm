@@ -127,8 +127,8 @@ def test_the_reward_is_not_a_payoff():
     It is a per-block differential against an in-window truthful
     counterfactual, holding the other agents at their learned bids -- a
     different quantity on a different horizon from the day's settled profit.
-    The training log names it `mean_reward`, and the profit columns are
-    separate ones.
+    The training log names it `mean_reward`, and the profit lives in its own
+    table keyed by episode.
     """
     import run_artifacts as ra
 
@@ -140,11 +140,11 @@ def test_the_reward_is_not_a_payoff():
                            re_rate=56.0, raw_profit=-151.8,
                            local_baseline_profit=-20.0,
                            profit_delta_local=-131.8)
-        row = art.metrics[0]
-        # The reward and the profit are distinct columns with distinct values.
+        row, money = art.metrics[0], art.economics[0]
+        # The reward and the profit are distinct quantities, in distinct tables.
         assert row["mean_reward"] == -480.0
-        assert row["raw_profit_mean"] == -151.8
-        assert row["mean_reward"] != row["raw_profit_mean"]
+        assert money["raw_profit_mean"] == -151.8
+        assert "raw_profit_mean" not in row
         # The clearing objective is not either of them.
         assert row["clearing_objective"] == 7695.0
     finally:
@@ -206,9 +206,15 @@ def test_both_arms_settle_with_the_same_pinned_endpoints(paired):
     pinned = dataclasses.replace(
         config,
         storage=dataclasses.replace(config.storage, terminal_soc_equal=True))
-    assert pins_terminal_soc(pinned, 96, "full_day") is True
-    # And the rolling window the episode runs on does not pin it.
-    assert pins_terminal_soc(config, 96, "window") is False
+    assert pins_terminal_soc(pinned, "full_day") is True
+    # And the rolling window the episode runs on does not pin it. Both calls
+    # below describe a 96-period horizon, one settled and one rolled, which is
+    # the pair the length used to be unable to tell apart.
+    assert pins_terminal_soc(config, "window") is False
+    assert pins_terminal_soc(pinned, "window") is False
+    assert pins_terminal_soc(pinned, "full_day") is True
+    with pytest.raises(ValueError):
+        pins_terminal_soc(pinned, "auto")
 
 
 def test_only_the_bidding_policy_differs(paired):

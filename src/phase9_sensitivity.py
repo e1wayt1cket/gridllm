@@ -71,14 +71,21 @@ def _fresh():
     ce.reset_baseline_cache()
 
 
-def _clear(day_id: int, scenario: str = SCENARIO, ess_buses=None,
+def _clear(day_id: int, scenario: Optional[str] = None, ess_buses=None,
            strategy: str = "fixed", capacity_mwh: Optional[float] = None,
            power_ratio: Optional[float] = None, T: int = 96) -> dict:
     """One full clearing under an explicitly configured fleet.
 
     Every knob is set here and reset by the caller's `_fresh()`, so a run cannot
     inherit the previous configuration's fleet through the config cache.
+
+    `scenario` is resolved **at call time**, not bound as a default. A default
+    argument is evaluated once at import, so `scenario: str = SCENARIO` froze
+    whatever `SCENARIO` held when the module loaded -- a caller that changed the
+    module constant, or a test that redirected it, went on pricing the old day
+    with nothing to show it had been ignored.
     """
+    scenario = scenario or SCENARIO
     import counterfactual_eval as ce
     import wholesale_price as wp
     from config_loader import set_default

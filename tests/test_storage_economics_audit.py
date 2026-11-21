@@ -386,12 +386,12 @@ def test_a_matching_spec_is_accepted(day):
     trained on a vector this environment no longer produces; applying it
     silently would be a contract error dressed as a performance result.
     """
-    from rl_spec import OBS_V4
+    from rl_spec import OBS_V6
     from strategies.rl_bidding import _reject_foreign_cached_policies
     try:
         rb._TRAINED_POLICIES["ESS9"] = _actors(["ESS9"])["ESS9"]
         rb._record_provenance(["ESS9"], source="x",
-                              meta={"obs_spec": {"name": OBS_V4.name}})
+                              meta={"obs_spec": {"name": OBS_V6.name}})
         _reject_foreign_cached_policies(rb._TRAINED_POLICIES, day["agents"])
     finally:
         rb._TRAINED_POLICIES.pop("ESS9", None)
@@ -405,9 +405,9 @@ def test_a_v3_policy_is_refused_by_the_v4_environment(day):
     run them under a layout they were not trained on.
     """
     import pytest
-    from rl_spec import OBS_V3, OBS_V4
+    from rl_spec import OBS_V3, OBS_V6
     from strategies.rl_bidding import _reject_foreign_cached_policies
-    assert OBS_V3.name != OBS_V4.name
+    assert OBS_V3.name != OBS_V6.name
     try:
         rb._TRAINED_POLICIES["ESS9"] = _actors(["ESS9"])["ESS9"]
         rb._record_provenance(["ESS9"], source="x",
@@ -426,13 +426,13 @@ def test_the_v3_checkpoint_dirs_are_recorded_as_v3(tmp_path):
     checkpoints in `policies/` are what this protects.
     """
     import torch
-    from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V3, OBS_V4
+    from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V3, OBS_V6
     path = tmp_path / "v3.pt"
     _save(path, ["ESS9"], OBS_V3, ACTION_STORAGE_QUOTE_V2)
     bounds = torch.tensor([[-1.0, -1.0], [1.0, 1.0]])
     with pytest.raises(ValueError, match="observation spec"):
         rb.load_policies(str(path), 12, bounds,
-                         obs_spec=OBS_V4, action_spec=ACTION_STORAGE_QUOTE_V2)
+                         obs_spec=OBS_V6, action_spec=ACTION_STORAGE_QUOTE_V2)
 
 
 def test_an_action_spec_mismatch_on_load_raises(tmp_path):
@@ -555,7 +555,7 @@ def test_phase_1_interface_is_intact():
     import industry_load as il
     assert il.N_SLOTS == 96
     assert callable(il.load_shapes_csv)
-    assert callable(il.absolute_mw)
+    assert callable(il.reading_to_mw)
 
 
 def test_phase_2_interface_is_intact():
@@ -569,12 +569,20 @@ def test_phase_2_interface_is_intact():
 
 
 def test_phase_4_scenario_is_intact():
+    """The scenario still builds the same *facilities*; its load is the ledger's.
+
+    The peak used to be pinned to the benchmark's 3.715 MW. It is not any more:
+    this scenario now takes its per-bus MW from the node-load ledger, so the
+    peak is the metered one. Renewable capacity is unaffected -- it is declared
+    in the scenario, not derived from the load.
+    """
     reload_defaults()
     wp.reset_cache()
     agents, wholesale = get_scenario("typical_day_industry", T=96)
     loads = [a for a in agents if a.load_type != "storage"]
     peak = float(np.sum([np.asarray(a.load_real) for a in loads], axis=0).max())
-    assert peak == pytest.approx(3.715, abs=1e-6)
+    assert peak > 100.0, "the ledger's load, not the benchmark's 3.715 MW"
+    assert peak != pytest.approx(3.715, abs=1e-6)
     assert sum(float(a.pv_capacity or 0.0) for a in agents) == pytest.approx(0.6)
     reload_defaults()
 

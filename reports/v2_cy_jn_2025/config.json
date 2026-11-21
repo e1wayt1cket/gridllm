@@ -1,0 +1,107 @@
+{
+  "version": "V2-CY-JN-2025",
+  "kind": "cross_year_controlled_simulation",
+  "not_a_same_period_settlement": true,
+  "price": {
+    "region": "south",
+    "region_note": "\u6c5f\u5357 by the task's naming; the source defines no boundary",
+    "unit": "CNY/MWh",
+    "unit_confirmed": false,
+    "unit_note": "inferred from the observed floor 30, cap 1500 and median daily mean; not externally confirmed",
+    "north_column_used": false,
+    "mv_value_used": false
+  },
+  "load": {
+    "library": "v2-frozen-dfc9d60cc222",
+    "groups": [
+      "summer",
+      "autumn",
+      "winter",
+      "national_day_2022"
+    ],
+    "compose_rule": "replace at the group's mapped buses, preserve native demand elsewhere",
+    "rescaled": false
+  },
+  "network_support": {
+    "assumption": "line50_q2.0",
+    "slack_vm_pu": 1.0,
+    "line_impedance_scale": 0.5,
+    "reactive_fraction_of_load_q": 2.0,
+    "v_min_pu": 0.93,
+    "v_max_pu": 1.05,
+    "note": "idealised support screening assumption; not a selected device or a costed engineering design"
+  },
+  "storage": {
+    "buses": [
+      9,
+      14,
+      17,
+      27
+    ],
+    "capacity_mwh": 1.6,
+    "power_mw": 0.4,
+    "eta_ch": 0.92,
+    "eta_dis": 0.92,
+    "soc_min": 0.1,
+    "soc_max": 0.9,
+    "terminal_soc_equal": true,
+    "cycle_cost_units": "CNY/MWh on charge + discharge energy"
+  },
+  "model_scenario": "typical_day_industry_subset",
+  "opf_mode": "socp",
+  "horizon_type": "full_day",
+  "dt_hours": 0.25,
+  "arms": {
+    "JN-Base": {
+      "cycle_cost": 100.0,
+      "ess_buses": [
+        9,
+        14,
+        17,
+        27
+      ],
+      "scope": "all"
+    },
+    "JN-C80": {
+      "cycle_cost": 80.0,
+      "ess_buses": [
+        9,
+        14,
+        17,
+        27
+      ],
+      "scope": "representative"
+    },
+    "JN-C90": {
+      "cycle_cost": 90.0,
+      "ess_buses": [
+        9,
+        14,
+        17,
+        27
+      ],
+      "scope": "representative"
+    },
+    "JN-C100": {
+      "cycle_cost": 100.0,
+      "ess_buses": [
+        9,
+        14,
+        17,
+        27
+      ],
+      "scope": "representative"
+    },
+    "JN-NoESS": {
+      "cycle_cost": 100.0,
+      "ess_buses": [],
+      "scope": "representative"
+    }
+  },
+  "arms_not_run": {
+    "JN-RE": "price + provincial new-energy feature; disabled because mv_value's unit and availability cannot be confirmed, and the feature would require a new observation version, not OBS_V6",
+    "rule_based": "existing src/strategies rule-based bidder, no RL; not run",
+    "optimization_reference": "system-optimal storage schedule under the same network and price; not run"
+  },
+  "market_layer": "storage takes the Jiangnan price as given and its quotes move the distribution market's LMPs; it cannot move the provincial day-ahead price"
+}

@@ -20,12 +20,6 @@ from dispatch_dc import solve_dc_opf_gurobi
 from dispatch_ldf import solve_lindist_opf_gurobi
 from dispatch_socp import solve_socp_opf_batch
 
-_GUROBI_MISSING_MSG = (
-    "Gurobi is required for opf_mode='{mode}'. "
-    "Use opf_mode='dc' for the built-in HiGHS fallback, "
-    "or install Gurobi from https://www.gurobi.com/downloads/"
-)
-
 # ---------------------------------------------------------------------------
 # Clearing mechanism registry
 # ---------------------------------------------------------------------------

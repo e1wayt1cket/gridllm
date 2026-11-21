@@ -25,6 +25,12 @@ network:
   # in scenarios.yaml; see the comment there.
   inverter_smax_multiplier: 1.0
   n_loss_iters: 3
+  # The `line50_q2.0` support assumption: R/X halved and ideal local reactive
+  # compensation of 2x each bus's load Q. Both defaults are OFF, so the
+  # benchmark network and every recorded result keep the values they had.
+  # Ampacity remains the installed conductor's; only impedance is scaled.
+  line_impedance_scale: 1.0
+  reactive_fraction_of_load_q: 0.0
 
 profiles:
   pv:
@@ -244,7 +250,10 @@ storage:
   soc_buffer: 0.05
   terminal_value: null
   cycle_cost: 100.0
-  discount_factor: 0.997
+  # 1.0: the OPF objective must not discount revenue the settlement pays in
+  # full. A rate below 1 made late-day storage revenue worth less in the
+  # clearing than in its own payoff.
+  discount_factor: 1.0
   self_schedule: false
   mpc_horizon: 64
   mpc_price_noise_pct: 5.0
@@ -361,35 +370,30 @@ wholesale_market:
   # this configuration. `guangdong` is the phase-two slot and raises until it
   # is given a series.
   source: legacy
-  # Which library day to price when a caller does not name one. Moved with
-  # `set_default`, the way `profiles.load.load_scale` is, so the ten places
-  # that create a wholesale price curve need no new argument.
+  # Which price curve to use when a caller does not name one. Moved with
+  # `set_default`, the way `profiles.load.load_scale` is, so the places that
+  # create a wholesale price curve need no new argument.
   #
-  # This is the library's REFERENCE DAY: the day whose price range is the
-  # library's median, so that a single-day diagnostic reports a typical day of
-  # this market rather than an extreme one. The criterion is the market's own
-  # price range and nothing economic -- no profit, no margin, no fleet
-  # outcome enters it.
+  # No value is set here. What an index means depends entirely on the source --
+  # for `dianyicha` it selects a CURVE, not a calendar day, and a source with
+  # no such index ignores it. A single number declared project-wide would be a
+  # claim about a dataset this project does not have, and would outlive the
+  # source it was written for. Each scenario declares its own with
+  # `wholesale_curve_index`.
   #
-  # It is declared rather than derived. Day 0 happens to be the flattest of the
-  # forty (range 236 CNY/MWh against a median of 434), so leaving the default
-  # at 0 would have made every single-day result in the project -- the baseline
-  # ladder, the siting screen, the typical-day diagnosis -- report the mildest
-  # day in the library and read as though the market had no arbitrage in it.
-  # A test asserts this number is still the median-range day, so rebuilding the
-  # library fails loudly and forces the choice to be remade rather than
-  # silently drifting to a different day.
-  day_id: 11
-  library_file: data/wholesale/synthetic_da_v1.csv
   # The Jiangsu curves, read straight from the 电易电查 workbook by
   # `dianyicha_price.read_curves`. All four sheets are MEANS over the window
-  # named by their role, so `day_id` here selects a PRICE SCENARIO by index
-  # rather than a calendar day, and no result may be described as measured
-  # daily data. Quoted because `261009` would otherwise parse as an integer.
+  # named by their role, so an index here selects a PRICE SCENARIO rather than
+  # a calendar day, and no result may be described as measured daily data.
+  # Quoted because `261009` would otherwise parse as an integer.
   dianyicha_file: docs/日前价格261009.xlsx
   dianyicha_curves: ["261009", "7days", "30days", "halfyear"]
-  master_seed: 20260920
-  number_of_days: 40
+  # `jn2025`: one recorded curve per complete 2025 date of the Jiangsu
+  # day-ahead price, keyed by ISO date. `day_id` is that date, not an index.
+  # The curves are produced by `src/audit_jn_price_source.py`, and the unit is
+  # an inference recorded in `reports/v2_cy_jn_2025/data_audit.md`, not an
+  # externally confirmed reading.
+  jn2025_file: data/processed/v2_cy_jn_2025/price_curves.npz
   price_floor: 120.0
   price_cap: 1000.0
   # Noise rides on the stack but must not dominate it: at 15 CNY/MWh against a

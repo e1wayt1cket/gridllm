@@ -1,0 +1,11 @@
+{
+  "band": [
+    0.93,
+    1.07
+  ],
+  "clearing": "clear_day(price_probes=False) on build_day(date)",
+  "declared_before_first_solve": true,
+  "feasible": "exact complementary dispatch optimal and every bus-period inside the network's own voltage band",
+  "qualified_for_settlement": "separate and stricter: physical audits, idle-direction stability and smooth prices",
+  "slack_vm_pu": 1.02
+}

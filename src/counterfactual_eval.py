@@ -81,7 +81,11 @@ def summarize(values: Sequence[float]) -> dict:
     positive_rate near one half are different findings, and only the pair
     distinguishes them.
     """
+    # Non-finite entries are dropped rather than carried: `nan > 0` is False,
+    # so one NaN in the sample would both poison every percentile and count as
+    # a day the policy did not win, which is not what the data said.
     arr = np.asarray([v for v in values if v is not None], dtype=float)
+    arr = arr[np.isfinite(arr)]
     if arr.size == 0:
         return {c: float("nan") for c in STAT_COLUMNS}
     return {
@@ -106,6 +110,24 @@ class ArmSpec:
     #: "truthful" / "rule" / "myopic", or "rl" to use the loaded actors.
     kind: str
     policies: Optional[Dict[str, object]] = None
+
+
+def is_degraded(result) -> bool:
+    """Whether a cleared day may not be reported as a payoff.
+
+    Two ways a clear stops being a result. It fell back -- the whole path
+    degraded to the single-period solver. Or its price field is mixed: some
+    periods are not nodal prices at all, and the payoff is defined on the nodal
+    price. The second was invisible until the fallback report named it, and a
+    day settled on a partly-wholesale price field was reported as clean.
+
+    One definition, used by the block-level reward loop and the day-level
+    settlement, so the two cannot disagree about which days count.
+    """
+    return bool(result is None
+                or result.get("fell_back")
+                or result.get("has_wholesale_fallback"))
+
 
 
 def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
@@ -161,7 +183,7 @@ def run_arm(scenario: str, config: MarketConfig, arm: ArmSpec,
         obs, _rewards, done, info = env.step(acts)
         # A block whose clearing degraded or fell back holds zeros; counting it
         # would silently deflate this arm's profit relative to a clean one.
-        if env._last_result is None or env._last_result.get("fell_back"):
+        if is_degraded(env._last_result):
             clean = False
         for nm in rl_names:
             profits[nm] += float(info.get("raw_profit", {}).get(nm, 0.0))
@@ -229,6 +251,12 @@ def _settle_full_day(agents, config: MarketConfig, rl_names, actions, wholesale,
         result = None
     if result is None or result.get("fell_back"):
         return {nm: 0.0 for nm in rl_names}, False, None
+    if result.get("has_wholesale_fallback"):
+        # The payoff is defined on the nodal price, and this day's is not one
+        # for every period. The cleared day comes back with its marker rather
+        # than being thrown away, so a caller that wants to look at it can --
+        # what it may not do is quote this day's numbers as a settlement.
+        return {nm: 0.0 for nm in rl_names}, False, result
 
     profits = {}
     for nm in rl_names:
@@ -613,7 +641,20 @@ def headline(result: dict) -> dict:
     earned more. It sits beside the mean on purpose: a mean lifted by two good
     days and a share near one half are different findings, and neither number
     alone distinguishes them.
+
+    A day dropped from the pair leaves the mean defined over the survivors,
+    which is a different quantity under the same name. Publishing it beside
+    `n_days_dropped` does not fix that: the number reads as the day set's mean
+    and nothing about a float carries its denominator. So a partial day set has
+    no headline; the caller either repairs the day set or reports the per-day
+    rows.
     """
+    dropped = list(result.get("seeds_dropped") or [])
+    if dropped:
+        raise ValueError(
+            f"headline refuses a partial day set: {len(dropped)} day(s) "
+            f"dropped ({dropped[:5]}). Report the per-day results, or clear "
+            f"the cause, rather than a mean over the survivors.")
     fleet = result["fleet"]["delta_pi"]
     rate = result["fleet"]["delta_pi_percent"]
     return {
@@ -621,7 +662,7 @@ def headline(result: dict) -> dict:
         "mean_delta_pi_percent": rate["mean"],
         "p_delta_pi_positive": fleet["positive_rate"],
         "n_days": result["n_days"],
-        "n_days_dropped": len(result["seeds_dropped"]),
+        "n_days_dropped": 0,
     }
 
 

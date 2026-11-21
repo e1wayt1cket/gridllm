@@ -1,0 +1,655 @@
+{
+  "label": "NON_FORMAL_DIAGNOSTIC",
+  "experiment": "phase6_frozen_policy_paired_market_clearing",
+  "created_at": "2026-11-12T12:18:23+08:00",
+  "purpose": "Compare the admitted quote-map candidate Z_CORE=10.0 against the control Z_CORE=2.5 under frozen actor weights, identical market inputs, identical rolling 24-block dynamics, and the frozen terminal-SOC mechanism. No training, no optimizer step, no buffer write.",
+  "scope": {
+    "frozen_policy_counterfactual": true,
+    "post_training_new_map_policy_performance": false,
+    "statement": "Actors were trained under linear_core_v1. This experiment changes only the inference map. It does not establish how a policy trained under Z_CORE=10.0 would perform."
+  },
+  "control": {
+    "z_core": 2.5,
+    "candidate_id": "candidate_linear_core_z2p5",
+    "identity": "reproduces linear_core_v1 exactly; verified in-process"
+  },
+  "candidate": {
+    "z_core": 10.0,
+    "candidate_id": "candidate_linear_core_z10p0",
+    "admission_source": "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/decision_report.md",
+    "admission_status": "ADMITTED_Z10.0"
+  },
+  "invariants": {
+    "actor_weights_identical_across_maps": true,
+    "market_dates_and_inputs_identical": true,
+    "initial_soc": 0.5,
+    "terminal_soc_target": 0.5,
+    "terminal_soc_mechanism": "day_end window only; endpoints pinned; no terminal inventory-value term in participant_payoff",
+    "terminal_inventory_value_cny": 0.0,
+    "environment_and_clearing_config_identical": true,
+    "physical_constraints_identical": true,
+    "exploration": "disabled",
+    "calibration_exposures": "disabled",
+    "training_noise": "disabled",
+    "optimizer_steps": 0,
+    "buffer_writes": 0
+  },
+  "rolling_day": {
+    "blocks": 24,
+    "commit_periods": 4,
+    "lookahead_periods": 16,
+    "action_regenerated_each_block": true,
+    "soc_updated_from_committed_boundary": true,
+    "fixed_whole_day_quote_sweep": false
+  },
+  "checkpoints": {
+    "seed11_final": {
+      "seed": 11,
+      "round": 10,
+      "kind": "final",
+      "role": "primary",
+      "original_dir": "runs/FORMAL_7834d0aa_seed11/checkpoints/step_00012720",
+      "audit_copy_dir": "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/checkpoints/seed11_final",
+      "step": 12720,
+      "actor_sha256": {
+        "ESS9": "4385a8ba3b0b78d2089ed56754a99aeefc3c99f5878f127b0458d2800a1a8047",
+        "ESS14": "afbbe586d206d6acb780bf4cd976536882a522d54d2c9b737aeeb9678a24b969",
+        "ESS17": "f2f3a0c1611e3f952fab9ce64a3e573005d20b1fff5af45ae1b549ca6804aa37",
+        "ESS27": "33620a2da5313610da84d9d18a6a81185dd84cbe72d12211e227f8292176ba1a"
+      },
+      "original_actor_sha256": {
+        "ESS9": "4385a8ba3b0b78d2089ed56754a99aeefc3c99f5878f127b0458d2800a1a8047",
+        "ESS14": "afbbe586d206d6acb780bf4cd976536882a522d54d2c9b737aeeb9678a24b969",
+        "ESS17": "f2f3a0c1611e3f952fab9ce64a3e573005d20b1fff5af45ae1b549ca6804aa37",
+        "ESS27": "33620a2da5313610da84d9d18a6a81185dd84cbe72d12211e227f8292176ba1a"
+      },
+      "phase6_copy_dir": "checkpoints/seed11_final"
+    },
+    "seed11_best": {
+      "seed": 11,
+      "round": 1,
+      "kind": "best",
+      "role": "auxiliary_regression",
+      "original_dir": "runs/FORMAL_7834d0aa_seed11_best/checkpoints/step_00001272",
+      "audit_copy_dir": "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/checkpoints/seed11_best",
+      "step": 1272,
+      "actor_sha256": {
+        "ESS9": "137aa912dae6e9b48d882e50f7cc7fcf8761947072585c2721a0ba64170aa3ef",
+        "ESS14": "302bdf67519810d7b20048fc3efe880ea7046a14928d9a9c49508e94df8db84f",
+        "ESS17": "f3cc58098a3d9d7bad773cd920072a27565bb2ad853beff02e4c0fe3751cc6e8",
+        "ESS27": "9242b9e43f1336d59108eba9141a2155ce7f023c7c21de49aaabc1d262f370f7"
+      },
+      "original_actor_sha256": {
+        "ESS9": "137aa912dae6e9b48d882e50f7cc7fcf8761947072585c2721a0ba64170aa3ef",
+        "ESS14": "302bdf67519810d7b20048fc3efe880ea7046a14928d9a9c49508e94df8db84f",
+        "ESS17": "f3cc58098a3d9d7bad773cd920072a27565bb2ad853beff02e4c0fe3751cc6e8",
+        "ESS27": "9242b9e43f1336d59108eba9141a2155ce7f023c7c21de49aaabc1d262f370f7"
+      },
+      "phase6_copy_dir": "checkpoints/seed11_best"
+    },
+    "seed23_final": {
+      "seed": 23,
+      "round": 10,
+      "kind": "final",
+      "role": "primary",
+      "original_dir": "runs/FORMAL_7834d0aa_seed23/checkpoints/step_00012720",
+      "audit_copy_dir": "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/checkpoints/seed23_final",
+      "step": 12720,
+      "actor_sha256": {
+        "ESS9": "2194f4d0729568f2a67a90358a7c6a449ec656c202e7473c576e7b7be8dd07a8",
+        "ESS14": "12dadaab6a0e408e8fffca26457d3301184851c6d3ff5ccfd2e2057e5ed991b9",
+        "ESS17": "d36ecad2902aaf8128b8ae927969299c5c52868575bdd943b1089688f731ddcf",
+        "ESS27": "2bab815d71e8c3996ffaf5245d1ba63f4d8778478c849d08f149430a3a469906"
+      },
+      "original_actor_sha256": {
+        "ESS9": "2194f4d0729568f2a67a90358a7c6a449ec656c202e7473c576e7b7be8dd07a8",
+        "ESS14": "12dadaab6a0e408e8fffca26457d3301184851c6d3ff5ccfd2e2057e5ed991b9",
+        "ESS17": "d36ecad2902aaf8128b8ae927969299c5c52868575bdd943b1089688f731ddcf",
+        "ESS27": "2bab815d71e8c3996ffaf5245d1ba63f4d8778478c849d08f149430a3a469906"
+      },
+      "phase6_copy_dir": "checkpoints/seed23_final"
+    },
+    "seed23_best": {
+      "seed": 23,
+      "round": 1,
+      "kind": "best",
+      "role": "auxiliary_regression",
+      "original_dir": "runs/FORMAL_7834d0aa_seed23_best/checkpoints/step_00001272",
+      "audit_copy_dir": "reports/algorithm_diagnostics/quote_map_saturation_2026-11-12/checkpoints/seed23_best",
+      "step": 1272,
+      "actor_sha256": {
+        "ESS9": "18ea5551ceac6cac0825738187267c13837709f20c8712ad5f2de64fb8e1ca58",
+        "ESS14": "e9f9dd51401bb3ca675b1ecba7f972981d636110eed99e7fe80b0e86a9806e77",
+        "ESS17": "731a9904220fafec3e5dd1000535b03626fd90b4ad6c8b6f1c3d1d36113c07ce",
+        "ESS27": "5d3993590b04b9f37436672a7b9a277e1500222c47bd1dba12f8836704898b48"
+      },
+      "original_actor_sha256": {
+        "ESS9": "18ea5551ceac6cac0825738187267c13837709f20c8712ad5f2de64fb8e1ca58",
+        "ESS14": "e9f9dd51401bb3ca675b1ecba7f972981d636110eed99e7fe80b0e86a9806e77",
+        "ESS17": "731a9904220fafec3e5dd1000535b03626fd90b4ad6c8b6f1c3d1d36113c07ce",
+        "ESS27": "5d3993590b04b9f37436672a7b9a277e1500222c47bd1dba12f8836704898b48"
+      },
+      "phase6_copy_dir": "checkpoints/seed23_best"
+    }
+  },
+  "phase6A": {
+    "name": "smoke",
+    "pairs": [
+      {
+        "pair_id": "2022-07-23|2025-07-13",
+        "load_date": "2022-07-23",
+        "price_date": "2025-07-13",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-14|2025-08-17",
+        "load_date": "2022-08-14",
+        "price_date": "2025-08-17",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-17|2025-08-19",
+        "load_date": "2022-08-17",
+        "price_date": "2025-08-19",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-10-13|2025-10-13",
+        "load_date": "2022-10-13",
+        "price_date": "2025-10-13",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-15|2025-10-12",
+        "load_date": "2022-10-15",
+        "price_date": "2025-10-12",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-17|2025-10-17",
+        "load_date": "2022-10-17",
+        "price_date": "2025-10-17",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-12-09|2025-12-09",
+        "load_date": "2022-12-09",
+        "price_date": "2025-12-09",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-10|2025-12-07",
+        "load_date": "2022-12-10",
+        "price_date": "2025-12-07",
+        "season": "winter"
+      }
+    ],
+    "checkpoints": [
+      "seed11_final",
+      "seed23_final",
+      "seed11_best",
+      "seed23_best"
+    ],
+    "pair_source": "PROBE_PAIRS frozen in src/diagnose_quote_map_saturation.py; recorded in audit input_hashes.json",
+    "deviation_from_request": "The request named 6 Train representative days from Phase 2. No 6-day artifact exists on disk. The user approved the 8 frozen pre-registered probe pairs on 2026-11-12 (3 summer, 3 autumn, 2 winter).",
+    "gate_to_phase6B": "All 64 day-runs must clear, be OPTIMAL, pass voltage/line/SOC/terminal checks, and have no fallback or infeasible result."
+  },
+  "phase6B": {
+    "name": "train",
+    "pairs": [
+      {
+        "pair_id": "2022-07-23|2025-07-13",
+        "load_date": "2022-07-23",
+        "price_date": "2025-07-13",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-14|2025-08-17",
+        "load_date": "2022-08-14",
+        "price_date": "2025-08-17",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-17|2025-08-19",
+        "load_date": "2022-08-17",
+        "price_date": "2025-08-19",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-18|2025-08-18",
+        "load_date": "2022-08-18",
+        "price_date": "2025-08-18",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-20|2025-08-20",
+        "load_date": "2022-08-20",
+        "price_date": "2025-08-20",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-21|2025-08-23",
+        "load_date": "2022-08-21",
+        "price_date": "2025-08-23",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-22|2025-08-22",
+        "load_date": "2022-08-22",
+        "price_date": "2025-08-22",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-23|2025-08-21",
+        "load_date": "2022-08-23",
+        "price_date": "2025-08-21",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-26|2025-08-27",
+        "load_date": "2022-08-26",
+        "price_date": "2025-08-27",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-27|2025-08-24",
+        "load_date": "2022-08-27",
+        "price_date": "2025-08-24",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-28|2025-08-30",
+        "load_date": "2022-08-28",
+        "price_date": "2025-08-30",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-29|2025-08-29",
+        "load_date": "2022-08-29",
+        "price_date": "2025-08-29",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-30|2025-08-28",
+        "load_date": "2022-08-30",
+        "price_date": "2025-08-28",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-10-13|2025-10-13",
+        "load_date": "2022-10-13",
+        "price_date": "2025-10-13",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-15|2025-10-12",
+        "load_date": "2022-10-15",
+        "price_date": "2025-10-12",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-17|2025-10-17",
+        "load_date": "2022-10-17",
+        "price_date": "2025-10-17",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-20|2025-10-20",
+        "load_date": "2022-10-20",
+        "price_date": "2025-10-20",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-21|2025-10-21",
+        "load_date": "2022-10-21",
+        "price_date": "2025-10-21",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-22|2025-10-19",
+        "load_date": "2022-10-22",
+        "price_date": "2025-10-19",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-23|2025-10-18",
+        "load_date": "2022-10-23",
+        "price_date": "2025-10-18",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-26|2025-10-24",
+        "load_date": "2022-10-26",
+        "price_date": "2025-10-24",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-28|2025-10-28",
+        "load_date": "2022-10-28",
+        "price_date": "2025-10-28",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-29|2025-10-26",
+        "load_date": "2022-10-29",
+        "price_date": "2025-10-26",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-31|2025-10-31",
+        "load_date": "2022-10-31",
+        "price_date": "2025-10-31",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-01|2025-10-30",
+        "load_date": "2022-11-01",
+        "price_date": "2025-10-30",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-02|2025-10-29",
+        "load_date": "2022-11-02",
+        "price_date": "2025-10-29",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-03|2025-11-03",
+        "load_date": "2022-11-03",
+        "price_date": "2025-11-03",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-04|2025-11-04",
+        "load_date": "2022-11-04",
+        "price_date": "2025-11-04",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-07|2025-11-07",
+        "load_date": "2022-11-07",
+        "price_date": "2025-11-07",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-08|2025-11-06",
+        "load_date": "2022-11-08",
+        "price_date": "2025-11-06",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-09|2025-11-05",
+        "load_date": "2022-11-09",
+        "price_date": "2025-11-05",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-10|2025-11-10",
+        "load_date": "2022-11-10",
+        "price_date": "2025-11-10",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-11|2025-11-11",
+        "load_date": "2022-11-11",
+        "price_date": "2025-11-11",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-12|2025-11-09",
+        "load_date": "2022-11-12",
+        "price_date": "2025-11-09",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-13|2025-11-08",
+        "load_date": "2022-11-13",
+        "price_date": "2025-11-08",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-15|2025-11-13",
+        "load_date": "2022-11-15",
+        "price_date": "2025-11-13",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-16|2025-11-12",
+        "load_date": "2022-11-16",
+        "price_date": "2025-11-12",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-12-09|2025-12-09",
+        "load_date": "2022-12-09",
+        "price_date": "2025-12-09",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-10|2025-12-07",
+        "load_date": "2022-12-10",
+        "price_date": "2025-12-07",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-11|2025-12-13",
+        "load_date": "2022-12-11",
+        "price_date": "2025-12-13",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-12|2025-12-12",
+        "load_date": "2022-12-12",
+        "price_date": "2025-12-12",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-13|2025-12-11",
+        "load_date": "2022-12-13",
+        "price_date": "2025-12-11",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-15|2025-12-16",
+        "load_date": "2022-12-15",
+        "price_date": "2025-12-16",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-16|2025-12-17",
+        "load_date": "2022-12-16",
+        "price_date": "2025-12-17",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-17|2025-12-14",
+        "load_date": "2022-12-17",
+        "price_date": "2025-12-14",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-18|2025-12-20",
+        "load_date": "2022-12-18",
+        "price_date": "2025-12-20",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-20|2025-12-18",
+        "load_date": "2022-12-20",
+        "price_date": "2025-12-18",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-21|2025-12-22",
+        "load_date": "2022-12-21",
+        "price_date": "2025-12-22",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-22|2025-12-23",
+        "load_date": "2022-12-22",
+        "price_date": "2025-12-23",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-25|2025-12-27",
+        "load_date": "2022-12-25",
+        "price_date": "2025-12-27",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-26|2025-12-26",
+        "load_date": "2022-12-26",
+        "price_date": "2025-12-26",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-27|2025-12-25",
+        "load_date": "2022-12-27",
+        "price_date": "2025-12-25",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-30|2025-12-31",
+        "load_date": "2022-12-30",
+        "price_date": "2025-12-31",
+        "season": "winter"
+      }
+    ],
+    "checkpoints": [
+      "seed11_final",
+      "seed23_final"
+    ],
+    "note": "Round 10 finals are the primary Train experiment. Round 1 is not used for the Train decision."
+  },
+  "phase6C": {
+    "name": "validation",
+    "pairs": [
+      {
+        "pair_id": "2022-07-22|2025-07-15",
+        "load_date": "2022-07-22",
+        "price_date": "2025-07-15",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-24|2025-08-25",
+        "load_date": "2022-08-24",
+        "price_date": "2025-08-25",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-08-25|2025-08-26",
+        "load_date": "2022-08-25",
+        "price_date": "2025-08-26",
+        "season": "summer"
+      },
+      {
+        "pair_id": "2022-10-14|2025-10-14",
+        "load_date": "2022-10-14",
+        "price_date": "2025-10-14",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-10-16|2025-10-11",
+        "load_date": "2022-10-16",
+        "price_date": "2025-10-11",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-05|2025-11-02",
+        "load_date": "2022-11-05",
+        "price_date": "2025-11-02",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-14|2025-11-14",
+        "load_date": "2022-11-14",
+        "price_date": "2025-11-14",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-11-19|2025-11-15",
+        "load_date": "2022-11-19",
+        "price_date": "2025-11-15",
+        "season": "autumn"
+      },
+      {
+        "pair_id": "2022-12-23|2025-12-24",
+        "load_date": "2022-12-23",
+        "price_date": "2025-12-24",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-28|2025-12-29",
+        "load_date": "2022-12-28",
+        "price_date": "2025-12-29",
+        "season": "winter"
+      },
+      {
+        "pair_id": "2022-12-31|2025-12-28",
+        "load_date": "2022-12-31",
+        "price_date": "2025-12-28",
+        "season": "winter"
+      }
+    ],
+    "checkpoints": [
+      "seed11_final",
+      "seed23_final"
+    ],
+    "note": "Round 10 finals are the primary Validation experiment."
+  },
+  "excluded_splits": {
+    "test": "never read",
+    "holiday": "never read",
+    "h2_holdout": "never read; h2_opened remains false"
+  },
+  "market_mechanism": {
+    "network": "line50_q2.0",
+    "clearing_engine": "socp",
+    "cycle_cost_cny_per_mwh": 100.0,
+    "observation": "v6_12d (12 dims)",
+    "action": "storage_quote_v4 (2 dims per unit)",
+    "ess_order": [
+      "ESS9",
+      "ESS14",
+      "ESS17",
+      "ESS27"
+    ],
+    "gate": "8 total, straight-through Bernoulli; evaluation hard threshold at 0",
+    "gate_temperature_eval": 1.0,
+    "quote_map_formal": "linear_core_v1",
+    "market_config_hash": "5c6c93f16209203b61bfcc11436b110b80206fde5b2c2247a7ea29295b2c4162",
+    "b1_mechanism_hash": "835d1a3a298483c491e83287844e5864de7fbbe9878478c323c82c42f6879141"
+  },
+  "kpis": {
+    "primary": "fleet net settlement income per day (sum of the four ESS participant_payoff totals)",
+    "secondary": "per-ESS net settlement income, components, energy, SOC, quotes, LMP, PCC, solver and physical checks",
+    "paired_difference": "Z10.0 minus Z2.5 on the same checkpoint and the same date",
+    "uncertainty": "date-clustered bootstrap 95% CI, 1000 resamples, seed 20261112",
+    "single_unit_rule": "A per-ESS improvement is never interpreted as a fleet improvement; the fleet is the decision unit."
+  },
+  "decision_rule": {
+    "prerequisite": "Phase 6A clearing/physical/solver/terminal checks must all PASS; otherwise no economic verdict is reported.",
+    "PASS": "For both Round 10 final checkpoints, on both Train and Validation, the date-clustered bootstrap 95% CI lower bound of the fleet payoff delta is > 0 and the per-seed median delta is > 0.",
+    "PARTIAL": "The point estimate is positive but at least one primary CI lower bound is <= 0, or Train and Validation disagree in sign; or the Round 1 auxiliary check reverses the sign.",
+    "FAIL": "The point estimate is <= 0 for both Round 10 final checkpoints on either split and the corresponding CI upper bound is < 0.",
+    "NOT_TESTED": "Any split, checkpoint, or metric not run.",
+    "BLOCKED": "Inputs, provenance, or terminal settlement accounting cannot be confirmed."
+  },
+  "deliverables": [
+    "phase6_config.json",
+    "source_hashes.json",
+    "provenance_addendum.json",
+    "phase6A_smoke_results.csv",
+    "phase6B_train_results.csv",
+    "phase6C_validation_results.csv",
+    "daily_paired_deltas.csv",
+    "per_ess_payoff.csv",
+    "fleet_payoff.csv",
+    "physical_validation.csv",
+    "solver_validation.csv",
+    "bootstrap_summary.json",
+    "phase6_decision_report.md",
+    "output_hashes.json"
+  ]
+}

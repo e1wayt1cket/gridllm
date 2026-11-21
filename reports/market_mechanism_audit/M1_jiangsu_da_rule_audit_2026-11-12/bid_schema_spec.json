@@ -1,0 +1,118 @@
+{
+  "schema_id": "jiangsu_da_storage_bid_v1_2026-11-12",
+  "status": "SPECIFICATION_ONLY",
+  "status_note": "This file specifies a target schema. It is not implemented anywhere and must not be read by production code yet.",
+  "market": {
+    "name": "Jiangsu day-ahead energy market (distribution-network equivalent)",
+    "periods_per_day": 96,
+    "period_minutes": 15,
+    "period_indexing": "1..96, covering 00:15-24:00, each label is the interval END time",
+    "trading_day": "D-1 decides for D",
+    "gate_closure_local_time": "D-1 10:30",
+    "clearing_publication_local_time": "D-1 17:30"
+  },
+  "participant": {
+    "market_role": "grid_side_storage_station",
+    "unit_of_participation": "station",
+    "asset_unit_in_this_project": "single ESS unit (0.4 MW / 1.6 MWh)",
+    "role_mismatch": "PROJECT_ASSUMPTION",
+    "role_mismatch_note": "Jiangsu admits grid-side storage stations. The project's four 0.4 MW units at buses 9/14/17/27 are not stations and their market admission is unverified."
+  },
+  "bid_object": {
+    "per_period": true,
+    "curves": ["charge", "discharge"],
+    "curve_form": "monotone_non_decreasing_step",
+    "segment_fields": {
+      "power_start_mw": {"type": "number", "min": 0.0, "unit": "MW"},
+      "power_end_mw": {"type": "number", "min": 0.0, "unit": "MW"},
+      "price_cny_per_mwh": {"type": "number", "min": 0.0, "max": 1500.0, "unit": "CNY/MWh"}
+    },
+    "constraints": {
+      "first_segment_start_mw": {"value": 0.0, "evidence": "R-44", "level": "OFFICIAL_SECONDARY"},
+      "first_segment_end_min_mw": {"fraction_of_rated_power": 0.25, "evidence": "R-44", "level": "OFFICIAL_SECONDARY"},
+      "last_segment_end_mw": {"equals": "rated_charge_or_discharge_power", "evidence": "R-44", "level": "OFFICIAL_SECONDARY"},
+      "contiguity": {"rule": "power_start_mw[i+1] == power_end_mw[i]", "evidence": "R-44", "level": "OFFICIAL_SECONDARY"},
+      "monotonicity": {"rule": "price_cny_per_mwh non-decreasing with power", "evidence": "R-44", "level": "OFFICIAL_SECONDARY"},
+      "min_segment_step_mw": {"value": 0.1, "evidence": "R-46", "level": "OFFICIAL_SECONDARY"},
+      "price_bounds_cny_per_mwh": {"min": 0.0, "max": 1500.0, "evidence": "R-45", "level": "OFFICIAL_SECONDARY"}
+    },
+    "unknowns": [
+      {
+        "field": "max_segments",
+        "status": "BLOCKED",
+        "evidence": "R-47",
+        "note": "No Jiangsu storage segment-count limit was obtained. The generator limit of 10 segments must not be reused."
+      },
+      {
+        "field": "soc_related_declarations",
+        "status": "BLOCKED",
+        "evidence": "R-48",
+        "note": "Whether Jiangsu requires declared SOC bounds, minimum charge/discharge duration or end-of-day SOC target is unverified. Other provinces' fields must not be transplanted."
+      },
+      {
+        "field": "participation_mode",
+        "status": "PARTIAL",
+        "evidence": "R-41,R-42",
+        "note": "Voluntary participation, irrevocable once joined. Modelled as already joined."
+      }
+    ]
+  },
+  "numerical_instance_for_this_project": {
+    "rated_power_mw": 0.4,
+    "rated_energy_mwh": 1.6,
+    "charge_efficiency": 0.92,
+    "discharge_efficiency": 0.92,
+    "soc_min": 0.1,
+    "soc_max": 0.9,
+    "soc_initial": 0.5,
+    "soc_terminal": "free",
+    "implied_max_segments_per_curve_from_step_rule": 4,
+    "implied_first_segment_end_min_mw": 0.1,
+    "derived": "with a 0.1 MW minimum step and a 0.4 MW rated power, a curve can carry at most 4 segments"
+  },
+  "action_projection_from_rl": {
+    "note": "How a learned policy's raw action becomes a valid bid. Specification only.",
+    "raw_action_example": {
+      "name": "two_knot_curve",
+      "parameters": {
+        "charge_price_at_zero_dispatch_cny_per_mwh": {"min": 0.0, "max": 1500.0},
+        "charge_price_at_rated_power_cny_per_mwh": {"min": 0.0, "max": 1500.0},
+        "discharge_price_at_zero_dispatch_cny_per_mwh": {"min": 0.0, "max": 1500.0},
+        "discharge_price_at_rated_power_cny_per_mwh": {"min": 0.0, "max": 1500.0}
+      },
+      "constraint": "price_at_rated >= price_at_zero for each direction (monotonicity by construction)",
+      "segments_recovered": "4 segments of 0.1 MW each, linearly interpolated and rounded to the nearest valid step",
+      "why_four_parameters": "the two-knot family is the smallest family that can express a non-flat monotone curve and still satisfy the 0.1 MW step rule"
+    },
+    "rejected_alternative": {
+      "name": "single_price_per_direction",
+      "reason": "expressible as a curve only when flat; cannot represent offering more at a higher price, which is what the rule's monotonicity is for"
+    }
+  },
+  "settlement_interface": {
+    "price_object": "nodal_price_cny_per_mwh",
+    "price_source": "dual of the nodal active-power balance in the distribution clearing, divided by the period length",
+    "sign_convention": "positive price means energy delivered to the feeder is paid that amount",
+    "cash_settlement": "sum over periods of dt * nodal_price * (discharge - charge)",
+    "excluded_terms": [
+      "transmission and distribution tariffs",
+      "grid loss charges",
+      "system operation fees",
+      "government funds and surcharges",
+      "deviation charges",
+      "capacity compensation",
+      "cost compensation",
+      "ancillary service fees",
+      "unbalanced funds"
+    ],
+    "evidence_level": "PROJECT_ASSUMPTION",
+    "evidence_note": "The structure follows R-34 and R-35 in general terms. No Jiangsu storage-specific day-ahead settlement formula was obtained (R-49)."
+  },
+  "validation_rules": [
+    "every segment width is a multiple of 0.1 MW",
+    "segment prices are non-decreasing within a curve",
+    "the first segment starts at 0 MW and the last ends at the rated power",
+    "no segment price lies outside [0, 1500] CNY/MWh",
+    "the charge and discharge curves are independent; simultaneous charge and discharge is prevented by the physical model, not by the bid"
+  ]
+}

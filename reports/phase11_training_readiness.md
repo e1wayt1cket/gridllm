@@ -131,7 +131,9 @@ day-ahead participant legitimately holds. `hist_lmp` is a deque filled by
 4. `OBS_V3` stays registered — so old policies can be *identified* and
    `load_policy` raises on the name mismatch instead of silently
    reinterpreting an actor built for a different layout. It is **not** the
-   default; `BiddingEnv` now selects `OBS_V4`.
+   default; `BiddingEnv` selected `OBS_V4` at the time of writing and now selects `OBS_V6`.
+
+   > **Updated 2026-10-15.** The layout above is unchanged; what moved is the *meaning* of the two opponent features. `OBS_V6` makes them a signed, direction-normalized deviation from truthful, where `OBS_V4` averaged each participant's box position. `OBS_V4` and the short-lived `OBS_V5` (an unsigned magnitude form, replaced before anything was trained on it) stay registered so a checkpoint under either is identifiable. See `reports/s7_defect_repairs.md`.
 
 **Verification done.** `test_the_observation_ignores_prices_after_the_decision`
 changes only periods 60–95 and asserts the pre-decision observations are

@@ -1,0 +1,18 @@
+{
+  "as_of": "2026-11-02",
+  "unseen_2025_holdout_available": false,
+  "sets": {
+    "common_test_11": {"status": "viewed", "used_for": "pilot evaluation and every later report"},
+    "national_day_5": {"status": "viewed", "used_for": "held-out reporting, still inspected"},
+    "full96_only_16": {"status": "used_in_training", "used_for": "FULL96 training pool; analyzed"},
+    "common_train_53": {"status": "used_for_training", "used_for": "search and fitting"},
+    "common_validation_11": {"status": "used_for_selection", "used_for": "parameter selection"}
+  },
+  "candidates": [
+    {"option": "new_external_price_period", "priority": 1, "status": "not acquired"},
+    {"option": "new_external_load_price_dataset", "priority": 2, "status": "not acquired"},
+    {"option": "post_hoc_temporal_split", "priority": 3, "status": "not valid as a blind holdout"}
+  ],
+  "rule": "freeze model, reward, potential, scale, action and gate estimator before opening a holdout; open once",
+  "disclosure": "all current results are developmental/exploratory"
+}

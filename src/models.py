@@ -26,6 +26,17 @@ class NetworkConfig:
     # diagnose_typical_day.
     inverter_smax_multiplier: float = 1.0
     n_loss_iters: int = 3            # I²R loss linearization iterations (0=no losses)
+    # Line impedance multiplier applied to R and X after ampacity is derived
+    # from the unmodified conductor. 1.0 is the benchmark network; the
+    # ``line50_q2.0`` support assumption is 0.5. Ampacity stays the one the
+    # installed conductor sets, so this models better conductors at the same
+    # rating rather than a different line.
+    line_impedance_scale: float = 1.0
+    # Ideal local reactive compensation as a fraction of each bus's own load Q.
+    # 0.0 injects nothing; 2.0 is the ``line50_q2.0`` assumption, which leaves
+    # the bus one load-Q leading. A fraction above 1.0 is a modelling
+    # assumption, not a device rating.
+    reactive_fraction_of_load_q: float = 0.0
 
 
 @dataclass
@@ -36,7 +47,8 @@ class StorageConfig:
     soc_buffer: float = 0.05               # SOC buffer from min/max before forced action
     terminal_value: Optional[float] = None  # None = use day-ahead mean price
     cycle_cost: float = 100.0              # cycling degradation cost (CNY/MWh per ch+dis)
-    discount_factor: float = 0.997         # per-period discount on future storage revenue
+    discount_factor: float = 1.0           # per-period discount on future storage revenue;
+                                           # 1.0 because the settlement pays it undiscounted
     self_schedule: bool = False            # MPC pre-computes schedule, OPF treats as fixed.
                                            # Default False so storage is dispatched by the market
                                            # on declared bids (the RL path); MPC flows opt in.
@@ -165,6 +177,8 @@ YAML_FIELD_MAP = {
         "load_power_factor": "network.load_power_factor",
         "inverter_smax_multiplier": "network.inverter_smax_multiplier",
         "n_loss_iters": "network.n_loss_iters",
+        "line_impedance_scale": "network.line_impedance_scale",
+        "reactive_fraction_of_load_q": "network.reactive_fraction_of_load_q",
     },
     "storage": {
         "charge_discount": "storage.charge_discount",
@@ -236,6 +250,23 @@ YAML_KEYS_READ_ELSEWHERE = {
 }
 
 
+def check_market_design(config: "MarketConfig") -> None:
+    """Refuse a config that asks for two multi-objective methods at once.
+
+    The two methods add different terms to the same objective: a weighted sum
+    of carbon, renewable and curtailment prices, and slack penalties on hard
+    carbon and renewable caps. Both true is not a stronger objective, it is two
+    prices for the same quantity, and the clearing would report whichever
+    shadow price came out without saying the objective had two owners.
+    """
+    md = config.market_design
+    if md.enable_multi_objective and md.use_constraint_multi_obj:
+        raise ValueError(
+            "enable_multi_objective and use_constraint_multi_obj are both "
+            "true: the clearing would price carbon and renewables twice. "
+            "Pick one method.")
+
+
 @dataclass
 class MarketConfig:
     """Top-level configuration composing network, storage, market-design, and RT settings."""
@@ -247,13 +278,16 @@ class MarketConfig:
     # economic term against the already-correct carbon, RE and terminal-SOC
     # terms. Verification and historical reproduction only.
     dt_scaled_money: bool = True
-    opf_tolerance: float = 1e-6
-    opf_max_iter: int = 100
     verbose: bool = False
     network: NetworkConfig = field(default_factory=NetworkConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
     market_design: MarketDesignConfig = field(default_factory=MarketDesignConfig)
     rt: RTConfig = field(default_factory=RTConfig)
+
+    def __post_init__(self):
+        # Construction is the one checkpoint every path passes; a config
+        # mutated afterwards is checked again where the clearing starts.
+        check_market_design(self)
 
     @classmethod
     def from_yaml(cls, **overrides) -> "MarketConfig":
@@ -325,6 +359,9 @@ class StorageSpec:
     ramp_down_ch: Optional[float] = None
     ramp_up_dis: Optional[float] = None
     ramp_down_dis: Optional[float] = None
+    # Absolute state of charge a settled horizon must end on. None keeps the
+    # older behaviour of pinning the end to the horizon's own start.
+    terminal_soc_target: Optional[float] = None
 
     def max_discharge_feasible(self, soc, dt=0.25):
         if soc <= self.soc_min + 1e-6:

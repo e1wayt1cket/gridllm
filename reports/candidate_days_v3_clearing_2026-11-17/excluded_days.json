@@ -1,0 +1,56 @@
+{
+  "source": "reports/candidate_days_v3_clearing_2026-11-17/evidence_audits_slack1.00/summary.csv",
+  "feasible_rule": "exact complementary dispatch optimal and every bus-period inside the network's own voltage band",
+  "declared_inputs": {
+    "slack_vm_pu": 1.0,
+    "shunts_mvar": []
+  },
+  "excluded": [
+    {
+      "date": "2021-12-24",
+      "block": "train",
+      "price_date": "2025-12-12",
+      "solver_status": 3,
+      "failure": "Exact complementary dispatch was not optimal"
+    },
+    {
+      "date": "2022-08-02",
+      "block": "validation",
+      "price_date": "2025-08-25",
+      "solver_status": 3,
+      "failure": "Exact complementary dispatch was not optimal"
+    },
+    {
+      "date": "2022-10-11",
+      "block": "train",
+      "price_date": "2025-10-26",
+      "solver_status": 3,
+      "failure": "Exact complementary dispatch was not optimal"
+    },
+    {
+      "date": "2022-10-14",
+      "block": "train",
+      "price_date": "2025-10-27",
+      "solver_status": 3,
+      "failure": "Exact complementary dispatch was not optimal"
+    }
+  ],
+  "counts": {
+    "train": {
+      "screened": 90,
+      "excluded": 3
+    },
+    "validation": {
+      "screened": 18,
+      "excluded": 1
+    },
+    "test": {
+      "screened": 18,
+      "excluded": 0
+    },
+    "holiday": {
+      "screened": 10,
+      "excluded": 0
+    }
+  }
+}

@@ -40,6 +40,7 @@ from dispatch_core import (
     add_grid_exchange, add_storage_net_power, check_storage_quote_signs,
     quote_arrays,
     grid_import_export, grid_carbon_tco2, pins_terminal_soc, DT_HOURS,
+    LMP_FALLBACK_NO_DUAL, lmp_fallback_report,
 )
 
 try:
@@ -100,11 +101,12 @@ def _add_independent_storage(obj, su, ch, dis, soc, T, dt_scale, disc_T,
 def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
     """Nodal prices (CNY/MWh) from the power-balance duals.
 
-    Returns ``(lmp, n_fallback)``. A dual is unavailable when presolve eliminated
-    the constraint, and Gurobi also reports no duals at all for a model carrying
-    integers — raising rather than returning one. Both cases fall back to the
-    wholesale curve. The count comes back so the caller can surface a partial
-    fallback rather than silently pricing a whole day off the wrong curve.
+    Returns ``(lmp, n_fallback, fallback_periods)``. A dual is unavailable when
+    presolve eliminated the constraint, and Gurobi also reports no duals at all
+    for a model carrying integers — raising rather than returning one. Both
+    cases fall back to the wholesale curve. The count and the periods come back
+    so the caller can surface a partial fallback rather than silently pricing a
+    whole day off the wrong curve.
 
     The dual is converted with ``money.price_from_balance_dual`` because the
     balance constrains power, not energy; see that function for why the period
@@ -113,7 +115,9 @@ def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
     """
     lmp = np.zeros((T, len(buses)))
     n_fallback = 0
+    fallback_periods = []
     for t in range(T):
+        fell_back_here = False
         for i, b in enumerate(buses):
             try:
                 lmp[t, i] = money.price_from_balance_dual(
@@ -121,7 +125,23 @@ def _extract_lmp(p_bal_constr, buses, T, wholesale, dt=DT_HOURS):
             except (AttributeError, gp.GurobiError):
                 lmp[t, i] = wholesale[t]
                 n_fallback += 1
-    return lmp, n_fallback
+                fell_back_here = True
+        if fell_back_here:
+            fallback_periods.append(t)
+    return lmp, n_fallback, fallback_periods
+
+
+def _assert_finite(label: str, values) -> None:
+    """Refuse to hand back a cleared day that carries a non-finite quantity.
+
+    A NaN reaching settlement or the reward reads as a very large or a zero
+    profit rather than as a failed solve, so it is caught at the boundary
+    instead of being learned from.
+    """
+    arr = np.asarray(values, dtype=float)
+    if arr.size and not np.all(np.isfinite(arr)):
+        count = int((~np.isfinite(arr)).sum())
+        raise FloatingPointError(f"{label}: {count} non-finite value(s)")
 
 
 def _needs_binaries(config, agent) -> bool:
@@ -166,7 +186,7 @@ def _freeze_exclusive_directions(ch, dis, is_ch, is_dis):
 
 
 def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale,
-                         storage_units=None, horizon_type="auto"):
+                         storage_units=None, *, horizon_type):
     """Multi-period SOCP-OPF with storage SOC transition and carbon cost.
 
     Uses rotated second-order cone relaxation of the DistFlow equations.
@@ -305,7 +325,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             soc[nm][T].UB = mpc_soc_arr[T]
 
     pf = config.network.load_power_factor
-    q_ratio = np.tan(np.arccos(pf))
+    # Net reactive load after ideal local compensation. At 0.0 this is the
+    # uncompensated load; at 2.0 the bus carries one load-Q of leading
+    # injection, matching the pandapower shunt the support screen applies.
+    q_ratio = np.tan(np.arccos(pf)) * (
+        1.0 - float(config.network.reactive_fraction_of_load_q))
     p_bal_constr = {}  # save refs for LMP extraction
 
     # --- Per-period constraints ---
@@ -467,17 +491,22 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 m.addConstr(dis[nm][t - 1] - dis[nm][t] <= stor.ramp_down_dis,
                             f"ramp_down_dis_{nm}_{t}")
 
-    # Terminal state of charge pinned to the initial one, so a whole-horizon
-    # comparison does not reward a unit for finishing with banked energy. Only a
-    # whole-day clear can carry this: on a rolling window the pin would forbid
-    # the trajectory the window was opened to choose, and the day is what is
-    # being settled.
-    if pins_terminal_soc(config, T, horizon_type):
+    # Terminal state of charge pinned, so a settled-horizon comparison does not
+    # reward a unit for finishing with banked energy. A rolling window that
+    # reaches the true day end may pin an absolute target; every earlier window
+    # stays unpinned, because the pin would forbid the trajectory it was opened
+    # to choose. `full_day` keeps the original end-to-start pin.
+    if pins_terminal_soc(config, horizon_type):
+        absolute = horizon_type == "day_end"
         for a in storage_agents:
-            m.addConstr(soc[a.name][T] == soc[a.name][0],
+            target = a.storage.terminal_soc_target if absolute else None
+            rhs = soc[a.name][0] if target is None else float(target)
+            m.addConstr(soc[a.name][T] == rhs,
                         f"terminal_soc_{a.name}")
         for su in storage_units:
-            m.addConstr(soc[su.name][T] == soc[su.name][0],
+            target = su.storage.terminal_soc_target if absolute else None
+            rhs = soc[su.name][0] if target is None else float(target)
+            m.addConstr(soc[su.name][T] == rhs,
                         f"terminal_soc_{su.name}")
 
     # Grid ramping constraint (peak shaving): limit net exchange change rate
@@ -536,6 +565,12 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
 
     if config.storage.terminal_value is not None:
         terminal_value = config.storage.terminal_value
+    elif pins_terminal_soc(config, horizon_type):
+        # The end state is an equality, so the banked energy's value is a
+        # constant the optimizer cannot move. Valuing it at the day's mean
+        # price would add that constant to the objective and let a reader
+        # mistake it for a term the clearing traded off.
+        terminal_value = 0.0
     else:
         terminal_value = float(np.mean(wholesale))
 
@@ -639,7 +674,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     all_storage = storage_agents + storage_units
     if all_storage and config.storage.use_nodal_price:
         # Extract first-pass nodal LMPs
-        nodal_lmp, _ = _extract_lmp(p_bal_constr, buses, T, wholesale, dt_scale)
+        nodal_lmp, _, _ = _extract_lmp(p_bal_constr, buses, T, wholesale,
+                                       dt_scale)
 
         max_iters = 4
         for nodal_iter in range(max_iters):
@@ -676,6 +712,15 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                             nm = a.name
                             curtail = (pv_max_arr[nm][t] - pv[nm][t]) + (wind_max_arr[nm][t] - wind[nm][t])
                             obj2 -= config.market_design.lambda_curtail * curtail * DT_HOURS
+            # The slack penalties are part of the objective the first pass
+            # solved. Leaving them out here would make the nodal re-solve a
+            # cheaper problem than the one it re-solves, and a violated cap
+            # would cost nothing on the second pass.
+            if config.market_design.use_constraint_multi_obj:
+                if config.market_design.carbon_cap_tco2 is not None:
+                    obj2 -= config.market_design.penalty_carbon_slack * slack_carbon
+                if config.market_design.re_min_rate is not None:
+                    obj2 -= config.market_design.penalty_re_slack * slack_re
             for a in storage_agents:
                 obj2 += disc_T * terminal_value * soc[a.name][T] * a.storage.e_max
             for su in storage_units:
@@ -688,7 +733,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             if m.status != GRB.OPTIMAL:
                 break
 
-            new_lmp, _ = _extract_lmp(p_bal_constr, buses, T, wholesale, dt_scale)
+            new_lmp, _, _ = _extract_lmp(p_bal_constr, buses, T, wholesale,
+                                         dt_scale)
 
             max_change = np.max(np.abs(new_lmp - nodal_lmp))
             nodal_lmp = new_lmp
@@ -696,8 +742,8 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
                 break
 
     # --- Extract LMP from duals ---
-    lmp, lmp_fallbacks = _extract_lmp(p_bal_constr, buses, T, wholesale,
-                                      dt_scale)
+    lmp, lmp_fallbacks, lmp_fallback_periods = _extract_lmp(
+        p_bal_constr, buses, T, wholesale, dt_scale)
 
     # Extract shadow prices from constraint-based multi-objective
     shadow_prices = {}
@@ -762,6 +808,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
             s['wind_used'][t] = wind[nm][t].X
             s['p_ch'][t] = ch[nm][t].X
             s['p_dis'][t] = dis[nm][t].X
+            # The inverter's reactive output is a variable of this model; the
+            # solved value belongs in the schedule, as `dispatch_ldf` already
+            # puts it there, or the reactive balance cannot be rebuilt.
+            if nm in q_re:
+                s['q_re'][t] = q_re[nm][t].X
             s['soc'][t] = soc[nm][t].X if nm in soc else 0.0
             if nm in soc:
                 # The boundary trajectory. Filled for 0..T-1 here and for T
@@ -792,7 +843,7 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
     # variable, leaving only T-1 of the T transitions checkable. `soc_boundary`
     # carries all T+1 states without overwriting any, which is what makes every
     # transition checkable.
-    terminal_pinned = pins_terminal_soc(config, T, horizon_type)
+    terminal_pinned = pins_terminal_soc(config, horizon_type)
     for a in list(storage_agents) + list(storage_units):
         nm = a.name
         if nm not in soc or nm not in schedules:
@@ -816,10 +867,31 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
          for t in range(T)])
     line_flow_mw = np.array([[float(P[t, l].X) for l in lines]
                              for t in range(T)])
+    # Reactive readouts, so the reactive balance can be rebuilt from the
+    # result the way the active one is. Without them a caller can only trust
+    # the constraint was written, not that it held.
+    line_flow_mvar = np.array([[float(Q[t, l].X) for l in lines]
+                               for t in range(T)])
+    # The loss terms the balance subtracts at each line's receiving end, so a
+    # caller can close both balances instead of mistaking the loss for an
+    # imbalance. r and x are per unit on a 1 MVA base, so these are MW/MVar.
+    line_loss_mw = np.array([[float(r[l] * I_sq[t, l].X) for l in lines]
+                             for t in range(T)])
+    line_loss_mvar = np.array([[float(x_val[l] * I_sq[t, l].X) for l in lines]
+                               for t in range(T)])
+    grid_q_mvar = np.array([float(q_grid[t].X) for t in range(T)])
     grid_import_mw, grid_export_mw = grid_import_export(p_grid_mw)
 
     re_rate = (total_re_used / total_re_avail * 100) if total_re_avail > 0 else 100.0
     carbon_intensity = carbon_emissions / max(total_served_mwh, 1e-6)
+    # The prices and the dispatched quantities are what settlement and the
+    # learning signal are built from, so a non-finite one stops the clear here.
+    _assert_finite("socp lmp", lmp)
+    for nm, sched in schedules.items():
+        for key in ("p_buy", "p_sell", "served", "unserved", "pv_used",
+                    "wind_used", "p_ch", "p_dis", "soc"):
+            if key in sched:
+                _assert_finite(f"socp {nm}.{key}", sched[key])
     result = {
         "price": lmp.mean(axis=1),
         "lmp": lmp,
@@ -837,9 +909,11 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         "carbon_intensity": carbon_intensity,
         "total_curtailment": total_curtailment,
         "shadow_prices": shadow_prices,
-        # Periods whose nodal price came from the wholesale fallback because no
-        # balance dual was available. Non-zero means those prices are not nodal.
-        "lmp_fallbacks": lmp_fallbacks,
+        # Which periods are priced off the wholesale curve because no balance
+        # dual was available, and what that makes the price field. Non-zero
+        # means those prices are not nodal and `lmp` must not be read as one.
+        **lmp_fallback_report(lmp_fallbacks, lmp_fallback_periods,
+                              LMP_FALLBACK_NO_DUAL),
         # Network state. Purely additive; no existing key changes meaning.
         # Absent under `lindistflow`, which has no current variable and whose
         # line limit is a diamond bound on P and Q rather than a thermal limit,
@@ -849,6 +923,10 @@ def solve_socp_opf_batch(net, agents, T, stage, config, action_params, wholesale
         "line_utilization": line_utilization,
         "line_indices": list(lines),
         "line_flow_mw": line_flow_mw,
+        "line_flow_mvar": line_flow_mvar,
+        "line_loss_mw": line_loss_mw,
+        "line_loss_mvar": line_loss_mvar,
+        "grid_q_mvar": grid_q_mvar,
         # The SOCP path never fills schedules['GRID']['g_grid'], so grid
         # exchange is only available from here.
         "grid_import_mw": grid_import_mw,

@@ -5,7 +5,8 @@ Port of ASSUME's WriteOutput idea (structured per-run artifacts with a
 manifest) scoped to training runs: every training invocation writes a
 self-describing directory under outputs/rl/<run_id>/ containing the CLI args,
 a JSON-safe config snapshot, the observation/action specs, per-episode
-metrics, evaluation history, and the paths of every policy artifact produced.
+metrics, per-episode settled money in its own file, evaluation history, and the
+paths of every policy artifact produced.
 
 The run id is `run-<YYYYmmdd-HHMMSS>-<hash>`, where the hash covers the
 `MarketConfig` snapshot **and the run seed**. The seed is in it because it is
@@ -80,11 +81,13 @@ _BASE_METRIC_COLUMNS = ["episode", "mean_reward", "clearing_objective", "re_rate
                         "critic_loss", "actor_loss", "scenario"]
 # Prefix for the per-agent reward columns ({prefix}{agent_name}).
 _AGENT_REWARD_PREFIX = "reward__"
-# Fleet profit columns, reported next to the reward they are the basis of.
+# Fleet profit columns, written to `economics.csv` rather than `metrics.csv`.
 # `mean_reward` is the learning signal; these are the settled money it is
 # measured against and the in-window truthful counterfactual it subtracts.
 # Neither is the paper's benefit, which uses a whole-day all-truthful baseline.
-_PROFIT_COLUMNS = ["raw_profit_mean", "local_baseline_profit_mean",
+# The two files are separate because a reward is not a payoff, and one row
+# holding both invites reading the signal as the money.
+_PROFIT_COLUMNS = ["episode", "raw_profit_mean", "local_baseline_profit_mean",
                    "profit_delta_local_mean"]
 # Critique diagnostics, ordered before the day-level economics.
 _Q_COLUMNS = ["q1_mean", "q2_mean", "q_gap"]
@@ -154,6 +157,10 @@ class RunArtifacts:
     # kpi.json under "cycles", where the run's headline numbers live, because
     # a cycle's Delta_Pi is a headline number and not an episode metric.
     validation: List[dict] = dataclasses.field(default_factory=list)
+    # One row per episode carrying settled money, keyed by episode. Kept out
+    # of `metrics` so no reader can report a reward as a payoff by taking a
+    # column from the wrong table.
+    economics: List[dict] = dataclasses.field(default_factory=list)
 
     @classmethod
     def create(cls, config, cli_args, obs_spec, action_spec,
@@ -218,15 +225,16 @@ class RunArtifacts:
             "re_rate": re_rate, "critic_loss": critic_loss,
             "actor_loss": actor_loss, "scenario": scenario,
         }
+        money = {"episode": ep}
         if per_agent_reward:
             row.update({f"{_AGENT_REWARD_PREFIX}{nm}": v
                         for nm, v in per_agent_reward.items()})
         if raw_profit is not None:
-            row["raw_profit_mean"] = raw_profit
+            money["raw_profit_mean"] = raw_profit
         if local_baseline_profit is not None:
-            row["local_baseline_profit_mean"] = local_baseline_profit
+            money["local_baseline_profit_mean"] = local_baseline_profit
         if profit_delta_local is not None:
-            row["profit_delta_local_mean"] = profit_delta_local
+            money["profit_delta_local_mean"] = profit_delta_local
         if q_stats:
             row.update(q_stats)
         if econ:
@@ -242,6 +250,8 @@ class RunArtifacts:
         if cycle is not None:
             row["cycle"] = int(cycle)
         self.metrics.append(row)
+        if len(money) > 1:
+            self.economics.append(money)
 
     #: Evaluation-summary columns carried over from the metrics dict when the
     #: evaluation produced them. `validation_kpis` supplies these; an
@@ -312,7 +322,9 @@ class RunArtifacts:
         self.policy_paths[role] = sorted(str(p) for p in paths)
 
     def save(self) -> str:
-        """Write manifest.json, config.json, metrics.csv, eval.csv, kpi.json."""
+        """Write manifest.json, config.json, metrics.csv, economics.csv,
+        eval.csv, kpi.json. economics.csv exists only when money was recorded.
+        """
         import pandas as pd
         os.makedirs(self.root_dir, exist_ok=True)
         manifest = {
@@ -329,6 +341,11 @@ class RunArtifacts:
         pd.DataFrame(self.metrics,
                      columns=_ordered_columns(self.metrics) or None).to_csv(
             os.path.join(self.root_dir, "metrics.csv"), index=False)
+        # Written only when the run recorded money, so a run that did not is
+        # not given an empty table that reads as "no profit".
+        if self.economics:
+            pd.DataFrame(self.economics, columns=_PROFIT_COLUMNS).to_csv(
+                os.path.join(self.root_dir, "economics.csv"), index=False)
         pd.DataFrame(self.evals).to_csv(
             os.path.join(self.root_dir, "eval.csv"), index=False)
         kpi = dict(self.kpi)
@@ -348,8 +365,11 @@ class RunArtifacts:
             config = json.load(f)
         metrics_csv = os.path.join(root_dir, "metrics.csv")
         evals_csv = os.path.join(root_dir, "eval.csv")
+        economics_csv = os.path.join(root_dir, "economics.csv")
         metrics = pd.read_csv(metrics_csv).to_dict("records") \
             if os.path.exists(metrics_csv) else []
+        economics = pd.read_csv(economics_csv).to_dict("records") \
+            if os.path.exists(economics_csv) else []
         evals = pd.read_csv(evals_csv).to_dict("records") \
             if os.path.exists(evals_csv) else []
         with open(os.path.join(root_dir, "kpi.json")) as f:
@@ -367,4 +387,5 @@ class RunArtifacts:
             policy_paths=manifest["policy_paths"], kpi=kpi,
             git_sha=manifest.get("git_sha"),
             timestamp=manifest.get("timestamp", ""),
-            log_dir=manifest.get("log_dir"), validation=validation)
+            log_dir=manifest.get("log_dir"), validation=validation,
+            economics=economics)

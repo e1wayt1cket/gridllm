@@ -1,0 +1,61 @@
+{
+  "all_pass": true,
+  "training_readiness_status": "GO_FORMAL_TRAINING",
+  "scope": "formal training on NEAR80/common_split under protocol_version 2 (minimum-round early-stop guard); Test is LEGACY_SEEN_TEST; no independent-generalisation claim",
+  "protocol_version": 2,
+  "checks": {
+    "data": {
+      "common_split_counts": true,
+      "all_disjoint": true,
+      "legacy_label_matches": true,
+      "h2_sealed": true,
+      "all_pass": true
+    },
+    "budget_guard": {
+      "minimum_rounds_ten": true,
+      "no_early_stop_before_round_ten": true,
+      "early_stop_allowed_at_round_ten_when_patience_met": true,
+      "round_ten_new_best_resets_patience": true,
+      "normal_early_stop_after_round_ten": true,
+      "no_stop_before_round_nine": true,
+      "maximum_budget_fifteen_rounds": true,
+      "minimum_budget_guard_test_suite": true
+    },
+    "engineering": {
+      "checkpoint_roundtrip": true,
+      "checkpoint_schema": true,
+      "quote_map_unchanged": true,
+      "entry_isolation": true,
+      "validation_not_in_replay": true,
+      "test_not_evaluated": true,
+      "holiday_not_evaluated": true,
+      "h2_not_opened": true
+    },
+    "tests": {
+      "guard_suite": "13 passed",
+      "targeted_suite": "27 passed (guards, checkpoint roundtrip, checkpoint schema, quote map)",
+      "failed": 0
+    }
+  },
+  "budget": {
+    "minimum_rounds": 10,
+    "exposures_per_day_min": 10,
+    "exposures_per_day_max": 15,
+    "episodes_per_seed_min": 530,
+    "episodes_per_seed_max": 795,
+    "block_steps_per_seed_min": 12720,
+    "block_steps_per_seed_max": 19080,
+    "early_stop_patience": 3
+  },
+  "evidence": {
+    "guard_tests": "reports/v2_cy_jn_2025/formal_training_v2/phase24_budget_guard_tests.json",
+    "config": "reports/v2_cy_jn_2025/formal_training_v2/formal_training_config.yaml",
+    "code_manifest": "reports/v2_cy_jn_2025/formal_training_v2/formal_training_code_manifest.json",
+    "data_manifest": "reports/v2_cy_jn_2025/formal_training_v2/formal_training_data_manifest.json"
+  },
+  "notes": [
+    "Only the early-stop minimum-round guard and the manifest/entry plumbing that carries it changed.",
+    "Reward, observation, action, actor, critic, gate, quote map, learning rate, batch size, replay buffer, gamma, exploration and model selection are unchanged.",
+    "The original formal_training_ready directory and its hashes remain untouched."
+  ]
+}

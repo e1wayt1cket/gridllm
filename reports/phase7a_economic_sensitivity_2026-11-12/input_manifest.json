@@ -1,0 +1,381 @@
+{
+ "generated_at": "2026-11-12T15:50:25+08:00",
+ "label": "NON_FORMAL_DIAGNOSTIC",
+ "phase": "7A",
+ "analysis": "post-hoc accounting re-estimation on frozen cleared trajectories; no re-clearing, no training",
+ "inputs": [
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\phase6A_smoke_results.csv",
+   "bytes": 151538,
+   "sha256": "12b6e27a7cb2be998e3a57c4a4c82d73bcf2b051b7aec7df67b050ec6aa45927",
+   "rows": 64
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\phase6B_train_results.csv",
+   "bytes": 485429,
+   "sha256": "65fe3125e8ad737e717f1015aaf9cdf5cc50435c90394d7f01b73abe1550fd0f",
+   "rows": 212
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\phase6C_validation_results.csv",
+   "bytes": 104320,
+   "sha256": "0ffe227a0700f453b6f590cdedac2c07ab540db6aeab7b9a928e6d54747dccf7",
+   "rows": 44
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\fleet_payoff.csv",
+   "bytes": 96484,
+   "sha256": "b8037191c63d4bb7f40e4caf331b5c8ed4854838503073eb5d30356fdbfecc0c",
+   "rows": 320
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\per_ess_payoff.csv",
+   "bytes": 687711,
+   "sha256": "8b7d19a73a9ff1f26495333a89660ffe18f9d711436eb7438e79413be4d475a4",
+   "rows": 1280
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\daily_paired_deltas.csv",
+   "bytes": 143316,
+   "sha256": "657f5176293dd6516c3bce9a3fbc9ed58019a2a85632e54ab17175c0a733c782",
+   "rows": 800
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\bootstrap_summary.json",
+   "bytes": 25990,
+   "sha256": "568fbcb4e528a76f53c7a5094a21776b49e7c315a85e592b81c9fb1aa4b751e4",
+   "rows": ""
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\phase6_config.json",
+   "bytes": 22354,
+   "sha256": "9c0f29403aaf6cfcc4abd3fbc4716090fd81c4c06baab01e3291e457ab2d6a05",
+   "rows": ""
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\phase6_preflight.json",
+   "bytes": 1110,
+   "sha256": "3693d662c349443b695bc1a3a9d5bfc7b0ac7227993d0072430b6ad1e58ebe1b",
+   "rows": ""
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\source_hashes.json",
+   "bytes": 5022,
+   "sha256": "a26b39b5c5be57e18a39abf04ed19791f67ada6c877a9a18172ad70dd034dd89",
+   "rows": ""
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\output_hashes.json",
+   "bytes": 1494,
+   "sha256": "a824146eea315f6fd5a71c607085de33609cc853e9b7bc6c5a275f9987b01deb",
+   "rows": ""
+  },
+  {
+   "kind": "phase6",
+   "path": "reports\\phase6_frozen_policy_2026-11-12\\phase6_decision_report.md",
+   "bytes": 13691,
+   "sha256": "8265b5eada535b3675fe2cdf37da6746c3e8452f23569bdb68f6a51941648259",
+   "rows": ""
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\accounting_reconciliation.csv",
+   "bytes": 295012,
+   "sha256": "a493fa9e12c8e3d7de7d3096af347594688f152ad7340fa9c4a5f122b153b5f0",
+   "rows": 1760
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\return_distribution_summary.csv",
+   "bytes": 4690,
+   "sha256": "6b3f2e5fa2ec7b194db7d0986dba62a1fd3227b49439c8ed329f1e646d083845",
+   "rows": 8
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\concentration_sensitivity.csv",
+   "bytes": 30067,
+   "sha256": "c1bb673f86890be2f040a46c32ca3e52efd0fa91f2208055daaac3ab1a17012a",
+   "rows": 56
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\bootstrap_reproduction.json",
+   "bytes": 369,
+   "sha256": "06c7287cf830183821485968598a6cf8c05016717d2234316657e4f6513ae90e",
+   "rows": ""
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\bootstrap_reproduction.csv",
+   "bytes": 8775,
+   "sha256": "726d208b06f67b48836be811a5ec66acf9c1a04d81427c4e3015bba09380c1bc",
+   "rows": 40
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\source_integrity_report.json",
+   "bytes": 2210,
+   "sha256": "8025fbe91624c75d3e6ce19c08a433033e97605b636c702934f625c5f5245750",
+   "rows": ""
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\per_ess_decomposition.csv",
+   "bytes": 13039,
+   "sha256": "e070e7c69f3be9d2b92853c21ea60e96dd1ded06cf500ef5c93f19210297924d",
+   "rows": 40
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\robustness_summary.csv",
+   "bytes": 2013,
+   "sha256": "96aef7e5fe6d4f1ba73a84f1a5c8dc849c9e46e8f6f3cffb1a5fb1f2cd191d90",
+   "rows": 4
+  },
+  {
+   "kind": "phase6d",
+   "path": "reports\\phase6d_profit_attribution_2026-11-12\\phase6d_decision_report.md",
+   "bytes": 17737,
+   "sha256": "2430681c90d67521a1c2addbec6cdc2feb77c28aac86413fc0ce8fe2939e0d3b",
+   "rows": ""
+  },
+  {
+   "kind": "source",
+   "path": "src\\participant_payoff.py",
+   "bytes": 10075,
+   "sha256": "2051aa59f743239e4b2db200e25686825897eb8ee6f5e65362ab2c989dc1078d",
+   "rows": ""
+  },
+  {
+   "kind": "source",
+   "path": "src\\money.py",
+   "bytes": 1832,
+   "sha256": "de58573dc07ac60b4049cb7851c9c7c137d2abc65d67f4f4952f1ee31ed19a12",
+   "rows": ""
+  },
+  {
+   "kind": "source",
+   "path": "src\\ess.py",
+   "bytes": 4256,
+   "sha256": "76c575f064d32136767acb0be738fabbfe2ad1d3b61b465729ac0f42822b79a1",
+   "rows": ""
+  },
+  {
+   "kind": "source",
+   "path": "src\\run_phase6_frozen_policy.py",
+   "bytes": 60296,
+   "sha256": "837b92930a988954978c1ed6580436896fd401df16d47efa6994bc9d72d1c038",
+   "rows": ""
+  },
+  {
+   "kind": "source",
+   "path": "src\\v2_cy_jn_env.py",
+   "bytes": 13749,
+   "sha256": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a",
+   "rows": ""
+  },
+  {
+   "kind": "data",
+   "path": "data\\processed\\v2_cy_jn_2025\\common_split.json",
+   "bytes": 10648,
+   "sha256": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335",
+   "rows": ""
+  },
+  {
+   "kind": "data",
+   "path": "reports\\v2_cy_jn_2025\\formal_training_v3\\formal_training_data_manifest.json",
+   "bytes": 4743,
+   "sha256": "e5eaa358c3445b613fa111c2655893e092594033a9597bb277be8ac580121424",
+   "rows": ""
+  }
+ ],
+ "checkpoint_files": {
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actor_targets\\ESS14.pt": "6cc35dd22fadba010da83e4d3a73bd9641ef6f78e6a7b21d0b15391c2c9519b2",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actor_targets\\ESS17.pt": "0bae109293a46fccd7fb1172e94c46d2c9d19f4eeffecca39cd4ef276ecb0537",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actor_targets\\ESS27.pt": "73bf931a10d8221203b1da8649b106106e2a52561cacc7c4369c23a829710b89",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actor_targets\\ESS9.pt": "7c950d816ebe7b956a126ff996221b4815e9b5a26b28cd482233036ce8999bb3",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actors\\ESS14.pt": "afbbe586d206d6acb780bf4cd976536882a522d54d2c9b737aeeb9678a24b969",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actors\\ESS17.pt": "f2f3a0c1611e3f952fab9ce64a3e573005d20b1fff5af45ae1b549ca6804aa37",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actors\\ESS27.pt": "33620a2da5313610da84d9d18a6a81185dd84cbe72d12211e227f8292176ba1a",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\actors\\ESS9.pt": "4385a8ba3b0b78d2089ed56754a99aeefc3c99f5878f127b0458d2800a1a8047",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\buffer\\replay.npz": "2396f053b59d44eb392425ae002a9b1c0be7a2881ff72cdfded4a39d512259cf",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critic_targets\\ESS14.pt": "e688ef4c0f48162d3a38de36c88c666c07ce5e5b9a3e8df16bcff94c23d0fa69",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critic_targets\\ESS17.pt": "ae71fe36d78e6d41eeca25ecf3e1c56c45adff947c4286ab5f9c810b48490496",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critic_targets\\ESS27.pt": "9a125619e563bf0c8b2b4aed6288f509a76a48847d9ed278f7faa92478b35edf",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critic_targets\\ESS9.pt": "629855c58c3b2357c5d663ecbcd39483c02dc3a87048174dccaddeaededeeb47",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critics\\ESS14.pt": "fc6753f9b7158e6a7337a7f25e9fb325a2d4a547f13cb065e6f50085be351490",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critics\\ESS17.pt": "4511bd890df55ca95ff8c033b6b9c58fb7a3f9f334c305a8f740df4aeba604e5",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critics\\ESS27.pt": "ee53efdbdbfe4c4ccf291703c429229fefe06c572edc0426f10cd79d433c6c44",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\critics\\ESS9.pt": "7e233e71e0c23559c00d9ca339b6c7b5786140ae6f5528f55f02b25eca8cc40b",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\optimizers.pt": "fad8a55cc581ad97e4bda7ceed6bbe4e56eba4367511073dc6021928435a191c",
+  "seed11_final:runs\\FORMAL_7834d0aa_seed11\\checkpoints\\step_00012720\\rng.pt": "6e2f1306ab3280434fe339c47f9d8f7539644671dc7dbb860d8c30827b0934e3",
+  "seed11_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_final\\actors\\ESS14.pt": "afbbe586d206d6acb780bf4cd976536882a522d54d2c9b737aeeb9678a24b969",
+  "seed11_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_final\\actors\\ESS17.pt": "f2f3a0c1611e3f952fab9ce64a3e573005d20b1fff5af45ae1b549ca6804aa37",
+  "seed11_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_final\\actors\\ESS27.pt": "33620a2da5313610da84d9d18a6a81185dd84cbe72d12211e227f8292176ba1a",
+  "seed11_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_final\\actors\\ESS9.pt": "4385a8ba3b0b78d2089ed56754a99aeefc3c99f5878f127b0458d2800a1a8047",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actor_targets\\ESS14.pt": "615f48e47d9a380218ee01a29ccf1b616bbfb6528b0365c795682ccceb223e85",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actor_targets\\ESS17.pt": "d886f679d20e30cdc19b9ed2a152c7b41c747f02f5d4c4ceb887d6bb478cc9d0",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actor_targets\\ESS27.pt": "9abbb8b16aaad0abad21026c4fbe9faaa9da8fe662aa39e6c3f06fb59741bc64",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actor_targets\\ESS9.pt": "e3d099b2c60678204d96b9b224dc31379e493b834a3b59ce72e2c4191d9fba71",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actors\\ESS14.pt": "302bdf67519810d7b20048fc3efe880ea7046a14928d9a9c49508e94df8db84f",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actors\\ESS17.pt": "f3cc58098a3d9d7bad773cd920072a27565bb2ad853beff02e4c0fe3751cc6e8",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actors\\ESS27.pt": "9242b9e43f1336d59108eba9141a2155ce7f023c7c21de49aaabc1d262f370f7",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\actors\\ESS9.pt": "137aa912dae6e9b48d882e50f7cc7fcf8761947072585c2721a0ba64170aa3ef",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\buffer\\replay.npz": "fd587e193109b3b5be840ffb6cbc3f5538e6d1383f63b557fdece9f666b8a2d0",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critic_targets\\ESS14.pt": "c0723f037d353485739d8396e5bcdfe2ea6231d4a3c1fbfb6520bb276cb7877b",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critic_targets\\ESS17.pt": "b23ca15f4a4f0686d6f33e23bc70f378e771a543a467813b64113bbfd45a53c6",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critic_targets\\ESS27.pt": "b270e5fc689aee58f665e59b30d72b9e84bbd61459f0078f7d8fc6fc34d8789b",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critic_targets\\ESS9.pt": "f14362dae88ff2ec632655b01a1f7ef41d13937453c3fbbff04258ece6a34748",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critics\\ESS14.pt": "cc8b70c07b178068f865bc7cdd03434ce1350fee0c87656eb0db282ec825b463",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critics\\ESS17.pt": "b0cd2c2bd8be15852ab4a02a3cb800fccffc7a65395efb443a62bbe8e74e8e94",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critics\\ESS27.pt": "f78e16967e63a147576738a94747b7116c7b14c7514fe8a4eed915fcba037c2d",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\critics\\ESS9.pt": "06cc5f38b0803b68179a68db16cb87807e1520f915f81a48a303e16ec1011f16",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\optimizers.pt": "ef17a37f90674e772b2b7f3c953e7d16fc8fed7cecb82960915d1cc01ecff737",
+  "seed11_best:runs\\FORMAL_7834d0aa_seed11_best\\checkpoints\\step_00001272\\rng.pt": "0443c4bfaf2345407898cf8315918e5c34755af860a791dd370e115f3d98817f",
+  "seed11_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_best\\actors\\ESS14.pt": "302bdf67519810d7b20048fc3efe880ea7046a14928d9a9c49508e94df8db84f",
+  "seed11_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_best\\actors\\ESS17.pt": "f3cc58098a3d9d7bad773cd920072a27565bb2ad853beff02e4c0fe3751cc6e8",
+  "seed11_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_best\\actors\\ESS27.pt": "9242b9e43f1336d59108eba9141a2155ce7f023c7c21de49aaabc1d262f370f7",
+  "seed11_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed11_best\\actors\\ESS9.pt": "137aa912dae6e9b48d882e50f7cc7fcf8761947072585c2721a0ba64170aa3ef",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actor_targets\\ESS14.pt": "60b16e367b58c41cabe141c233c607146223cb975bf14f595903d2017cfb213f",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actor_targets\\ESS17.pt": "27d49440b931f62629957637fa6c567abc82ab481d19faeffb79f9f6b4418ca1",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actor_targets\\ESS27.pt": "0909ec8e6c6460f64a99899b7d9764ea63ee239626d3030069ce9ca8de39dea7",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actor_targets\\ESS9.pt": "579ca68c3e8b99e842ef5e73cae92532b95dc50af4d88fabb0864110c257dad6",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actors\\ESS14.pt": "12dadaab6a0e408e8fffca26457d3301184851c6d3ff5ccfd2e2057e5ed991b9",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actors\\ESS17.pt": "d36ecad2902aaf8128b8ae927969299c5c52868575bdd943b1089688f731ddcf",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actors\\ESS27.pt": "2bab815d71e8c3996ffaf5245d1ba63f4d8778478c849d08f149430a3a469906",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\actors\\ESS9.pt": "2194f4d0729568f2a67a90358a7c6a449ec656c202e7473c576e7b7be8dd07a8",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\buffer\\replay.npz": "83bbfb7e57f1ec9ffccd0b1fc8d7d9f8d57a9673ff3d58dc021e52f971bbbb09",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critic_targets\\ESS14.pt": "09a75e7e1dff92a3d03342bb5ed272211cea2e335b186926b813442f0d0d813c",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critic_targets\\ESS17.pt": "3a9c5d05bbfb03c1796339a12dd5f65235e840515d78a1e037118f9a5289a796",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critic_targets\\ESS27.pt": "0aa454d827bd21744be885b9eeab501e908d0cfead528a83777373636b089ed1",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critic_targets\\ESS9.pt": "610facc425469b2a12302a2a24a3109e8a378997e571c52ddbe010e1cad74d49",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critics\\ESS14.pt": "7f3fcdf99305e4f349f71e8bbfa4a24cb9ba38206287aebdc3fa0cf33585346f",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critics\\ESS17.pt": "c4798a606512ec3c09715d95f38ceae48e073cda1b287b8471613be84ffb9893",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critics\\ESS27.pt": "f4f678df9c44296b6bd44f076e2686623cd1199164bdc9859386da80a9cae9c5",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\critics\\ESS9.pt": "21528ca96885b9d8ef0330c07e12615bdde4a43392be514515dbe03047544723",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\optimizers.pt": "4756923cfdee3c440fc9e4e28600b6b4b9969616e6c19900d8399d25c1b26d32",
+  "seed23_final:runs\\FORMAL_7834d0aa_seed23\\checkpoints\\step_00012720\\rng.pt": "c8a0cae12dc039e538b9b10abf57d73db4accab55bfb1d8b03284c9a0060ff60",
+  "seed23_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_final\\actors\\ESS14.pt": "12dadaab6a0e408e8fffca26457d3301184851c6d3ff5ccfd2e2057e5ed991b9",
+  "seed23_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_final\\actors\\ESS17.pt": "d36ecad2902aaf8128b8ae927969299c5c52868575bdd943b1089688f731ddcf",
+  "seed23_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_final\\actors\\ESS27.pt": "2bab815d71e8c3996ffaf5245d1ba63f4d8778478c849d08f149430a3a469906",
+  "seed23_final:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_final\\actors\\ESS9.pt": "2194f4d0729568f2a67a90358a7c6a449ec656c202e7473c576e7b7be8dd07a8",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actor_targets\\ESS14.pt": "7cb330d6dcd4253a9043a01ccefac1e0314b0efb427d0b00d11e7d59da877557",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actor_targets\\ESS17.pt": "96a336e617b5e8e293bbd0df4cd72b633559090bb1842d1fa9e650f0d8b05623",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actor_targets\\ESS27.pt": "6d294aebdee2251c48ec236aec250b22f6c68e72de784b6511a4163919b130ec",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actor_targets\\ESS9.pt": "06bc37910366337b9152cdc921ec5ecb94ae846522b22c23bc45a6c7e6bb3232",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actors\\ESS14.pt": "e9f9dd51401bb3ca675b1ecba7f972981d636110eed99e7fe80b0e86a9806e77",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actors\\ESS17.pt": "731a9904220fafec3e5dd1000535b03626fd90b4ad6c8b6f1c3d1d36113c07ce",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actors\\ESS27.pt": "5d3993590b04b9f37436672a7b9a277e1500222c47bd1dba12f8836704898b48",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\actors\\ESS9.pt": "18ea5551ceac6cac0825738187267c13837709f20c8712ad5f2de64fb8e1ca58",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\buffer\\replay.npz": "f21c8cad72c5393cfe490535fbf371efa26498cfefc1019d1b833f63b4c49ad2",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critic_targets\\ESS14.pt": "e1346ef44f2adae94f5d85015f7dff44446328ab7690ebf07d3fe1ee9cd7c023",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critic_targets\\ESS17.pt": "4d4b7e46552db065ecaf9a1e99fae93787d12b2ee2fba180645eaa06fcc82538",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critic_targets\\ESS27.pt": "61fc3796431e57a2f228f2ba7cbf36b8ee60da323230889ec8df7b423e2b58fc",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critic_targets\\ESS9.pt": "303b0dc555215e0121d4bc30d6a23299a8bdc6e15519bf7d21baa8496d6558b7",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critics\\ESS14.pt": "9bc330cbb69a18586361dc2dda10cf217b99c4da7ea8f8d0fc63e8715b631b1e",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critics\\ESS17.pt": "7a8b9aae9f35e9ace26b6eef51dee57e9977f68cd4a0ad2ddfac1fd13d0fea0f",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critics\\ESS27.pt": "c3cf73e830043601f24184495eed3b5ba149b8b829bfe635430802e8c9c8b013",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\critics\\ESS9.pt": "73f0f18e77937f6c4f583a21f86a79c4073f7e146c9aa1a964a9c431542bcbd8",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\optimizers.pt": "60ee1e85225744574f1d7015d866596ec8436d2f4e20992c0aa3c70ab0890cc0",
+  "seed23_best:runs\\FORMAL_7834d0aa_seed23_best\\checkpoints\\step_00001272\\rng.pt": "c5d3b36f665aa13e32183f0c8b4b5eefd20abffed91ff3a04b11eceb687c55d8",
+  "seed23_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_best\\actors\\ESS14.pt": "e9f9dd51401bb3ca675b1ecba7f972981d636110eed99e7fe80b0e86a9806e77",
+  "seed23_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_best\\actors\\ESS17.pt": "731a9904220fafec3e5dd1000535b03626fd90b4ad6c8b6f1c3d1d36113c07ce",
+  "seed23_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_best\\actors\\ESS27.pt": "5d3993590b04b9f37436672a7b9a277e1500222c47bd1dba12f8836704898b48",
+  "seed23_best:reports\\phase6_frozen_policy_2026-11-12\\checkpoints\\seed23_best\\actors\\ESS9.pt": "18ea5551ceac6cac0825738187267c13837709f20c8712ad5f2de64fb8e1ca58"
+ },
+ "formulas": {
+  "market_revenue": "sum_t lmp[node,t] * p_sell[t] * DT_HOURS",
+  "purchase_cost": "sum_t lmp[node,t] * p_buy[t] * DT_HOURS",
+  "cycle_cost": "rate * (charge_mwh + discharge_mwh), rate = config.storage.cycle_cost, linear in rate",
+  "net": "revenue - purchase_cost - cycle_cost; generation, other and penalty terms are structurally zero for independent storage (participant_payoff.IndependentStoragePayoff)",
+  "fleet": "sum of the four ESS units",
+  "source": [
+   "src/participant_payoff.py::_LedgerPayoff._ledger",
+   "src/participant_payoff.py::IndependentStoragePayoff",
+   "src/money.py::total_money, DT_HOURS"
+  ]
+ },
+ "splits": {
+  "A": "Probe",
+  "B": "Train",
+  "C": "Validation"
+ },
+ "base_rate_cny_per_mwh": 100.0,
+ "rates_cny_per_mwh": [
+  0.0,
+  50.0,
+  100.0,
+  150.0,
+  200.0
+ ],
+ "bootstrap": {
+  "n_resamples": 1000,
+  "seed": 20261112,
+  "cluster": "pair_id (date)",
+  "interval": "percentile"
+ },
+ "checks": {
+  "ess_row_count": {
+   "status": "PASS",
+   "detail": "1280"
+  },
+  "fleet_row_count": {
+   "status": "PASS",
+   "detail": "320"
+  },
+  "no_duplicate_ess_rows": {
+   "status": "PASS",
+   "detail": "0"
+  },
+  "ess_complete_per_arm": {
+   "status": "PASS",
+   "detail": "0"
+  },
+  "both_maps_per_pair": {
+   "status": "PASS",
+   "detail": "0"
+  },
+  "pair_id_matches_dates": {
+   "status": "PASS",
+   "detail": "0"
+  },
+  "B_is_train_split": {
+   "status": "PASS",
+   "detail": "53 dates"
+  },
+  "C_is_validation_split": {
+   "status": "PASS",
+   "detail": "11 dates"
+  },
+  "no_test_or_holiday_dates": {
+   "status": "PASS",
+   "detail": "0"
+  },
+  "h2_holdout_sealed": {
+   "status": "PASS",
+   "detail": "h2_opened=False"
+  },
+  "cycle_cost_is_rate_times_energy": {
+   "status": "PASS",
+   "detail": "1280 rows, max |implied rate - 100| = 5.684e-14"
+  },
+  "checkpoint_actor_hashes": {
+   "status": "PASS",
+   "detail": "0"
+  }
+ },
+ "problems": [],
+ "status": "PASS"
+}

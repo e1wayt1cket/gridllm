@@ -1,0 +1,22 @@
+{
+  "run_dir": "runs/P21_candidate_001_smoke_seed11",
+  "best_dir": "runs/P21_candidate_001_smoke_seed11_best",
+  "final_step": 480,
+  "final_counters": {
+    "total_steps": 480,
+    "episode": 20,
+    "updates": 353,
+    "buffer_len": 480
+  },
+  "final_manifest_sha256": "45ab5a1b0e01ec4964c8ab1dcf0a7239bba9a90d3b2248ee21ba69bc9433d0df",
+  "best_step": 480,
+  "best_counters": {
+    "total_steps": 480,
+    "episode": 20,
+    "updates": 353,
+    "buffer_len": 480
+  },
+  "best_manifest_sha256": "49768f2e84cbdd89d7b41e0b27dd7d2f190614ade2f9a1e33767314b51cab87f",
+  "actor_loss_map": "linear_core_v1",
+  "actor_loss_gate_temperature": "current_gate_temperature"
+}

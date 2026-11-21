@@ -24,7 +24,25 @@ import pytest
 import unified_eval as ue
 from models import MarketConfig
 
-SCENARIO = "typical_day_industry"
+#: These tests exercise an *interface*: the strategy registry, the settlement
+#: path, the paired evaluator. Their subject is not the load, so they run on the
+#: native benchmark day -- `typical_day_industry` now carries the metered
+#: industry load, which this feeder can serve only a few percent of and which
+#: would make every one of them a test of the shedding rather than of the
+#: interface. The price is still the real curve, set per-run on the scenario the
+#: same way `compare_price_sources` sets it.
+SCENARIO = "typical_day"
+PRICE_SOURCE = "dianyicha"
+
+
+@pytest.fixture(autouse=True)
+def _real_price_curve():
+    """Price the native day from the real curve, for this module only."""
+    from config_loader import reload_scenarios, set_scenario_param
+    reload_scenarios()
+    set_scenario_param(SCENARIO, "wholesale_source", PRICE_SOURCE)
+    yield
+    reload_scenarios()
 T = 96
 
 

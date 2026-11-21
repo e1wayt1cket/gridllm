@@ -1,0 +1,548 @@
+{
+  "boundary": "read-only local critic sensitivity; no training, no checkpoint write, no H2 and no legacy test",
+  "states": [
+    {
+      "pair_id": "2022-12-24|2025-12-21",
+      "block": 8,
+      "unit": "ESS14",
+      "role": "train_near"
+    },
+    {
+      "pair_id": "2022-12-24|2025-12-21",
+      "block": 8,
+      "unit": "ESS27",
+      "role": "train_near"
+    },
+    {
+      "pair_id": "2022-12-29|2025-12-30",
+      "block": 14,
+      "unit": "ESS14",
+      "role": "train_near"
+    },
+    {
+      "pair_id": "2022-12-29|2025-12-30",
+      "block": 14,
+      "unit": "ESS27",
+      "role": "train_near"
+    },
+    {
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "unit": "ESS14",
+      "role": "validation_near"
+    },
+    {
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "unit": "ESS27",
+      "role": "validation_near"
+    },
+    {
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 11,
+      "unit": "ESS14",
+      "role": "validation_near"
+    },
+    {
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "unit": "ESS14",
+      "role": "validation_near"
+    },
+    {
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "unit": "ESS14",
+      "role": "validation_near"
+    }
+  ],
+  "note": "the four training states use the near/split.json role of the D+A run; the named cases are validation there and training days under common_split",
+  "rows": [
+    {
+      "checkpoint": "da_best",
+      "source": "train_near",
+      "pair_id": "2022-12-24|2025-12-21",
+      "block": 8,
+      "critic_unit": "ESS14",
+      "charge_own_abs": 0.00032228720374405384,
+      "discharge_own_abs": 0.00027149810921400785,
+      "charge_own_norm": 0.048343080561608076,
+      "discharge_own_norm": 0.08144943276420236,
+      "own_abs_sum": 0.0005937853129580617,
+      "own_norm_sq": 0.008971063535796448,
+      "cross_norm_sq": 0.16398428729302827,
+      "own_share": 0.051869245402388166,
+      "own_cross_ratio": 0.23389495151531728,
+      "cross_charge": {
+        "ESS9": 0.0009207907132804394,
+        "ESS17": 0.0005139245186001062,
+        "ESS27": -0.000694434973411262
+      },
+      "cross_discharge": {
+        "ESS9": 0.0008189192158170044,
+        "ESS17": 0.0008666882640682161,
+        "ESS27": -4.143594196648337e-05
+      },
+      "soc": 0.4320679381608571
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "train_near",
+      "pair_id": "2022-12-24|2025-12-21",
+      "block": 8,
+      "critic_unit": "ESS27",
+      "charge_own_abs": -0.0008800847572274506,
+      "discharge_own_abs": -0.0002678717137314379,
+      "charge_own_norm": -0.1320127135841176,
+      "discharge_own_norm": -0.08036151411943138,
+      "own_abs_sum": -0.0011479564709588885,
+      "own_norm_sq": 0.023885329499409837,
+      "cross_norm_sq": 0.039952426659392505,
+      "own_share": 0.37415678333043006,
+      "own_cross_ratio": 0.7732039017729024,
+      "cross_charge": {
+        "ESS9": 0.0005172586534172297,
+        "ESS14": -0.0002984552411362529,
+        "ESS17": 0.00012190252164145932
+      },
+      "cross_discharge": {
+        "ESS9": 0.00033315084874629974,
+        "ESS14": 0.00041482795495539904,
+        "ESS17": -0.0002607126079965383
+      },
+      "soc": 0.30380416502398805
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "train_near",
+      "pair_id": "2022-12-29|2025-12-30",
+      "block": 14,
+      "critic_unit": "ESS14",
+      "charge_own_abs": 0.0001843082718551159,
+      "discharge_own_abs": 0.0003223918320145458,
+      "charge_own_norm": 0.027646240778267384,
+      "discharge_own_norm": 0.09671754960436374,
+      "own_abs_sum": 0.0005067001038696617,
+      "own_norm_sq": 0.010118599030642494,
+      "cross_norm_sq": 0.12108189024106236,
+      "own_share": 0.07712318061320451,
+      "own_cross_ratio": 0.28908169808500184,
+      "cross_charge": {
+        "ESS9": 0.0006890790536999702,
+        "ESS17": 0.00035386477247811854,
+        "ESS27": -0.000721845543012023
+      },
+      "cross_discharge": {
+        "ESS9": 0.0004516596673056483,
+        "ESS17": 0.0009193858713842928,
+        "ESS27": -0.00012573662388604134
+      },
+      "soc": 0.500000155728693
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "train_near",
+      "pair_id": "2022-12-29|2025-12-30",
+      "block": 14,
+      "critic_unit": "ESS27",
+      "charge_own_abs": 0.0003043257456738502,
+      "discharge_own_abs": -0.00010746106272563338,
+      "charge_own_norm": 0.04564886185107753,
+      "discharge_own_norm": -0.032238318817690015,
+      "own_abs_sum": 0.0001968646829482168,
+      "own_norm_sq": 0.003123127788489787,
+      "cross_norm_sq": 0.03962995644610097,
+      "own_share": 0.0730503505046057,
+      "own_cross_ratio": 0.28072628583953246,
+      "cross_charge": {
+        "ESS9": 0.0006364081637002528,
+        "ESS14": 9.17051947908476e-05,
+        "ESS17": -0.00027803759439848363
+      },
+      "cross_discharge": {
+        "ESS9": -0.0005279248580336571,
+        "ESS14": -0.00013634921924676746,
+        "ESS17": 0.00014266940706875175
+      },
+      "soc": 0.49999993630363293
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "validation_near",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "critic_unit": "ESS14",
+      "charge_own_abs": 0.00022908710525371134,
+      "discharge_own_abs": 0.00042560987640172243,
+      "charge_own_norm": 0.0343630657880567,
+      "discharge_own_norm": 0.12768296292051673,
+      "own_abs_sum": 0.0006546969816554338,
+      "own_norm_sq": 0.017483759310516364,
+      "cross_norm_sq": 0.09401273633616361,
+      "own_share": 0.15680994464543943,
+      "own_cross_ratio": 0.43124499017171336,
+      "cross_charge": {
+        "ESS9": 0.0011713429121300578,
+        "ESS17": 0.00023675421834923327,
+        "ESS27": -0.00044346239883452654
+      },
+      "cross_discharge": {
+        "ESS9": 0.00035767676308751106,
+        "ESS17": 0.0006137099117040634,
+        "ESS27": -0.0003658203349914402
+      },
+      "soc": 0.8946740247533269
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "validation_near",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "critic_unit": "ESS27",
+      "charge_own_abs": -0.0010883755749091506,
+      "discharge_own_abs": -0.00029981828993186355,
+      "charge_own_norm": -0.1632563362363726,
+      "discharge_own_norm": -0.08994548697955906,
+      "own_abs_sum": -0.0013881938648410141,
+      "own_norm_sq": 0.03474282194931357,
+      "cross_norm_sq": 0.0581541257484833,
+      "own_share": 0.373993148432987,
+      "own_cross_ratio": 0.7729337653578685,
+      "cross_charge": {
+        "ESS9": 0.0006362062995322049,
+        "ESS14": -8.87000496732071e-05,
+        "ESS17": 3.9343089156318456e-05
+      },
+      "cross_discharge": {
+        "ESS9": 0.00047235784586519003,
+        "ESS14": 0.0005013719201087952,
+        "ESS17": -0.0002609936927910894
+      },
+      "soc": 0.6724878587066178
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "validation_near",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 11,
+      "critic_unit": "ESS14",
+      "charge_own_abs": 0.00034753570798784494,
+      "discharge_own_abs": 0.0001301969023188576,
+      "charge_own_norm": 0.05213035619817674,
+      "discharge_own_norm": 0.03905907069565728,
+      "own_abs_sum": 0.00047773261030670255,
+      "own_norm_sq": 0.004243185040957138,
+      "cross_norm_sq": 0.020763122156471723,
+      "own_share": 0.1696845922693224,
+      "own_cross_ratio": 0.4520637217027084,
+      "cross_charge": {
+        "ESS9": 0.0008205935591831803,
+        "ESS17": -7.082016963977367e-05,
+        "ESS27": -0.00035533009213395417
+      },
+      "cross_discharge": {
+        "ESS9": 0.0001019869523588568,
+        "ESS17": 9.52109694480896e-05,
+        "ESS27": -0.00010036284220404923
+      },
+      "soc": 0.8946739114639208
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "validation_near",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "critic_unit": "ESS14",
+      "charge_own_abs": 0.00034632120514288545,
+      "discharge_own_abs": 0.00043118774192407727,
+      "charge_own_norm": 0.05194818077143282,
+      "discharge_own_norm": 0.12935632257722318,
+      "own_abs_sum": 0.0007775089470669627,
+      "own_norm_sq": 0.01943167167616408,
+      "cross_norm_sq": 0.19591613759885934,
+      "own_share": 0.09023389530444513,
+      "own_cross_ratio": 0.3149343100655123,
+      "cross_charge": {
+        "ESS9": 0.0008187535568140447,
+        "ESS17": 0.0007739636930637062,
+        "ESS27": -0.0004571049357764423
+      },
+      "cross_discharge": {
+        "ESS9": 0.0009628665284253657,
+        "ESS17": 0.0008739476324990392,
+        "ESS27": -0.0003411290526855737
+      },
+      "soc": 0.4999999866757907
+    },
+    {
+      "checkpoint": "da_best",
+      "source": "validation_near",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "critic_unit": "ESS14",
+      "charge_own_abs": 0.0003348379977978766,
+      "discharge_own_abs": 0.0002557860570959747,
+      "charge_own_norm": 0.05022569966968149,
+      "discharge_own_norm": 0.0767358171287924,
+      "own_abs_sum": 0.0005906240548938513,
+      "own_norm_sq": 0.008411006537732513,
+      "cross_norm_sq": 0.03329735472665525,
+      "own_share": 0.20166235936280147,
+      "own_cross_ratio": 0.5025961053214071,
+      "cross_charge": {
+        "ESS9": 0.0007460170309059322,
+        "ESS17": 0.00011185569746885449,
+        "ESS27": -0.0006565738003700972
+      },
+      "cross_discharge": {
+        "ESS9": 0.0002289744297740981,
+        "ESS17": 0.00018648609693627805,
+        "ESS27": -0.00018091071979142725
+      },
+      "soc": 0.7874998264596109
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "train_near",
+      "pair_id": "2022-12-24|2025-12-21",
+      "block": 8,
+      "critic_unit": "ESS14",
+      "charge_own_abs": -1.5081001038197428e-05,
+      "discharge_own_abs": -7.100483344402164e-05,
+      "charge_own_norm": -0.002262150155729614,
+      "discharge_own_norm": -0.021301450033206493,
+      "own_abs_sum": -8.608583448221907e-05,
+      "own_norm_sq": 0.0004588690968442604,
+      "cross_norm_sq": 0.0028380800300986573,
+      "own_share": 0.1391799142711507,
+      "own_cross_ratio": 0.402098160535344,
+      "cross_charge": {
+        "ESS9": -5.261100523057394e-05,
+        "ESS17": -6.611525896005332e-05,
+        "ESS27": -0.0001250451896339655
+      },
+      "cross_discharge": {
+        "ESS9": -6.518649752251804e-05,
+        "ESS17": -6.25630491413176e-05,
+        "ESS27": 0.0001329546794295311
+      },
+      "soc": 0.7299999288596706
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "train_near",
+      "pair_id": "2022-12-24|2025-12-21",
+      "block": 8,
+      "critic_unit": "ESS27",
+      "charge_own_abs": -0.00012930469529237598,
+      "discharge_own_abs": -3.22693376801908e-05,
+      "charge_own_norm": -0.019395704293856397,
+      "discharge_own_norm": -0.00968080130405724,
+      "own_abs_sum": -0.00016157403297256678,
+      "own_norm_sq": 0.00046991125894335585,
+      "cross_norm_sq": 0.0012960588981966506,
+      "own_share": 0.266092412175514,
+      "own_cross_ratio": 0.6021373353081225,
+      "cross_charge": {
+        "ESS9": 7.771227501507383e-06,
+        "ESS14": -1.710949800326489e-05,
+        "ESS17": 8.012004400370643e-05
+      },
+      "cross_discharge": {
+        "ESS9": -2.7556643544812687e-05,
+        "ESS14": 0.00010654002835508436,
+        "ESS17": -2.4442198991891928e-05
+      },
+      "soc": 0.5000002811563814
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "train_near",
+      "pair_id": "2022-12-29|2025-12-30",
+      "block": 14,
+      "critic_unit": "ESS14",
+      "charge_own_abs": 2.837627164353762e-07,
+      "discharge_own_abs": -6.335441139526665e-05,
+      "charge_own_norm": 4.256440746530643e-05,
+      "discharge_own_norm": -0.019006323418579996,
+      "own_abs_sum": -6.307064867883128e-05,
+      "own_norm_sq": 0.00036124214162044525,
+      "cross_norm_sq": 0.0027880152851074798,
+      "own_share": 0.11470708572584853,
+      "own_cross_ratio": 0.35995783326228836,
+      "cross_charge": {
+        "ESS9": -3.496426506899297e-05,
+        "ESS17": -3.61216370947659e-05,
+        "ESS27": -3.272470348747447e-05
+      },
+      "cross_discharge": {
+        "ESS9": -0.00012173028517281637,
+        "ESS17": 1.9600343875936233e-05,
+        "ESS27": 0.00012196707393741235
+      },
+      "soc": 0.5000004933211245
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "train_near",
+      "pair_id": "2022-12-29|2025-12-30",
+      "block": 14,
+      "critic_unit": "ESS27",
+      "charge_own_abs": -0.00013001722982153296,
+      "discharge_own_abs": -1.4217112038750201e-05,
+      "charge_own_norm": -0.019502584473229945,
+      "discharge_own_norm": -0.0042651336116250604,
+      "own_abs_sum": -0.00014423434186028317,
+      "own_norm_sq": 0.00039854216586048354,
+      "cross_norm_sq": 0.0012835756555354995,
+      "own_share": 0.23692880533762786,
+      "own_cross_ratio": 0.5572196235213708,
+      "cross_charge": {
+        "ESS9": 2.124296770489309e-05,
+        "ESS14": 6.295325874816626e-05,
+        "ESS17": 9.737774962559342e-05
+      },
+      "cross_discharge": {
+        "ESS9": -4.4510699808597565e-05,
+        "ESS14": 9.286653948947787e-05,
+        "ESS17": -1.3503870832209941e-05
+      },
+      "soc": 0.5000002594358135
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "validation_near",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 10,
+      "critic_unit": "ESS14",
+      "charge_own_abs": -0.00018106785137206316,
+      "discharge_own_abs": -0.00017381618090439588,
+      "charge_own_norm": -0.027160177705809474,
+      "discharge_own_norm": -0.052144854271318763,
+      "own_abs_sum": -0.00035488403227645904,
+      "own_norm_sq": 0.0034567610799882205,
+      "cross_norm_sq": 0.010715009532878706,
+      "own_share": 0.24391878576200884,
+      "own_cross_ratio": 0.567987006728795,
+      "cross_charge": {
+        "ESS9": 0.00015916972188279033,
+        "ESS17": 6.819337431807071e-05,
+        "ESS27": -0.00015813636127859354
+      },
+      "cross_discharge": {
+        "ESS9": -8.98978305485798e-06,
+        "ESS17": -0.00025022405316121876,
+        "ESS27": 0.0002064331783913076
+      },
+      "soc": 0.8999999933689518
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "validation_near",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 12,
+      "critic_unit": "ESS27",
+      "charge_own_abs": -9.749545824888628e-06,
+      "discharge_own_abs": 1.3842661246599164e-05,
+      "charge_own_norm": -0.0014624318737332942,
+      "discharge_own_norm": 0.004152798373979749,
+      "own_abs_sum": 4.093115421710536e-06,
+      "own_norm_sq": 1.938444132023992e-05,
+      "cross_norm_sq": 0.00037545116296148925,
+      "own_share": 0.04909496790570193,
+      "own_cross_ratio": 0.22722175893093582,
+      "cross_charge": {
+        "ESS9": -6.959606980672106e-05,
+        "ESS14": -9.007573680719361e-05,
+        "ESS17": 1.9848259398713708e-05
+      },
+      "cross_discharge": {
+        "ESS9": -5.867253548785811e-06,
+        "ESS14": 9.205774063048011e-07,
+        "ESS17": 2.8259622922632843e-05
+      },
+      "soc": 0.5000001047107365
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "validation_near",
+      "pair_id": "2022-12-30|2025-12-31",
+      "block": 11,
+      "critic_unit": "ESS14",
+      "charge_own_abs": -0.00020885512640234083,
+      "discharge_own_abs": -0.00019047161913476884,
+      "charge_own_norm": -0.031328268960351124,
+      "discharge_own_norm": -0.05714148574043065,
+      "own_abs_sum": -0.0003993267455371097,
+      "own_norm_sq": 0.00424660982867594,
+      "cross_norm_sq": 0.011282887240488627,
+      "own_share": 0.2734544338276109,
+      "own_cross_ratio": 0.6134950406555969,
+      "cross_charge": {
+        "ESS9": 9.580257028574124e-05,
+        "ESS17": 7.530055881943554e-05,
+        "ESS27": -0.00022506243840325624
+      },
+      "cross_discharge": {
+        "ESS9": -8.755395356274676e-06,
+        "ESS17": -0.0002268511598231271,
+        "ESS27": 0.00023969137691892684
+      },
+      "soc": 0.899999991199303
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "validation_near",
+      "pair_id": "2022-12-13|2025-12-11",
+      "block": 3,
+      "critic_unit": "ESS14",
+      "charge_own_abs": -0.00013183761620894074,
+      "discharge_own_abs": -3.3187305234605446e-05,
+      "charge_own_norm": -0.01977564243134111,
+      "discharge_own_norm": -0.009956191570381634,
+      "own_abs_sum": -0.0001650249214435462,
+      "own_norm_sq": 0.0004902017841583973,
+      "cross_norm_sq": 0.0010747723297839134,
+      "own_share": 0.31323315816613406,
+      "own_cross_ratio": 0.6753504682904738,
+      "cross_charge": {
+        "ESS9": 4.104065737919882e-05,
+        "ESS17": -7.29745370335877e-05,
+        "ESS27": 1.945165240613278e-05
+      },
+      "cross_discharge": {
+        "ESS9": 2.8898895834572613e-05,
+        "ESS17": 9.598617907613516e-05,
+        "ESS27": 6.813638719904702e-06
+      },
+      "soc": 0.5000000130107711
+    },
+    {
+      "checkpoint": "da_final",
+      "source": "validation_near",
+      "pair_id": "2022-12-31|2025-12-28",
+      "block": 17,
+      "critic_unit": "ESS14",
+      "charge_own_abs": -0.00013295716780703515,
+      "discharge_own_abs": -4.130088200327009e-05,
+      "charge_own_norm": -0.019943575171055272,
+      "discharge_own_norm": -0.012390264600981027,
+      "own_abs_sum": -0.00017425804981030524,
+      "own_norm_sq": 0.0005512648474858559,
+      "cross_norm_sq": 0.0006141642977231653,
+      "own_share": 0.4730144683201533,
+      "own_cross_ratio": 0.9474097863975416,
+      "cross_charge": {
+        "ESS9": -3.5896514418709558e-06,
+        "ESS17": -5.062991476734169e-05,
+        "ESS27": 5.17147927894257e-05
+      },
+      "cross_discharge": {
+        "ESS9": 6.952410785743268e-06,
+        "ESS17": 7.294353417819366e-05,
+        "ESS27": 1.1928082130907569e-05
+      },
+      "soc": 0.8818737984776833
+    }
+  ]
+}

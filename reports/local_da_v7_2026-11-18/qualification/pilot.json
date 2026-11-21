@@ -1,0 +1,143 @@
+{
+  "sample": [
+    {
+      "bracket_all": true,
+      "date": "2022-10-11",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 4.64997356175445e-06,
+      "objective_tolerance_cny": 0.01,
+      "price_date": "2025-10-26",
+      "price_qualification": "SMOOTH_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 12,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 29.999999966083884,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 29.983705608174205,
+          "period": 59,
+          "right_cny_mwh": 30.016991368029267,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 29.999999966083884,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 29.825962701579552,
+          "period": 59,
+          "right_cny_mwh": 30.17014751094393,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 36.43683950106113,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 36.43881544121541,
+          "period": 59,
+          "right_cny_mwh": 36.4349469600711,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 36.43683950106113,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 36.383777478476986,
+          "period": 59,
+          "right_cny_mwh": 36.42039155238308,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 38.266904088671964,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 38.268823191174306,
+          "period": 59,
+          "right_cny_mwh": 38.26516687695403,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 38.266904088671964,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 38.28988701570779,
+          "period": 59,
+          "right_cny_mwh": 38.24578088824637,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 38.74900302517933,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 38.750842213630676,
+          "period": 59,
+          "right_cny_mwh": 38.74694062687922,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 38.74900302517933,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 38.77298440784216,
+          "period": 59,
+          "right_cny_mwh": 38.738211151212454,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 35.44997625018302,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 35.45028892403934,
+          "period": 59,
+          "right_cny_mwh": 35.447709014988504,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 35.44997625018302,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 35.4637682903558,
+          "period": 59,
+          "right_cny_mwh": 35.43671773513779,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 31,
+          "dual_cny_mwh": 37.23240139166208,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 37.233249968267046,
+          "period": 59,
+          "right_cny_mwh": 37.22989138623234,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 31,
+          "dual_cny_mwh": 37.23240139166208,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 37.26244030985981,
+          "period": 59,
+          "right_cny_mwh": 37.212877214187756,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": true
+    }
+  ]
+}

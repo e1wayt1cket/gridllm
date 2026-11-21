@@ -12,13 +12,13 @@ import numpy as np
 import pytest
 
 import baselines
-from rl_spec import OBS_V4
+from rl_spec import OBS_V6
 
 
 def _obs(soc=0.5, price=1.0, average=1.0, load=0.5, re=0.3):
     """An observation vector with the named features set to given values."""
-    idx = {n: i for i, n in enumerate(OBS_V4.feature_order)}
-    v = np.zeros(OBS_V4.total_dim, dtype=np.float32)
+    idx = {n: i for i, n in enumerate(OBS_V6.feature_order)}
+    v = np.zeros(OBS_V6.total_dim, dtype=np.float32)
     v[idx["soc"]] = soc
     v[idx["last_lmp_norm"]] = price
     # The causal price-average slot. Reading the retired whole-day
@@ -30,7 +30,7 @@ def _obs(soc=0.5, price=1.0, average=1.0, load=0.5, re=0.3):
 
 
 def test_feature_index_covers_every_named_feature():
-    for name in OBS_V4.feature_order:
+    for name in OBS_V6.feature_order:
         assert name in baselines._FEATURE_INDEX
 
 

@@ -1,0 +1,91 @@
+{
+  "command": "pytest tests/test_rl_b_c2_gate.py tests/test_terminal_soc_day_end.py tests/test_c2_reward.py tests/test_daily_reward_b.py",
+  "tests": [
+    {
+      "name": "tests.test_rl_b_c2_gate::test_closed_gate_is_exactly_zero_even_with_target_smoothing",
+      "passed": true
+    },
+    {
+      "name": "tests.test_rl_b_c2_gate::test_straight_through_gate_reaches_the_actor",
+      "passed": true
+    },
+    {
+      "name": "tests.test_rl_b_c2_gate::test_gate_buffer_round_trip",
+      "passed": true
+    },
+    {
+      "name": "tests.test_rl_b_c2_gate::test_b_only_pays_once_at_the_last_block",
+      "passed": true
+    },
+    {
+      "name": "tests.test_rl_b_c2_gate::test_b_c2_shaping_closes_the_discount_identity",
+      "passed": true
+    },
+    {
+      "name": "tests.test_rl_b_c2_gate::test_checkpoint_restores_action_buffer_rng_and_update",
+      "passed": true
+    },
+    {
+      "name": "tests.test_terminal_soc_day_end::test_day_end_is_a_settled_horizon_and_window_is_not",
+      "passed": true
+    },
+    {
+      "name": "tests.test_terminal_soc_day_end::test_day_end_target_pins_each_unit_to_absolute_soc",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_terminal_potential_is_exactly_zero",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_the_telescope_and_the_boundary_term",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_the_boundary_depends_only_on_the_endpoints",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_the_potential_is_bounded",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_mid_episode_termination_is_refused",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_an_initial_soc_mismatch_is_refused",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_fixed_scaling_preserves_order",
+      "passed": true
+    },
+    {
+      "name": "tests.test_c2_reward::test_the_module_does_not_mix_in_the_local_reward",
+      "passed": true
+    },
+    {
+      "name": "tests.test_daily_reward_b::test_only_the_last_block_pays",
+      "passed": true
+    },
+    {
+      "name": "tests.test_daily_reward_b::test_components_are_preserved_and_scaled_fixedly",
+      "passed": true
+    },
+    {
+      "name": "tests.test_daily_reward_b::test_the_cache_key_is_strict",
+      "passed": true
+    },
+    {
+      "name": "tests.test_daily_reward_b::test_bad_paths_are_refused",
+      "passed": true
+    },
+    {
+      "name": "tests.test_daily_reward_b::test_no_running_reward_standardization",
+      "passed": true
+    }
+  ],
+  "passed": 21,
+  "failed": 0
+}

@@ -1,0 +1,1978 @@
+{
+  "run_dir": "C:/Projects/00_WorkSpace/01_Projects/MakerB/runs/FORMAL_2148a577_seed53",
+  "pair": {
+    "load_date": "2022-10-20",
+    "price_date": "2025-10-20"
+  },
+  "sources": {
+    "checked": 12,
+    "mismatched": []
+  },
+  "restored_state": {
+    "total_steps": 672,
+    "episode": 28,
+    "updates": 545,
+    "buffer_len": 672,
+    "rng_state": [
+      "numpy",
+      "python",
+      "torch_cpu",
+      "torch_cuda"
+    ]
+  },
+  "limitation": "the checkpoint was saved by the failure handler; its RNG state is after the failing block, so the original stochastic actions cannot be replayed",
+  "pair_in_train_subset": true,
+  "deterministic": [
+    {
+      "block": 0,
+      "ok": true,
+      "prev_soc": {},
+      "quotes": {
+        "ESS9": [
+          16.30631446838379,
+          90.63470458984375
+        ],
+        "ESS14": [
+          149.9995574951172,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          89.17047882080078
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 1,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.50000013403327,
+        "ESS14": 0.43206523408130165,
+        "ESS17": 0.6149997962526143,
+        "ESS27": 0.5470641009875521
+      },
+      "quotes": {
+        "ESS9": [
+          15.196837425231934,
+          86.45418548583984
+        ],
+        "ESS14": [
+          149.99940490722656,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          96.92681121826172
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 2,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.6149999597454862,
+        "ESS14": 0.4320652357717634,
+        "ESS17": 0.729999777570405,
+        "ESS27": 0.6620640645533113
+      },
+      "quotes": {
+        "ESS9": [
+          16.54163360595703,
+          90.16976928710938
+        ],
+        "ESS14": [
+          149.9993896484375,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          92.79069519042969
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 3,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.6149998874903764,
+        "ESS14": 0.16032746228003736,
+        "ESS17": 0.7299997154500227,
+        "ESS27": 0.3903251493230382
+      },
+      "quotes": {
+        "ESS9": [
+          18.619836807250977,
+          91.41513061523438
+        ],
+        "ESS14": [
+          149.99945068359375,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          84.20392608642578
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 4,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.6149998842402922,
+        "ESS14": 0.1603274565371416,
+        "ESS17": 0.7299997117496443,
+        "ESS27": 0.32239036480036115
+      },
+      "quotes": {
+        "ESS9": [
+          15.838028907775879,
+          87.30329132080078
+        ],
+        "ESS14": [
+          149.99942016601562,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          93.3801040649414
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 5,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.47913057044430385,
+        "ESS14": 0.10000001319394203,
+        "ESS17": 0.6484810494251136,
+        "ESS27": 0.18652081118945604
+      },
+      "quotes": {
+        "ESS9": [
+          14.22614574432373,
+          85.40204620361328
+        ],
+        "ESS14": [
+          149.99942016601562,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          96.3646469116211
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 6,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.4791306116638319,
+        "ESS14": 0.10000008830016628,
+        "ESS17": 0.6484810917789091,
+        "ESS27": 0.18652082577871623
+      },
+      "quotes": {
+        "ESS9": [
+          13.746566772460938,
+          86.59767150878906
+        ],
+        "ESS14": [
+          149.99942016601562,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          95.68955993652344
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 7,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.4791306480839517,
+        "ESS14": 0.1000000971593962,
+        "ESS17": 0.6484811371806845,
+        "ESS27": 0.25674058439928726
+      },
+      "quotes": {
+        "ESS9": [
+          14.041842460632324,
+          86.58895111083984
+        ],
+        "ESS14": [
+          149.99940490722656,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          95.58261108398438
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 8,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.5941305894358331,
+        "ESS14": 0.10000012943338821,
+        "ESS17": 0.7634811170750262,
+        "ESS27": 0.37174057159761553
+      },
+      "quotes": {
+        "ESS9": [
+          14.251372337341309,
+          86.71647644042969
+        ],
+        "ESS14": [
+          149.99940490722656,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          95.27204895019531
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 9,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.6516307096392487,
+        "ESS14": 0.10000012345981253,
+        "ESS17": 0.8424996351257609,
+        "ESS27": 0.544240359104896
+      },
+      "quotes": {
+        "ESS9": [
+          19.2305850982666,
+          90.95706176757812
+        ],
+        "ESS14": [
+          149.99929809570312,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          93.65714263916016
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 10,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.7091307060353442,
+        "ESS14": 0.1000001896622612,
+        "ESS17": 0.8999996269197653,
+        "ESS27": 0.6017403433262224
+      },
+      "quotes": {
+        "ESS9": [
+          21.067731857299805,
+          94.80076599121094
+        ],
+        "ESS14": [
+          149.99935913085938,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          84.84479522705078
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 11,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.7091307019913877,
+        "ESS14": 0.10000013563829127,
+        "ESS17": 0.8999995941986491,
+        "ESS27": 0.6017402686588215
+      },
+      "quotes": {
+        "ESS9": [
+          20.212881088256836,
+          94.2701187133789
+        ],
+        "ESS14": [
+          149.99945068359375,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          83.69856262207031
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 12,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.7666306976905756,
+        "ESS14": 0.10000013961733845,
+        "ESS17": 0.8999999220767502,
+        "ESS27": 0.5913071481444432
+      },
+      "quotes": {
+        "ESS9": [
+          13.533430099487305,
+          84.46794891357422
+        ],
+        "ESS14": [
+          149.9994659423828,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          95.04890441894531
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 13,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.8529346481807292,
+        "ESS14": 0.10000014119635378,
+        "ESS17": 0.8999999615641654,
+        "ESS27": 0.7062256098702036
+      },
+      "quotes": {
+        "ESS9": [
+          16.81767463684082,
+          91.51890563964844
+        ],
+        "ESS14": [
+          149.99952697753906,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          82.6557388305664
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 14,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.8529344238323097,
+        "ESS14": 0.10000008452863558,
+        "ESS17": 0.8999987963906072,
+        "ESS27": 0.6382904855503898
+      },
+      "quotes": {
+        "ESS9": [
+          16.12649154663086,
+          90.6457748413086
+        ],
+        "ESS14": [
+          149.99954223632812,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          83.8819580078125
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 15,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.8529343539098329,
+        "ESS14": 0.1000000385701023,
+        "ESS17": 0.8999987407022995,
+        "ESS27": 0.5703556638167149
+      },
+      "quotes": {
+        "ESS9": [
+          15.454861640930176,
+          88.86067199707031
+        ],
+        "ESS14": [
+          149.99954223632812,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          86.0533447265625
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 16,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.8529343540185886,
+        "ESS14": 0.10000004167193365,
+        "ESS17": 0.8999987984167616,
+        "ESS27": 0.434486140538339
+      },
+      "quotes": {
+        "ESS9": [
+          15.15770435333252,
+          88.87265014648438
+        ],
+        "ESS14": [
+          149.99954223632812,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          86.47871398925781
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 17,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.784999516303935,
+        "ESS14": 0.10000001149104101,
+        "ESS17": 0.8320638006922514,
+        "ESS27": 0.16274715283043611
+      },
+      "quotes": {
+        "ESS9": [
+          14.84507942199707,
+          88.8341064453125
+        ],
+        "ESS14": [
+          149.99954223632812,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          86.58562469482422
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 18,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.7849995016568801,
+        "ESS14": 0.10000001344815075,
+        "ESS17": 0.8320637687882259,
+        "ESS27": 0.16274716978262854
+      },
+      "quotes": {
+        "ESS9": [
+          13.146753311157227,
+          85.84429931640625
+        ],
+        "ESS14": [
+          149.99951171875,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          91.96182250976562
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 19,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.7849995090588785,
+        "ESS14": 0.10000001519586484,
+        "ESS17": 0.8320637777753329,
+        "ESS27": 0.16274779406351503
+      },
+      "quotes": {
+        "ESS9": [
+          12.052371978759766,
+          84.75135040283203
+        ],
+        "ESS14": [
+          149.99949645996094,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          93.93522644042969
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 20,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.7849995192689964,
+        "ESS14": 0.10000001474551505,
+        "ESS17": 0.8320637935519218,
+        "ESS27": 0.3510874527629152
+      },
+      "quotes": {
+        "ESS9": [
+          11.72623348236084,
+          85.50662231445312
+        ],
+        "ESS14": [
+          149.99948120117188,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          93.40438842773438
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 21,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.7717391017318589,
+        "ESS14": 0.10000002236875731,
+        "ESS17": 0.771739133190341,
+        "ESS27": 0.41922971356311534
+      },
+      "quotes": {
+        "ESS9": [
+          16.214248657226562,
+          90.9663314819336
+        ],
+        "ESS14": [
+          149.99948120117188,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          81.3742904663086
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 22,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.6358695541517212,
+        "ESS14": 0.15499993019514952,
+        "ESS17": 0.6358695721981271,
+        "ESS27": 0.37029600474975266
+      },
+      "quotes": {
+        "ESS9": [
+          17.663516998291016,
+          89.22994995117188
+        ],
+        "ESS14": [
+          149.9993896484375,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          93.28907012939453
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "block": 23,
+      "ok": true,
+      "prev_soc": {
+        "ESS9": 0.5000000054611203,
+        "ESS14": 0.2700000036893144,
+        "ESS17": 0.5000000151463646,
+        "ESS27": 0.27000020044015827
+      },
+      "quotes": {
+        "ESS9": [
+          26.923612594604492,
+          98.73783874511719
+        ],
+        "ESS14": [
+          149.99903869628906,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          104.16975402832031
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      },
+      "gates": {
+        "ESS9": [
+          1.0,
+          1.0
+        ],
+        "ESS14": [
+          1.0,
+          0.0
+        ],
+        "ESS17": [
+          0.0,
+          1.0
+        ],
+        "ESS27": [
+          0.0,
+          0.0
+        ]
+      }
+    }
+  ],
+  "deterministic_clearing": [
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    }
+  ],
+  "reachability_at_block_23": {
+    "ESS9": {
+      "soc": 0.5000000054611203,
+      "reachable_min": 0.22826087502633766,
+      "reachable_max": 0.7300000054611203,
+      "terminal_reachable": true
+    },
+    "ESS14": {
+      "soc": 0.2700000036893144,
+      "reachable_min": 0.1,
+      "reachable_max": 0.5000000036893144,
+      "terminal_reachable": true
+    },
+    "ESS17": {
+      "soc": 0.5000000151463646,
+      "reachable_min": 0.22826088471158193,
+      "reachable_max": 0.7300000151463646,
+      "terminal_reachable": true
+    },
+    "ESS27": {
+      "soc": 0.27000020044015827,
+      "reachable_min": 0.1,
+      "reachable_max": 0.5000002004401582,
+      "terminal_reachable": true
+    }
+  },
+  "truthful": [
+    {
+      "block": 0,
+      "ok": true
+    },
+    {
+      "block": 1,
+      "ok": true
+    },
+    {
+      "block": 2,
+      "ok": true
+    },
+    {
+      "block": 3,
+      "ok": true
+    },
+    {
+      "block": 4,
+      "ok": true
+    },
+    {
+      "block": 5,
+      "ok": true
+    },
+    {
+      "block": 6,
+      "ok": true
+    },
+    {
+      "block": 7,
+      "ok": true
+    },
+    {
+      "block": 8,
+      "ok": true
+    },
+    {
+      "block": 9,
+      "ok": true
+    },
+    {
+      "block": 10,
+      "ok": true
+    },
+    {
+      "block": 11,
+      "ok": true
+    },
+    {
+      "block": 12,
+      "ok": true
+    },
+    {
+      "block": 13,
+      "ok": true
+    },
+    {
+      "block": 14,
+      "ok": true
+    },
+    {
+      "block": 15,
+      "ok": true
+    },
+    {
+      "block": 16,
+      "ok": true
+    },
+    {
+      "block": 17,
+      "ok": true
+    },
+    {
+      "block": 18,
+      "ok": true
+    },
+    {
+      "block": 19,
+      "ok": true
+    },
+    {
+      "block": 20,
+      "ok": true
+    },
+    {
+      "block": 21,
+      "ok": true
+    },
+    {
+      "block": 22,
+      "ok": true
+    },
+    {
+      "block": 23,
+      "ok": true
+    }
+  ],
+  "truthful_clearing": [
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    },
+    {
+      "ok": true,
+      "solver": {
+        "name": "gurobi",
+        "status_code": 2,
+        "status_name": "OPTIMAL",
+        "termination": "optimal",
+        "optimal": true
+      }
+    }
+  ],
+  "rng_sweep": [
+    {
+      "seed": 1,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 2,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 3,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 4,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 5,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 6,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 7,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 8,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 9,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 10,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 11,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 12,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 13,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 14,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 15,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 16,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 17,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 18,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 19,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 20,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 21,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 22,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 23,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 24,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 25,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 26,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 27,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 28,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 29,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 30,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 31,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 32,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 33,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 34,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 35,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 36,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 37,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 38,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 39,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    },
+    {
+      "seed": 40,
+      "blocks_run": 24,
+      "failed_block": null,
+      "failed_row": null
+    }
+  ],
+  "rng_sweep_clearing": [],
+  "classification": "NOT_REPRODUCED"
+}

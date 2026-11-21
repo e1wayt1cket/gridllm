@@ -1,0 +1,164 @@
+{
+  "rule": "delta = round_up_0.05(max Q variation over states whose payoff range over the three lowest quotes < 0.5 CNY); never profit-selected",
+  "flat_payoff_tol_cny": 0.5,
+  "n_near_truthful_points": 3,
+  "source": "reports/algorithm_diagnostics/rankact_chunks_v4",
+  "states": [
+    {
+      "state": "state_00",
+      "pair_id": "2022-12-09|2025-12-09",
+      "block": 14,
+      "unit": "ESS14",
+      "leg": "charge",
+      "quotes_near_truthful": [
+        0.0,
+        37.5,
+        75.0
+      ],
+      "payoff_range_cny": 13.92493866689917,
+      "q_range": 0.08090388774871826,
+      "flat_near_truthful": false
+    },
+    {
+      "state": "state_01",
+      "pair_id": "2022-12-09|2025-12-09",
+      "block": 20,
+      "unit": "ESS14",
+      "leg": "charge",
+      "quotes_near_truthful": [
+        0.0,
+        37.5,
+        75.0
+      ],
+      "payoff_range_cny": 5.360164107056377,
+      "q_range": 0.09108361601829529,
+      "flat_near_truthful": false
+    },
+    {
+      "state": "state_02",
+      "pair_id": "2022-12-09|2025-12-09",
+      "block": 6,
+      "unit": "ESS14",
+      "leg": "discharge",
+      "quotes_near_truthful": [
+        0.0,
+        75.0,
+        150.0
+      ],
+      "payoff_range_cny": 6.093457973144041,
+      "q_range": 0.12320935726165771,
+      "flat_near_truthful": false
+    },
+    {
+      "state": "state_03",
+      "pair_id": "2022-12-09|2025-12-09",
+      "block": 16,
+      "unit": "ESS14",
+      "leg": "discharge",
+      "quotes_near_truthful": [
+        0.0,
+        75.0,
+        150.0
+      ],
+      "payoff_range_cny": 22.380091111836098,
+      "q_range": 0.06687980890274048,
+      "flat_near_truthful": false
+    },
+    {
+      "state": "state_04",
+      "pair_id": "2022-12-10|2025-12-07",
+      "block": 13,
+      "unit": "ESS14",
+      "leg": "charge",
+      "quotes_near_truthful": [
+        0.0,
+        37.5,
+        75.0
+      ],
+      "payoff_range_cny": 1.8475042214662167,
+      "q_range": 0.09783715009689331,
+      "flat_near_truthful": false
+    },
+    {
+      "state": "state_05",
+      "pair_id": "2022-12-10|2025-12-07",
+      "block": 14,
+      "unit": "ESS14",
+      "leg": "charge",
+      "quotes_near_truthful": [
+        0.0,
+        37.5,
+        75.0
+      ],
+      "payoff_range_cny": 0.031960281433931925,
+      "q_range": 0.0957220196723938,
+      "flat_near_truthful": true
+    },
+    {
+      "state": "state_06",
+      "pair_id": "2022-12-10|2025-12-07",
+      "block": 11,
+      "unit": "ESS14",
+      "leg": "discharge",
+      "quotes_near_truthful": [
+        0.0,
+        75.0,
+        150.0
+      ],
+      "payoff_range_cny": 6.842229632601482,
+      "q_range": 0.2549898624420166,
+      "flat_near_truthful": false
+    },
+    {
+      "state": "state_07",
+      "pair_id": "2022-12-10|2025-12-07",
+      "block": 20,
+      "unit": "ESS14",
+      "leg": "discharge",
+      "quotes_near_truthful": [
+        0.0,
+        75.0,
+        150.0
+      ],
+      "payoff_range_cny": 19.280071245385358,
+      "q_range": 0.09583860635757446,
+      "flat_near_truthful": false
+    },
+    {
+      "state": "state_08",
+      "pair_id": "2022-12-10|2025-12-07",
+      "block": 20,
+      "unit": "ESS27",
+      "leg": "discharge",
+      "quotes_near_truthful": [
+        0.0,
+        75.0,
+        150.0
+      ],
+      "payoff_range_cny": 0.024121314721924136,
+      "q_range": 0.039523541927337646,
+      "flat_near_truthful": true
+    },
+    {
+      "state": "state_09",
+      "pair_id": "2022-12-10|2025-12-07",
+      "block": 21,
+      "unit": "ESS27",
+      "leg": "discharge",
+      "quotes_near_truthful": [
+        0.0,
+        75.0,
+        150.0
+      ],
+      "payoff_range_cny": 7.551338228144125,
+      "q_range": 0.03292778134346008,
+      "flat_near_truthful": false
+    }
+  ],
+  "flat_states": [
+    "state_05",
+    "state_08"
+  ],
+  "measured_q_noise": 0.0957220196723938,
+  "selected_delta": 0.1
+}

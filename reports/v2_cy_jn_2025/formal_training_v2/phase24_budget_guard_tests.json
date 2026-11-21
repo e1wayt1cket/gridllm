@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-03",
+  "command": "python -m pytest tests/test_train_da_gate_guards.py -v",
+  "result": {
+    "passed": 13,
+    "failed": 0,
+    "deselected": 0
+  },
+  "frozen_budget": {
+    "minimum_rounds": 10,
+    "maximum_rounds": 15,
+    "early_stop_patience": 3
+  },
+  "cases": [
+    {
+      "test": "test_no_early_stop_rounds_3_to_6_without_improvement",
+      "rounds": "3-6",
+      "condition": "consecutive rounds without a new best",
+      "expected": "no early stop",
+      "result": "pass"
+    },
+    {
+      "test": "test_no_early_stop_rounds_7_to_9_without_improvement",
+      "rounds": "7-9",
+      "condition": "consecutive rounds without a new best",
+      "expected": "no early stop",
+      "result": "pass"
+    },
+    {
+      "test": "test_no_early_stop_at_or_before_round_nine",
+      "rounds": "1-9",
+      "condition": "patience already satisfied",
+      "expected": "no early stop",
+      "result": "pass"
+    },
+    {
+      "test": "test_early_stop_allowed_at_round_ten_when_patience_met",
+      "rounds": "10",
+      "condition": "minimum rounds completed and patience satisfied",
+      "expected": "early stop",
+      "result": "pass"
+    },
+    {
+      "test": "test_round_ten_new_best_does_not_stop",
+      "rounds": "10",
+      "condition": "round 10 sets a new best",
+      "expected": "best updated, no early stop",
+      "result": "pass"
+    },
+    {
+      "test": "test_three_non_improving_rounds_after_ten_stop_normally",
+      "rounds": "10-13",
+      "condition": "best at round 10, then three non-improving evaluations",
+      "expected": "early stop at round 13",
+      "result": "pass"
+    },
+    {
+      "test": "test_budget_minimum_and_maximum",
+      "rounds": "10 and 15",
+      "condition": "episode budget arithmetic",
+      "expected": "530 at 10 rounds, 795 at 15 rounds, max-episodes cap honoured",
+      "result": "pass"
+    },
+    {
+      "test": "test_without_early_stop_runs_to_max_round_fifteen",
+      "rounds": "1-15",
+      "condition": "continuous improvement, no early stop",
+      "expected": "exactly 15 rounds",
+      "result": "pass"
+    },
+    {
+      "test": "test_resume_restores_completed_rounds_and_patience",
+      "rounds": "10-11",
+      "condition": "restored evaluation history and round boundary",
+      "expected": "completed_rounds and patience streak restored; stop only when patience met after round 10",
+      "result": "pass"
+    },
+    {
+      "test": "test_no_improvement_streak_counts_trailing_non_best",
+      "condition": "streak arithmetic",
+      "expected": "counts trailing evaluations after the best",
+      "result": "pass"
+    },
+    {
+      "test": "test_artifact_hashes_covers_present_outputs",
+      "condition": "artifact hashing",
+      "expected": "only present outputs hashed",
+      "result": "pass"
+    },
+    {
+      "test": "test_fresh_run_refuses_non_empty_run_dir",
+      "condition": "run isolation",
+      "expected": "FileExistsError on populated run directory",
+      "result": "pass"
+    },
+    {
+      "test": "test_train_days_must_belong_to_selected_split",
+      "condition": "split isolation",
+      "expected": "ValueError for dates outside the split",
+      "result": "pass"
+    }
+  ],
+  "targeted_suite": {
+    "command": "python -m pytest tests/test_train_da_gate_guards.py tests/test_checkpoint_roundtrip.py tests/test_checkpoint_schema.py tests/test_da_quote_mapping.py -q",
+    "passed": 27,
+    "failed": 0
+  }
+}

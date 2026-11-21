@@ -1,0 +1,20 @@
+{
+  "as_of": "2026-11-02",
+  "provided_file": {
+    "path": "docs/data.csv",
+    "sha256": "1bf06f8d537a5e06911353e4a7348bec8efcedee8bdc76ba84a4bc4d9de8b00c",
+    "date_range": [
+      "2025-06-01",
+      "2025-12-31"
+    ],
+    "distinct_dates": 137,
+    "complete_days": 136,
+    "incomplete_days": {
+      "2025-06-01": 95
+    }
+  },
+  "is_new_independent_holdout": false,
+  "reason": "same 2025 Jiangnan source already paired and viewed; all dates are assigned to FULL96/NEAR and split",
+  "g10_met": false,
+  "consequence": "formal multi-seed training is NO-GO; any run on these days is exploratory/development"
+}

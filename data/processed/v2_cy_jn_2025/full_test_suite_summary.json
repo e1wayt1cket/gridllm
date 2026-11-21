@@ -1,0 +1,8 @@
+{
+  "command": "PYTHONPATH=src python -m pytest tests/ -q -p no:cacheprovider",
+  "passed": 1353,
+  "failed": 0,
+  "deselected": 53,
+  "log": "logs/full_test_suite.log",
+  "note": "final run after the committed-period metric fix"
+}

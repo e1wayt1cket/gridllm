@@ -1,0 +1,33 @@
+{
+  "transitions": 3816,
+  "cells_nonempty": 124,
+  "cell_count_min": 1,
+  "cell_count_median": 14.0,
+  "cell_count_max": 215,
+  "prob_min": 0.00019155021050621898,
+  "prob_max": 0.0007900542180528642,
+  "uniform_ratio_min": 0.3316918020935009,
+  "uniform_ratio_max": 1.3680721448699125,
+  "ess": 3452.97707841116,
+  "ess_fraction": 0.9048682071308072,
+  "high_discharge_quote": {
+    "ESS9": {
+      "ge_0_86h": 652,
+      "ge_0_99h": 470
+    },
+    "ESS14": {
+      "ge_0_86h": 705,
+      "ge_0_99h": 416
+    },
+    "ESS17": {
+      "ge_0_86h": 183,
+      "ge_0_99h": 5
+    },
+    "ESS27": {
+      "ge_0_86h": 252,
+      "ge_0_99h": 62
+    }
+  },
+  "explored_legs": 1960,
+  "explored_discharge": 1520
+}

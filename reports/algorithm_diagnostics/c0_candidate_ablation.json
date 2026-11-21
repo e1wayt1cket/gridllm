@@ -1,0 +1,89 @@
+{
+  "label": "NON_FORMAL_DIAGNOSTIC_PILOT",
+  "generated_at": "2026-11-10T13:01:45+0800",
+  "criteria": {
+    "A_diff_cny": 10.0,
+    "C_band_cny": 10.0,
+    "B_edge_pp": 20.0,
+    "B_grad": 0.1,
+    "bootstrap": 1000,
+    "rng_seed": 20261110,
+    "rounds": 4
+  },
+  "per_seed": {
+    "11": {
+      "a_diff_r4": 125.57260655490673,
+      "a_ci_lo": 0.4706864295909133,
+      "a_ci_hi": 277.15651171599285,
+      "a_hit": true,
+      "c_diff_r1": 62.37148402653964,
+      "c_hit": false,
+      "b_legs": {
+        "charge": {
+          "edge_pp_drop": 82.57575757575758,
+          "grad_retention_median": 1.0,
+          "hit": true
+        },
+        "discharge": {
+          "edge_pp_drop": 0.0,
+          "grad_retention_median": 1.0,
+          "hit": true
+        }
+      },
+      "b_hit": true,
+      "verdict": "DESIGN_FLAW",
+      "ctrl_r4_mean": -166.01449300368535,
+      "exp_r4_mean": -40.441886448778625,
+      "ctrl_curve": {
+        "1": -98.66025897233307,
+        "2": -148.8858621142619,
+        "3": -165.243476262349,
+        "4": -166.01449300368535
+      },
+      "exp_curve": {
+        "1": -36.28877494579343,
+        "2": -94.46729990122081,
+        "3": -35.696204716368335,
+        "4": -40.441886448778625
+      }
+    },
+    "23": {
+      "a_diff_r4": 38.02490840044149,
+      "a_ci_lo": -64.55925116562663,
+      "a_ci_hi": 158.96158082969356,
+      "a_hit": false,
+      "c_diff_r1": -37.94216158324784,
+      "c_hit": false,
+      "b_legs": {
+        "charge": {
+          "edge_pp_drop": 75.37878787878788,
+          "grad_retention_median": 1.0,
+          "hit": true
+        },
+        "discharge": {
+          "edge_pp_drop": 66.54040404040404,
+          "grad_retention_median": 1.0,
+          "hit": true
+        }
+      },
+      "b_hit": true,
+      "verdict": "DESIGN_FLAW",
+      "ctrl_r4_mean": -134.40050277212617,
+      "exp_r4_mean": -96.37559437168466,
+      "ctrl_curve": {
+        "1": -78.63610241092302,
+        "2": -105.40750275164692,
+        "3": -129.28288269978654,
+        "4": -134.40050277212617
+      },
+      "exp_curve": {
+        "1": -116.57826399417085,
+        "2": -105.19902908867829,
+        "3": -102.21677297310866,
+        "4": -96.37559437168466
+      }
+    }
+  },
+  "merged_verdict": "DESIGN_FLAW",
+  "runtime_s": 0.6
+}

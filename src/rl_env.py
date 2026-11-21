@@ -2,11 +2,13 @@
 """Gym-style RL environment for continuous-action agent bidding.
 
 Each episode = one 96-period day. Agents act on 4-period blocks (24 steps).
-Observation is a compact V2 vector (12-dim): block-mean load/RE and SOC
-normalized to [0, 1], LMP expressed as ratios of the day-average price, block
-position, load/RE ratio, opponent-bid statistics, plus price-prediction
-features (LMP deviation from EMA, recent LMP trend, and a direct next-block
-price forecast).
+Observation is the compact V6 vector (12-dim): block-mean load/RE and SOC
+normalized to [0, 1]; LMP features as ratios of the frozen reference price
+`PRICE_REF_CNY_MWH` -- the mean of the LMPs observed so far this episode, the
+most recent observed LMP, and a next-block forecast from a per-agent EMA;
+block position; the system load/RE ratio; the fleet's **signed** deviation from
+truthful quoting; and the deviation/trend of the observed price around its EMA. Every price feature is
+a function of the past alone at the decision it informs.
 The action space is the acting agent's `ActionSpec`: an independent battery
 declares its two reservation prices in CNY/MWh, and a load or prosumer
 declares the multiplier/adder pair its own `bid_value`/`offer_cost` live in.
@@ -32,7 +34,7 @@ import participant_payoff
 from models import Agent, MarketConfig
 from market import adaptive_bidding
 from price_forecaster import NodalPriceForecaster
-from rl_spec import (OBS_V4, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
+from rl_spec import (OBS_V6, ACTION_BID_OFFER_V1, ACTION_STORAGE_QUOTE_V2,
                     ObservationSpec, ActionSpec, action_spec_for)
 
 #: Frozen reference price, CNY/MWh, used to put every price feature on an O(1)
@@ -111,7 +113,8 @@ class DayCapture:
     the RL bidding mechanism entirely.
     """
 
-    def __init__(self, agents, T: int, roll_horizon: int):
+    def __init__(self, agents, T: int, roll_horizon: int,
+                 declared_defaults: Optional[dict] = None):
         self.T = int(T)
         self.roll_horizon = int(roll_horizon)
         names = [a.name for a in agents]
@@ -119,14 +122,23 @@ class DayCapture:
                       for nm in names}
         self.lmp = None
         self.wholesale = np.zeros(self.T)
-        self.declared = {}
+        # Periods the episode never reaches must not read as a declared quote
+        # of zero. Zero is truthful for a battery -- it asks no premium -- but
+        # for a load or a prosumer a zero multiplier means "pay me nothing",
+        # and a settlement over 96 periods would then price the unrun part of
+        # the day at zero. The defaults are the fleet's own truthful
+        # declaration, so an unrun period is the reference, not a giveaway.
+        self.declared = {
+            nm: {k: np.array(v, dtype=float, copy=True) for k, v in act.items()}
+            for nm, act in (declared_defaults or {}).items()}
         self.fell_backs = 0
         self.periods_captured = 0
         self.blocks_captured = 0
 
     @classmethod
     def from_env(cls, env) -> "DayCapture":
-        return cls(env.all_agents, env.T, env.roll_horizon)
+        return cls(env.all_agents, env.T, env.roll_horizon,
+                   env._default_actions())
 
     def committed_periods(self, t_start: int) -> int:
         """Periods a window starting at ``t_start`` commits to the day."""
@@ -203,6 +215,58 @@ class DayCapture:
                           * BLOCK_SIZE and self.fell_backs == 0}
 
 
+def signed_deviation(value: float, truthful: float, low: float,
+                     high: float) -> float:
+    """How far, and which way, an action is from truthful -- in its own units.
+
+    Zero at truthful, negative below it, positive above it, and exactly -1 or
+    +1 at the boundary that direction can reach:
+
+        d = (value - truthful) / (high - truthful)   when value > truthful
+        d = (value - truthful) / (truthful - low)    when value < truthful
+        d = 0                                        when value == truthful
+
+    The denominator is that direction's own reach from truthful, not the full
+    box width. The storage charge box has no room below its truthful point at
+    all and 150 CNY/MWh above it, so a `(high - low)` denominator would put
+    every downward move out of range while a downward move is exactly what
+    "shade the bid" means. Normalizing each direction by its own reach is what
+    makes the two directions comparable and an asymmetric box expressible.
+
+    A value outside `[low, high]` is **refused**, not clamped. An action outside
+    its own space is not a deviation to be measured -- it is a declaration the
+    mechanism cannot express, and folding it onto the nearest edge would report
+    a participant at the boundary when it had in fact overrun it. It is also
+    unreachable on the path that matters: `BiddingEnv.step` projects every
+    action into its spec box before it writes `current_actions`, and the
+    clearing reads that same array, so the features are computed from the value
+    the market actually executed. The refusal is what keeps that a fact rather
+    than an assumption -- a caller that injects out-of-box quotes directly gets
+    an error instead of a number.
+
+    The comparison carries a small tolerance because `value` is a block mean of
+    values that were themselves pinned to the edges, and a mean of exactly-`high`
+    entries may land a few ulps above it. The tolerance is for that arithmetic;
+    it is far too small to admit a real overrun.
+    """
+    if high <= low:
+        return 0.0
+    tolerance = 1e-9 * max(1.0, abs(high - low))
+    if not low - tolerance <= value <= high + tolerance:
+        raise ValueError(
+            f"action {value!r} is outside its own box [{low}, {high}]; a "
+            f"declaration the mechanism cannot express has no deviation, and "
+            f"the caller has skipped the projection `BiddingEnv.step` applies")
+    value = min(max(value, low), high)
+    if value > truthful:
+        reach = high - truthful
+        return 0.0 if reach <= 0.0 else (value - truthful) / reach
+    if value < truthful:
+        reach = truthful - low
+        return 0.0 if reach <= 0.0 else (value - truthful) / reach
+    return 0.0
+
+
 class BiddingEnv:
     """Multi-agent bidding environment with continuous actions.
 
@@ -223,7 +287,10 @@ class BiddingEnv:
     agents : list of Agent
     config : MarketConfig
     stage : str
-        "DA" or "RT".
+        "DA" or "RT". Selects the clearing semantics handed to clear_market;
+        the observation itself is built from day-ahead published forecasts in
+        both stages, so it stays causal in either (the realized curves feed
+        the clearing, never the decision-time observation).
     rl_agent_names : list of str or None
         Agent names to treat as RL learners. None = all agents.
     """
@@ -236,7 +303,8 @@ class BiddingEnv:
                  bid_mult_low: float = BID_MULT_LOW,
                  bid_mult_high: float = BID_MULT_HIGH,
                  obs_spec: Optional[ObservationSpec] = None,
-                 action_spec: Optional[ActionSpec] = None):
+                 action_spec: Optional[ActionSpec] = None,
+                 terminal_soc_target: Optional[float] = None):
         self.all_agents = agents
         self.config = config
         self.T = 96
@@ -247,6 +315,10 @@ class BiddingEnv:
         # what every caller that predates day rotation expects.
         self.day_id = None
         self.roll_horizon = roll_horizon  # look-ahead periods per window
+        # Absolute day-end SOC the settled horizon must reach. None leaves the
+        # rolling interface unpinned, as every pre-existing caller expects.
+        self.terminal_soc_target = terminal_soc_target
+        self._apply_terminal_target(agents)
 
         # Per-agent action bounds (configurable per training run)
         self.bid_mult_low = bid_mult_low
@@ -259,7 +331,7 @@ class BiddingEnv:
         # `bid_mult_low/high` still override the non-storage action's bounds,
         # which is what they always did; they have no meaning for a storage
         # agent, whose prices are absolute.
-        self.obs_spec = obs_spec if obs_spec is not None else OBS_V4
+        self.obs_spec = obs_spec if obs_spec is not None else OBS_V6
         if action_spec is not None:
             self.action_spec = action_spec
         else:
@@ -405,7 +477,7 @@ class BiddingEnv:
         `day_id` is which day of the wholesale library this episode is priced
         on. It is carried as environment *metadata*: it selects the price, and
         it is logged and fingerprint-checked, but it never enters an
-        observation -- the layout of OBS_V4 is the same on every day, so a
+        observation -- the layout of OBS_V6 is the same on every day, so a
         policy cannot learn to recognise a day rather than to bid. Both
         `reset` and `step` pass it down, because each regenerates the price and
         a window priced off the wrong day is silent. None leaves whatever the
@@ -425,14 +497,34 @@ class BiddingEnv:
         }
         if wholesale is not None:
             self.wholesale = wholesale
+        self._apply_terminal_target(agents)
         self._agent_peaks = self._compute_agent_peaks()
+
+    def _apply_terminal_target(self, agents: List[Agent]) -> None:
+        """Stamp the absolute day-end target on every storage unit.
+
+        The dispatch engines read the target from the unit they are clearing,
+        and window agents are deep copies, so the value has to live on the
+        population rather than on the environment alone.
+        """
+        if self.terminal_soc_target is None:
+            return
+        for a in agents:
+            if a.storage is not None:
+                a.storage.terminal_soc_target = float(self.terminal_soc_target)
 
     # ------------------------------------------------------------------
     # Observation helpers
     # ------------------------------------------------------------------
 
     def _compute_agent_peaks(self) -> Dict[str, Tuple[float, float]]:
-        """Per-agent (day-peak load, day-peak RE) for the current stage.
+        """Per-agent (day-peak load, day-peak RE).
+
+        Always the day-ahead forecast peaks, in both stages: a participant
+        holds its own forecasts at every decision, while the realized curves
+        are not knowable in advance -- normalizing by a realized day peak
+        would seed the observation with the future (the dormant non-DA leak
+        this construction removes).
 
         Load and RE are normalized against their OWN day peaks: a prosumer's
         PV/wind capacity can exceed its load several-fold, so normalizing RE by
@@ -440,12 +532,10 @@ class BiddingEnv:
         """
         peaks = {}
         for a in self.all_agents:
-            load_src = a.load_forecast if self.stage == "DA" else a.load_real
-            re_src = (a.pv_forecast if self.stage == "DA" else a.pv_real)
+            re_src = a.pv_forecast
             if a.has_wind:
-                re_src = re_src + (a.wind_forecast if self.stage == "DA"
-                                   else a.wind_real)
-            peaks[a.name] = (float(np.max(load_src)),
+                re_src = re_src + a.wind_forecast
+            peaks[a.name] = (float(np.max(a.load_forecast)),
                              float(np.max(re_src)))
         return peaks
 
@@ -453,8 +543,8 @@ class BiddingEnv:
                               hist_lmp: np.ndarray | None,
                               avg_lmp_hist: float,
                               system_load_re_ratio: float = 1.0,
-                              avg_other_bid: float = 1.0,
-                              bid_std: float = 0.0) -> Dict[str, float]:
+                              avg_other_dev: float = 0.0,
+                              all_dev_std: float = 0.0) -> Dict[str, float]:
         """Compute all named observation features for one agent.
 
         Returns the superset of features known to the environment, keyed by
@@ -475,16 +565,16 @@ class BiddingEnv:
         t_block_end = min(t_start + BLOCK_SIZE, self.T)
         n_block = t_block_end - t_start
 
-        if self.stage == "DA":
-            load = agent.load_forecast[t_start:t_block_end]
-            pv = agent.pv_forecast[t_start:t_block_end]
-            wind = agent.get_wind_forecast()[t_start:t_block_end] \
-                if agent.has_wind else np.zeros(n_block)
-        else:
-            load = agent.load_real[t_start:t_block_end]
-            pv = agent.pv_real[t_start:t_block_end]
-            wind = agent.get_wind_real()[t_start:t_block_end] \
-                if agent.has_wind else np.zeros(n_block)
+        # The decision block's load/RE come from the day-ahead published
+        # forecast in BOTH stages. The realized curves are not knowable when
+        # the quotes are placed; reading them here was the dormant non-DA
+        # leak, now impossible by construction. Realized quantities reach
+        # the observation only through the post-clearing history (prices,
+        # SOC), never through the decision-block features.
+        load = agent.load_forecast[t_start:t_block_end]
+        pv = agent.pv_forecast[t_start:t_block_end]
+        wind = agent.get_wind_forecast()[t_start:t_block_end] \
+            if agent.has_wind else np.zeros(n_block)
 
         load_peak, re_peak = self._agent_peaks.get(agent.name, (1.0, 1.0))
         load_feat = float(np.clip(
@@ -493,9 +583,12 @@ class BiddingEnv:
             np.mean(pv + wind) / max(re_peak, 1e-6), 0.0, 1.0))
 
         # Last observed LMP, or the frozen reference if none exists yet. The
-        # fallback is a constant rather than the day's mean: at block 0 the
-        # day's mean is the future, and using it seeded `last_lmp` -- and
-        # through it `ema_dev` -- with information from later periods.
+        # history holds one cross-node mean per committed period, so this is
+        # the most recent committed period's mean LMP across the RL agents'
+        # buses -- identical for every agent. The fallback is a constant
+        # rather than the day's mean: at block 0 the day's mean is the
+        # future, and using it seeded `last_lmp` -- and through it
+        # `ema_dev` -- with information from later periods.
         if hist_lmp is not None and len(hist_lmp) > 0:
             last_lmp = float(hist_lmp[-1])
         else:
@@ -555,8 +648,8 @@ class BiddingEnv:
             "block_pos": block_pos,
             "avg_lmp_hist_norm": avg_lmp_hist_norm,
             "slr_norm": slr_norm,
-            "avg_other_bid": avg_other_bid,
-            "bid_std": bid_std,
+            "avg_other_dev": avg_other_dev,
+            "all_dev_std": all_dev_std,
             "ema_dev": ema_dev,
             "price_trend": trend,
             "pred_lmp_norm": pred_lmp_norm,
@@ -566,8 +659,8 @@ class BiddingEnv:
                        hist_lmp: np.ndarray | None,
                        avg_lmp_hist: float,
                        system_load_re_ratio: float = 1.0,
-                       avg_other_bid: float = 1.0,
-                       bid_std: float = 0.0) -> np.ndarray:
+                       avg_other_dev: float = 0.0,
+                       all_dev_std: float = 0.0) -> np.ndarray:
         """Build the observation vector for one agent from the active spec.
 
         Order matters: the per-agent features must be the first entries so
@@ -576,7 +669,7 @@ class BiddingEnv:
         """
         feats = self._compute_obs_features(
             agent, block_idx, hist_lmp, avg_lmp_hist, system_load_re_ratio,
-            avg_other_bid, bid_std)
+            avg_other_dev, all_dev_std)
         return np.array(
             [feats[f.name]
              for f in (*self.obs_spec.unique_features,
@@ -584,69 +677,73 @@ class BiddingEnv:
             dtype=np.float32)
 
     def _compute_system_load_re_ratio(self, t_start: int) -> float:
+        """Load/RE ratio of one block's slice over ALL agents, forecast-based.
+
+        Forecasts only, in both stages: the ratio describes the block being
+        decided, whose realized values do not exist yet at the decision.
+        """
         t_end = min(t_start + BLOCK_SIZE, self.T)
         total_load = 0.0
         total_re = 0.0
         for a in self.all_agents:
-            if self.stage == "DA":
-                total_load += np.sum(a.load_forecast[t_start:t_end])
-                if a.is_prosumer:
-                    total_re += np.sum(np.maximum(
-                        a.pv_forecast[t_start:t_end], 0))
-                if a.has_wind:
-                    total_re += np.sum(np.maximum(
-                        a.wind_forecast[t_start:t_end], 0))
-            else:
-                total_load += np.sum(a.load_real[t_start:t_end])
-                if a.is_prosumer:
-                    total_re += np.sum(np.maximum(
-                        a.pv_real[t_start:t_end], 0))
-                if a.has_wind:
-                    total_re += np.sum(np.maximum(
-                        a.wind_real[t_start:t_end], 0))
+            total_load += np.sum(a.load_forecast[t_start:t_end])
+            if a.is_prosumer:
+                total_re += np.sum(np.maximum(
+                    a.pv_forecast[t_start:t_end], 0))
+            if a.has_wind:
+                total_re += np.sum(np.maximum(
+                    a.wind_forecast[t_start:t_end], 0))
         return float(total_load / max(total_re, 1e-6))
 
     def _committed_re_avail(self, t_start: int, n_commit: int) -> float:
-        """RE energy available over the committed slice of the current window.
+        """RE energy forecast over the committed slice of the current window.
 
         Mirrors the availability accounting in dispatch (sum pv/wind forecast
         over prosumer and wind-capable agents), but only for the periods this
         block commits, so the accumulated day-aggregate rate is exact.
+        Forecast-based in both stages: at the decision the realized slice is
+        still in the future, so the rate is built from what the participant
+        actually holds -- the day-ahead forecasts.
         """
         avail = 0.0
         for a in self.all_agents:
-            if self.stage == "DA":
-                if a.is_prosumer:
-                    avail += float(np.sum(np.maximum(
-                        a.pv_forecast[t_start:t_start + n_commit], 0)))
-                if a.has_wind:
-                    avail += float(np.sum(np.maximum(
-                        a.wind_forecast[t_start:t_start + n_commit], 0)))
-            else:
-                if a.is_prosumer:
-                    avail += float(np.sum(np.maximum(
-                        a.pv_real[t_start:t_start + n_commit], 0)))
-                if a.has_wind:
-                    avail += float(np.sum(np.maximum(
-                        a.wind_real[t_start:t_start + n_commit], 0)))
+            if a.is_prosumer:
+                avail += float(np.sum(np.maximum(
+                    a.pv_forecast[t_start:t_start + n_commit], 0)))
+            if a.has_wind:
+                avail += float(np.sum(np.maximum(
+                    a.wind_forecast[t_start:t_start + n_commit], 0)))
         return avail * 0.25  # dt_h
 
     def _compute_opponent_features(self, agent_name: str) -> tuple:
-        """Summary of what the other participants declared, last block.
+        """Which way the fleet is leaning from truthful, and by how much of its
+        own room, last block.
 
-        Each agent contributes the first component of its own action space,
-        scaled into its own bounds so the two ontologies are comparable: for a
-        storage unit that is its charge price over the charge-price range, and
-        for a load or prosumer it is the multiplier over the multiplier range.
-        Comparing raw values across the two would be meaningless, and comparing
-        only storage units would hide most of the market.
+        Each participant contributes the **signed** deviation over the first
+        component of its own action space -- for a storage unit its charge
+        price, for a load or prosumer its multiplier. Truthful is zero for
+        every participant, shading down is negative, shading up is positive,
+        and a participant that has used up its whole room in one direction
+        reads exactly -1 or +1 there. See `signed_deviation` for the formula.
+
+        The box *position* this replaced (`(a - low) / (high - low)`) is not
+        that quantity: the storage charge box starts at its truthful point and
+        the prosumer multiplier box puts truthful 46% along, so averaging the
+        two averaged distance-from-the-low-bound for one convention with
+        distance-from-truthful for the other.
+
+        It is **not** `rl_td3.normalized_deviation` either: that one is
+        unsigned and divides by the full box width, because a regularizer wants
+        to know how far from truthful a policy is, not which way. These
+        features want the direction, which is why the sign is kept.
 
         Iterates over self.all_agents (not just rl_agents) so the RL agent
         observes every other participant, including those on defaults.
 
-        The observation features these feed are still named `avg_other_bid`
-        and `bid_std`; the names are legacy from when every action was a
-        multiplier, and the rename belongs with the observation revision.
+        A participant is left out of both averages rather than given a value it
+        does not have when its quote is not finite (no deviation is defined) or
+        its box has no width (nothing in it can deviate). Neither can be
+        mistaken for "truthful", which is what a substituted zero would say.
         """
         src = self._prev_block_actions
         blk = self._prev_block_index
@@ -655,14 +752,14 @@ class BiddingEnv:
             src = getattr(self, 'current_actions', None)
             blk = 0
         if not src:
-            return 1.0, 0.0
+            return 0.0, 0.0
         # Read the previous decision block's committed quotes. Actions live in
         # full-day arrays, so the block slice must be selected explicitly:
         # reading `.flat[0]` instead froze these features at block 0's quotes
         # for the whole day.
         t0 = blk * BLOCK_SIZE
-        other_bids = []
-        all_bids = []
+        other_devs = []
+        all_devs = []
         for a in self.all_agents:
             nm = a.name
             if nm not in src or not src[nm]:
@@ -670,22 +767,48 @@ class BiddingEnv:
             spec = self.spec_for(a)
             name = spec.action_names[0]
             lo, hi = spec.bounds[name]
+            if not hi > lo:
+                continue
             arr = np.asarray(src[nm][name], dtype=float).ravel()
             if arr.size >= t0 + BLOCK_SIZE:
                 value = float(np.mean(arr[t0:t0 + BLOCK_SIZE]))
             else:
                 value = float(arr.flat[0])
-            scaled = (value - lo) / (hi - lo) if hi > lo else 0.0
-            all_bids.append(scaled)
+            if not np.isfinite(value):
+                continue
+            deviation = signed_deviation(value, spec.truthful[name], lo, hi)
+            all_devs.append(deviation)
             if nm != agent_name:
-                other_bids.append(scaled)
-        avg_other = float(np.mean(other_bids)) if other_bids else 1.0
-        bid_std = float(np.std(all_bids)) if len(all_bids) >= 2 else 0.0
-        return avg_other, bid_std
+                other_devs.append(deviation)
+        avg_other = float(np.mean(other_devs)) if other_devs else 0.0
+        dev_std = float(np.std(all_devs)) if len(all_devs) >= 2 else 0.0
+        return avg_other, dev_std
 
     # ------------------------------------------------------------------
     # Episode lifecycle
     # ------------------------------------------------------------------
+
+    def _update_price_history(self, result: dict, n_commit: int) -> None:
+        """Record one cleared block's realized LMPs in the shared history.
+
+        Called once per block at the cleared->committed transition: after the
+        market result exists and before the next block's observations are
+        built. One entry per committed period -- the mean LMP across the RL
+        agents' buses at that period -- so the stream is chronological, every
+        realized (node, period) price enters exactly once, and no agent
+        traversal order can influence it (the bus order is fixed by agent
+        name, not by list position). `avg_lmp_hist_norm` is the mean of this
+        stream and `last_lmp_norm` its most recent entry; equal weight per
+        entry makes both identical for every agent, which is what makes the
+        feature "shared".
+        """
+        if result is None or not self.rl_agents:
+            return
+        buses = [a.bus for a in sorted(self.rl_agents,
+                                       key=lambda a: a.name)]
+        block_lmp = np.asarray(result["lmp"], dtype=float)[:n_commit, buses]
+        for d in range(n_commit):
+            self.hist_lmp.append(float(np.mean(block_lmp[d])))
 
     def reset(self, wholesale: Optional[np.ndarray] = None) \
             -> Dict[str, np.ndarray]:
@@ -708,6 +831,10 @@ class BiddingEnv:
         self._prev_block_index = None
         self.block_idx = 0
         self.prev_soc = {}
+        # Shared price history: one cross-node mean per committed period (see
+        # _update_price_history). A full day is 24 blocks x 4 periods = 96
+        # entries, so nothing is ever evicted within an episode and the
+        # "average so far" genuinely covers the whole day so far.
         self.hist_lmp = deque(maxlen=96)
         self._re_used = 0.0
         self._re_avail = 0.0
@@ -727,9 +854,9 @@ class BiddingEnv:
         avg_lmp_hist = PRICE_REF_CNY_MWH
         slr = self._compute_system_load_re_ratio(0)
         for a in self.rl_agents:
-            avg_oth, bid_std = self._compute_opponent_features(a.name)
+            avg_dev, dev_std = self._compute_opponent_features(a.name)
             obs[a.name] = self._get_agent_obs(
-                a, 0, None, avg_lmp_hist, slr, avg_oth, bid_std)
+                a, 0, None, avg_lmp_hist, slr, avg_dev, dev_std)
         return obs
 
     def _agent_block_profit(self, schedule: dict, lmp_node: np.ndarray,
@@ -838,10 +965,16 @@ class BiddingEnv:
             t_start=t_start, day_id=self.day_id)
         self._last_wholesale = wholesale
 
+        # A window whose own end is the day's last period is cleared as the
+        # settled horizon when an absolute target is configured; every earlier
+        # window stays unpinned.
+        horizon = ("day_end"
+                   if self.terminal_soc_target is not None
+                   and window_end == self.T else "window")
         try:
             result = clear_market(window_agents, window_T, self.stage,
                                   window_actions, window_config,
-                                  wholesale=wholesale, horizon_type="window")
+                                  wholesale=wholesale, horizon_type=horizon)
         except Exception:
             result = None
         self._last_result = result
@@ -874,16 +1007,22 @@ class BiddingEnv:
                 nm = a.name
                 if nm not in base_actions:
                     continue
-                # The baseline arm is the same window with every RL agent at
-                # its truthful declaration and every other agent unchanged, so
-                # the difference between the two clears is the policy's doing.
+                # The baseline arm is one clear in which every RL agent's
+                # committed quotes are truthful and every non-RL agent keeps
+                # its declaration. It is therefore a *fleet*-truthful
+                # counterfactual, not a per-agent one: the four units are
+                # moved together, so what a unit's differential reward
+                # attributes to itself is measured against a fleet that
+                # stopped shading, and a unit could be paid for the others'
+                # restraint. A per-agent counterfactual would need one clear
+                # per RL agent per block; this path takes one.
                 for name, value in self.spec_for(a).truthful.items():
                     base_actions[nm][name][:n_commit] = value
             try:
                 base_result = clear_market(
                     base_window_agents, window_T, self.stage,
                     base_actions, window_config, wholesale=wholesale,
-                    horizon_type="window")
+                    horizon_type=horizon)
             except Exception:
                 base_result = None
             self._last_base_result = base_result
@@ -947,11 +1086,11 @@ class BiddingEnv:
                         (q_rl + q_bs) / 2.0 * (lmp_node[:n_commit] - lmp_bs)))
                     rewards[nm] -= self.market_impact_penalty * power_i
 
-                # Update forecaster and LMP history from committed period
+                # Update the per-agent forecaster from the committed periods.
+                # The shared price history is a block-level concern and is
+                # updated once, separately -- see _update_price_history.
                 block_lmp = float(np.mean(lmp_node[:n_commit]))
                 self.forecasters[nm].update(block_lmp)
-                for d in range(n_commit):
-                    self.hist_lmp.append(float(np.mean(lmp_node[d])))
 
                 # Update prev_soc from last committed period
                 if a.storage and nm in result["schedules"]:
@@ -971,6 +1110,11 @@ class BiddingEnv:
             rewards.setdefault(a.name, 0.0)
             raw_profits.setdefault(a.name, 0.0)
             local_baselines.setdefault(a.name, 0.0)
+
+        # ---- Shared price history (single block-level update) ----
+        # After the clearing exists and before any next-block observation is
+        # built: one cross-node mean per committed period.
+        self._update_price_history(result, n_commit)
 
         # ---- Accumulate committed-period RE for the day-aggregate rate ----
         if result is not None:
@@ -1004,10 +1148,10 @@ class BiddingEnv:
         slr = self._compute_system_load_re_ratio(self.block_idx * BLOCK_SIZE)
         if not done:
             for a in self.rl_agents:
-                avg_oth, bid_std = self._compute_opponent_features(a.name)
+                avg_dev, dev_std = self._compute_opponent_features(a.name)
                 obs[a.name] = self._get_agent_obs(
                     a, self.block_idx, hist_arr, avg_lmp_hist, slr,
-                    avg_oth, bid_std)
+                    avg_dev, dev_std)
         else:
             for a in self.rl_agents:
                 obs[a.name] = np.zeros(self.obs_dim, dtype=np.float32)

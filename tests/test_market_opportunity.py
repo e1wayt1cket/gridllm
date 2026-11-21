@@ -115,8 +115,9 @@ def test_a_sweep_varies_only_the_named_lever():
 
 
 def test_an_unknown_lever_is_refused():
+    base = mo.ensemble_specs(1, seed=1)[0]
     with pytest.raises(ValueError, match="unknown lever"):
-        mo.sweep_specs("no_such_lever", [1])
+        mo.sweep_specs("no_such_lever", [1], base)
 
 
 def test_the_coincident_peak_is_the_networks_own_under_every_shape(small_days):
@@ -196,7 +197,7 @@ def test_every_day_lands_in_exactly_one_partition(small_days):
 def single_stratum_days():
     """Eight days sharing one label, on eight distinct day numbers."""
     from dataclasses import replace
-    base = mo.ensemble_specs(1)[0]
+    base = mo.ensemble_specs(1, seed=1)[0]
     label = mo.RegimeLabel("low", "low", "low", "evening")
     return [mo.EnsembleDay(spec=replace(base, day=i), label=label)
             for i in range(8)]
@@ -417,6 +418,28 @@ def test_the_audit_leaves_the_config_caches_as_it_found_them(small_report):
     assert load_defaults() == before
 
 
+def test_the_audit_leaves_no_price_provider_built_under_its_own_levers():
+    """Restoring the config is not enough while the providers stay cached.
+
+    `get_provider` caches by source name and builds from the configuration in
+    force at that moment. An audit moves the levers to reach each day, so a
+    provider built during one would go on answering the next caller in this
+    process from a market that no longer matches what is on disk.
+    """
+    from wholesale_price import get_provider, reset_cache
+    reload_defaults()
+    reset_cache()
+    before = get_provider()
+    mo.build_report(days=2, seed=5, buses=[9], quiet=True)
+    assert get_provider() is not before, (
+        "the audit left the provider it built under its own levers behind")
+    # Repeatable in the same process: the second run rebuilds on the config the
+    # first one restored rather than on the levers the first one moved.
+    first_run = get_provider()
+    mo.build_report(days=2, seed=5, buses=[9], quiet=True)
+    assert get_provider() is not first_run
+
+
 def test_the_degradation_sensitivity_changes_no_record_and_no_verdict(small_report):
     """A sensitivity that fed the verdict would be an adopted value."""
     a = mo.build_report(days=2, seed=5, buses=[9],
@@ -625,8 +648,9 @@ def test_a_series_is_mapped_uniformly_and_the_degeneracy_is_flagged(tmp_path):
     path = tmp_path / "one_day.csv"
     path.write_text("lmp\n" + "\n".join(str(300 + i) for i in range(96)),
                     encoding="utf-8")
-    report = mo.build_report(source="series", series_path=str(path),
-                             buses=[0, 5, 17], quiet=True)
+    report = mo.build_report(days=1, seed=1, source="series",
+                             series_path=str(path), buses=[0, 5, 17],
+                             quiet=True)
 
     mins = {r["lmp_min_cny_mwh"] for r in report["records"] if r["day"] == 0}
     assert len(mins) == 1, "uniform mapping is not uniform"
@@ -654,7 +678,7 @@ def test_two_series_days_are_read_as_two_days(tmp_path):
 
 def test_main_writes_the_json_and_csv_it_was_asked_for(tmp_path):
     js, cs = tmp_path / "r.json", tmp_path / "r.csv"
-    code = mo.main(["--days", "2", "--buses", "9", "--quiet",
+    code = mo.main(["--ensemble-seed", "1", "--days", "2", "--buses", "9", "--quiet",
                     "--json", str(js), "--csv", str(cs)])
     assert code == 0
     report = json.loads(js.read_text(encoding="utf-8"))
@@ -666,7 +690,7 @@ def test_main_writes_the_json_and_csv_it_was_asked_for(tmp_path):
 def test_main_returns_zero_on_an_insufficient_verdict(tmp_path):
     """The verdict is the deliverable, not a failure of the module."""
     js = tmp_path / "r.json"
-    code = mo.main(["--days", "1", "--buses", "9", "--quiet", "--json", str(js)])
+    code = mo.main(["--ensemble-seed", "1", "--days", "1", "--buses", "9", "--quiet", "--json", str(js)])
     report = json.loads(js.read_text(encoding="utf-8"))
     assert report["verdict"]["verdict"].endswith("UNDETERMINED")
     assert code == 0
@@ -675,11 +699,11 @@ def test_main_returns_zero_on_an_insufficient_verdict(tmp_path):
 def test_main_returns_one_when_no_day_survives(monkeypatch, tmp_path):
     """A run that produced no measurable day has not answered anything."""
     monkeypatch.setattr(mo, "SHED_LIMIT_MWH", -1.0)
-    code = mo.main(["--days", "1", "--buses", "9", "--quiet",
+    code = mo.main(["--ensemble-seed", "1", "--days", "1", "--buses", "9", "--quiet",
                     "--json", str(tmp_path / "r.json")])
     assert code == 1
 
 
 def test_series_source_without_a_path_is_a_usage_error():
     with pytest.raises(SystemExit):
-        mo.main(["--source", "series", "--quiet"])
+        mo.main(["--ensemble-seed", "1", "--source", "series", "--quiet"])

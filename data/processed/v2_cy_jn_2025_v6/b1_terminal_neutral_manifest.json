@@ -1,0 +1,48 @@
+{
+  "dataset": "b1_terminal_neutral",
+  "version": "b1-terminal-neutral-24block-v1",
+  "generated_at": "2026-11-16T04:13:53.385689+00:00",
+  "mechanism": "24 blocks; each clears a 16-period rolling window and commits 4; windows ending at the true day end pin every storage unit's absolute SOC to 0.5; all four RL units truthful; no intermediate-window pin",
+  "not_jn_base": true,
+  "not_old_rolling_b1": true,
+  "soc0": 0.5,
+  "terminal_soc_target": 0.5,
+  "config_hash": "56e8aed020db7f38678144e8ced9d44ac80a3b9e080cf385f633d2e9782039a4",
+  "mechanism_hash": "8f1382f1c9762fce042eb2a299f264f1345c9223e47f14032babe7f7f05491d6",
+  "inputs": {
+    "pairing": {
+      "path": "data/processed/v2_cy_jn_2025/load_price_pairing.csv",
+      "sha256": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1"
+    },
+    "near_pairing": {
+      "path": "data/processed/v2_cy_jn_2025/near/load_price_pairing.csv",
+      "sha256": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363"
+    },
+    "bus_loads": {
+      "path": "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz",
+      "sha256": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078"
+    },
+    "price_curves": {
+      "path": "data/processed/v2_cy_jn_2025/price_curves.npz",
+      "sha256": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1"
+    }
+  },
+  "outputs": {
+    "results": {
+      "path": "data\\processed\\v2_cy_jn_2025_v6\\b1_terminal_neutral_results.csv",
+      "sha256": "94d35d0cc120332cd1f1ebfef7fc939e4ea2dc0336d8fcc2dd82a0ed9addc8e2"
+    },
+    "block_payoffs": {
+      "path": "data\\processed\\v2_cy_jn_2025_v6\\b1_terminal_neutral_block_payoffs.json",
+      "sha256": "c2b3372959516090b81ebbd1abb235e52b1445eb4e42ba0162bff9ced6e001cf"
+    }
+  },
+  "days": 96,
+  "feasible_days": 96,
+  "near": {
+    "expected": 80,
+    "matched": 80,
+    "missing": []
+  },
+  "failures": []
+}

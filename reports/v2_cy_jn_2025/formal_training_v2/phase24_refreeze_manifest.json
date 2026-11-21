@@ -1,0 +1,102 @@
+{
+  "protocol_version": 2,
+  "reason": "early stopping stopped a formal run at 6 rounds against a declared minimum of 10 (PROTOCOL_DEVIATION_EARLY_STOP_BELOW_MINIMUM)",
+  "previous_version": {
+    "dir": "reports/v2_cy_jn_2025/formal_training_ready",
+    "config_payload_sha256": "b21a97c15d16aae5ed0f8bd599e54a2f8aafb6e687bca2b63b06bd5a8da8e1e7",
+    "config_file_sha256": "eb6d0e376199e84079caa634dd10a764b7719f2fab4ed2f5c1f59b6ce972d0f5",
+    "code_manifest_sha256": "567410c927ef0faafb33c90c0127087e78bcbc868fc63a5a943a5caa24bba113",
+    "data_manifest_sha256": "d88ea6d4aa5ea45396ac6ea2d0e80b244e8644bc3c4c8dc8ec831c12adebf37b",
+    "manifest_file_sha256": "293973193c08904cad23a9b12f14998804c6da9a2e2dbfee746fa5a6ba846226",
+    "status": "GO_FORMAL_TRAINING"
+  },
+  "new_version": {
+    "dir": "reports/v2_cy_jn_2025/formal_training_v2",
+    "config_payload_sha256": "2148a5777ea6f16a4f5f26730e04ec5cfa4e3d3476c0b50586fe203ba5e4f68f",
+    "config_file_sha256": "a60ab1ed4d26c14eb7bcf1cc684f4ce59bed69af9e224becad826712b5d8145f",
+    "code_manifest_sha256": "cb34c165e5442e27e42bf9f8efde0d926bd084908f95ac8e9ff9078307ca11f8",
+    "data_manifest_sha256": "d88ea6d4aa5ea45396ac6ea2d0e80b244e8644bc3c4c8dc8ec831c12adebf37b",
+    "manifest_file_sha256": "ceef65e2b3f7244b9100fd94a518f7e9924f2a113fe8fc5bf3582cf74ab24deb",
+    "status": "GO_FORMAL_TRAINING",
+    "finalized_on": "2026-11-03"
+  },
+  "changed_source_files": {
+    "train_da_gate.py": {
+      "before": "c32b7fec591c5f0e2a7b42b91778f0931217d5c60207c3644e385a54e564b9b6",
+      "after": "a722b2f9266a6ab5dfe7cceeccf3b16ae6f01c3e47cf6c50672f245c9eb6c79c"
+    }
+  },
+  "changed_test_files": {
+    "audit_phase20_action_routing.py": {
+      "before": "899c0d0ba9e6035c87033e48838eb96969187262ee3d2781aa96450c3aafded5",
+      "after": "899c0d0ba9e6035c87033e48838eb96969187262ee3d2781aa96450c3aafded5",
+      "changed": false
+    },
+    "test_da_quote_mapping.py": {
+      "before": "b0f316976d3936d0efdf1e0ee58d62bb694ba977e569e82a4132dcdbb1c542b2",
+      "after": "b0f316976d3936d0efdf1e0ee58d62bb694ba977e569e82a4132dcdbb1c542b2",
+      "changed": false
+    },
+    "test_train_da_gate_guards.py": {
+      "before": "1a5d36ac3cad8600d9922714831377b60323ac7e84969aaa3e3298568276e085",
+      "after": "d26b23c64a5587552010fe803283792fb425647147df3510125bdfa62e110bdf",
+      "changed": true
+    }
+  },
+  "unchanged_source_files_count": 14,
+  "unchanged_source_files": {
+    "b1_daily_baseline.py": "1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd",
+    "c2_reward.py": "81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c",
+    "checkpoint_loader_v2.py": "23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe",
+    "checkpoint_writer_v2.py": "0f973f6589b5594efa93d91e185254a765e43684076c197a30abf05ba80f7cd1",
+    "da_quote_map.py": "79e96c8eb8f0a343c52d31bee3690663a2e6a32c37233fde943e6669867845bf",
+    "da_replay.py": "9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53",
+    "daily_reward_b.py": "c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541",
+    "dispatch_socp.py": "d80ed3b781ea002f671ed3784a69a6ab3da4f646837b58ae702a610e3a6e561a",
+    "rl_b_c2_gate.py": "0269e93108deefdb1bc55637b7e08c46ee53d24f254f23403f13859b7c6ffc41",
+    "rl_da_gate.py": "9ed0b8335f7061a9cd89cc4366a30257217b14202d9d7f63b0d297fda1c12eb1",
+    "rl_env.py": "d63c615be6c3a619805f4275068bea7ba3c502e8270d31385fd093905b4b4e3f",
+    "rl_spec.py": "156aa7a7b09688e9881e0d9b173bd27e5c44ea8ced75a3f25ba59050f8382e68",
+    "truthful_gate_actor_adapter.py": "c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b",
+    "v2_cy_jn_env.py": "39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a"
+  },
+  "guard_plumbing_outside_code_manifest": {
+    "run_formal_training.py": {
+      "changes": [
+        "--config-dir selects the frozen version directory",
+        "run id and command are derived from that directory's config hash",
+        "--exposures, --early-stop-patience and --min-rounds are read from the config"
+      ],
+      "sha256": "cc3ea4b2c40b3a0a24741e46dbd26517b1a18a9cf0313f4732f4419e8663b0f8"
+    },
+    "make_formal_training_manifests.py": {
+      "changes": [
+        "--out writes a version directory instead of the original",
+        "config payload adds protocol_version 2 and budget.minimum_rounds 10",
+        "finalize date is taken from the run date"
+      ],
+      "sha256": "fd6a7bd22249a61f069de8dfd9b816fa5121e13830801db72d164f980494f5bf"
+    }
+  },
+  "budget": {
+    "minimum_rounds": 10,
+    "exposures_per_day_min": 10,
+    "exposures_per_day_max": 15,
+    "episodes_per_seed_min": 530,
+    "episodes_per_seed_max": 795,
+    "early_stop_patience": 3
+  },
+  "original_untouched": {
+    "config_payload_sha256_still_matches": true,
+    "code_manifest_payload_sha256_matches_recorded": true,
+    "data_manifest_payload_sha256_matches_recorded": true,
+    "checks_use_payload_hash_not_file_hash": true,
+    "manifest_file": {
+      "path": "reports\\v2_cy_jn_2025\\formal_training_ready\\formal_training_manifest.json",
+      "sha256": "293973193c08904cad23a9b12f14998804c6da9a2e2dbfee746fa5a6ba846226"
+    }
+  },
+  "guard_tests": "reports/v2_cy_jn_2025/formal_training_v2/phase24_budget_guard_tests.json",
+  "pretraining_validation": "reports/v2_cy_jn_2025/formal_training_v2/pretraining_validation_results.json",
+  "seed11_run_id": "FORMAL_2148a577_seed11"
+}

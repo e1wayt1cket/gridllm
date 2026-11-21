@@ -1,0 +1,55 @@
+{
+ "generated_at": "2026-11-12T15:50:26+08:00",
+ "label": "NON_FORMAL_DIAGNOSTIC",
+ "files": {
+  "bootstrap_reproduction.csv": {
+   "sha256": "b72b6a6941772a5a3969e275e81f1baf7ed46a81c2748d6cfb308add5651f32c",
+   "bytes": 6752
+  },
+  "concentration_sensitivity.csv": {
+   "sha256": "63d10d5987bae32e1dd6441da8210836f53ccc2c0a50277807d34507e6295bb1",
+   "bytes": 119758
+  },
+  "concentration_summary.csv": {
+   "sha256": "2cc6afa84074730226e415d56d314878e9d7af23b9835eb9f0df18f8c4860fd9",
+   "bytes": 46448
+  },
+  "cycle_cost_sensitivity.csv": {
+   "sha256": "b0aee158356a6a13c3d0b72b0efac84044899a84720cf64b3eb8ed0f3908090f",
+   "bytes": 53234
+  },
+  "cycle_cost_sensitivity_summary.json": {
+   "sha256": "05e4908ebef1d7afa1ea2efcff8cf22cddfef1a7d60d9d6274e609264db700d6",
+   "bytes": 100324
+  },
+  "decision_report.md": {
+   "sha256": "8d1fc3ce6268bc656f48a39af8ee7075329a51646c0de2e0c4a2c251cdc09ef9",
+   "bytes": 20863
+  },
+  "ess_day_pnl.csv": {
+   "sha256": "cef82f8c7ae0f3605cf107cd946a0d360443e63a3839598fd598755e9e63fb51",
+   "bytes": 431571
+  },
+  "fleet_day_pnl.csv": {
+   "sha256": "f354b329064e1deb4cd5f8fdcbf18edbfba33215f7ce8b3c973ebc4cf07f7848",
+   "bytes": 104679
+  },
+  "input_manifest.json": {
+   "sha256": "1182b9730a03e641bddd8214af542e704c40dc77e04a3a8fd8a05c3d9b8a3805",
+   "bytes": 23987
+  },
+  "paired_mapping_delta.csv": {
+   "sha256": "a7bcba211e1a6ae6e0a66b743070ec0e475c3808662872baffdc27869161f04a",
+   "bytes": 341399
+  },
+  "pnl_reconciliation.json": {
+   "sha256": "2434512e636f5bd5dc55583a8e0bf85360d6ed1ccaedc2d91ec2d6af03e1df73",
+   "bytes": 1260
+  },
+  "verification_report.json": {
+   "sha256": "8b3f2a1515cfa37b3dab1524551ecf03faced660620645752fbf85776a816455",
+   "bytes": 2291
+  }
+ },
+ "count": 12
+}

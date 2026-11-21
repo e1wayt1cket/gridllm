@@ -46,16 +46,25 @@ CN_TO_EN = {v: k for k, v in SCENARIO_NAMES_CN.items()}
 # ------------------------------
 # RL 评估：4 个统一物理设施场景
 # ------------------------------
-RL_SCENARIOS = [
-    {"value": "baseline", "label": "基准 · 典型日",
-     "short": "基准"},
-    {"value": "high_re", "label": "高可再生 · PV/风出清 ×2",
-     "short": "高可再生"},
-    {"value": "peak_load", "label": "高峰负荷 · 负荷×1.5（储能/线路不变）",
-     "short": "高峰负荷"},
-    {"value": "congestion", "label": "空间阻塞 · 空间负荷重分布（共享线限）",
-     "short": "空间阻塞"},
-]
+# The scenario NAMES come from the one declaration in `config/scenarios.yaml`;
+# only the Chinese labels are local, because they are UI copy. A name here that
+# the declaration does not carry raises at import rather than offering a
+# selector for a scenario the rest of the project does not know.
+_RL_LABELS = {
+    "baseline": ("基准 · 典型日", "基准"),
+    "high_re": ("高可再生 · PV/风出清 ×2", "高可再生"),
+    "peak_load": ("高峰负荷 · 负荷×1.5（储能/线路不变）", "高峰负荷"),
+    "congestion": ("空间阻塞 · 空间负荷重分布（共享线限）", "空间阻塞"),
+}
+from scenarios import legacy_comparison_scenarios
+
+_RL_NAMES = legacy_comparison_scenarios()
+_unknown = sorted(set(_RL_NAMES) - set(_RL_LABELS))
+if _unknown:
+    raise RuntimeError(f"the declared comparison set names {_unknown}, which "
+                       "have no UI label")
+RL_SCENARIOS = [{"value": n, "label": _RL_LABELS[n][0], "short": _RL_LABELS[n][1]}
+                for n in _RL_NAMES]
 RL_SCENARIO_OPTIONS = [{"label": s["label"], "value": s["value"]}
                        for s in RL_SCENARIOS]
 RL_SCENARIO_DEFAULT = [s["value"] for s in RL_SCENARIOS]
@@ -685,9 +694,9 @@ def build_simulation_outputs(scenario_en, strategy="rl", opf_mode="socp", nl_msg
     T = 96
     agents, _ = get_scenario(scenario_en, T=T, config=config)
     da_actions = adaptive_bidding(agents, config, strategy=strategy, T=T)
-    da_results = clear_market(agents, T, "DA", da_actions, config)
+    da_results = clear_market(agents, T, "DA", da_actions, config, horizon_type="full_day")
     rt_actions = adaptive_bidding(agents, config, strategy=strategy, T=T)
-    rt_results = clear_market(agents, T, "RT", rt_actions, config)
+    rt_results = clear_market(agents, T, "RT", rt_actions, config, horizon_type="full_day")
     payment, _ = two_settlement(agents, da_results, rt_results)
 
     net = build_base_network(config)
@@ -1122,9 +1131,9 @@ def register_callbacks(app):
         agents, config = advisor.apply_llm_config_to_agents(parsed, base_agents, T)
 
         da_actions = adaptive_bidding(agents, config, strategy=strategy_nl, T=T)
-        da_results = clear_market(agents, T, "DA", da_actions, config)
+        da_results = clear_market(agents, T, "DA", da_actions, config, horizon_type="full_day")
         rt_actions = adaptive_bidding(agents, config, strategy=strategy_nl, T=T)
-        rt_results = clear_market(agents, T, "RT", rt_actions, config)
+        rt_results = clear_market(agents, T, "RT", rt_actions, config, horizon_type="full_day")
         payment, _ = two_settlement(agents, da_results, rt_results)
 
         net = build_base_network(config)

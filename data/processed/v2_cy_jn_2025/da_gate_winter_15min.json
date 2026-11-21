@@ -1,0 +1,310 @@
+{
+  "states": {
+    "2022-12-13|2025-12-11|b3|ESS14": {
+      "actor_quote": 123.63301086425781,
+      "gate": [
+        1,
+        1
+      ],
+      "scenarios": {
+        "0.0": {
+          "block_payoff": 71.56427194570153,
+          "block_accepted_mwh": 0.3999987311646749,
+          "b1_block_payoff": 71.54778248792192,
+          "accepted_periods": 4,
+          "mean_lmp": 278.91126261834665
+        },
+        "100.0": {
+          "block_payoff": 3.5348371332000026e-06,
+          "block_accepted_mwh": 2.7132950625079974e-08,
+          "b1_block_payoff": 71.54778248792192,
+          "accepted_periods": 0,
+          "mean_lmp": 283.7204431291371
+        },
+        "150.0": {
+          "block_payoff": 4.5664449701496363e-07,
+          "block_accepted_mwh": 7.689164765984967e-09,
+          "b1_block_payoff": 71.54778248792192,
+          "accepted_periods": 0,
+          "mean_lmp": 283.7198192723319
+        },
+        "258.0": {
+          "block_payoff": -8.128698989175854e-07,
+          "block_accepted_mwh": 8.56614541128299e-09,
+          "b1_block_payoff": 71.54778248792192,
+          "accepted_periods": 0,
+          "mean_lmp": 283.7226886087898
+        },
+        "300.0": {
+          "block_payoff": -1.0986775760680065e-06,
+          "block_accepted_mwh": 6.887160998299932e-09,
+          "b1_block_payoff": 71.54778248792192,
+          "accepted_periods": 0,
+          "mean_lmp": 283.72268772346723
+        },
+        "123.63301086425781": {
+          "block_payoff": 1.035172977035469e-06,
+          "block_accepted_mwh": 1.0821043142770323e-08,
+          "b1_block_payoff": 71.54778248792192,
+          "accepted_periods": 0,
+          "mean_lmp": 283.71982926805833
+        }
+      }
+    },
+    "2022-12-13|2025-12-11|b12|ESS27": {
+      "actor_quote": 81.23487854003906,
+      "gate": [
+        1,
+        1
+      ],
+      "scenarios": {
+        "0.0": {
+          "block_payoff": 88.19090558392547,
+          "block_accepted_mwh": 0.34025225308401397,
+          "b1_block_payoff": 88.20800730277051,
+          "accepted_periods": 4,
+          "mean_lmp": 359.07853805573563
+        },
+        "100.0": {
+          "block_payoff": 7.202110054668777e-07,
+          "block_accepted_mwh": 4.4914540552592874e-09,
+          "b1_block_payoff": 88.20800730277051,
+          "accepted_periods": 0,
+          "mean_lmp": 362.89179254238854
+        },
+        "150.0": {
+          "block_payoff": 3.51326250574168e-07,
+          "block_accepted_mwh": 4.497861790173076e-09,
+          "b1_block_payoff": 88.20800730277051,
+          "accepted_periods": 0,
+          "mean_lmp": 362.8915372701048
+        },
+        "258.0": {
+          "block_payoff": -8.741460294862057e-07,
+          "block_accepted_mwh": 3.4086127754295346e-09,
+          "b1_block_payoff": 88.20800730277051,
+          "accepted_periods": 0,
+          "mean_lmp": 362.8904431028297
+        },
+        "300.0": {
+          "block_payoff": -1.184958443224873e-06,
+          "block_accepted_mwh": 8.326141485736083e-09,
+          "b1_block_payoff": 88.20800730277051,
+          "accepted_periods": 0,
+          "mean_lmp": 362.8840885227912
+        },
+        "81.23487854003906": {
+          "block_payoff": 1.4079320510713193e-06,
+          "block_accepted_mwh": 8.070131514761233e-09,
+          "b1_block_payoff": 88.20800730277051,
+          "accepted_periods": 0,
+          "mean_lmp": 362.89517393323393
+        }
+      }
+    },
+    "2022-12-30|2025-12-31|b10|ESS14": {
+      "actor_quote": 136.81997680664062,
+      "gate": [
+        1,
+        1
+      ],
+      "scenarios": {
+        "0.0": {
+          "block_payoff": 111.11056192596646,
+          "block_accepted_mwh": 0.3999999991253376,
+          "b1_block_payoff": 111.1105549566577,
+          "accepted_periods": 4,
+          "mean_lmp": 377.7764057731618
+        },
+        "100.0": {
+          "block_payoff": 111.10976064892648,
+          "block_accepted_mwh": 0.39999994712537307,
+          "b1_block_payoff": 111.1105549566577,
+          "accepted_periods": 4,
+          "mean_lmp": 377.7744403189674
+        },
+        "150.0": {
+          "block_payoff": 0.00011629820769314808,
+          "block_accepted_mwh": 4.1882578407355915e-07,
+          "b1_block_payoff": 111.1105549566577,
+          "accepted_periods": 0,
+          "mean_lmp": 384.2111419982067
+        },
+        "258.0": {
+          "block_payoff": 1.3731054173581726e-05,
+          "block_accepted_mwh": 6.339489818341005e-08,
+          "b1_block_payoff": 111.1105549566577,
+          "accepted_periods": 0,
+          "mean_lmp": 384.2140074163391
+        },
+        "300.0": {
+          "block_payoff": 1.3652723372080913e-05,
+          "block_accepted_mwh": 6.911562720138548e-08,
+          "b1_block_payoff": 111.1105549566577,
+          "accepted_periods": 0,
+          "mean_lmp": 384.2153549100499
+        },
+        "136.81997680664062": {
+          "block_payoff": 4.7099289214428466e-05,
+          "block_accepted_mwh": 1.6778530426792286e-07,
+          "b1_block_payoff": 111.1105549566577,
+          "accepted_periods": 0,
+          "mean_lmp": 384.20916299974056
+        }
+      }
+    },
+    "2022-12-30|2025-12-31|b23|ESS27": {
+      "actor_quote": 82.442138671875,
+      "gate": [
+        1,
+        1
+      ],
+      "scenarios": {
+        "0.0": {
+          "block_payoff": -52.81975214848623,
+          "block_accepted_mwh": 1.8816332744204484e-09,
+          "b1_block_payoff": -24.27182997618592,
+          "accepted_periods": 0,
+          "mean_lmp": 32.0493811583475
+        },
+        "100.0": {
+          "block_payoff": -52.81643979393715,
+          "block_accepted_mwh": 1.7627118101877818e-09,
+          "b1_block_payoff": -24.27182997618592,
+          "accepted_periods": 0,
+          "mean_lmp": 32.04110033839006
+        },
+        "150.0": {
+          "block_payoff": -52.82173840074854,
+          "block_accepted_mwh": 1.7448928052510153e-09,
+          "b1_block_payoff": -24.27182997618592,
+          "accepted_periods": 0,
+          "mean_lmp": 32.054346865654026
+        },
+        "258.0": {
+          "block_payoff": -52.863911840571255,
+          "block_accepted_mwh": 5.050193425418599e-11,
+          "b1_block_payoff": -24.27182997618592,
+          "accepted_periods": 0,
+          "mean_lmp": 32.15978141556088
+        },
+        "300.0": {
+          "block_payoff": -52.86397100947265,
+          "block_accepted_mwh": 3.188434548915411e-11,
+          "b1_block_payoff": -24.27182997618592,
+          "accepted_periods": 0,
+          "mean_lmp": 32.15992934823559
+        },
+        "82.442138671875": {
+          "block_payoff": -52.816575422881066,
+          "block_accepted_mwh": 1.7811714072970292e-09,
+          "b1_block_payoff": -24.27182997618592,
+          "accepted_periods": 0,
+          "mean_lmp": 32.04143940041866
+        }
+      }
+    },
+    "2022-12-31|2025-12-28|b17|ESS14": {
+      "actor_quote": 135.94320678710938,
+      "gate": [
+        1,
+        1
+      ],
+      "scenarios": {
+        "0.0": {
+          "block_payoff": 98.12023906755164,
+          "block_accepted_mwh": 0.39999996096911583,
+          "b1_block_payoff": 98.11292763262054,
+          "accepted_periods": 4,
+          "mean_lmp": 345.30062822106413
+        },
+        "100.0": {
+          "block_payoff": 98.11832889980005,
+          "block_accepted_mwh": 0.399999178059938,
+          "b1_block_payoff": 98.11292763262054,
+          "accepted_periods": 4,
+          "mean_lmp": 345.2963350518292
+        },
+        "150.0": {
+          "block_payoff": 4.694437040845555e-05,
+          "block_accepted_mwh": 2.0837628060397012e-07,
+          "b1_block_payoff": 98.11292763262054,
+          "accepted_periods": 0,
+          "mean_lmp": 351.2914976174626
+        },
+        "258.0": {
+          "block_payoff": 7.86209456175438e-05,
+          "block_accepted_mwh": 3.5034410104784e-07,
+          "b1_block_payoff": 98.11292763262054,
+          "accepted_periods": 0,
+          "mean_lmp": 351.278843906391
+        },
+        "300.0": {
+          "block_payoff": 3.4414431203117496e-05,
+          "block_accepted_mwh": 1.732922900239189e-07,
+          "b1_block_payoff": 98.11292763262054,
+          "accepted_periods": 0,
+          "mean_lmp": 351.28239685003234
+        },
+        "135.94320678710938": {
+          "block_payoff": 0.0002491481994768466,
+          "block_accepted_mwh": 1.0275098583624546e-06,
+          "b1_block_payoff": 98.11292763262054,
+          "accepted_periods": 0,
+          "mean_lmp": 351.28978273537393
+        }
+      }
+    },
+    "2022-12-31|2025-12-28|b0|ESS27": {
+      "actor_quote": 94.13570404052734,
+      "gate": [
+        1,
+        1
+      ],
+      "scenarios": {
+        "0.0": {
+          "block_payoff": 53.43808381515373,
+          "block_accepted_mwh": 0.2999996463110202,
+          "b1_block_payoff": 53.41379084880005,
+          "accepted_periods": 3,
+          "mean_lmp": 221.80094268886984
+        },
+        "100.0": {
+          "block_payoff": 1.6161090484092667e-06,
+          "block_accepted_mwh": 2.0825706335272124e-08,
+          "b1_block_payoff": 53.41379084880005,
+          "accepted_periods": 0,
+          "mean_lmp": 224.1698420936762
+        },
+        "150.0": {
+          "block_payoff": -1.2185936841295097e-06,
+          "block_accepted_mwh": 2.072700719732348e-08,
+          "b1_block_payoff": 53.41379084880005,
+          "accepted_periods": 0,
+          "mean_lmp": 224.16487163409977
+        },
+        "258.0": {
+          "block_payoff": -1.6420928841288508e-06,
+          "block_accepted_mwh": 6.880451260464672e-09,
+          "b1_block_payoff": 53.41379084880005,
+          "accepted_periods": 0,
+          "mean_lmp": 224.16856669176457
+        },
+        "300.0": {
+          "block_payoff": -5.306297130271656e-06,
+          "block_accepted_mwh": 1.9867672323140083e-08,
+          "b1_block_payoff": 53.41379084880005,
+          "accepted_periods": 0,
+          "mean_lmp": 224.16554751308462
+        },
+        "94.13570404052734": {
+          "block_payoff": 2.264752702588586e-06,
+          "block_accepted_mwh": 2.3503058092768115e-08,
+          "b1_block_payoff": 53.41379084880005,
+          "accepted_periods": 0,
+          "mean_lmp": 224.16993773325714
+        }
+      }
+    }
+  }
+}

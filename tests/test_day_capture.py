@@ -158,7 +158,9 @@ def test_committed_periods_shrink_at_the_final_window():
 def test_from_env_adopts_the_envs_geometry_and_agents():
     from types import SimpleNamespace
     env = SimpleNamespace(all_agents=[_Agent("A"), _Agent("B")], T=96,
-                          roll_horizon=16)
+                          roll_horizon=16,
+                          _default_actions=lambda: {"A": {"bid_mult": 1.0},
+                                                    "B": {"bid_mult": 1.0}})
     cap = DayCapture.from_env(env)
     day = cap.finish()
     assert set(day["sched"]) == {"A", "B"}

@@ -129,7 +129,7 @@ def test_json_safe_numpy_values():
     assert _json_safe((1, "a")) == [1, "a"]
 
 
-def test_episode_log_reports_profit_alongside_the_reward(tmp_path):
+def test_episode_log_reports_profit_in_its_own_table(tmp_path):
     """A run must report the money, not only the learning signal.
 
     `mean_reward` is the differential signal the actor learns from; raw profit
@@ -137,18 +137,31 @@ def test_episode_log_reports_profit_alongside_the_reward(tmp_path):
     of. A falling actor loss with a flat raw profit is a failed run, and that is
     only visible if the profit is a column. Neither column is the paper's
     benefit, which uses a whole-day all-truthful baseline instead.
+
+    The money is a separate file because a reward is not a payoff: one table
+    holding both invites taking the signal for the money.
     """
     art = _make_artifacts(str(tmp_path))
     art.record_episode(2, 12.0, 1000.0, 50.0, None, None, "baseline",
                        raw_profit=-151.8, local_baseline_profit=-20.0,
                        profit_delta_local=-131.8)
-    row = art.metrics[-1]
+    row = art.economics[-1]
+    assert row["episode"] == 2
     assert row["raw_profit_mean"] == -151.8
     assert row["local_baseline_profit_mean"] == -20.0
     assert row["profit_delta_local_mean"] == -131.8
     # The signal is the difference of the two, recorded rather than inferred.
     assert row["profit_delta_local_mean"] == (
         row["raw_profit_mean"] - row["local_baseline_profit_mean"])
+    # And the reward table carries none of it.
+    assert "raw_profit_mean" not in art.metrics[-1]
+    assert "mean_reward" not in row
+    root = art.save()
+    with open(os.path.join(root, "economics.csv")) as f:
+        header = f.readline().strip().split(",")
+    assert header == ["episode", "raw_profit_mean",
+                      "local_baseline_profit_mean", "profit_delta_local_mean"]
+    assert RunArtifacts.load(root).economics[0]["raw_profit_mean"] == -151.8
 
 
 def test_episode_log_still_accepts_rows_without_profit_columns(tmp_path):
@@ -156,8 +169,11 @@ def test_episode_log_still_accepts_rows_without_profit_columns(tmp_path):
     art = _make_artifacts(str(tmp_path))
     art.record_episode(3, 1.0, 2.0, 3.0, None, None, "baseline")
     assert "raw_profit_mean" not in art.metrics[-1]
-    loaded = RunArtifacts.load(art.save())
+    root = art.save()
+    assert not os.path.exists(os.path.join(root, "economics.csv"))
+    loaded = RunArtifacts.load(root)
     assert loaded.metrics[0]["mean_reward"] == -480.0
+    assert loaded.economics == []
 
 
 # ---------------------------------------------------------------------------

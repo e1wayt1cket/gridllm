@@ -23,9 +23,12 @@ import torch
 
 import unified_eval as ue
 from models import MarketConfig
-from rl_spec import OBS_V4, ACTION_STORAGE_QUOTE_V2
+from rl_spec import OBS_V6, ACTION_STORAGE_QUOTE_V2
 
-SCENARIO = "typical_day_industry"
+#: The RL episode path, not the industry load. `typical_day_industry` now
+#: carries the metered load, which this feeder serves a few percent of;
+#: that is a fact about capacity, not about the environment under test.
+SCENARIO = "typical_day"
 RL_NAMES = ["ESS9", "ESS14", "ESS17", "ESS27"]
 T = 96
 N_BLOCKS = 24                      # the real horizon, not a compressed one
@@ -46,14 +49,14 @@ def _untrained_policies(tmp_path):
 
     policies = {}
     for name in RL_NAMES:
-        actor = rl_td3.Actor(OBS_V4.total_dim, ACTION_STORAGE_QUOTE_V2.dim,
+        actor = rl_td3.Actor(OBS_V6.total_dim, ACTION_STORAGE_QUOTE_V2.dim,
                              _bounds())
         path = tmp_path / f"{name}.pt"
-        rl_td3.save_policy(actor, str(path), obs_spec=OBS_V4,
+        rl_td3.save_policy(actor, str(path), obs_spec=OBS_V6,
                            action_spec=ACTION_STORAGE_QUOTE_V2)
         policies[name] = rl_td3.load_policy(
-            str(path), OBS_V4.total_dim, _bounds(),
-            obs_spec=OBS_V4, action_spec=ACTION_STORAGE_QUOTE_V2)
+            str(path), OBS_V6.total_dim, _bounds(),
+            obs_spec=OBS_V6, action_spec=ACTION_STORAGE_QUOTE_V2)
     return policies
 
 
@@ -155,6 +158,6 @@ def test_the_loaded_actors_carry_the_v4_contract(config, tmp_path):
     rl_td3.save_policy(actor, str(path), obs_spec=OBS_V3,
                        action_spec=ACTION_STORAGE_QUOTE_V2)
     with pytest.raises(ValueError, match="observation spec"):
-        rl_td3.load_policy(str(path), OBS_V4.total_dim, _bounds(),
-                           obs_spec=OBS_V4,
+        rl_td3.load_policy(str(path), OBS_V6.total_dim, _bounds(),
+                           obs_spec=OBS_V6,
                            action_spec=ACTION_STORAGE_QUOTE_V2)

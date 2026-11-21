@@ -1,0 +1,802 @@
+{
+  "label": "NON_FORMAL_DIAGNOSTIC_PILOT",
+  "generated_at": "2026-11-09T23:04:01+0800",
+  "tolerance": {
+    "abs_cny": 0.5,
+    "rel": 0.01,
+    "mean_fleet_abs_cny": 1.0
+  },
+  "frozen_prefix": "7834d0aa",
+  "seeds": {
+    "11": {
+      "validation_pairs": [
+        "2022-07-22|2025-07-15",
+        "2022-08-24|2025-08-25",
+        "2022-08-25|2025-08-26",
+        "2022-10-14|2025-10-14",
+        "2022-10-16|2025-10-11",
+        "2022-11-05|2025-11-02",
+        "2022-11-14|2025-11-14",
+        "2022-11-19|2025-11-15",
+        "2022-12-23|2025-12-24",
+        "2022-12-28|2025-12-29",
+        "2022-12-31|2025-12-28"
+      ],
+      "b1_mechanism_hash": "835d1a3a298483c491e83287844e5864de7fbbe9878478c323c82c42f6879141",
+      "checkpoints": {
+        "best_r1": {
+          "provenance": {
+            "root": "runs\\FORMAL_7834d0aa_seed11_best",
+            "step": 1272,
+            "run_id": "FORMAL_7834d0aa_seed11",
+            "manifest_sha256_16": "4332d5d2bf8d5f4a",
+            "actor_sha256_16": {
+              "ESS14.pt": "302bdf67519810d7",
+              "ESS17.pt": "f3cc58098a3d9d7b",
+              "ESS27.pt": "9242b9e43f1336d5",
+              "ESS9.pt": "137aa912dae6e9b4"
+            }
+          },
+          "round": 1,
+          "days_pass": 11,
+          "days_total": 11,
+          "replay_mean_fleet_delta": -65.6736395818625,
+          "logged_mean_fleet_delta": -65.6736395818625,
+          "mean_diff": 0.0,
+          "pass": true,
+          "days": [
+            {
+              "pair_id": "2022-07-22|2025-07-15",
+              "logged_fleet": 164.10364602383117,
+              "replay_fleet": 164.10364602383117,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-24|2025-08-25",
+              "logged_fleet": 0.0004078981380108133,
+              "replay_fleet": 0.0004078981380108133,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-25|2025-08-26",
+              "logged_fleet": 0.00046262758253048724,
+              "replay_fleet": 0.00046262758253048724,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-14|2025-10-14",
+              "logged_fleet": 0.0007080725041643226,
+              "replay_fleet": 0.0007080725041643226,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-16|2025-10-11",
+              "logged_fleet": 0.0007636439473344735,
+              "replay_fleet": 0.0007636439473344735,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-05|2025-11-02",
+              "logged_fleet": -59.4358920767819,
+              "replay_fleet": -59.4358920767819,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-14|2025-11-14",
+              "logged_fleet": -34.239156482896234,
+              "replay_fleet": -34.239156482896234,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-19|2025-11-15",
+              "logged_fleet": -58.184531422272684,
+              "replay_fleet": -58.184531422272684,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-23|2025-12-24",
+              "logged_fleet": -373.8075847466892,
+              "replay_fleet": -373.8075847466892,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-28|2025-12-29",
+              "logged_fleet": 6.898735905395746,
+              "replay_fleet": 6.898735905395746,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-31|2025-12-28",
+              "logged_fleet": -367.7475948432465,
+              "replay_fleet": -367.7475948432465,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            }
+          ]
+        },
+        "final_r10": {
+          "provenance": {
+            "root": "runs\\FORMAL_7834d0aa_seed11",
+            "step": 12720,
+            "run_id": "FORMAL_7834d0aa_seed11",
+            "manifest_sha256_16": "352a13e5d09a878f",
+            "actor_sha256_16": {
+              "ESS14.pt": "afbbe586d206d6ac",
+              "ESS17.pt": "f2f3a0c1611e3f95",
+              "ESS27.pt": "33620a2da5313610",
+              "ESS9.pt": "4385a8ba3b0b78d2"
+            }
+          },
+          "round": 10,
+          "days_pass": 11,
+          "days_total": 11,
+          "replay_mean_fleet_delta": -116.9083879404228,
+          "logged_mean_fleet_delta": -116.9083879404228,
+          "mean_diff": 0.0,
+          "pass": true,
+          "days": [
+            {
+              "pair_id": "2022-07-22|2025-07-15",
+              "logged_fleet": 164.1034622385201,
+              "replay_fleet": 164.1034622385201,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-24|2025-08-25",
+              "logged_fleet": 0.000495573582734006,
+              "replay_fleet": 0.000495573582734006,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-25|2025-08-26",
+              "logged_fleet": 0.0004486489148151879,
+              "replay_fleet": 0.0004486489148151879,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-14|2025-10-14",
+              "logged_fleet": 0.000681055516328593,
+              "replay_fleet": 0.000681055516328593,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-16|2025-10-11",
+              "logged_fleet": 0.0007049339313731762,
+              "replay_fleet": 0.0007049339313731762,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-05|2025-11-02",
+              "logged_fleet": -106.19853899718639,
+              "replay_fleet": -106.19853899718639,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-14|2025-11-14",
+              "logged_fleet": -65.65217951876522,
+              "replay_fleet": -65.65217951876522,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-19|2025-11-15",
+              "logged_fleet": -92.54237453216307,
+              "replay_fleet": -92.54237453216307,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-23|2025-12-24",
+              "logged_fleet": -448.5308311202327,
+              "replay_fleet": -448.5308311202327,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-28|2025-12-29",
+              "logged_fleet": -112.04222723198842,
+              "replay_fleet": -112.04222723198842,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-31|2025-12-28",
+              "logged_fleet": -625.1319083947802,
+              "replay_fleet": -625.1319083947802,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            }
+          ]
+        }
+      }
+    },
+    "23": {
+      "validation_pairs": [
+        "2022-07-22|2025-07-15",
+        "2022-08-24|2025-08-25",
+        "2022-08-25|2025-08-26",
+        "2022-10-14|2025-10-14",
+        "2022-10-16|2025-10-11",
+        "2022-11-05|2025-11-02",
+        "2022-11-14|2025-11-14",
+        "2022-11-19|2025-11-15",
+        "2022-12-23|2025-12-24",
+        "2022-12-28|2025-12-29",
+        "2022-12-31|2025-12-28"
+      ],
+      "b1_mechanism_hash": "835d1a3a298483c491e83287844e5864de7fbbe9878478c323c82c42f6879141",
+      "checkpoints": {
+        "best_r1": {
+          "provenance": {
+            "root": "runs\\FORMAL_7834d0aa_seed23_best",
+            "step": 1272,
+            "run_id": "FORMAL_7834d0aa_seed23",
+            "manifest_sha256_16": "41066f5c70bcdf49",
+            "actor_sha256_16": {
+              "ESS14.pt": "e9f9dd51401bb3ca",
+              "ESS17.pt": "731a9904220fafec",
+              "ESS27.pt": "5d3993590b04b9f3",
+              "ESS9.pt": "18ea5551ceac6cac"
+            }
+          },
+          "round": 1,
+          "days_pass": 11,
+          "days_total": 11,
+          "replay_mean_fleet_delta": -61.12749896326624,
+          "logged_mean_fleet_delta": -61.12749896326624,
+          "mean_diff": 0.0,
+          "pass": true,
+          "days": [
+            {
+              "pair_id": "2022-07-22|2025-07-15",
+              "logged_fleet": 164.1033493710713,
+              "replay_fleet": 164.1033493710713,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-24|2025-08-25",
+              "logged_fleet": 0.0005239262643755157,
+              "replay_fleet": 0.0005239262643755157,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-25|2025-08-26",
+              "logged_fleet": 0.0004037445955788599,
+              "replay_fleet": 0.0004037445955788599,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-14|2025-10-14",
+              "logged_fleet": 0.0006598959392598717,
+              "replay_fleet": 0.0006598959392598717,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-16|2025-10-11",
+              "logged_fleet": 0.0007358284858698883,
+              "replay_fleet": 0.0007358284858698883,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-05|2025-11-02",
+              "logged_fleet": -71.13160351330728,
+              "replay_fleet": -71.13160351330728,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-14|2025-11-14",
+              "logged_fleet": -98.70287416614609,
+              "replay_fleet": -98.70287416614609,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-19|2025-11-15",
+              "logged_fleet": -69.84157566481183,
+              "replay_fleet": -69.84157566481183,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-23|2025-12-24",
+              "logged_fleet": -357.47859270735466,
+              "replay_fleet": -357.47859270735466,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-28|2025-12-29",
+              "logged_fleet": 8.49996155886231,
+              "replay_fleet": 8.49996155886231,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-31|2025-12-28",
+              "logged_fleet": -247.85347686952744,
+              "replay_fleet": -247.85347686952744,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            }
+          ]
+        },
+        "final_r10": {
+          "provenance": {
+            "root": "runs\\FORMAL_7834d0aa_seed23",
+            "step": 12720,
+            "run_id": "FORMAL_7834d0aa_seed23",
+            "manifest_sha256_16": "470602b98554ac5c",
+            "actor_sha256_16": {
+              "ESS14.pt": "12dadaab6a0e408e",
+              "ESS17.pt": "d36ecad2902aaf81",
+              "ESS27.pt": "2bab815d71e8c399",
+              "ESS9.pt": "2194f4d0729568f2"
+            }
+          },
+          "round": 10,
+          "days_pass": 11,
+          "days_total": 11,
+          "replay_mean_fleet_delta": -115.64767652833056,
+          "logged_mean_fleet_delta": -115.64767652833056,
+          "mean_diff": 0.0,
+          "pass": true,
+          "days": [
+            {
+              "pair_id": "2022-07-22|2025-07-15",
+              "logged_fleet": 164.10322674761153,
+              "replay_fleet": 164.10322674761153,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-24|2025-08-25",
+              "logged_fleet": 0.00041930545385191896,
+              "replay_fleet": 0.00041930545385191896,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-08-25|2025-08-26",
+              "logged_fleet": 0.0004506614152706493,
+              "replay_fleet": 0.0004506614152706493,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-14|2025-10-14",
+              "logged_fleet": 0.0006398763154476081,
+              "replay_fleet": 0.0006398763154476081,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-10-16|2025-10-11",
+              "logged_fleet": 0.0007450438307192624,
+              "replay_fleet": 0.0007450438307192624,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-05|2025-11-02",
+              "logged_fleet": -59.680749434170494,
+              "replay_fleet": -59.680749434170494,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-14|2025-11-14",
+              "logged_fleet": -37.7398959295418,
+              "replay_fleet": -37.7398959295418,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-11-19|2025-11-15",
+              "logged_fleet": -48.90380896372615,
+              "replay_fleet": -48.90380896372615,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-23|2025-12-24",
+              "logged_fleet": -455.8266013956672,
+              "replay_fleet": -455.8266013956672,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-28|2025-12-29",
+              "logged_fleet": -88.82589739923313,
+              "replay_fleet": -88.82589739923313,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            },
+            {
+              "pair_id": "2022-12-31|2025-12-28",
+              "logged_fleet": -745.2529703239242,
+              "replay_fleet": -745.2529703239242,
+              "fleet_diff": 0.0,
+              "fleet_pass": true,
+              "unit_diffs": {
+                "ESS9": 0.0,
+                "ESS14": 0.0,
+                "ESS17": 0.0,
+                "ESS27": 0.0
+              },
+              "unit_pass": true,
+              "pass": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "runtime_s": 536.0,
+  "verdict": "PASS"
+}

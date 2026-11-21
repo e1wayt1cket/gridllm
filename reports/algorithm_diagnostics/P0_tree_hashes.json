@@ -1,0 +1,47 @@
+{
+  "before": {
+    "runs\\FORMAL_1b47e0ed_seed11": "16e47b919e9571d916689e6ae26490e8addd7ab98635136a49642b5ffbe47592",
+    "runs\\FORMAL_1b47e0ed_seed23": "06fd4e606f4ef43b9c3f457dee3312c2c71a5eb433596bc1c6e0a48dcae3f104",
+    "runs\\FORMAL_1b47e0ed_seed37": "9d90b6a68dab369f60a1d3fe1c36ca81798a20ffdd09ccaf26335cf4b3807230",
+    "runs\\FORMAL_1b47e0ed_seed11_best": "2373f78ca8472beccc9eb9bcbcf72ea2d3ce3b1e183b7cbf63b62de9481bd2dc",
+    "runs\\FORMAL_1b47e0ed_seed23_best": "ba1ec16ec11bf86cbc685267da4fc72fbc7eb3c30b297089e89a3fd5d1e95716",
+    "runs\\FORMAL_1b47e0ed_seed37_best": "88533f2a2b7f3a50b60cedce31257ff3f79b0308682e64e68f08f4fa2d955352",
+    "snapshots\\FORMAL_1b47e0ed_seed11": "8a81031da439169ff294d3b4fb103ec623bf6a3d1779a77d8a5b16794246b821",
+    "snapshots\\FORMAL_1b47e0ed_seed23": "5aed0aa634fd1e3f532d018a29a7002070389b2b7a9fe12536cfa192ff86170f",
+    "snapshots\\FORMAL_1b47e0ed_seed37": "dc658ebc84aefbdbb0371da329cfa5c41fa03ead3bbc6b7dfdc812734e768a72",
+    "runs\\FORMAL_2148a577_seed53": "92490fe33a7eedcd2e20b58af5ae6ebc741da2854eccfd0d29e211df0eb34893",
+    "reports\\v2_cy_jn_2025\\formal_training_v3": "071f054fce78d5ba4da1fdbf8687e3e075664b34a83f7eb89599f318338f975f",
+    "reports\\v2_cy_jn_2025\\formal_training_v2": "23902d311bcc703a9d310259699b285b148244b33362cbced8f8b5e50b83da65",
+    "reports\\v2_cy_jn_2025\\formal_training_ready": "02238330d05c399b60e1d527efcd1f39a8705e38852d4f149e77cc2c752d5204"
+  },
+  "after": {
+    "runs\\FORMAL_1b47e0ed_seed11": "16e47b919e9571d916689e6ae26490e8addd7ab98635136a49642b5ffbe47592",
+    "runs\\FORMAL_1b47e0ed_seed23": "06fd4e606f4ef43b9c3f457dee3312c2c71a5eb433596bc1c6e0a48dcae3f104",
+    "runs\\FORMAL_1b47e0ed_seed37": "9d90b6a68dab369f60a1d3fe1c36ca81798a20ffdd09ccaf26335cf4b3807230",
+    "runs\\FORMAL_1b47e0ed_seed11_best": "2373f78ca8472beccc9eb9bcbcf72ea2d3ce3b1e183b7cbf63b62de9481bd2dc",
+    "runs\\FORMAL_1b47e0ed_seed23_best": "ba1ec16ec11bf86cbc685267da4fc72fbc7eb3c30b297089e89a3fd5d1e95716",
+    "runs\\FORMAL_1b47e0ed_seed37_best": "88533f2a2b7f3a50b60cedce31257ff3f79b0308682e64e68f08f4fa2d955352",
+    "snapshots\\FORMAL_1b47e0ed_seed11": "8a81031da439169ff294d3b4fb103ec623bf6a3d1779a77d8a5b16794246b821",
+    "snapshots\\FORMAL_1b47e0ed_seed23": "5aed0aa634fd1e3f532d018a29a7002070389b2b7a9fe12536cfa192ff86170f",
+    "snapshots\\FORMAL_1b47e0ed_seed37": "dc658ebc84aefbdbb0371da329cfa5c41fa03ead3bbc6b7dfdc812734e768a72",
+    "runs\\FORMAL_2148a577_seed53": "92490fe33a7eedcd2e20b58af5ae6ebc741da2854eccfd0d29e211df0eb34893",
+    "reports\\v2_cy_jn_2025\\formal_training_v3": "071f054fce78d5ba4da1fdbf8687e3e075664b34a83f7eb89599f318338f975f",
+    "reports\\v2_cy_jn_2025\\formal_training_v2": "23902d311bcc703a9d310259699b285b148244b33362cbced8f8b5e50b83da65",
+    "reports\\v2_cy_jn_2025\\formal_training_ready": "02238330d05c399b60e1d527efcd1f39a8705e38852d4f149e77cc2c752d5204"
+  },
+  "unchanged": {
+    "runs\\FORMAL_1b47e0ed_seed11": true,
+    "runs\\FORMAL_1b47e0ed_seed23": true,
+    "runs\\FORMAL_1b47e0ed_seed37": true,
+    "runs\\FORMAL_1b47e0ed_seed11_best": true,
+    "runs\\FORMAL_1b47e0ed_seed23_best": true,
+    "runs\\FORMAL_1b47e0ed_seed37_best": true,
+    "snapshots\\FORMAL_1b47e0ed_seed11": true,
+    "snapshots\\FORMAL_1b47e0ed_seed23": true,
+    "snapshots\\FORMAL_1b47e0ed_seed37": true,
+    "runs\\FORMAL_2148a577_seed53": true,
+    "reports\\v2_cy_jn_2025\\formal_training_v3": true,
+    "reports\\v2_cy_jn_2025\\formal_training_v2": true,
+    "reports\\v2_cy_jn_2025\\formal_training_ready": true
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "run_id": "FORMAL_1b47e0ed_seed23",
+  "seed": 23,
+  "run_dir": "runs\\FORMAL_1b47e0ed_seed23",
+  "status": "completed_early_stop",
+  "rounds": 10,
+  "episodes": 530,
+  "block_steps": 12720,
+  "updates": 12593,
+  "minimum_rounds": 10,
+  "budget_episodes": [
+    530,
+    795
+  ],
+  "budget_block_steps": [
+    12720,
+    19080
+  ],
+  "best_round": 4,
+  "best_value": -24.47916088237329,
+  "checks": [
+    {
+      "check": "run_terminated_cleanly",
+      "verdict": "PASS",
+      "detail": "status='completed_early_stop' error='None'",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "min_rounds_recorded",
+      "verdict": "PASS",
+      "detail": "run manifest min_rounds=10",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "rounds_at_least_minimum",
+      "verdict": "PASS",
+      "detail": "rounds=10 minimum=10",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "rounds_at_most_maximum",
+      "verdict": "PASS",
+      "detail": "rounds=10 maximum=15",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "episodes_in_budget",
+      "verdict": "PASS",
+      "detail": "episodes=530 range=[530, 795]",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "block_steps_in_budget",
+      "verdict": "PASS",
+      "detail": "block_steps=12720 range=[12720, 19080]",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "early_stop_not_before_minimum",
+      "verdict": "PASS",
+      "detail": "early stop round=10 minimum=10",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "best_checkpoint_exists",
+      "verdict": "PASS",
+      "detail": "best=C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\FORMAL_1b47e0ed_seed23_best\\checkpoints\\step_00005088",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "final_checkpoint_exists",
+      "verdict": "PASS",
+      "detail": "final=C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\FORMAL_1b47e0ed_seed23\\checkpoints\\step_00012720",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "best_is_not_final",
+      "verdict": "PASS",
+      "detail": "best=C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\FORMAL_1b47e0ed_seed23_best\\checkpoints\\step_00005088 final=C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\FORMAL_1b47e0ed_seed23\\checkpoints\\step_00012720",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "artifact_hashes_match",
+      "verdict": "PASS",
+      "detail": "mismatched=[]",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "train_log_hash_matches",
+      "verdict": "INFERRED",
+      "detail": "train.log was hashed before the completion line was appended; see TECHNICAL_DEBT.md",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "test_not_evaluated",
+      "verdict": "PASS",
+      "detail": "test_evaluation=None",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "legacy_test_not_run",
+      "verdict": "PASS",
+      "detail": "legacy_seen_test_run=False",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "h2_not_read",
+      "verdict": "PASS",
+      "detail": "h2_holdout_read=False",
+      "evidence": "run_manifest.json"
+    },
+    {
+      "check": "no_voltage_or_line_violation",
+      "verdict": "PASS",
+      "detail": "voltage=0 line=0",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "no_lmp_fallbacks",
+      "verdict": "PASS",
+      "detail": "lmp_fallbacks=0",
+      "evidence": "eval_history.json"
+    },
+    {
+      "check": "terminal_soc_exact",
+      "verdict": "PASS",
+      "detail": "terminal_soc_max_err=0.0",
+      "evidence": "eval_history.json"
+    }
+  ],
+  "verdict": "PASS_WITH_NOT_TESTED"
+}

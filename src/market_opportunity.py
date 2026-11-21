@@ -81,15 +81,14 @@ from counterfactual_eval import summarize
 # ---------------------------------------------------------------------------
 
 #: Ensemble size when the caller does not say. Large enough that the share of
-#: days clearing the bar is not dominated by one day, small enough that the
-#: whole audit is a few minutes of clearing.
-ENSEMBLE_SIZE = 40
+#: How many days an audit ensemble has is **not** declared here. It is the
+#: caller's, and the caller is whoever knows which real days exist: a size in
+#: this module is a size the data is then measured against, and it outlives
+#: whatever it was written for.
 
-#: Seed for the day specs. Fixes which days the ensemble contains, not how any
-#: of them clears.
-MASTER_SEED = 20260919
-
-#: train / validation / test shares. Declared here so the deal is reproducible.
+#: train / validation / test shares. Proportions, not a day count: the sizes
+#: they produce depend on how many days the caller supplies, which is the only
+#: way a split can describe data whose length is not known here.
 SPLIT_FRACTIONS: Tuple[float, float, float] = (0.5, 0.25, 0.25)
 SPLIT_NAMES: Tuple[str, str, str] = ("train", "validation", "test")
 
@@ -130,7 +129,9 @@ REPORT_COLUMNS: Tuple[str, ...] = (
     "efficiency_loss_cny_mwh", "degradation_cost_cny_mwh",
     "degradation_adjusted_spread_cny_mwh",
     "charge_mwh", "discharge_mwh", "equivalent_cycles",
-    "arbitrage_margin_cny", "tradeable_box_share", "siting_eligible", "clean",
+    "arbitrage_margin_cny", "physical_margin_cny_mwh", "tradeable_box_share",
+    "siting_eligible", "action_space_available", "clean",
+    "lmp_price_source", "lmp_fallback_periods",
 )
 
 #: The load shapes the ensemble draws from. Named variants rather than sampled
@@ -295,6 +296,11 @@ class EnsembleDay:
     bus_indices: List[int] = field(default_factory=list)
     price_source: str = ""
     lmp_fallbacks: int = 0
+    #: Which periods are not nodal, and why -- the count alone says how much of
+    #: the day is off the measured curve but not which part of it.
+    lmp_fallback_periods: List[int] = field(default_factory=list)
+    lmp_fallback_reason: str = ""
+    lmp_price_source: str = "nodal"
     shed_mwh: float = 0.0
     clean: bool = False
     notes: List[str] = field(default_factory=list)
@@ -306,7 +312,7 @@ class EnsembleDay:
         return self.spec.day
 
 
-def ensemble_specs(n: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
+def ensemble_specs(n: int, seed: int,
                    shape_names: Optional[Sequence[str]] = None
                    ) -> List[DaySpec]:
     """The declared day ensemble: named shapes crossed with drawn realizations.
@@ -316,7 +322,9 @@ def ensemble_specs(n: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
     which days exist is reproducible while no single lever is hand-picked.
     """
     shapes = list(shape_names or SHAPE_NAMES)
-    external_days = int(get_default("wholesale_market.number_of_days", 1) or 1)
+    # The ensemble index is the day id: there is no separate library whose
+    # length this would have to be taken modulo.
+    external_days = int(n)
     rng = np.random.RandomState(int(seed))
     specs = []
     for i in range(int(n)):
@@ -341,15 +349,18 @@ def ensemble_specs(n: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
     return specs
 
 
-def sweep_specs(lever: str, values: Sequence[object], base: Optional[DaySpec] = None
+def sweep_specs(lever: str, values: Sequence[object], base: DaySpec
                 ) -> List[DaySpec]:
     """One day per value of one lever, everything else held identical.
 
     The ensemble's job is to answer whether *days* differ. This asks the
     complementary question: whether a named lever does anything on its own,
     which is how a lever that turns out to be inert gets noticed.
+
+    The base day is supplied rather than defaulted: a sweep is a comparison
+    against one day, and a day built from a size this module no longer knows is
+    not a fixed point to sweep from.
     """
-    base = base or ensemble_specs(1)[0]
     fields = {
         "pv_cloud_seed": "pv_cloud_seed", "wind_seed": "wind_seed",
         "price_seed": "price_seed", "load_fcast_seed": "load_fcast_seed",
@@ -591,12 +602,19 @@ def clear_day(spec: DaySpec, with_fleet: bool = False,
 
     shed = sum(float(np.sum(result["schedules"][a.name]["unserved"]))
                for a in agents) * money.DT_HOURS
-    fallbacks = int(result.get("lmp_fallbacks", 0))
     return {
         "lmp": np.asarray(result["lmp"], dtype=float),
         "bus_indices": [int(b) for b in result["bus_indices"]],
         "wholesale": np.asarray(wholesale, dtype=float),
-        "lmp_fallbacks": fallbacks,
+        # The clearing's own account of which periods are not nodal, carried
+        # through unchanged rather than reduced to a count.
+        "lmp_fallbacks": int(result.get("lmp_fallbacks", 0)),
+        "lmp_fallback_periods": [int(t) for t in
+                                 result.get("lmp_fallback_periods", ())],
+        "lmp_fallback_reason": str(result.get("lmp_fallback_reason", "")),
+        "lmp_price_source": str(result.get("lmp_price_source", "nodal")),
+        "has_wholesale_fallback": bool(
+            result.get("has_wholesale_fallback", False)),
         "shed_mwh": shed,
         "curtailment_mwh": float(result.get("total_curtailment", 0.0)),
         "agents": agents,
@@ -611,7 +629,8 @@ def clear_day(spec: DaySpec, with_fleet: bool = False,
 def bus_day_metrics(lmp_node: np.ndarray, unit: UnitSpec, cycle_cost: float,
                     day: int, bus: int, dt: float = money.DT_HOURS,
                     partition: str = "", stratum: str = "",
-                    clean: bool = True) -> dict:
+                    clean: bool = True, lmp_price_source: str = "nodal",
+                    lmp_fallback_periods: Sequence[int] = ()) -> dict:
     """Every quantity the audit reports for one bus on one day.
 
     The spread is quoted on the periods the LP chose to run in, and the day's
@@ -629,8 +648,16 @@ def bus_day_metrics(lmp_node: np.ndarray, unit: UnitSpec, cycle_cost: float,
     # policy has a strategy space rather than merely a positive profit: a
     # margin that clears zero but leaves 6% of the box tradeable gives a
     # learning run almost nothing to choose between.
-    share = (tradeable_box_share(res.adjusted_spread_cny_mwh, action_box())
-             if np.isfinite(res.adjusted_spread_cny_mwh) else 0.0)
+    # Two different questions, kept apart. Whether a unit can cycle profitably
+    # at all is physics: the spread over the degradation floor, which IS
+    # `margin - required_margin` and has no quote box in it. Whether a *policy*
+    # has room to choose is the action space, which is a property of the box.
+    # Siting on the second made a bus's eligibility move when the box moved --
+    # a statement about the action encoding, not about the bus.
+    finite = bool(np.isfinite(res.adjusted_spread_cny_mwh))
+    physical_margin = (float(res.adjusted_spread_cny_mwh) if finite
+                       else float("-inf"))
+    share = tradeable_box_share(physical_margin, action_box()) if finite else 0.0
     row = {
         "day": int(day),
         "bus": int(bus),
@@ -652,9 +679,16 @@ def bus_day_metrics(lmp_node: np.ndarray, unit: UnitSpec, cycle_cost: float,
         "discharge_mwh": res.dischargeable_energy_mwh,
         "equivalent_cycles": res.equivalent_cycles,
         "arbitrage_margin_cny": res.margin_cny,
+        "physical_margin_cny_mwh": physical_margin,
         "tradeable_box_share": share,
-        "siting_eligible": bool(share >= TRADEABLE_BOX_SHARE),
+        "siting_eligible": bool(physical_margin > 0.0),
+        "action_space_available": bool(share >= TRADEABLE_BOX_SHARE),
         "clean": bool(clean),
+        # Whether this bus's column of `lmp` is that day's market everywhere.
+        # A row whose prices are partly the wholesale curve is not a nodal
+        # price series, and every margin on it inherits that.
+        "lmp_price_source": lmp_price_source,
+        "lmp_fallback_periods": list(lmp_fallback_periods),
     }
     return row
 
@@ -682,7 +716,9 @@ def day_records(day: EnsembleDay, buses: Optional[Sequence[int]] = None,
         rows.append(bus_day_metrics(
             day.lmp[:, index[bus]], unit_cache[bus], cycle_cost,
             day=day.day, bus=bus, partition=day.partition,
-            stratum=day.label.stratum, clean=day.clean))
+            stratum=day.label.stratum, clean=day.clean,
+            lmp_price_source=day.lmp_price_source,
+            lmp_fallback_periods=day.lmp_fallback_periods))
     return rows
 
 
@@ -1254,7 +1290,7 @@ def load_price_series(path: str, T: int = money.PERIODS_PER_DAY,
             for d in range(n_days)]
 
 
-def series_specs(path: str, T: int = money.PERIODS_PER_DAY,
+def series_specs(path: str, seed: int, T: int = money.PERIODS_PER_DAY,
                  column: Optional[str] = None,
                  resample: Optional[str] = None) -> List[DaySpec]:
     """One spec per day of an external series, carrying its own prices.
@@ -1263,7 +1299,7 @@ def series_specs(path: str, T: int = money.PERIODS_PER_DAY,
     series is a *price* input, and varying the physics underneath it would make
     the two sources incomparable.
     """
-    base = ensemble_specs(1)[0]
+    base = ensemble_specs(1, seed)[0]
     specs = []
     for i, (label, price) in enumerate(load_price_series(path, T, column, resample)):
         specs.append(replace(base, day=i, source="series",
@@ -1275,7 +1311,7 @@ def series_specs(path: str, T: int = money.PERIODS_PER_DAY,
 # Report assembly
 # ---------------------------------------------------------------------------
 
-def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
+def build_report(days: int, seed: int,
                  source: str = "synthetic", partition: str = "test",
                  buses: Optional[Sequence[int]] = None,
                  with_fleet: bool = False, fleet_footprint_day: Optional[int] = 0,
@@ -1292,6 +1328,14 @@ def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
     only be joined to a partition that already exists.
     """
     frozen_before = {k: get_default(k) for k in FROZEN_KEYS}
+    # Imported here rather than at module scope for the same reason the price
+    # layer is imported lazily below: it pulls a native library in, and this
+    # module is loaded on paths that never price a day.
+    from wholesale_price import reset_cache as reset_price_cache
+    # A previous run in this process -- one that raised, so its own restore
+    # never ran -- may have left a provider built under its levers. Dropping the
+    # cache here means this audit cannot be priced by it.
+    reset_price_cache()
     report: dict = {
         "source": source,
         "declared": {
@@ -1307,7 +1351,8 @@ def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
     if source == "series":
         if not series_path:
             raise ValueError("--source series needs --series")
-        specs = series_specs(series_path, T, series_column, series_resample)
+        specs = series_specs(series_path, seed, T, series_column,
+                             series_resample)
     else:
         specs = ensemble_specs(days, seed)
 
@@ -1335,6 +1380,9 @@ def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
             d.bus_indices = list(range(33))
             d.price_source = "external_series_uniform"
             d.lmp_fallbacks = 0
+            d.lmp_fallback_periods = []
+            d.lmp_fallback_reason = ""
+            d.lmp_price_source = "external_series_uniform"
             d.shed_mwh = 0.0
             d.clean = True
             d.notes.append("system price mapped uniformly onto every bus; "
@@ -1345,6 +1393,9 @@ def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
             d.bus_indices = cleared["bus_indices"]
             d.price_source = "socp_fleet_absent"
             d.lmp_fallbacks = cleared["lmp_fallbacks"]
+            d.lmp_fallback_periods = cleared["lmp_fallback_periods"]
+            d.lmp_fallback_reason = cleared["lmp_fallback_reason"]
+            d.lmp_price_source = cleared["lmp_price_source"]
             d.shed_mwh = cleared["shed_mwh"]
             d.notes.append(f"curtailment {cleared['curtailment_mwh']:.4f} MWh")
             d.clean = bool(cleared["lmp_fallbacks"] == 0
@@ -1353,6 +1404,11 @@ def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
                 d.notes.append(
                     f"dropped: fallbacks {cleared['lmp_fallbacks']}, "
                     f"shed {cleared['shed_mwh']:.4f} MWh")
+            if cleared["lmp_fallback_periods"]:
+                d.notes.append(
+                    f"price field is {cleared['lmp_price_source']} over "
+                    f"{len(cleared['lmp_fallback_periods'])} periods: "
+                    f"{cleared['lmp_fallback_reason']}")
             if with_fleet:
                 fc = clear_day(d.spec, with_fleet=True, T=T)
                 d.lmp_with_fleet = fc["lmp"]
@@ -1408,6 +1464,8 @@ def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
                      "price_source": d.price_source, "clean": d.clean,
                      "shed_mwh": d.shed_mwh,
                      "lmp_fallbacks": d.lmp_fallbacks,
+                     "lmp_fallback_periods": list(d.lmp_fallback_periods),
+                     "lmp_fallback_reason": d.lmp_fallback_reason,
                      "notes": list(d.notes), **d.physics} for d in ensemble],
     }
 
@@ -1457,6 +1515,10 @@ def build_report(days: int = ENSEMBLE_SIZE, seed: int = MASTER_SEED,
     # the audit leaves the caches holding what is on disk.
     reload_defaults()
     reload_scenarios()
+    # The providers are cached by the levers they were built under, so restoring
+    # the config is not enough on its own: a provider built while this audit had
+    # its levers set would go on pricing the next run in this process.
+    reset_price_cache()
     assert {k: get_default(k) for k in FROZEN_KEYS} == frozen_before, \
         "the audit must not leave a price or degradation constant changed"
     return report
@@ -1565,8 +1627,11 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--source", default="synthetic",
                         choices=("synthetic", "series"))
-    parser.add_argument("--days", type=int, default=ENSEMBLE_SIZE)
-    parser.add_argument("--ensemble-seed", type=int, default=MASTER_SEED)
+    parser.add_argument("--days", type=int, required=True,
+                        help="how many days the ensemble has; no default, "
+                             "because the length belongs to the data")
+    parser.add_argument("--ensemble-seed", type=int, required=True,
+                        help="fixes which days the ensemble contains")
     parser.add_argument("--partition", default="test", choices=list(SPLIT_NAMES))
     parser.add_argument("--buses", default=None,
                         help="comma-separated bus numbers; default all")

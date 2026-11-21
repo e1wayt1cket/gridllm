@@ -4,6 +4,7 @@
 import numpy as np
 from typing import List, Optional
 
+from agent_seed import seed_for_agent
 from models import Agent, MarketConfig
 from rl_spec import action_spec_for
 from strategies import BiddingStrategy, register_strategy
@@ -32,7 +33,7 @@ class RandomStrategy(BiddingStrategy):
     ) -> dict:
         actions = {}
         for a in agents:
-            rng = np.random.RandomState(hash(a.name) % (2**31))
+            rng = np.random.RandomState(seed_for_agent(a.name))
             spec = action_spec_for(a)
             actions[a.name] = {}
             for name in spec.action_names:

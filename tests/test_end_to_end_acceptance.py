@@ -129,11 +129,24 @@ def test_the_curve_reaches_the_fleet_as_a_ruled_single_day(report):
 # 3. Load
 # ---------------------------------------------------------------------------
 
-def test_the_coincident_peak_is_the_networks_own_demand(report):
+def test_the_coincident_peak_is_the_ledgers_and_the_load_is_whole(report):
+    """The peak is the metered one, and it is not the benchmark's 3.715 MW.
+
+    This asserted the benchmark's own demand while the scenario drew its load
+    from a per-bus *shape* at the native scale. It now carries the node-load
+    ledger's absolute MW, so the peak is the metered aggregate -- roughly two
+    orders above what this feeder is rated for, which is the finding the
+    acceptance run exists to report.
+    """
     lc = report["load_check"]
-    assert lc["coincident_peak_mw"] == pytest.approx(3.715, abs=1e-6)
-    assert lc["absolute_error_mw"] < 1e-6
+    assert lc["coincident_peak_mw"] > 100.0
+    assert lc["coincident_peak_mw"] != pytest.approx(3.715, abs=1e-6)
+    # `absolute_error_mw` is the gap between the fleet's total and the scale the
+    # scenario declares. A ledger-backed day declares no target, so that gap is
+    # not a check here -- what is checked is that the load is whole.
     assert lc["all_finite"] and lc["all_non_negative"]
+    assert lc["daily_energy_mwh"] > 0.0
+    assert lc["uses_pv_industry_as_load"] is False
 
 
 def test_the_mapping_is_declared_a_simulation_and_uses_no_generator(report):
@@ -183,16 +196,24 @@ def test_the_grid_never_imports_and_exports_at_once(report):
     assert g["import_mwh"] > 0
 
 
-def test_the_day_ahead_market_serves_its_own_basis_in_full(report):
-    """Served covers the forecast; the realized load is a different number."""
+def test_the_day_ahead_market_reports_what_it_could_not_serve(report):
+    """The acceptance reports the shed rather than asserting there is none.
+
+    This asserted `unserved_mwh < 1e-6` while the scenario was the benchmark's
+    own demand at the native scale. On the metered load the feeder cannot carry
+    the day, and the honest assertion is that the run *says so* -- a test that
+    insisted on zero would either fail forever or force the load to be scaled.
+    """
     e = report["physics"]["energy"]
     assert e["da_basis"] == "load_forecast"
-    assert e["served_covers_forecast"] is True
-    assert e["unserved_mwh"] < 1e-6
-    # The realized load is larger, and that gap is forecast error, not shed
-    # load -- the acceptance must not present it as a constraint violation.
-    assert e["realized_mwh"] > e["forecast_mwh"]
-    assert e["forecast_error_pct"] > 0
+    # A ledger supplies the metered day for *both* sides, so there is no
+    # forecast error on this scenario -- by construction, not by accident.
+    assert e["realized_mwh"] == pytest.approx(e["forecast_mwh"])
+    assert e["forecast_error_pct"] == pytest.approx(0.0)
+    # What the run does report is the load it could not deliver. The feeder is
+    # held by its voltage and thermal limits, so the market sheds most of it.
+    assert e["unserved_mwh"] > 1.0
+    assert e["served_covers_forecast"] is False
 
 
 def test_storage_stays_inside_its_own_limits(report):
@@ -601,6 +622,43 @@ def test_a_rolling_window_reports_no_terminal_target(tmp_path):
     reload_defaults()
     wp.reset_cache()
     ce.reset_baseline_cache()
+
+
+def test_a_96_period_window_is_not_the_same_statement_as_a_96_period_day(moving_day):
+    """Same length, same agents, same day -- and the horizon still decides.
+
+    This is the pair the period count used to be unable to tell apart: at 96
+    periods the old inference pinned a rolling window and would not have pinned
+    a day cleared at any other length. With the horizon stated, the two clears
+    differ on exactly the field that says which one they were.
+    """
+    import counterfactual_eval as ce
+    import wholesale_price as wp
+    from config_loader import reload_defaults
+    from market import clear_market
+    from models import MarketConfig
+    from scenarios import get_scenario
+    from strategies.fixed_bidding import FixedStrategy
+
+    reload_defaults()
+    wp.reset_cache()
+    config = MarketConfig.from_yaml()
+    agents, wholesale = get_scenario("typical_day", T=96, config=config)
+    names = moving_day["names"]
+    declared = FixedStrategy().formulate(agents, config, None, 96)
+    try:
+        windowed = clear_market(agents, 96, "DA",
+                                {nm: declared[nm] for nm in names}, config,
+                                wholesale=wholesale, horizon_type="window")
+        assert windowed is not None
+        for nm in names:
+            assert windowed["schedules"][nm]["soc_terminal_target"] is None, nm
+            assert moving_day["result"]["schedules"][nm]["soc_terminal_target"] \
+                is not None, nm
+    finally:
+        reload_defaults()
+        wp.reset_cache()
+        ce.reset_baseline_cache()
 
 
 def test_lindistflow_carries_the_same_schema():

@@ -1,0 +1,1750 @@
+{
+  "sample": [
+    {
+      "bracket_all": false,
+      "date": "2022-09-26",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 8.40269603941124e-06,
+      "objective_tolerance_cny": 0.012102867028870437,
+      "price_date": "2025-09-30",
+      "price_qualification": "NONSMOOTH_OR_FAILED",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 12,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 100.00000003512524,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 100.10926613176707,
+          "period": 47,
+          "right_cny_mwh": 100.20385787356645,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 100.00000003512524,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 101.0901090921834,
+          "period": 47,
+          "right_cny_mwh": 98.90750297927296,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 122.4798224425494,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 122.48150917002931,
+          "period": 47,
+          "right_cny_mwh": 122.48413120687474,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 122.4798224425494,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 122.48096027178688,
+          "period": 47,
+          "right_cny_mwh": 122.48747079866006,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 131.14078704884062,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 131.14067995047662,
+          "period": 47,
+          "right_cny_mwh": 131.14665991452057,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 131.14078704884062,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 131.1401734710671,
+          "period": 47,
+          "right_cny_mwh": 131.14275425323285,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 15,
+          "dual_cny_mwh": 132.5888975292704,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 132.58911538287066,
+          "period": 47,
+          "right_cny_mwh": 132.59630257380195,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 15,
+          "dual_cny_mwh": 132.5888975292704,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 132.59217230370268,
+          "period": 47,
+          "right_cny_mwh": 132.59399711387232,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 134.20897966069654,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 134.20951239822898,
+          "period": 47,
+          "right_cny_mwh": 134.21676121652126,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 134.20897966069654,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 134.21064213616773,
+          "period": 47,
+          "right_cny_mwh": 134.21479889075272,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 114.57187151548617,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 114.5750507566845,
+          "period": 47,
+          "right_cny_mwh": 114.57605862233322,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 114.57187151548617,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 114.56984793767332,
+          "period": 47,
+          "right_cny_mwh": 114.57363289082421,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": false,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": true,
+      "date": "2022-10-01",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 4.183211422059685e-05,
+      "objective_tolerance_cny": 0.010696839658916865,
+      "price_date": "2025-10-17",
+      "price_qualification": "SMOOTH_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 390.9999715618108,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 391.3158623618074,
+          "period": 53,
+          "right_cny_mwh": 390.6847527832724,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 390.9999715618108,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 394.1481991205364,
+          "period": 53,
+          "right_cny_mwh": 387.83895579399535,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 408.78337583342613,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 408.79647618567105,
+          "period": 53,
+          "right_cny_mwh": 408.79749321902636,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 408.78337583342613,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 408.8014837179798,
+          "period": 53,
+          "right_cny_mwh": 408.7990731932222,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 408.4022741514766,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 408.426726135076,
+          "period": 53,
+          "right_cny_mwh": 408.42337111826055,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 408.4022741514766,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 408.4110616531688,
+          "period": 53,
+          "right_cny_mwh": 408.4108943061437,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 407.8107453495114,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 407.8172907611588,
+          "period": 53,
+          "right_cny_mwh": 407.8399915306363,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 407.8107453495114,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 407.8600330103654,
+          "period": 53,
+          "right_cny_mwh": 407.84442244330415,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 412.41230513856897,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 412.4161486106459,
+          "period": 53,
+          "right_cny_mwh": 412.4145963578485,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 412.41230513856897,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 412.4257022340316,
+          "period": 53,
+          "right_cny_mwh": 412.4202670936938,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": true
+    },
+    {
+      "bracket_all": true,
+      "date": "2022-10-02",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 3.3813315894803964e-05,
+      "objective_tolerance_cny": 0.01026415022900701,
+      "price_date": "2025-10-18",
+      "price_qualification": "SUBGRADIENT_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 99.99999995496978,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 99.39064155332744,
+          "period": 78,
+          "right_cny_mwh": 100.60514461656567,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 99.99999995496978,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 93.97216417710295,
+          "period": 78,
+          "right_cny_mwh": 106.03884074953383,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 128.4903942654506,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 128.48780512285884,
+          "period": 78,
+          "right_cny_mwh": 128.49280756199732,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 128.4903942654506,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 128.48544429289177,
+          "period": 78,
+          "right_cny_mwh": 128.49351624026895,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 139.946141462724,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 139.94232584082056,
+          "period": 78,
+          "right_cny_mwh": 139.95011177030392,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 139.946141462724,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 139.93630855111405,
+          "period": 78,
+          "right_cny_mwh": 139.9407432472799,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 142.38523554790615,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 142.38146985007916,
+          "period": 78,
+          "right_cny_mwh": 142.3889325815253,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 142.38523554790615,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 142.39028241718188,
+          "period": 78,
+          "right_cny_mwh": 142.38691874197684,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 118.83126626018263,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 118.83077153470367,
+          "period": 78,
+          "right_cny_mwh": 118.83194187248591,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 118.83126626018263,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 118.82551334565504,
+          "period": 78,
+          "right_cny_mwh": 118.83214174304156,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": false,
+      "date": "2022-10-03",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 1.6296587091346737e-05,
+      "objective_tolerance_cny": 0.01,
+      "price_date": "2025-10-19",
+      "price_qualification": "NONSMOOTH_OR_FAILED",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.000000011449785,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 30.27307851880323,
+          "period": 60,
+          "right_cny_mwh": 29.72677677462343,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.000000011449785,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 28.69958916562609,
+          "period": 60,
+          "right_cny_mwh": 35.46133084455505,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 32.49157806604247,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 32.80483240814647,
+          "period": 60,
+          "right_cny_mwh": 32.49319604947232,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 32.49157806604247,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 32.49311484978534,
+          "period": 60,
+          "right_cny_mwh": 32.49470864830073,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 32.940532945837276,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 32.94237547379453,
+          "period": 60,
+          "right_cny_mwh": 33.11036452942062,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 32.940532945837276,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 32.94045054644812,
+          "period": 60,
+          "right_cny_mwh": 29.977202575537373,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 33.13008059543257,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 33.131358395621646,
+          "period": 60,
+          "right_cny_mwh": 33.13142547995085,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 33.13008059543257,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 36.13636508816853,
+          "period": 60,
+          "right_cny_mwh": 34.78645012364723,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 32.17244869897529,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 32.173343206522986,
+          "period": 60,
+          "right_cny_mwh": 31.88707651133882,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 32.17244869897529,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 32.16991462977603,
+          "period": 60,
+          "right_cny_mwh": 33.82869763299823,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": false,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": false,
+      "date": "2022-10-04",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 2.831757410604041e-05,
+      "objective_tolerance_cny": 0.01,
+      "price_date": "2025-10-20",
+      "price_qualification": "NONSMOOTH_OR_FAILED",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.099999831516776,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 30.23241770279128,
+          "period": 61,
+          "right_cny_mwh": 29.967924347147346,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.099999831516776,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 31.425073029822666,
+          "period": 61,
+          "right_cny_mwh": 28.776462204405103,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 37.56871473198105,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 37.56636084290221,
+          "period": 61,
+          "right_cny_mwh": 37.5672901282087,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 37.56871473198105,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 37.567614708677866,
+          "period": 61,
+          "right_cny_mwh": 37.567024992313236,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 40.48628406381772,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 40.48260423587635,
+          "period": 61,
+          "right_cny_mwh": 40.484569617547095,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 40.48628406381772,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 40.48352457175497,
+          "period": 61,
+          "right_cny_mwh": 40.483655538992025,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 41.168672751385316,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 41.166468981828075,
+          "period": 61,
+          "right_cny_mwh": 41.1686393636046,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 41.168672751385316,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 41.168102325173095,
+          "period": 61,
+          "right_cny_mwh": 41.16800882911775,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 34.813893774678526,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 34.81235242361436,
+          "period": 61,
+          "right_cny_mwh": 34.812697922461666,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 34.813893774678526,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 34.81147905404214,
+          "period": 61,
+          "right_cny_mwh": 34.814278478734195,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": false,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": true,
+      "date": "2022-10-05",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 1.4715134966536425e-05,
+      "objective_tolerance_cny": 0.01148614926812936,
+      "price_date": "2025-10-21",
+      "price_qualification": "SUBGRADIENT_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 333.59999998555753,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 333.1311839428963,
+          "period": 60,
+          "right_cny_mwh": 334.06813570763916,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 333.59999998555753,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 328.91474838834256,
+          "period": 60,
+          "right_cny_mwh": 338.28447631094605,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 348.83809942106603,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 348.8354931323556,
+          "period": 60,
+          "right_cny_mwh": 348.838308127597,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 348.83809942106603,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 348.833580937935,
+          "period": 60,
+          "right_cny_mwh": 348.83479966083536,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 349.1186878148746,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 349.11509494122583,
+          "period": 60,
+          "right_cny_mwh": 349.0904546924867,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 349.1186878148746,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 349.1151393973268,
+          "period": 60,
+          "right_cny_mwh": 349.1150055197067,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 349.25447707680604,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 349.2515739344526,
+          "period": 60,
+          "right_cny_mwh": 349.2555772390915,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 349.25447707680604,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 349.25125582958566,
+          "period": 60,
+          "right_cny_mwh": 349.25062791444356,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 351.25554743537026,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 351.2532971944893,
+          "period": 60,
+          "right_cny_mwh": 351.25492824590765,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 351.25554743537026,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 351.251659594709,
+          "period": 60,
+          "right_cny_mwh": 351.25017238897266,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": false,
+      "date": "2022-10-07",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 3.0630048968305346e-05,
+      "objective_tolerance_cny": 0.01,
+      "price_date": "2025-10-22",
+      "price_qualification": "NONSMOOTH_OR_FAILED",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 12,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.799999814415315,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 31.75997218932025,
+          "period": 59,
+          "right_cny_mwh": 29.840110619261395,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.799999814415315,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 40.39727391500492,
+          "period": 59,
+          "right_cny_mwh": 21.198523609200493,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 37.963201433762,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 37.8647230900242,
+          "period": 59,
+          "right_cny_mwh": 38.08685763942776,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 37.963201433762,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 37.97933204623405,
+          "period": 59,
+          "right_cny_mwh": 39.11816202162299,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 40.74447285115757,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 40.67609788762638,
+          "period": 59,
+          "right_cny_mwh": 40.19330557639478,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 40.74447285115757,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 40.79090831510257,
+          "period": 59,
+          "right_cny_mwh": 41.91097104921937,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 15,
+          "dual_cny_mwh": 41.21511356792133,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 41.685972682898864,
+          "period": 59,
+          "right_cny_mwh": 41.27956948650535,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 15,
+          "dual_cny_mwh": 41.21511356792133,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 40.021199674811214,
+          "period": 59,
+          "right_cny_mwh": 42.20226801407989,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 41.72261070033869,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 41.56603423325578,
+          "period": 59,
+          "right_cny_mwh": 42.110490503546316,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 41.72261070033869,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 40.947640081867576,
+          "period": 59,
+          "right_cny_mwh": 42.709195986390114,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 35.39222487465342,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 35.395250597503036,
+          "period": 59,
+          "right_cny_mwh": 35.50010944309179,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 35.39222487465342,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 35.39422505127732,
+          "period": 59,
+          "right_cny_mwh": 36.48513156804256,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": false,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": false,
+      "date": "2022-10-08",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 3.61396414518822e-05,
+      "objective_tolerance_cny": 0.01,
+      "price_date": "2025-10-23",
+      "price_qualification": "NONSMOOTH_OR_FAILED",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 180.00000039822984,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 180.42247109406162,
+          "period": 52,
+          "right_cny_mwh": 179.5765672432026,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 180.00000039822984,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 184.22783323330802,
+          "period": 52,
+          "right_cny_mwh": 175.77105536474843,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 233.22611532431833,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 233.22624125285074,
+          "period": 52,
+          "right_cny_mwh": 233.2322973961709,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 233.22611532431833,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 233.22387787629847,
+          "period": 52,
+          "right_cny_mwh": 233.2313037186395,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 254.45033659730964,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 254.44839389820118,
+          "period": 52,
+          "right_cny_mwh": 254.46140760323033,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 254.45033659730964,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 254.45479332120155,
+          "period": 52,
+          "right_cny_mwh": 254.45941719226536,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 258.770388330539,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 258.7673619564157,
+          "period": 52,
+          "right_cny_mwh": 258.78256681608036,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 258.770388330539,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 258.774209942203,
+          "period": 52,
+          "right_cny_mwh": 258.77493753796443,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 214.03758246028931,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 214.03813123470172,
+          "period": 52,
+          "right_cny_mwh": 214.04030645499006,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 214.03758246028931,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 214.0328528184909,
+          "period": 52,
+          "right_cny_mwh": 214.03851205832322,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": false,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": false,
+      "date": "2022-10-09",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 2.8866127649962436e-05,
+      "objective_tolerance_cny": 0.01,
+      "price_date": "2025-10-24",
+      "price_qualification": "NONSMOOTH_OR_FAILED",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.00000342767851,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 30.818583472864702,
+          "period": 53,
+          "right_cny_mwh": 29.18155962106539,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.00000342767851,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 38.18498698819894,
+          "period": 53,
+          "right_cny_mwh": 21.81594354624394,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 34.06187511410109,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 34.06202351470711,
+          "period": 53,
+          "right_cny_mwh": 34.06102339795325,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 34.06187511410109,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 34.062321356032044,
+          "period": 53,
+          "right_cny_mwh": 34.060132020385936,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 35.10021127597087,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 35.10022350383224,
+          "period": 53,
+          "right_cny_mwh": 35.09984966513002,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 35.10021127597087,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 35.10422757244669,
+          "period": 53,
+          "right_cny_mwh": 35.096448118565604,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 35.61193809772951,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 35.61188386811409,
+          "period": 53,
+          "right_cny_mwh": 35.61173889465863,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 35.61193809772951,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 35.61625926522538,
+          "period": 53,
+          "right_cny_mwh": 35.60860459401738,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 33.28594111443865,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 33.28542588860728,
+          "period": 53,
+          "right_cny_mwh": 33.285194367635995,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 33.28594111443865,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 33.29005885461811,
+          "period": 53,
+          "right_cny_mwh": 33.28464699734468,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": false,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": false,
+      "date": "2022-10-10",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 4.746008380607236e-05,
+      "objective_tolerance_cny": 0.010423435547198743,
+      "price_date": "2025-10-25",
+      "price_qualification": "NONSMOOTH_OR_FAILED",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 100.00000001063756,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 100.7135240797652,
+          "period": 48,
+          "right_cny_mwh": 99.75101886084303,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 100.00000001063756,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 107.1312122803647,
+          "period": 48,
+          "right_cny_mwh": 92.85830456065013,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 124.71751590747888,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 125.0001993321348,
+          "period": 48,
+          "right_cny_mwh": 124.5406820817152,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 124.71751590747888,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 124.7673004399985,
+          "period": 48,
+          "right_cny_mwh": 126.36120445677078,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 134.6507257497683,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 134.7677529702196,
+          "period": 48,
+          "right_cny_mwh": 133.89730345807038,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 134.6507257497683,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 136.8272329273168,
+          "period": 48,
+          "right_cny_mwh": 134.7285353404004,
+          "smooth_pass": false,
+          "subgradient_bracket": false
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 136.95349476953922,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 137.37532673985697,
+          "period": 48,
+          "right_cny_mwh": 136.19956858747173,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 136.95349476953922,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 137.03889853786677,
+          "period": 48,
+          "right_cny_mwh": 138.54257558705285,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 115.05110103249996,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 115.0480862997938,
+          "period": 48,
+          "right_cny_mwh": 114.89777520182543,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 115.05110103249996,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 115.06503578857517,
+          "period": 48,
+          "right_cny_mwh": 116.77625298034398,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": false,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": true,
+      "date": "2022-10-11",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 4.64997356175445e-06,
+      "objective_tolerance_cny": 0.01,
+      "price_date": "2025-10-26",
+      "price_qualification": "SMOOTH_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 12,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 29.999999966083884,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 29.983705608174205,
+          "period": 59,
+          "right_cny_mwh": 30.016991368029267,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 29.999999966083884,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 29.825962701579552,
+          "period": 59,
+          "right_cny_mwh": 30.17014751094393,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 36.43683950106113,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 36.43881544121541,
+          "period": 59,
+          "right_cny_mwh": 36.4349469600711,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 36.43683950106113,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 36.383777478476986,
+          "period": 59,
+          "right_cny_mwh": 36.42039155238308,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 38.266904088671964,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 38.268823191174306,
+          "period": 59,
+          "right_cny_mwh": 38.26516687695403,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 38.266904088671964,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 38.28988701570779,
+          "period": 59,
+          "right_cny_mwh": 38.24578088824637,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 38.74900302517933,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 38.750842213630676,
+          "period": 59,
+          "right_cny_mwh": 38.74694062687922,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 38.74900302517933,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 38.77298440784216,
+          "period": 59,
+          "right_cny_mwh": 38.738211151212454,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 35.44997625018302,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 35.45028892403934,
+          "period": 59,
+          "right_cny_mwh": 35.447709014988504,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 35.44997625018302,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 35.4637682903558,
+          "period": 59,
+          "right_cny_mwh": 35.43671773513779,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 31,
+          "dual_cny_mwh": 37.23240139166208,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 37.233249968267046,
+          "period": 59,
+          "right_cny_mwh": 37.22989138623234,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 31,
+          "dual_cny_mwh": 37.23240139166208,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 37.26244030985981,
+          "period": 59,
+          "right_cny_mwh": 37.212877214187756,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": true
+    },
+    {
+      "bracket_all": true,
+      "date": "2022-10-14",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 3.7773515941808e-06,
+      "objective_tolerance_cny": 0.013394885026975913,
+      "price_date": "2025-10-27",
+      "price_qualification": "SUBGRADIENT_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 12,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.20000000096494,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 29.9235090642469,
+          "period": 49,
+          "right_cny_mwh": 30.475544917862862,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 30.20000000096494,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 27.431132184574377,
+          "period": 49,
+          "right_cny_mwh": 32.964210549835116,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 206.40685730951196,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 206.39905000280123,
+          "period": 49,
+          "right_cny_mwh": 206.44597898353823,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 206.40685730951196,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 206.40083093894643,
+          "period": 49,
+          "right_cny_mwh": 206.41132869059217,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 12,
+          "dual_cny_mwh": 274.7383000621897,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 274.7364052629564,
+          "period": 49,
+          "right_cny_mwh": 274.73868161905557,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 12,
+          "dual_cny_mwh": 274.7383000621897,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 274.76620743982494,
+          "period": 49,
+          "right_cny_mwh": 274.7597514826339,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 279.9895298269235,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 279.98725316138007,
+          "period": 49,
+          "right_cny_mwh": 279.9892830080353,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 279.9895298269235,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 279.97820943710394,
+          "period": 49,
+          "right_cny_mwh": 279.99687517876737,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 284.93723508188197,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 284.93367273767944,
+          "period": 49,
+          "right_cny_mwh": 284.93507066741586,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 284.93723508188197,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 284.926265157992,
+          "period": 49,
+          "right_cny_mwh": 284.93519203038886,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 109.50469129157055,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 109.50540308840573,
+          "period": 49,
+          "right_cny_mwh": 109.50395699182991,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 109.50469129157055,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 109.51059666695072,
+          "period": 49,
+          "right_cny_mwh": 109.51074145850724,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": true,
+      "date": "2022-10-27",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 2.2265645384322852e-05,
+      "objective_tolerance_cny": 0.01124226452779474,
+      "price_date": "2025-10-28",
+      "price_qualification": "SUBGRADIENT_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 270.0000049307572,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 268.1783963635098,
+          "period": 58,
+          "right_cny_mwh": 271.8219835514901,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 270.0000049307572,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 251.77266725222577,
+          "period": 58,
+          "right_cny_mwh": 288.21655141655356,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 303.5438572192402,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 303.54151989740785,
+          "period": 58,
+          "right_cny_mwh": 303.5414459736785,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 303.5438572192402,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 303.5450994502753,
+          "period": 58,
+          "right_cny_mwh": 303.53191250469536,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 310.1751172894822,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 310.17128327221144,
+          "period": 58,
+          "right_cny_mwh": 310.17198991321493,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 310.1751172894822,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 310.1753114606254,
+          "period": 58,
+          "right_cny_mwh": 310.1726841123309,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 310.72324255831023,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 310.71909579623025,
+          "period": 58,
+          "right_cny_mwh": 310.7184917462291,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 310.72324255831023,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 310.73263598955236,
+          "period": 58,
+          "right_cny_mwh": 310.7217329670675,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 297.2554209287282,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 297.2539418260567,
+          "period": 58,
+          "right_cny_mwh": 297.25428197707515,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 297.2554209287282,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 297.26185457548127,
+          "period": 58,
+          "right_cny_mwh": 297.2520131152123,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": false
+    },
+    {
+      "bracket_all": true,
+      "date": "2022-10-28",
+      "dispatch_optimal": true,
+      "dispatch_status": 2,
+      "failure": null,
+      "idle_direction_stable": true,
+      "objective_difference_cny": 5.47098334209295e-05,
+      "objective_tolerance_cny": 0.015874002638936437,
+      "price_date": "2025-10-29",
+      "price_qualification": "SUBGRADIENT_PASS",
+      "pricing_optimal": true,
+      "pricing_status": 2,
+      "probe_count": 10,
+      "probes": [
+        {
+          "bus": 0,
+          "dual_cny_mwh": 349.9999999095577,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 349.17814904474653,
+          "period": 51,
+          "right_cny_mwh": 350.82271315332036,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 0,
+          "dual_cny_mwh": 349.9999999095577,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 341.7772823013365,
+          "period": 51,
+          "right_cny_mwh": 358.2177123462315,
+          "smooth_pass": false,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 377.5375126798945,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 377.53673423139844,
+          "period": 51,
+          "right_cny_mwh": 377.5386703637196,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 9,
+          "dual_cny_mwh": 377.5375126798945,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 377.53899814561004,
+          "period": 51,
+          "right_cny_mwh": 377.53674769191997,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 378.45655457810125,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 378.45465769350994,
+          "period": 51,
+          "right_cny_mwh": 378.45859020308126,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 14,
+          "dual_cny_mwh": 378.45655457810125,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 378.4577049373183,
+          "period": 51,
+          "right_cny_mwh": 378.45210244995536,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 378.7188048132579,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 378.7158972409088,
+          "period": 51,
+          "right_cny_mwh": 378.7216303317109,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 17,
+          "dual_cny_mwh": 378.7188048132579,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 378.71844251640135,
+          "period": 51,
+          "right_cny_mwh": 378.71965178055683,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 384.692773316719,
+          "epsilon_mw": 0.0001,
+          "left_cny_mwh": 384.691688377643,
+          "period": 51,
+          "right_cny_mwh": 384.6936325135175,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        },
+        {
+          "bus": 27,
+          "dual_cny_mwh": 384.692773316719,
+          "epsilon_mw": 1e-05,
+          "left_cny_mwh": 384.6936037007253,
+          "period": 51,
+          "right_cny_mwh": 384.69180362881156,
+          "smooth_pass": true,
+          "subgradient_bracket": true
+        }
+      ],
+      "qualified_for_settlement": true,
+      "smooth_all": false
+    }
+  ]
+}

@@ -215,6 +215,10 @@ def evaluate_checks(rows: List[dict]) -> dict:
 
 
 def main(argv=None) -> int:
+    # A non-formal entry point: this measures the control path against a
+    # market with a known shape, not against a measured one.
+    from wholesale_price import enable_non_formal_market
+    enable_non_formal_market()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", default="1,2")
     parser.add_argument("--episodes", type=int, default=60)

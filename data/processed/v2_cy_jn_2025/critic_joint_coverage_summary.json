@@ -1,0 +1,162 @@
+{
+  "checkpoints": {
+    "2": {
+      "buffer_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00002544\\buffer\\replay.npz",
+      "transitions": 2544,
+      "episodes": 106,
+      "dates": 53,
+      "nn_fixed_quantiles": {
+        "0.05": 0.0009417395122474016,
+        "0.25": 0.004449858467637366,
+        "0.5": 0.02821612953413347,
+        "0.75": 0.09099161812137611,
+        "0.95": 0.1977165271121671,
+        "0.99": 0.2525875184882819
+      },
+      "nn_z_quantiles": {
+        "0.05": 0.05043894391247856,
+        "0.25": 0.11045444823538653,
+        "0.5": 0.18132346591243254,
+        "0.75": 0.3004095231300606,
+        "0.95": 0.5415194198443655,
+        "0.99": 0.7394311415583174
+      }
+    },
+    "10": {
+      "buffer_path": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\runs\\EXPLORATORY_NEAR_B_C2_GATE_seed11_v2\\checkpoints\\step_00012720\\buffer\\replay.npz",
+      "transitions": 12720,
+      "episodes": 530,
+      "dates": 53,
+      "nn_fixed_quantiles": {
+        "0.05": 0.00012044025240962974,
+        "0.25": 0.0020731269027911524,
+        "0.5": 0.007564691494344162,
+        "0.75": 0.05505197322677123,
+        "0.95": 0.1455675910415015,
+        "0.99": 0.20974719019632407
+      },
+      "nn_z_quantiles": {
+        "0.05": 0.001965144853383751,
+        "0.25": 0.05949704809396421,
+        "0.5": 0.11715581507323372,
+        "0.75": 0.22441837361954492,
+        "0.95": 0.3767971266312679,
+        "0.99": 0.48815120847614824
+      }
+    }
+  },
+  "targets": {
+    "winter": {
+      "rows": 96,
+      "mean_state_nn_fixed": 0.14574378983591352,
+      "median_state_nn_fixed": 0.16116924130858906,
+      "rows_within_nn_median": 16,
+      "mean_action_nn_k50": 0.046987453582879896,
+      "rows_with_time_soc_quote": 96,
+      "rows_with_high_quote_near": 35,
+      "total_high_quote_all": 87588,
+      "total_high_quote_time": 9964,
+      "total_high_quote_time_soc": 3748
+    },
+    "control": {
+      "rows": 16,
+      "mean_state_nn_fixed": 0.12342921280733204,
+      "median_state_nn_fixed": 0.1231605839618088,
+      "rows_within_nn_median": 0,
+      "mean_action_nn_k50": 0.04541312371407805,
+      "rows_with_time_soc_quote": 16,
+      "rows_with_high_quote_near": 7,
+      "total_high_quote_all": 14598,
+      "total_high_quote_time": 1888,
+      "total_high_quote_time_soc": 1478
+    }
+  },
+  "normalization": {
+    "state_feature_names": [
+      "ESS9.load_feat",
+      "ESS9.re_feat",
+      "ESS9.soc",
+      "ESS9.avg_other_dev",
+      "ESS9.all_dev_std",
+      "ESS9.ema_dev",
+      "ESS9.price_trend",
+      "ESS9.pred_lmp_norm",
+      "ESS14.load_feat",
+      "ESS14.re_feat",
+      "ESS14.soc",
+      "ESS14.avg_other_dev",
+      "ESS14.all_dev_std",
+      "ESS14.ema_dev",
+      "ESS14.price_trend",
+      "ESS14.pred_lmp_norm",
+      "ESS17.load_feat",
+      "ESS17.re_feat",
+      "ESS17.soc",
+      "ESS17.avg_other_dev",
+      "ESS17.all_dev_std",
+      "ESS17.ema_dev",
+      "ESS17.price_trend",
+      "ESS17.pred_lmp_norm",
+      "ESS27.load_feat",
+      "ESS27.re_feat",
+      "ESS27.soc",
+      "ESS27.avg_other_dev",
+      "ESS27.all_dev_std",
+      "ESS27.ema_dev",
+      "ESS27.price_trend",
+      "ESS27.pred_lmp_norm",
+      "last_lmp_norm",
+      "block_pos",
+      "avg_lmp_hist_norm",
+      "slr_norm"
+    ],
+    "fixed_scales": [
+      1.0,
+      1.0,
+      0.25,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.25,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.25,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.25,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.041666666666666664,
+      1.0,
+      1.0
+    ],
+    "distance": "Euclidean, divided by sqrt(dim); one unit = the feature scale listed in fixed_scales",
+    "z_score": "also reported with the checkpoint buffer's per-feature mean and standard deviation",
+    "action": "quote / leg upper bound (charge 150, discharge 300); gate is 0/1"
+  },
+  "winter_discharge": {
+    "rows": 48,
+    "mean_state_nn_fixed": 0.14574378983591352,
+    "mean_action_nn_k50": 0.04698745358287989,
+    "rows_with_high_quote_k50": 19,
+    "rows_with_time_soc_quote": 48
+  }
+}

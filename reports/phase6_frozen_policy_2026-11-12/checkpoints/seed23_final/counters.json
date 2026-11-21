@@ -1,0 +1,6 @@
+{
+  "total_steps": 12720,
+  "episode": 530,
+  "updates": 12240,
+  "buffer_len": 6000
+}

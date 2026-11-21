@@ -17,6 +17,41 @@
 # Every scenario also states `scenario_scale_source`, so a reader can tell where
 # its scale came from. Nothing inherits another scenario's scale.
 
+# ---------------------------------------------------------------------------
+# The scenario sets. Declared once, here, because a list repeated in four
+# modules is four lists that can disagree and nothing notices.
+#
+# `formal_ensemble` is the set a formal run may use. Membership is not a
+# preference: a scenario belongs here only if its price source reads a measured
+# market, which is the rule `wholesale_price.formal_data_readiness` applies.
+# The list below was derived by applying that rule to the registry, not chosen.
+#
+# `excluded` is the other half of that rule, and it exists so the set cannot be
+# narrowed by silence. A scenario whose price source qualifies but which is
+# named nowhere is one a formal run cannot reach with nothing on record saying
+# why; naming it here with a reason is a stated exception.
+# `tests/test_formal_ensemble.py` fails on either a qualifying scenario that is
+# in neither block or an exclusion without a reason.
+#
+# `legacy_comparison` is kept for continuity with results recorded before the
+# external market existed. It is NOT a formal set: every member prices from the
+# retired net-load map, which is an accounting identity over this network's own
+# dispatch rather than a measured market.
+# ---------------------------------------------------------------------------
+formal_ensemble:
+  scenarios: [typical_day_industry, typical_day_industry_subset]
+  note: >-
+    only scenarios whose price source reads a measured market; membership is
+    derived from the readiness rule, not chosen
+  # `excluded` is empty and kept as a block, not as a mechanism with no members:
+  # it is where a qualifying scenario goes to be left out *with a stated reason*,
+  # and the last entry there — `typical_day_industry_subset`, admitted on
+  # 2026-10-16 once its ledger was rebuilt as a formal one on the recorded
+  # project ruling — is now a member instead. See
+  # `reports/formal_data_blockers.md` and `reports/s8_physical_audit.md`.
+  excluded: {}
+  legacy_comparison: [baseline, high_re, peak_load, congestion]
+
 scenarios:
   # The research scenario: the IEEE 33-bus at its own nominal demand.
   typical_day:
@@ -32,9 +67,22 @@ scenarios:
     # retired net-load map, since they exist only for comparison against
     # results recorded before the external market was built.
     wholesale_source: synthetic_v1
-    # The synthetic library's median-range reference day, declared here rather
-    # than left to the file default so that every price-bearing scenario states
-    # its own index and none depends on another's build order.
+    # This scenario prices from a GENERATED series, not a measured one, so it
+    # does not meet the formal case's data requirement and may not enter formal
+    # evaluation. The marker below is what stops it: the source is also gated in
+    # `wholesale_price.get_provider`, which refuses to build a synthetic
+    # provider unless a caller asks for one explicitly.
+    #
+    # It is kept because the whole control path -- clearing, settlement, the
+    # ladder -- is exercised against it, and replacing it with an unverified
+    # real curve would swap one unconfirmed input for another.
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by a generated series (synthetic_v1), not by a measured market;
+      formal cases require a real price curve
+    # The generated library's reference index, declared here rather than left to
+    # a file default so that every price-bearing scenario states its own and
+    # none depends on another's build order.
     wholesale_curve_index: 11
     # 3.715 / sqrt(3.715^2 + 2.3^2) -- the power factor that makes the day's
     # reactive load the benchmark's own 2.3 MVAr rather than a convention.
@@ -82,11 +130,17 @@ scenarios:
   # only (no absolute MW conversion has been verified), and the bus assignment
   # below is a simulation rule, not a geographic one.
   typical_day_industry:
-    description: "IEEE33 native scale; intraday load shape from metered Jiangsu industry curves"
+    description: "IEEE33 topology; per-bus load from the metered industry ledger"
     with_wind: true
-    load_scale_mode: native_peak
+    # Not `native_peak`: this scenario's level does not come from a target at
+    # all. Its per-bus MW is the ledger's, so no scale is resolved or applied.
+    load_scale_mode: ledger
+    # The *native* term's shape, which is what the ledger's `preserve` buses
+    # were built from -- the ledger composes `native_mw` from exactly this
+    # profile, so the declaration and the artifact agree. The scenario's load
+    # no longer comes from a shape at all; see `load_model` below.
+    load_shape: native
     scenario_scale_source: ieee33_native_industry_shape
-    load_shape: industry
     wholesale_source: dianyicha
     # An index into `wholesale_market.dianyicha_curves`. That is a PRICE
     # SCENARIO, not a calendar date: all four curves are means. 0 is `261009`.
@@ -118,10 +172,62 @@ scenarios:
     # `_industry_load_shapes` raises if a load bus is left out, if a bus that
     # carries no load is named, or if an excluded industry is used.
     # ---------------------------------------------------------------------
+    load_model:
+      mode: absolute_industry_mw
+      mapping_version: industry_bus_map_v2
+      bus_load_policy:
+        0: preserve  # slack: carries no load, listed so all 33 buses appear
+        1: replace   # carries mapped metered users; they are this bus's load
+        2: replace   # carries mapped metered users; they are this bus's load
+        3: replace   # carries mapped metered users; they are this bus's load
+        4: replace   # carries mapped metered users; they are this bus's load
+        5: replace   # carries mapped metered users; they are this bus's load
+        6: preserve  # no mapped user; keeps the benchmark's own demand
+        7: preserve  # no mapped user; keeps the benchmark's own demand
+        8: preserve  # no mapped user; keeps the benchmark's own demand
+        9: preserve  # no mapped user; keeps the benchmark's own demand
+        10: preserve  # no mapped user; keeps the benchmark's own demand
+        11: preserve  # no mapped user; keeps the benchmark's own demand
+        12: preserve  # no mapped user; keeps the benchmark's own demand
+        13: preserve  # no mapped user; keeps the benchmark's own demand
+        14: preserve  # no mapped user; keeps the benchmark's own demand
+        15: preserve  # no mapped user; keeps the benchmark's own demand
+        16: replace   # carries mapped metered users; they are this bus's load
+        17: preserve  # no mapped user; keeps the benchmark's own demand
+        18: preserve  # no mapped user; keeps the benchmark's own demand
+        19: preserve  # no mapped user; keeps the benchmark's own demand
+        20: preserve  # no mapped user; keeps the benchmark's own demand
+        21: preserve  # no mapped user; keeps the benchmark's own demand
+        22: replace   # carries mapped metered users; they are this bus's load
+        23: replace   # carries mapped metered users; they are this bus's load
+        24: replace   # carries mapped metered users; they are this bus's load
+        25: replace   # carries mapped metered users; they are this bus's load
+        26: replace   # carries mapped metered users; they are this bus's load
+        27: replace   # carries mapped metered users; they are this bus's load
+        28: replace   # carries mapped metered users; they are this bus's load
+        29: replace   # carries mapped metered users; they are this bus's load
+        30: replace   # carries mapped metered users; they are this bus's load
+        31: replace   # carries mapped metered users; they are this bus's load
+        32: replace   # carries mapped metered users; they are this bus's load
+
+    # The case these artifacts belong to. Kept apart from `load_model` on
+    # purpose: `mode` says what kind of load this is, `case_type` says what
+    # kind of claim the run makes -- whether the two days may differ, and
+    # therefore whether the result is a diagnostic pairing or a replay.
+    #
+    # Both the load day and the price day are recorded in the case manifest,
+    # not here: the artifacts carry their own dates and the config does not
+    # restate them, so the two cannot come to disagree.
+    single_day_case:
+      case_type: cross_date_diagnostic
+      ledger: data/processed/node_loads/typical_day_industry/bus_loads_96x33_audit.csv
+      ledger_manifest: data/processed/node_loads/typical_day_industry/manifest.json
+      price_sheet: "261009"
+
+
     industry_map:
       simulation_mapping: true
       source: "docs/16类行业用户.xlsx"
-      shapes_file: data/processed/industry_typical_profiles.csv
       excluded_industries: ["分布式光伏", "5G基站", "电解铝"]
       buses:
         # 32 buses: 1..32. Bus 0 is the slack and carries no load, so it is
@@ -165,6 +271,125 @@ scenarios:
       network.line_capacity_multiplier: 1.5
       network.inverter_smax_multiplier: 1.10
 
+  # The research scenario's load, at the benchmark's own scale.
+  #
+  # `typical_day_industry` loads every mapped user at once, and its day peaks
+  # two orders of magnitude above the IEEE33 benchmark's 3.715 MW of total
+  # demand. That day is measured industry load sitting *on* an IEEE33 feeder; it
+  # is not measured industry load *at the benchmark's scale*, and it was being
+  # described as the latter. This scenario keeps the same network, the same
+  # facilities, the same mapping rule and the same readings, and loads the
+  # subset of users that reproduces the benchmark's own scale.
+  #
+  # Nothing is rescaled to get there. A user is in or out whole, and a curve is
+  # its meter readings times their own 综合倍率 and nothing else. The subset, its
+  # reasons and its arithmetic are in `src/select_industry_user_subset.py` and
+  # `reports/industry_user_subset_selection.md`.
+  #
+  # The subset is fitted to one load date and is not a typical day in any
+  # statistical sense. It inherits none of `typical_day_industry`'s per-bus
+  # policy: the old policy named buses as carrying load that this subset
+  # empties.
+  typical_day_industry_subset:
+    description: "IEEE33 topology; per-bus load from the selected metered users"
+    with_wind: true
+    load_scale_mode: ledger
+    load_shape: native
+    scenario_scale_source: ieee33_native_industry_subset
+    wholesale_source: dianyicha
+    wholesale_curve_index: 0
+    # Unchanged from `typical_day_industry`. It is the factor that makes the
+    # day's reactive load the benchmark's own 2.3 MVAr **when the active load is
+    # 3.715 MW**. The subset peaks slightly below that, so the calibration holds
+    # here only approximately. It is reported and never re-tuned: moving it to
+    # land on 2.3 MVAr would be tuning a declared number until it hit a target.
+    load_power_factor: 0.8503
+    renewable:
+      pv_bus_mw: {21: 0.3, 23: 0.3}
+      wind_bus_mw: {30: 1.0}
+    # No `industry_map` block, deliberately. That table assigns each bus an
+    # industry *shape*; this scenario takes no shape at all, because the ledger
+    # supplies the load. Copying the full set's table across would declare a
+    # bus-to-industry assignment for buses this scenario leaves on their native
+    # demand -- a statement its own load model contradicts.
+    load_model:
+      mode: absolute_industry_mw
+      mapping_version: industry_bus_map_v2
+      # What the subset was selected to match, and the tolerance that decides
+      # whether it did. **The tolerance is this project's choice, not an IEEE33
+      # parameter** -- no source states it and none is implied. A test compares
+      # these two numbers against the ones the selector applies, so the
+      # declaration cannot drift from the code.
+      subset_selection:
+        target_peak_mw: 3.715
+        tolerance: 0.05
+        status: "project choice, not an IEEE33 parameter"
+        date: "2022-11-30"
+        mapping_version: industry_bus_map_v2
+        selector: src/select_industry_user_subset.py
+        report: reports/industry_user_subset_selection.md
+      # Derived from the users the subset actually kept: 9 buses carry one and
+      # the other 24 -- the slack among them -- keep the benchmark's own demand.
+      # `scenarios.single_day_case` compares this block against the ledger
+      # manifest bus by bus and raises on any disagreement, so the config and
+      # the artifact cannot drift apart.
+      bus_load_policy:
+        0: preserve  # slack: carries no load, listed so all 33 buses appear
+        1: preserve  # no selected user; keeps the benchmark's own demand
+        2: preserve  # no selected user; keeps the benchmark's own demand
+        3: replace   # selected users' absolute MW is this bus's load
+        4: preserve  # no selected user; keeps the benchmark's own demand
+        5: preserve  # no selected user; keeps the benchmark's own demand
+        6: preserve  # no selected user; keeps the benchmark's own demand
+        7: preserve  # no selected user; keeps the benchmark's own demand
+        8: preserve  # no selected user; keeps the benchmark's own demand
+        9: preserve  # no selected user; keeps the benchmark's own demand
+        10: preserve  # no selected user; keeps the benchmark's own demand
+        11: preserve  # no selected user; keeps the benchmark's own demand
+        12: preserve  # no selected user; keeps the benchmark's own demand
+        13: preserve  # no selected user; keeps the benchmark's own demand
+        14: preserve  # no selected user; keeps the benchmark's own demand
+        15: preserve  # no selected user; keeps the benchmark's own demand
+        16: replace   # selected users' absolute MW is this bus's load
+        17: preserve  # no selected user; keeps the benchmark's own demand
+        18: preserve  # no selected user; keeps the benchmark's own demand
+        19: preserve  # no selected user; keeps the benchmark's own demand
+        20: preserve  # no selected user; keeps the benchmark's own demand
+        21: preserve  # no selected user; keeps the benchmark's own demand
+        22: preserve  # no selected user; keeps the benchmark's own demand
+        23: replace   # selected users' absolute MW is this bus's load
+        24: replace   # selected users' absolute MW is this bus's load
+        25: replace   # selected users' absolute MW is this bus's load
+        26: replace   # selected users' absolute MW is this bus's load
+        27: replace   # selected users' absolute MW is this bus's load
+        28: preserve  # no selected user; keeps the benchmark's own demand
+        29: preserve  # no selected user; keeps the benchmark's own demand
+        30: replace   # selected users' absolute MW is this bus's load
+        31: replace   # selected users' absolute MW is this bus's load
+        32: preserve  # no selected user; keeps the benchmark's own demand
+
+    # Same case type and same price curve as `typical_day_industry`: the load
+    # day is a real dated curve and the price day is a real dated curve, and
+    # they are different calendar days. See
+    # `reports/single_day_diagnostic_case.md`; nothing here changes that
+    # pairing, only which buses the load lands on.
+    single_day_case:
+      case_type: cross_date_diagnostic
+      # The **formal** ledger. The reading unit rests on a recorded project
+      # ruling (`unit_basis_ruling`), which `industry_load.require_unit_basis`
+      # admits and `validate_formal_ledger` accepts; `is_externally_verified`
+      # is still false and travels on every row. The audit ledger built from
+      # the same readings is kept beside it as `bus_loads_96x33_audit.csv`; one
+      # directory carries one manifest and this one describes the ledger in
+      # force.
+      ledger: data/processed/node_loads/typical_day_industry_subset/bus_loads_96x33.csv
+      ledger_manifest: data/processed/node_loads/typical_day_industry_subset/manifest.json
+      price_sheet: "261009"
+
+    override_config:
+      network.line_capacity_multiplier: 1.5
+      network.inverter_smax_multiplier: 1.10
+
   # --- Legacy scenarios -----------------------------------------------------
   # Retained at the scale they were defined at, which is NOT the IEEE33 native
   # scale. `scenario_scale_source: legacy_explicit` records that, so a later
@@ -177,6 +402,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:
@@ -191,6 +421,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:
@@ -208,6 +443,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:
@@ -224,6 +464,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:
@@ -245,6 +490,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:
@@ -259,6 +509,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:
@@ -276,6 +531,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:
@@ -291,6 +551,11 @@ scenarios:
     load_scale_mode: explicit_peak
     peak_load_mw: 10.0
     scenario_scale_source: legacy_explicit
+    formal_data_ready: false
+    formal_data_reason: >-
+      priced by the retired net-load map (`legacy`), an accounting
+      identity over this network's own dispatch rather than a measured
+      market; formal cases require a real price curve
     load_shape: diversified
     load_power_factor: 0.9
     renewable:

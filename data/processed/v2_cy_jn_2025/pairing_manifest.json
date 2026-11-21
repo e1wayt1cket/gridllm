@@ -1,0 +1,122 @@
+{
+  "dataset": "v2_cy_jn_2025_pairing",
+  "version": "v2-cy-jn-2025-9cb980dc4cb4",
+  "kind": "cross_year_controlled_simulation",
+  "not_a_same_period_settlement": true,
+  "load_library_version": "v2-frozen-dfc9d60cc222",
+  "groups": [
+    "national_day_2022",
+    "summer",
+    "autumn",
+    "winter"
+  ],
+  "groups_excluded": {
+    "spring": "no complete 2025 spring price day in the source",
+    "spring_festival_2022": "no complete 2025 spring price day in the source"
+  },
+  "price_region": "south",
+  "price_unit": "CNY/MWh",
+  "price_unit_confirmed": false,
+  "price_unit_note": "inferred from floor/cap and magnitude; not externally confirmed",
+  "mv_value_enabled": false,
+  "pairs": 96,
+  "unpaired": {},
+  "distinct_price_dates": 96,
+  "reused_price_dates": 0,
+  "pairing_type_counts": {
+    "same_month_day": 26,
+    "same_season_day_type_mismatch": 1,
+    "same_season_same_day_type": 69
+  },
+  "inputs": {
+    "price_file": {
+      "path": "docs/data.csv",
+      "sha256": "1bf06f8d537a5e06911353e4a7348bec8efcedee8bdc76ba84a4bc4d9de8b00c"
+    },
+    "frozen_manifest": {
+      "path": "data/processed/v2/v2_scenario_library_manifest.json",
+      "sha256": "ebed1801c43c32a9a4aeb2758171778b8481491f948ea73a1d179bddd251730f"
+    },
+    "candidates": {
+      "path": "data/processed/v2_seasonal_candidates.csv",
+      "sha256": "05b63da48f2585044635af745a0c18e76565001a78fead03b122cd285891a369"
+    },
+    "load_curves": {
+      "path": "data/processed/v2/v2_user_day_curves.npz",
+      "sha256": "8ff8cbc00618189d001565068bf8a95c9b9975960baa0ce6343ad508075be472"
+    },
+    "mapping": {
+      "path": "data/processed/industry_meter_bus_map_v2.csv",
+      "sha256": "a5fae0850b2bd6a4d0f9db7412e71b1aac2c6771a867f11cb1f4c426386eb38b"
+    },
+    "price_curves": {
+      "path": "data/processed/v2_cy_jn_2025/price_curves.npz",
+      "sha256": "316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1"
+    }
+  },
+  "outputs": {
+    "pairing_csv": {
+      "path": "data/processed/v2_cy_jn_2025/load_price_pairing.csv",
+      "sha256": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1"
+    },
+    "bus_loads": {
+      "path": "data/processed/v2_cy_jn_2025/bus_loads_96x33.npz",
+      "sha256": "754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078"
+    },
+    "split": {
+      "path": "data/processed/v2_cy_jn_2025/split.json",
+      "sha256": "39b1e9a1679a7b94f3c5b0e1e87f4defd063772335a10ea205fa7290291d2d6d"
+    }
+  },
+  "dataset_id": "JN-Base-FULL96",
+  "dataset_role": "primary candidate, all 96 pairs",
+  "distance_rule": null,
+  "distance_stats": {
+    "pairs": 96,
+    "mean_days": 9.38,
+    "median_days": 2.0,
+    "max_days": 67,
+    "over_14": 16,
+    "over_30": 13,
+    "same_month_day": 27,
+    "type_mismatch": 1
+  },
+  "split": {
+    "seed": 20261030,
+    "counts": {
+      "train": 64,
+      "validation": 13,
+      "test": 14,
+      "holiday_block": 5
+    },
+    "by_group": {
+      "national_day_2022": {
+        "holiday_block": 5
+      },
+      "summer": {
+        "train": 15,
+        "validation": 3,
+        "test": 3
+      },
+      "autumn": {
+        "train": 33,
+        "validation": 7,
+        "test": 7
+      },
+      "winter": {
+        "train": 16,
+        "validation": 3,
+        "test": 4
+      }
+    },
+    "file": "data/processed/v2_cy_jn_2025/split.json"
+  },
+  "near_counterpart": "data/processed/v2_cy_jn_2025/near/pairing_manifest.json",
+  "datasets_index": "data/processed/v2_cy_jn_2025/datasets.json",
+  "group_counts": {
+    "autumn": 47,
+    "national_day_2022": 5,
+    "summer": 21,
+    "winter": 23
+  }
+}

@@ -68,7 +68,61 @@ CONFIG_KEY = "wholesale_market"
 #: reachable so recorded results can still be reproduced; `guangdong` is the
 #: phase-two slot and is declared so the interface is fixed before the data
 #: arrives; `dianyicha` reads the Jiangsu curves from the 电易电查 workbook.
-SOURCES = ("legacy", "synthetic_v1", "library", "guangdong", "dianyicha")
+SOURCES = ("legacy", "synthetic_v1", "library", "guangdong", "dianyicha",
+           "jn2025")
+
+#: Whether a **non-formal** source may be built at all.
+#:
+#: `synthetic_v1` and `library` generate a price series rather than reading a
+#: measured one. They are kept because tests and audits need a market with a
+#: known shape to exercise the code against, and they are gated because a
+#: formal case that silently reached one would report a generated price as a
+#: market outcome. Nothing in the formal path sets this: a caller that wants a
+#: synthetic market says so explicitly, and a formal run that asks for one by
+#: accident fails loudly instead of pricing a day it never had.
+ALLOW_NON_FORMAL_SOURCES = False
+
+#: The non-formal market's own library size and generator seed.
+#:
+#: Deliberately not project configuration. A dataset length in `defaults.yaml`
+#: is a length the real data is then measured against, and it outlives whatever
+#: it was written for; here it belongs to the one generator that needs it and
+#: goes away with it.
+NON_FORMAL_LIBRARY_DAYS = 40
+NON_FORMAL_LIBRARY_SEED = 20260920
+
+#: Sources that read a measured market. A scenario priced by anything else does
+#: not meet the formal case's data requirement, whatever else it is good for.
+FORMAL_SOURCES = ("dianyicha", "jn2025")
+
+
+def enable_non_formal_market() -> None:
+    """Open the gate, from a **non-formal** entry point.
+
+    The diagnostic, audit and calibration scripts measure the control path
+    against a market whose shape is known, and that market is generated. They
+    are not formal cases: nothing they produce is a result about a measured
+    market, and a formal run does not call this.
+
+    One function rather than a scattered assignment, so the set of places that
+    open the gate can be listed with a single search.
+    """
+    global ALLOW_NON_FORMAL_SOURCES
+    ALLOW_NON_FORMAL_SOURCES = True
+
+
+def formal_data_readiness(source: str) -> Tuple[bool, str]:
+    """Whether a scenario priced by `source` may enter formal evaluation.
+
+    Stated as a rule over the source rather than as a flag on each scenario, so
+    a scenario added later cannot be formal-ready by omission. A flag has to be
+    remembered; a rule does not.
+    """
+    if source in FORMAL_SOURCES:
+        return True, f"{source} reads a measured market"
+    return False, (
+        f"priced by {source!r}, which does not read a measured market; a "
+        "formal case requires a real price curve")
 
 #: Periods in a library day. The library is built at 15-minute resolution and a
 #: shorter `T` is a slice of it, never a coarser rebuild.
@@ -339,8 +393,9 @@ class SyntheticWholesalePriceProvider(WholesalePriceProvider):
     def __init__(self, cfg: Optional[dict] = None):
         cfg = dict(cfg if cfg is not None else get_default(CONFIG_KEY, {}) or {})
         self.cfg = cfg
-        self.master_seed = int(cfg.get("master_seed", 20260920))
-        self.number_of_days = int(cfg.get("number_of_days", 40))
+        self.master_seed = int(cfg.get("master_seed", NON_FORMAL_LIBRARY_SEED))
+        self.number_of_days = int(cfg.get("number_of_days",
+                                          NON_FORMAL_LIBRARY_DAYS))
         self.floor = float(cfg.get("price_floor", 120.0))
         self.cap = float(cfg.get("price_cap", 1000.0))
         self.noise_sigma = float(cfg.get("noise_sigma", 15.0))
@@ -725,6 +780,112 @@ class DianyichaPriceProvider(WholesalePriceProvider):
         return rows
 
 
+class JnPriceProvider(WholesalePriceProvider):
+    """The recorded 2025 Jiangnan day-ahead price, one curve per ISO date.
+
+    `day_id` is a **date string**, not an index. A price is a fact about a day,
+    and an index would serve a different day's curve while still looking
+    correct. A date with no complete curve is refused rather than wrapped,
+    interpolated or replaced by a neighbour: a substituted curve is a price the
+    load day never had.
+
+    The unit is CNY/MWh by inference from the observed floor, cap and
+    magnitude, recorded in `reports/v2_cy_jn_2025/data_audit.md`; it is not
+    externally confirmed, and `describe` says so.
+
+    A V2-CY-JN-2025 episode pairs a 2022 load day with one of these curves, so
+    the price is a 2025 fact and the load a 2022 fact. That is a cross-year
+    controlled simulation and not a same-period settlement.
+    """
+
+    name = "jn2025"
+    DEFAULT_FILE = "data/processed/v2_cy_jn_2025/price_curves.npz"
+
+    def __init__(self, cfg: Optional[dict] = None):
+        self.cfg = dict(cfg if cfg is not None
+                        else get_default(CONFIG_KEY, {}) or {})
+        self._file = str(self.cfg.get("jn2025_file") or self.DEFAULT_FILE)
+        self._curves: Optional[Dict[str, np.ndarray]] = None
+
+    def curves(self) -> Dict[str, np.ndarray]:
+        if self._curves is None:
+            try:
+                payload = np.load(self._file)
+            except OSError as exc:
+                raise ValueError(
+                    f"{CONFIG_KEY}.jn2025_file {self._file!r} cannot be read: "
+                    f"{exc}. Build it with src/audit_jn_price_source.py.")
+            self._curves = {
+                key.split("/", 1)[1]: np.asarray(payload[key], dtype=float)
+                for key in payload.files if key.startswith("south/")
+            }
+            if not self._curves:
+                raise ValueError(
+                    f"{self._file!r} carries no 'south/<date>' curve")
+        return self._curves
+
+    def _file_sha256(self) -> str:
+        with open(self._file, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+
+    def curve_for(self, day_id) -> np.ndarray:
+        key = str(day_id)
+        curve = self.curves().get(key)
+        if curve is None:
+            raise ValueError(
+                f"{CONFIG_KEY}.day_id {day_id!r} is not a complete day in "
+                f"{self._file!r}; this source serves {len(self.curves())} "
+                "dated curves and never substitutes one for another")
+        return curve
+
+    def get_day_ahead_price(self, day_id, T: int = LIBRARY_PERIODS,
+                            t_start: int = 0,
+                            seed: Optional[int] = None) -> np.ndarray:
+        curve = self.curve_for(day_id)
+        if t_start < 0 or t_start + T > curve.size:
+            raise ValueError(
+                f"{day_id}: periods [{t_start}, {t_start + T}) exceed the "
+                f"{curve.size}-period day")
+        return curve[t_start:t_start + T].copy()
+
+    def describe(self) -> dict:
+        curves = self.curves()
+        return {
+            "source": self.name,
+            "kind": "recorded_daily_curve",
+            "file": self._file,
+            "file_sha256": self._file_sha256(),
+            "days": len(curves),
+            "day_id_selects": "iso_date",
+            "periods_per_day": LIBRARY_PERIODS,
+            "reachable_price_min_cny_mwh": min(
+                float(c.min()) for c in curves.values()),
+            "reachable_price_max_cny_mwh": max(
+                float(c.max()) for c in curves.values()),
+            "price_region": "south (江南 by the task's naming)",
+            "price_unit": "CNY/MWh",
+            "price_unit_confirmed": False,
+            "price_unit_note": "inferred from floor/cap and magnitude; "
+                               "see reports/v2_cy_jn_2025/data_audit.md",
+            "pairing_kind": "cross_year_controlled_simulation",
+        }
+
+    def day_structure_for(self, days: Sequence) -> List[dict]:
+        rows = []
+        for day in days:
+            key = str(getattr(day, "day", day))
+            curve = self.curve_for(key)
+            rows.append({
+                "day": key,
+                "reachable_price_min_cny_mwh": float(curve.min()),
+                "reachable_price_max_cny_mwh": float(curve.max()),
+                "mean_cny_mwh": float(curve.mean()),
+                "input_min": None,
+                "input_max": None,
+            })
+        return rows
+
+
 class LegacyMeritOrderProvider(WholesalePriceProvider):
     """The retired net-load map, kept only so recorded results still reproduce.
 
@@ -818,6 +979,17 @@ def get_provider(source: Optional[str] = None,
     if source not in SOURCES:
         raise ValueError(f"unknown {CONFIG_KEY}.source {source!r}; "
                          f"expected one of {SOURCES}")
+    if source in ("synthetic_v1", "library"):
+        # Checked before the cache, not after: a provider built while the gate
+        # was open would otherwise be handed back to every later caller with the
+        # gate shut, which is the one way this restriction could be bypassed.
+        if not ALLOW_NON_FORMAL_SOURCES:
+            raise ValueError(
+                f"{CONFIG_KEY}.source is {source!r}, which generates a price "
+                "series rather than reading a measured one. It is available "
+                "for non-formal tests and audits; a formal run may not price a "
+                "day with it. Set wholesale_price.ALLOW_NON_FORMAL_SOURCES to "
+                "build one deliberately.")
     if cfg is None and source in _PROVIDER_CACHE:
         return _PROVIDER_CACHE[source]
     if source in ("synthetic_v1", "library"):
@@ -828,6 +1000,8 @@ def get_provider(source: Optional[str] = None,
         provider = GuangdongWholesalePriceProvider(cfg)
     elif source == "dianyicha":
         provider = DianyichaPriceProvider(cfg)
+    elif source == "jn2025":
+        provider = JnPriceProvider(cfg)
     else:
         provider = LegacyMeritOrderProvider()
     if cfg is None:

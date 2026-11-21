@@ -1,0 +1,93 @@
+{
+  "seed": 20261101,
+  "grid": {
+    "B2A": {
+      "q_lo": [
+        0.2,
+        0.2,
+        0.35,
+        0.35
+      ],
+      "q_hi": [
+        0.65,
+        0.8,
+        0.65,
+        0.8
+      ]
+    },
+    "B2B": {
+      "q_lo": [
+        0.2,
+        0.2,
+        0.35,
+        0.35
+      ],
+      "q_hi": [
+        0.65,
+        0.8,
+        0.65,
+        0.8
+      ],
+      "soc_band": [
+        [
+          0.1,
+          0.9
+        ],
+        [
+          0.2,
+          0.8
+        ]
+      ]
+    }
+  },
+  "suppress_quotes": {
+    "charge": 150.0,
+    "discharge": 300.0
+  },
+  "information": "published day-ahead price quantiles of the same day; no realized LMP and no future market outcome",
+  "selection": {
+    "B2A": {
+      "train_mean": {
+        "q_hi=0.65|q_lo=0.35": 273.987,
+        "q_hi=0.65|q_lo=0.20": 260.964,
+        "q_hi=0.80|q_lo=0.35": 255.015,
+        "q_hi=0.80|q_lo=0.20": 242.747
+      },
+      "top2_by_train": [
+        "q_hi=0.65|q_lo=0.35",
+        "q_hi=0.65|q_lo=0.20"
+      ],
+      "validation_mean": {
+        "q_hi=0.65|q_lo=0.20": 222.95,
+        "q_hi=0.65|q_lo=0.35": 222.949
+      },
+      "selected": "q_hi=0.65|q_lo=0.20"
+    },
+    "B2B": {
+      "train_mean": {
+        "q_hi=0.80|q_lo=0.35|soc_hi=0.90|soc_lo=0.10": 154.76,
+        "q_hi=0.80|q_lo=0.20|soc_hi=0.90|soc_lo=0.10": 154.76,
+        "q_hi=0.65|q_lo=0.35|soc_hi=0.90|soc_lo=0.10": 154.76,
+        "q_hi=0.65|q_lo=0.20|soc_hi=0.90|soc_lo=0.10": 154.76,
+        "q_hi=0.80|q_lo=0.35|soc_hi=0.80|soc_lo=0.20": 135.713,
+        "q_hi=0.80|q_lo=0.20|soc_hi=0.80|soc_lo=0.20": 135.713,
+        "q_hi=0.65|q_lo=0.35|soc_hi=0.80|soc_lo=0.20": 135.713,
+        "q_hi=0.65|q_lo=0.20|soc_hi=0.80|soc_lo=0.20": 135.713
+      },
+      "top2_by_train": [
+        "q_hi=0.80|q_lo=0.35|soc_hi=0.90|soc_lo=0.10",
+        "q_hi=0.80|q_lo=0.20|soc_hi=0.90|soc_lo=0.10"
+      ],
+      "validation_mean": {
+        "q_hi=0.80|q_lo=0.35|soc_hi=0.90|soc_lo=0.10": 118.742,
+        "q_hi=0.80|q_lo=0.20|soc_hi=0.90|soc_lo=0.10": 118.742
+      },
+      "selected": "q_hi=0.80|q_lo=0.35|soc_hi=0.90|soc_lo=0.10"
+    }
+  },
+  "selected": {
+    "B2A": "q_hi=0.65|q_lo=0.20",
+    "B2B": "q_hi=0.80|q_lo=0.35|soc_hi=0.90|soc_lo=0.10"
+  },
+  "search": "deterministic grid search on the 53 common training days; the top two per family are re-scored on the 11 common validation days and one is selected"
+}

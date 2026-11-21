@@ -1,0 +1,28 @@
+{
+  "written_at": "2026-11-12T15:29:23+08:00",
+  "files": {
+    "accounting_component_summary.csv": "f6866bcde05cae0e3b1870d60017b6a2a22b00f5ce42389e3afaf15de69277f3",
+    "accounting_reconciliation.csv": "a493fa9e12c8e3d7de7d3096af347594688f152ad7340fa9c4a5f122b153b5f0",
+    "bootstrap_reproduction.csv": "726d208b06f67b48836be811a5ec66acf9c1a04d81427c4e3015bba09380c1bc",
+    "bootstrap_reproduction.json": "06c7287cf830183821485968598a6cf8c05016717d2234316657e4f6513ae90e",
+    "concentration_sensitivity.csv": "c1bb673f86890be2f040a46c32ca3e52efd0fa91f2208055daaac3ab1a17012a",
+    "daily_contribution_rank.csv": "dfd6c2d33a4ab32fb2c4b23d218a22a8626bd6e3cf972dde2b360d53f29afb67",
+    "dynamic_path_attribution.csv": "b6d9e6ab77ff9900ed067435ffe308f7d6026deb213d51db4dd20d9ea839d058",
+    "fleet_transfer_analysis.csv": "604d6399672ae303cc7427a934eef9a640800ae226eae33860cafa4504fc50c7",
+    "gate_exposure_summary.csv": "d6a20560f6e7b2778b2ace9de2f10efaef2465a682afcbd8608e0457e00ee649",
+    "input_inventory.csv": "f4d357ef4e5012293052fc43b954f57dc492ffa928503f102d33f52fabe786ba",
+    "per_ess_decomposition.csv": "e070e7c69f3be9d2b92853c21ea60e96dd1ded06cf500ef5c93f19210297924d",
+    "per_leg_exposure.csv": "d6a20560f6e7b2778b2ace9de2f10efaef2465a682afcbd8608e0457e00ee649",
+    "phase6d_config.json": "1f2397e2d5acb5a9ff9208eb7a59dfe3c3b576ce5830e51c55acf8c26670f9b2",
+    "phase6d_decision_report.md": "2430681c90d67521a1c2addbec6cdc2feb77c28aac86413fc0ce8fe2939e0d3b",
+    "quote_change_summary.csv": "c4267a963a3e28e8ac12f6ee8903717bb3420a7dea498a3fe61c7119a32dd237",
+    "quote_to_clearing_trace.csv": "92598b9a4c90966e8271043042f8d019ae3a7967a1ba6a511f930677ad8dd0f7",
+    "return_distribution_summary.csv": "6b3f2e5fa2ec7b194db7d0986dba62a1fd3227b49439c8ed329f1e646d083845",
+    "robustness_summary.csv": "96aef7e5fe6d4f1ba73a84f1a5c8dc849c9e46e8f6f3cffb1a5fb1f2cd191d90",
+    "single_quote_day_recheck.csv": "5f97dcb649d0b703dba619fdfdf38ed056aa1b4dee1d32f5ca8beef9e00b8e4a",
+    "source_hashes.json": "e2214efc852d2afc242385902b43bca0bc606bd3a4021664ea2ac86f42aee6df",
+    "source_integrity_report.json": "8025fbe91624c75d3e6ce19c08a433033e97605b636c702934f625c5f5245750",
+    "top_bottom_contributors.csv": "ab066c39495de7104ce35f5f79c398a990eac22357faf98fd7dfa527322d0561",
+    "top_bottom_day_mechanism.csv": "e3507045d285e72fe145b695476276ce18d7fe1e3d15ac592463e0aa730492c0"
+  }
+}

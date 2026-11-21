@@ -152,4 +152,21 @@ llm.py       ──→ Ollama API                 (NL config + <200-word insight
   adjustment: both arms are cleared over the whole day with `terminal_soc_equal`
   and the endpoints pinned (`counterfactual_eval.settle_day`). `PayoffBreakdown`
   carries no terminal term.
+- **Formal DA-gate stack (protocol v4, prefix `7834d0aa`)**: the live frozen
+  training protocol is `reports/v2_cy_jn_2025/formal_training_v4/` (v3, v2 and
+  `formal_training_ready` are historical, read-only). `run_formal_training.py`
+  verifies the manifests before launching and refuses unless the manifest
+  declares `GO_FORMAL_TRAINING`; seeds 11 and 23, 10–15 rounds over the 53
+  NEAR80 train days, early-stop patience 3. The actor loss adds three v4
+  mechanisms on top of the anchor: **W7 advantage hinge**
+  `-ReLU(Q(a) - Q(a_truthful) - delta_eff)` with `delta = 0.10` picked by a
+  non-profit rule from the ranking sweep (`v4_hinge_calibration.json`);
+  **W8 calibration exposure** (`calibration_interval = 8`, every 8th episode
+  resamples open-leg quotes uniformly over the box); **W9 twin-gap-adaptive
+  floor** `delta_eff = clamp(twin_gap_weight * |Q1 - Q2|, min=delta)` with
+  `twin_gap_weight = 1.0`. The P2 ranking gate counts a top-1 vote only on
+  states whose payoff range clears the calibration's flat-payoff tolerance
+  (0.5 CNY) — ties inside the noise floor are measurement noise, not failures.
+  v4 rewards use `fixed_scale = 100` vs v3's 1000: reward magnitudes are NOT
+  comparable across protocols; compare settlement-side G in CNY only.
 - **UI language**: Dashboard labels are in Chinese; physical quantities and abbreviations use English.

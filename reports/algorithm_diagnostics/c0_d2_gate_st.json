@@ -1,0 +1,397 @@
+{
+  "label": "NON_FORMAL_DIAGNOSTIC_PILOT",
+  "generated_at": "2026-11-09T23:10:17+0800",
+  "criteria": {
+    "T1": "r10 train uncertain prob frac > 0.30",
+    "T2": "any leg E|g-p| r10 > 1.5x r1",
+    "E1": "r10 eval uncertain prob frac > 0.30",
+    "uncertain_band": [
+      0.2,
+      0.8
+    ]
+  },
+  "seeds": {
+    "11": {
+      "training_mode": {
+        "1": {
+          "n_records": 10176,
+          "uncertain_frac": 0.938875786163522,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.4545922898951004,
+            "ESS9.discharge": 0.43979154487357197,
+            "ESS14.charge": 0.44603132915759236,
+            "ESS14.discharge": 0.4368263173075217,
+            "ESS17.charge": 0.45077644586094523,
+            "ESS17.discharge": 0.43385955651507435,
+            "ESS27.charge": 0.4790353911618392,
+            "ESS27.discharge": 0.4332127066903144
+          }
+        },
+        "2": {
+          "n_records": 10176,
+          "uncertain_frac": 0.09109669811320754,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.16954558016732335,
+            "ESS9.discharge": 0.16596163382882592,
+            "ESS14.charge": 0.20465116633934044,
+            "ESS14.discharge": 0.19948968464660943,
+            "ESS17.charge": 0.19104580890457584,
+            "ESS17.discharge": 0.1812747741738955,
+            "ESS27.charge": 0.3078472168190674,
+            "ESS27.discharge": 0.21243838890918396
+          }
+        },
+        "3": {
+          "n_records": 10176,
+          "uncertain_frac": 0.0,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.03848607085334758,
+            "ESS9.discharge": 0.03411152682401849,
+            "ESS14.charge": 0.05725104539836728,
+            "ESS14.discharge": 0.0439070722310798,
+            "ESS17.charge": 0.05353499396042254,
+            "ESS17.discharge": 0.04790128130208021,
+            "ESS27.charge": 0.10871697709245502,
+            "ESS27.discharge": 0.06561929788791908
+          }
+        },
+        "4": {
+          "n_records": 10176,
+          "uncertain_frac": 0.008156446540880503,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.034697672229189916,
+            "ESS9.discharge": 0.07900630870142823,
+            "ESS14.charge": 0.052344031913100546,
+            "ESS14.discharge": 0.042874153773739654,
+            "ESS17.charge": 0.06515710618136064,
+            "ESS17.discharge": 0.0371909444718241,
+            "ESS27.charge": 0.09617483423753355,
+            "ESS27.discharge": 0.04145872372688737
+          }
+        },
+        "5": {
+          "n_records": 10176,
+          "uncertain_frac": 0.03744103773584906,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.039330606496711294,
+            "ESS9.discharge": 0.21769034241050858,
+            "ESS14.charge": 0.055963483059181356,
+            "ESS14.discharge": 0.05182630156383575,
+            "ESS17.charge": 0.07267959898560301,
+            "ESS17.discharge": 0.0432761938973043,
+            "ESS27.charge": 0.11465372496618415,
+            "ESS27.discharge": 0.05019583323466703
+          }
+        },
+        "6": {
+          "n_records": 10176,
+          "uncertain_frac": 0.017983490566037735,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.09565949218593678,
+            "ESS9.discharge": 0.0646991214521651,
+            "ESS14.charge": 0.05102526068500003,
+            "ESS14.discharge": 0.0487876924797424,
+            "ESS17.charge": 0.06881660424500892,
+            "ESS17.discharge": 0.039805489609826286,
+            "ESS27.charge": 0.11150348022486428,
+            "ESS27.discharge": 0.04112691436923525
+          }
+        },
+        "7": {
+          "n_records": 10176,
+          "uncertain_frac": 0.12509827044025157,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.471605130500576,
+            "ESS9.discharge": 0.04180578985866511,
+            "ESS14.charge": 0.04082869785199375,
+            "ESS14.discharge": 0.03425693240180706,
+            "ESS17.charge": 0.06274680174746604,
+            "ESS17.discharge": 0.043120693954281836,
+            "ESS27.charge": 0.09214159274626078,
+            "ESS27.discharge": 0.042389621618408826
+          }
+        },
+        "8": {
+          "n_records": 10176,
+          "uncertain_frac": 0.12558962264150944,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.467719912142405,
+            "ESS9.discharge": 0.050772370829147366,
+            "ESS14.charge": 0.04804166776579131,
+            "ESS14.discharge": 0.039813235448966235,
+            "ESS17.charge": 0.06272022037198709,
+            "ESS17.discharge": 0.029400926013037842,
+            "ESS27.charge": 0.10400875381328775,
+            "ESS27.discharge": 0.04449783898187133
+          }
+        },
+        "9": {
+          "n_records": 10176,
+          "uncertain_frac": 0.08696933962264151,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.3859220251276995,
+            "ESS9.discharge": 0.035626723565770395,
+            "ESS14.charge": 0.0593027800040425,
+            "ESS14.discharge": 0.04081200447472386,
+            "ESS17.charge": 0.06593608373553499,
+            "ESS17.discharge": 0.033218149728370165,
+            "ESS27.charge": 0.0712461494987116,
+            "ESS27.discharge": 0.03877246871871768
+          }
+        },
+        "10": {
+          "n_records": 10176,
+          "uncertain_frac": 0.09080188679245282,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.3832822523355109,
+            "ESS9.discharge": 0.034054789153285,
+            "ESS14.charge": 0.0515913946917222,
+            "ESS14.discharge": 0.035005225372389426,
+            "ESS17.charge": 0.09042317574878908,
+            "ESS17.discharge": 0.038474142973153096,
+            "ESS27.charge": 0.0673086921092849,
+            "ESS27.discharge": 0.039846267668331194
+          }
+        }
+      },
+      "eval_mode": {
+        "1": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.0
+        },
+        "2": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.0
+        },
+        "3": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.0
+        },
+        "4": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.0
+        },
+        "5": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.011363636363636364
+        },
+        "6": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "7": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "8": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "9": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.0
+        },
+        "10": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        }
+      },
+      "T1_hit": false,
+      "T2_hit_legs_ratio_vs_r1": {},
+      "E1_hit": false,
+      "significant": false
+    },
+    "23": {
+      "training_mode": {
+        "1": {
+          "n_records": 10176,
+          "uncertain_frac": 0.9992138364779874,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.4605608931596174,
+            "ESS9.discharge": 0.4437919610045241,
+            "ESS14.charge": 0.45270596229055393,
+            "ESS14.discharge": 0.45571155089346116,
+            "ESS17.charge": 0.4886583642296071,
+            "ESS17.discharge": 0.44720251623939417,
+            "ESS27.charge": 0.4614966884958294,
+            "ESS27.discharge": 0.492597111928388
+          }
+        },
+        "2": {
+          "n_records": 10176,
+          "uncertain_frac": 0.2673938679245283,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.24005775467592216,
+            "ESS9.discharge": 0.1991253581905515,
+            "ESS14.charge": 0.23719489719695266,
+            "ESS14.discharge": 0.24971450729377614,
+            "ESS17.charge": 0.4342339707058181,
+            "ESS17.discharge": 0.2060814990937335,
+            "ESS27.charge": 0.2021184246269576,
+            "ESS27.discharge": 0.24489089457681343
+          }
+        },
+        "3": {
+          "n_records": 10176,
+          "uncertain_frac": 0.16519261006289307,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.11327268876744516,
+            "ESS9.discharge": 0.06502098618250973,
+            "ESS14.charge": 0.09599641677718493,
+            "ESS14.discharge": 0.2750967454235509,
+            "ESS17.charge": 0.42610315870751375,
+            "ESS17.discharge": 0.04180284064708266,
+            "ESS27.charge": 0.10854971917556985,
+            "ESS27.discharge": 0.03619544582921754
+          }
+        },
+        "4": {
+          "n_records": 10176,
+          "uncertain_frac": 0.13964229559748428,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.11204088605799765,
+            "ESS9.discharge": 0.0705626998213852,
+            "ESS14.charge": 0.17049434392730584,
+            "ESS14.discharge": 0.1200635478650249,
+            "ESS17.charge": 0.4002979463844929,
+            "ESS17.discharge": 0.03722949550961548,
+            "ESS27.charge": 0.17893185205289028,
+            "ESS27.discharge": 0.036810195483501604
+          }
+        },
+        "5": {
+          "n_records": 10176,
+          "uncertain_frac": 0.12686713836477986,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.11125360893191032,
+            "ESS9.discharge": 0.048614928838591906,
+            "ESS14.charge": 0.04791075777432313,
+            "ESS14.discharge": 0.20172908596413316,
+            "ESS17.charge": 0.3383454204823986,
+            "ESS17.discharge": 0.031791065895707356,
+            "ESS27.charge": 0.14407350849828818,
+            "ESS27.discharge": 0.03093081201959706
+          }
+        },
+        "6": {
+          "n_records": 10176,
+          "uncertain_frac": 0.02535377358490566,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.09669236838817596,
+            "ESS9.discharge": 0.041304645251553015,
+            "ESS14.charge": 0.036406742654881384,
+            "ESS14.discharge": 0.04254141482729582,
+            "ESS17.charge": 0.28582552422142626,
+            "ESS17.discharge": 0.03699656205732118,
+            "ESS27.charge": 0.14449444914576393,
+            "ESS27.discharge": 0.029382393654412444
+          }
+        },
+        "7": {
+          "n_records": 10176,
+          "uncertain_frac": 0.0037342767295597485,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.10821461705666668,
+            "ESS9.discharge": 0.03815133030871925,
+            "ESS14.charge": 0.03626215437269014,
+            "ESS14.discharge": 0.03803822491903725,
+            "ESS17.charge": 0.15767232661352218,
+            "ESS17.discharge": 0.035468511845705646,
+            "ESS27.charge": 0.10273515739999477,
+            "ESS27.discharge": 0.0445307934153005
+          }
+        },
+        "8": {
+          "n_records": 10176,
+          "uncertain_frac": 0.022110849056603772,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.060378554997579104,
+            "ESS9.discharge": 0.03750889078251221,
+            "ESS14.charge": 0.038606217065123176,
+            "ESS14.discharge": 0.03707396866952848,
+            "ESS17.charge": 0.24003793032101864,
+            "ESS17.discharge": 0.03622083492436499,
+            "ESS27.charge": 0.055220711390552284,
+            "ESS27.discharge": 0.036191971937440476
+          }
+        },
+        "9": {
+          "n_records": 10176,
+          "uncertain_frac": 0.12490172955974843,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.06510515426689724,
+            "ESS9.discharge": 0.0281849778579466,
+            "ESS14.charge": 0.032454815325649373,
+            "ESS14.discharge": 0.03245013849165455,
+            "ESS17.charge": 0.43134929103858816,
+            "ESS17.discharge": 0.03316609491154833,
+            "ESS27.charge": 0.050158606619579986,
+            "ESS27.discharge": 0.03467937568261188
+          }
+        },
+        "10": {
+          "n_records": 10176,
+          "uncertain_frac": 0.12490172955974843,
+          "e_abs_g_minus_p": {
+            "ESS9.charge": 0.06122480196960317,
+            "ESS9.discharge": 0.03938232952693723,
+            "ESS14.charge": 0.03544194069134552,
+            "ESS14.discharge": 0.03619570027357377,
+            "ESS17.charge": 0.4380474245679454,
+            "ESS17.discharge": 0.03846654309979025,
+            "ESS27.charge": 0.0757894919915769,
+            "ESS27.discharge": 0.0324128915397626
+          }
+        }
+      },
+      "eval_mode": {
+        "1": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.18181818181818182
+        },
+        "2": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "3": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "4": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "5": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.11363636363636363
+        },
+        "6": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.0
+        },
+        "7": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.0
+        },
+        "8": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "9": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        },
+        "10": {
+          "n_ess_leg_days": 88,
+          "uncertain_frac": 0.125
+        }
+      },
+      "T1_hit": false,
+      "T2_hit_legs_ratio_vs_r1": {},
+      "E1_hit": false,
+      "significant": false
+    }
+  },
+  "runtime_s": 1.0,
+  "verdict": "ST_GATE_NOT_SIGNIFICANT"
+}

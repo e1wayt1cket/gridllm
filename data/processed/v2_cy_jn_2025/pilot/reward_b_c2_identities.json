@@ -1,0 +1,15 @@
+{
+  "b_terminal_only": true,
+  "b_discounted_is_gamma23": true,
+  "b_fixed_scale": 1000.0,
+  "c2_telescope_max_abs_error": 3.552713678800501e-15,
+  "c2_boundary_max_abs_error": 2.525757381022231e-15,
+  "c2_terminal_potential_max_abs": 0.0,
+  "c2_potential_max_abs": 40.241377946340094,
+  "c2_potential_bound": 184.44644645791254,
+  "c2_boundary_only_max_abs_error": 8.881784197001252e-15,
+  "c2_scaling_max_abs_error": 0.0,
+  "c2_mid_episode_termination_rejected": true,
+  "gamma": 0.99,
+  "all_pass": true
+}

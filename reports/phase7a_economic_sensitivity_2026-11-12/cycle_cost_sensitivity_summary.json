@@ -1,0 +1,2680 @@
+{
+ "generated_at": "2026-11-12T15:50:25+08:00",
+ "label": "NON_FORMAL_DIAGNOSTIC",
+ "statement": "Cycle Cost was varied on the cleared trajectories Phase 6 produced. Charge, discharge, prices and schedules are held fixed, so these are accounting re-estimations of a frozen policy, not the performance a policy would obtain if the market were cleared again under another cycle cost. Re-clearing would change the dispatch, the nodal prices and the settlement.",
+ "held_fixed": [
+  "cleared schedules",
+  "nodal prices",
+  "charge_mwh",
+  "discharge_mwh",
+  "gate decisions"
+ ],
+ "re_estimated": "cycle cost = rate x (charge_mwh + discharge_mwh)",
+ "cost_function": "linear in the rate; confirmed against the stored cycle cost, which equals 100 x throughput on every nonzero row",
+ "rates_cny_per_mwh": [
+  0.0,
+  50.0,
+  100.0,
+  150.0,
+  200.0
+ ],
+ "bootstrap": {
+  "n_resamples": 1000,
+  "seed": 20261112,
+  "cluster": "pair_id (date)",
+  "interval": "percentile"
+ },
+ "linearity_check": {
+  "status": "PASS",
+  "max_abs_residual_cny": 2.842170943040401e-14,
+  "identity": "delta(r) = delta(100) + (100 - r) * delta_energy"
+ },
+ "base_rate_reproduction": {
+  "status": "PASS",
+  "groups": 40,
+  "max_abs_diff": 1.8118839761882555e-13,
+  "source": "phase6/bootstrap_summary.json"
+ },
+ "groups": [
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_best",
+   "seed": 11,
+   "role": "auxiliary_regression",
+   "scope": "fleet",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 407.3388585658409,
+     "candidate_mean_net_cny": 372.18926119152184,
+     "delta_mean_net_cny": -35.14959737431905,
+     "delta_median_net_cny": -0.0001040231751230851,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -100.65145195643099,
+     "ci95_high_cny": 7.270151474512871,
+     "delta_mean_cycle_cny": -36.311027786652176,
+     "delta_mean_energy_mwh": -0.36311027786652217
+    },
+    "50.0": {
+     "control_mean_net_cny": 321.80480113741606,
+     "candidate_mean_net_cny": 304.81071765642315,
+     "delta_mean_net_cny": -16.994083480992934,
+     "delta_median_net_cny": 4.415939389715664e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -53.25873595926787,
+     "ci95_high_cny": 10.412635428420463,
+     "delta_mean_cycle_cny": -36.311027786652176,
+     "delta_mean_energy_mwh": -0.36311027786652217
+    },
+    "100.0": {
+     "control_mean_net_cny": 236.2707437089913,
+     "candidate_mean_net_cny": 237.43217412132446,
+     "delta_mean_net_cny": 1.1614304123331696,
+     "delta_median_net_cny": 8.14303464905768e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -13.481864328920874,
+     "ci95_high_cny": 17.77830251003241,
+     "delta_mean_cycle_cny": -36.311027786652176,
+     "delta_mean_energy_mwh": -0.36311027786652217
+    },
+    "150.0": {
+     "control_mean_net_cny": 150.73668628056646,
+     "candidate_mean_net_cny": 170.05363058622575,
+     "delta_mean_net_cny": 19.316944305659298,
+     "delta_median_net_cny": 0.00039554764757817874,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 3.195485746981728,
+     "ci95_high_cny": 40.71572725903168,
+     "delta_mean_cycle_cny": -36.311027786652176,
+     "delta_mean_energy_mwh": -0.36311027786652217
+    },
+    "200.0": {
+     "control_mean_net_cny": 65.20262885214167,
+     "candidate_mean_net_cny": 102.67508705112704,
+     "delta_mean_net_cny": 37.47245819898537,
+     "delta_median_net_cny": 0.0005620712551452668,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 6.826165046629991,
+     "ci95_high_cny": 82.03559272752659,
+     "delta_mean_cycle_cny": -36.311027786652176,
+     "delta_mean_energy_mwh": -0.36311027786652217
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_best",
+   "seed": 11,
+   "role": "auxiliary_regression",
+   "scope": "ESS9",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 87.18962126436122,
+     "candidate_mean_net_cny": 87.31347455583156,
+     "delta_mean_net_cny": 0.12385329147034416,
+     "delta_median_net_cny": -3.391900830336184e-05,
+     "delta_positive_share": 0.125,
+     "ci95_low_cny": -0.408978700340779,
+     "ci95_high_cny": 0.8073798141854802,
+     "delta_mean_cycle_cny": 7.5269270354283435e-06,
+     "delta_mean_energy_mwh": 7.526927035516619e-08
+    },
+    "50.0": {
+     "control_mean_net_cny": 65.15444078935485,
+     "candidate_mean_net_cny": 65.27829031736167,
+     "delta_mean_net_cny": 0.12384952800682109,
+     "delta_median_net_cny": -3.317088304539952e-06,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -0.40895690034108323,
+     "ci95_high_cny": 0.8073424240431851,
+     "delta_mean_cycle_cny": 7.5269270354283435e-06,
+     "delta_mean_energy_mwh": 7.526927035516619e-08
+    },
+    "100.0": {
+     "control_mean_net_cny": 43.119260314348466,
+     "candidate_mean_net_cny": 43.24310607889177,
+     "delta_mean_net_cny": 0.12384576454330082,
+     "delta_median_net_cny": -3.08317084709685e-06,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -0.4089418840831781,
+     "ci95_high_cny": 0.8072920674671138,
+     "delta_mean_cycle_cny": 7.5269270354283435e-06,
+     "delta_mean_energy_mwh": 7.526927035516619e-08
+    },
+    "150.0": {
+     "control_mean_net_cny": 21.08407983934209,
+     "candidate_mean_net_cny": 21.207921840421882,
+     "delta_mean_net_cny": 0.12384200107979212,
+     "delta_median_net_cny": -2.8492533896537546e-06,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -0.40892708582816983,
+     "ci95_high_cny": 0.8072417108910825,
+     "delta_mean_cycle_cny": 7.5269270354283435e-06,
+     "delta_mean_energy_mwh": 7.526927035516619e-08
+    },
+    "200.0": {
+     "control_mean_net_cny": -0.9511006356642895,
+     "candidate_mean_net_cny": -0.8272623980480205,
+     "delta_mean_net_cny": 0.12383823761626658,
+     "delta_median_net_cny": -2.615335932210639e-06,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -0.4089122875731634,
+     "ci95_high_cny": 0.807191354315006,
+     "delta_mean_cycle_cny": 7.5269270354283435e-06,
+     "delta_mean_energy_mwh": 7.526927035516619e-08
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_best",
+   "seed": 11,
+   "role": "auxiliary_regression",
+   "scope": "ESS14",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 98.55517133859928,
+     "candidate_mean_net_cny": 91.96643948900181,
+     "delta_mean_net_cny": -6.588731849597458,
+     "delta_median_net_cny": -1.424830702170009e-06,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -25.58601033482301,
+     "ci95_high_cny": 5.60502236789884,
+     "delta_mean_cycle_cny": -6.361720446263483,
+     "delta_mean_energy_mwh": -0.06361720446263486
+    },
+    "50.0": {
+     "control_mean_net_cny": 80.26973559030039,
+     "candidate_mean_net_cny": 76.86186396383468,
+     "delta_mean_net_cny": -3.4078716264657105,
+     "delta_median_net_cny": 9.316452013021346e-06,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -16.043440662098458,
+     "ci95_high_cny": 5.605030047407319,
+     "delta_mean_cycle_cny": -6.361720446263483,
+     "delta_mean_energy_mwh": -0.06361720446263486
+    },
+    "100.0": {
+     "control_mean_net_cny": 61.984299842001505,
+     "candidate_mean_net_cny": 61.75728843866753,
+     "delta_mean_net_cny": -0.22701140333397146,
+     "delta_median_net_cny": 1.638682632932974e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -6.396157808935566,
+     "ci95_high_cny": 5.605545635268705,
+     "delta_mean_cycle_cny": -6.361720446263483,
+     "delta_mean_energy_mwh": -0.06361720446263486
+    },
+    "150.0": {
+     "control_mean_net_cny": 43.69886409370261,
+     "candidate_mean_net_cny": 46.65271291350039,
+     "delta_mean_net_cny": 2.9538488197977735,
+     "delta_median_net_cny": 3.3319746833492277e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 0.10370891754604505,
+     "ci95_high_cny": 6.779237009100443,
+     "delta_mean_cycle_cny": -6.361720446263483,
+     "delta_mean_energy_mwh": -0.06361720446263486
+    },
+    "200.0": {
+     "control_mean_net_cny": 25.41342834540373,
+     "candidate_mean_net_cny": 31.548137388333245,
+     "delta_mean_net_cny": 6.1347090429295115,
+     "delta_median_net_cny": 4.427662799497489e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 0.10371015550332474,
+     "ci95_high_cny": 14.452256461573585,
+     "delta_mean_cycle_cny": -6.361720446263483,
+     "delta_mean_energy_mwh": -0.06361720446263486
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_best",
+   "seed": 11,
+   "role": "auxiliary_regression",
+   "scope": "ESS17",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 111.98012342609668,
+     "candidate_mean_net_cny": 90.34339357385838,
+     "delta_mean_net_cny": -21.63672985223831,
+     "delta_median_net_cny": -0.0007798967509324608,
+     "delta_positive_share": 0.25,
+     "ci95_low_cny": -51.77280136769547,
+     "ci95_high_cny": -0.23710567173717673,
+     "delta_mean_cycle_cny": -16.14746254234238,
+     "delta_mean_energy_mwh": -0.16147462542342386
+    },
+    "50.0": {
+     "control_mean_net_cny": 88.8018002813092,
+     "candidate_mean_net_cny": 75.23880170024208,
+     "delta_mean_net_cny": -13.56299858106712,
+     "delta_median_net_cny": -0.000773411914211841,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -32.791501395852485,
+     "ci95_high_cny": -0.23709459593507495,
+     "delta_mean_cycle_cny": -16.14746254234238,
+     "delta_mean_energy_mwh": -0.16147462542342386
+    },
+    "100.0": {
+     "control_mean_net_cny": 65.62347713652171,
+     "candidate_mean_net_cny": 60.13420982662578,
+     "delta_mean_net_cny": -5.489267309895925,
+     "delta_median_net_cny": -0.000767053639956207,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -13.810009359596679,
+     "ci95_high_cny": -0.23708352753072115,
+     "delta_mean_cycle_cny": -16.14746254234238,
+     "delta_mean_energy_mwh": -0.16147462542342386
+    },
+    "150.0": {
+     "control_mean_net_cny": 42.445153991734216,
+     "candidate_mean_net_cny": 45.029617953009485,
+     "delta_mean_net_cny": 2.584463961275267,
+     "delta_median_net_cny": 3.7160915117749085e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -0.48651013647514685,
+     "ci95_high_cny": 6.4644211795511985,
+     "delta_mean_cycle_cny": -16.14746254234238,
+     "delta_mean_energy_mwh": -0.16147462542342386
+    },
+    "200.0": {
+     "control_mean_net_cny": 19.266830846946736,
+     "candidate_mean_net_cny": 29.925026079393188,
+     "delta_mean_net_cny": 10.658195232446458,
+     "delta_median_net_cny": 5.03774807746024e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -0.4865016166028917,
+     "ci95_high_cny": 25.477241877220212,
+     "delta_mean_cycle_cny": -16.14746254234238,
+     "delta_mean_energy_mwh": -0.16147462542342386
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_best",
+   "seed": 11,
+   "role": "auxiliary_regression",
+   "scope": "ESS27",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 109.61394253678368,
+     "candidate_mean_net_cny": 102.56595357283001,
+     "delta_mean_net_cny": -7.047988963953666,
+     "delta_median_net_cny": -6.136570124946218e-05,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -24.851294695207468,
+     "ci95_high_cny": 7.2231273773602735,
+     "delta_mean_cycle_cny": -13.801852324973371,
+     "delta_mean_energy_mwh": -0.1380185232497338
+    },
+    "50.0": {
+     "control_mean_net_cny": 87.57882447645164,
+     "candidate_mean_net_cny": 87.43176167498467,
+     "delta_mean_net_cny": -0.1470628014669737,
+     "delta_median_net_cny": 2.532243377000142e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -10.23541580056099,
+     "ci95_high_cny": 11.959138545883912,
+     "delta_mean_cycle_cny": -13.801852324973371,
+     "delta_mean_energy_mwh": -0.1380185232497338
+    },
+    "100.0": {
+     "control_mean_net_cny": 65.54370641611959,
+     "candidate_mean_net_cny": 72.2975697771393,
+     "delta_mean_net_cny": 6.75386336101971,
+     "delta_median_net_cny": 7.924620503118075e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -2.103680984299341,
+     "ci95_high_cny": 19.63417497544755,
+     "delta_mean_cycle_cny": -13.801852324973371,
+     "delta_mean_energy_mwh": -0.1380185232497338
+    },
+    "150.0": {
+     "control_mean_net_cny": 43.50858835578754,
+     "candidate_mean_net_cny": 57.163377879293954,
+     "delta_mean_net_cny": 13.654789523506409,
+     "delta_median_net_cny": 0.00022729633716725862,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 0.0056327231834804314,
+     "ci95_high_cny": 33.11267488695371,
+     "delta_mean_cycle_cny": -13.801852324973371,
+     "delta_mean_energy_mwh": -0.1380185232497338
+    },
+    "200.0": {
+     "control_mean_net_cny": 21.4734702954555,
+     "candidate_mean_net_cny": 42.029185981448585,
+     "delta_mean_net_cny": 20.55571568599309,
+     "delta_median_net_cny": 0.00032351701663949886,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 1.0818686554097785,
+     "ci95_high_cny": 45.46541249432231,
+     "delta_mean_cycle_cny": -13.801852324973371,
+     "delta_mean_energy_mwh": -0.1380185232497338
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "fleet",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 353.1932423243651,
+     "candidate_mean_net_cny": 369.3542150630762,
+     "delta_mean_net_cny": 16.160972738711123,
+     "delta_median_net_cny": 1.7584753607636486e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -6.438291239229358,
+     "ci95_high_cny": 47.23946032913919,
+     "delta_mean_cycle_cny": -31.50951955811132,
+     "delta_mean_energy_mwh": -0.3150951955811131
+    },
+    "50.0": {
+     "control_mean_net_cny": 278.7566440020902,
+     "candidate_mean_net_cny": 310.672376519857,
+     "delta_mean_net_cny": 31.915732517766756,
+     "delta_median_net_cny": 9.331781339588147e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": 5.157942327220845,
+     "ci95_high_cny": 68.93940469197622,
+     "delta_mean_cycle_cny": -31.50951955811132,
+     "delta_mean_energy_mwh": -0.3150951955811131
+    },
+    "100.0": {
+     "control_mean_net_cny": 204.32004567981537,
+     "candidate_mean_net_cny": 251.9905379766378,
+     "delta_mean_net_cny": 47.670492296822424,
+     "delta_median_net_cny": 0.00019139293111801003,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": 9.679969009934208,
+     "ci95_high_cny": 97.91060355856374,
+     "delta_mean_cycle_cny": -31.50951955811132,
+     "delta_mean_energy_mwh": -0.3150951955811131
+    },
+    "150.0": {
+     "control_mean_net_cny": 129.88344735754046,
+     "candidate_mean_net_cny": 193.30869943341858,
+     "delta_mean_net_cny": 63.425252075878106,
+     "delta_median_net_cny": 0.00033149134903159437,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": 12.040829789210289,
+     "ci95_high_cny": 129.00803717246214,
+     "delta_mean_cycle_cny": -31.50951955811132,
+     "delta_mean_energy_mwh": -0.3150951955811131
+    },
+    "200.0": {
+     "control_mean_net_cny": 55.446849035265615,
+     "candidate_mean_net_cny": 134.62686089019934,
+     "delta_mean_net_cny": 79.18001185493372,
+     "delta_median_net_cny": 0.00047158976694517866,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": 14.401690866924906,
+     "ci95_high_cny": 160.10541875911574,
+     "delta_mean_cycle_cny": -31.50951955811132,
+     "delta_mean_energy_mwh": -0.3150951955811131
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS9",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 72.88376888020925,
+     "candidate_mean_net_cny": 75.68124985946389,
+     "delta_mean_net_cny": 2.7974809792546433,
+     "delta_median_net_cny": 3.576297072677782e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.04746982536418647,
+     "ci95_high_cny": 8.253321585493588,
+     "delta_mean_cycle_cny": 1.6470625880060652e-05,
+     "delta_mean_energy_mwh": 1.647062588464519e-07
+    },
+    "50.0": {
+     "control_mean_net_cny": 62.395215103131456,
+     "candidate_mean_net_cny": 65.19268784707316,
+     "delta_mean_net_cny": 2.7974727439417015,
+     "delta_median_net_cny": 1.1088914092746116e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.04747460626674088,
+     "ci95_high_cny": 8.2533069766318,
+     "delta_mean_cycle_cny": 1.6470625880060652e-05,
+     "delta_mean_energy_mwh": 1.647062588464519e-07
+    },
+    "100.0": {
+     "control_mean_net_cny": 51.90666132605366,
+     "candidate_mean_net_cny": 54.70412583468242,
+     "delta_mean_net_cny": 2.797464508628763,
+     "delta_median_net_cny": -2.502742448206668e-06,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -0.047479376004293285,
+     "ci95_high_cny": 8.25329124001105,
+     "delta_mean_cycle_cny": 1.6470625880060652e-05,
+     "delta_mean_energy_mwh": 1.647062588464519e-07
+    },
+    "150.0": {
+     "control_mean_net_cny": 41.41810754897587,
+     "candidate_mean_net_cny": 44.215563822291685,
+     "delta_mean_net_cny": 2.797456273315813,
+     "delta_median_net_cny": -6.114376305687941e-06,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -0.04748340929230689,
+     "ci95_high_cny": 8.253276066913404,
+     "delta_mean_cycle_cny": 1.6470625880060652e-05,
+     "delta_mean_energy_mwh": 1.647062588464519e-07
+    },
+    "200.0": {
+     "control_mean_net_cny": 30.929553771898068,
+     "candidate_mean_net_cny": 33.727001809900955,
+     "delta_mean_net_cny": 2.7974480380028828,
+     "delta_median_net_cny": -9.726010163169217e-06,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -0.04748763099834726,
+     "ci95_high_cny": 8.253260893815781,
+     "delta_mean_cycle_cny": 1.6470625880060652e-05,
+     "delta_mean_energy_mwh": 1.647062588464519e-07
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS14",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 86.01584872649603,
+     "candidate_mean_net_cny": 91.84619704847792,
+     "delta_mean_net_cny": 5.830348321981904,
+     "delta_median_net_cny": 5.612368368348245e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -1.1396888118787776,
+     "ci95_high_cny": 15.699221641802717,
+     "delta_mean_cycle_cny": -13.861119947266324,
+     "delta_mean_energy_mwh": -0.1386111994726632
+    },
+    "50.0": {
+     "control_mean_net_cny": 63.98070669135514,
+     "candidate_mean_net_cny": 76.7416149869702,
+     "delta_mean_net_cny": 12.76090829561507,
+     "delta_median_net_cny": 3.3661587615859144e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 2.7804935838555878,
+     "ci95_high_cny": 25.631066581659073,
+     "delta_mean_cycle_cny": -13.861119947266324,
+     "delta_mean_energy_mwh": -0.1386111994726632
+    },
+    "100.0": {
+     "control_mean_net_cny": 41.945564656214266,
+     "candidate_mean_net_cny": 61.63703292546249,
+     "delta_mean_net_cny": 19.691468269248226,
+     "delta_median_net_cny": 8.89528246669685e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 3.9609460973156274,
+     "ci95_high_cny": 39.49215478086274,
+     "delta_mean_cycle_cny": -13.861119947266324,
+     "delta_mean_energy_mwh": -0.1386111994726632
+    },
+    "150.0": {
+     "control_mean_net_cny": 19.91042262107338,
+     "candidate_mean_net_cny": 46.532450863954764,
+     "delta_mean_net_cny": 26.622028242881385,
+     "delta_median_net_cny": 0.00015322425186693322,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 5.141398860240257,
+     "ci95_high_cny": 53.413383735262414,
+     "delta_mean_cycle_cny": -13.861119947266324,
+     "delta_mean_energy_mwh": -0.1386111994726632
+    },
+    "200.0": {
+     "control_mean_net_cny": -2.124719414067499,
+     "candidate_mean_net_cny": 31.42786880244705,
+     "delta_mean_net_cny": 33.55258821651455,
+     "delta_median_net_cny": 0.00021749567906689799,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 6.321851623164905,
+     "ci95_high_cny": 69.40282039447061,
+     "delta_mean_cycle_cny": -13.861119947266324,
+     "delta_mean_energy_mwh": -0.1386111994726632
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS17",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 87.1125688736696,
+     "candidate_mean_net_cny": 91.075246040631,
+     "delta_mean_net_cny": 3.962677166961396,
+     "delta_median_net_cny": 6.843763419766158e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -1.836607785315545,
+     "ci95_high_cny": 13.781484275907305,
+     "delta_mean_cycle_cny": -9.13166769771053,
+     "delta_mean_energy_mwh": -0.0913166769771053
+    },
+    "50.0": {
+     "control_mean_net_cny": 67.44215688316811,
+     "candidate_mean_net_cny": 75.97066789898476,
+     "delta_mean_net_cny": 8.52851101581666,
+     "delta_median_net_cny": 3.094426612824987e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -0.05683139580726281,
+     "ci95_high_cny": 19.980608577832115,
+     "delta_mean_cycle_cny": -9.13166769771053,
+     "delta_mean_energy_mwh": -0.0913166769771053
+    },
+    "100.0": {
+     "control_mean_net_cny": 47.771744892666604,
+     "candidate_mean_net_cny": 60.866089757338536,
+     "delta_mean_net_cny": 13.094344864671926,
+     "delta_median_net_cny": 7.962997467618826e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -0.05681403585130177,
+     "ci95_high_cny": 31.99607010840726,
+     "delta_mean_cycle_cny": -9.13166769771053,
+     "delta_mean_energy_mwh": -0.0913166769771053
+    },
+    "150.0": {
+     "control_mean_net_cny": 28.101332902165105,
+     "candidate_mean_net_cny": 45.7615116156923,
+     "delta_mean_net_cny": 17.66017871352719,
+     "delta_median_net_cny": 0.00013507544404164603,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -0.056799826709096134,
+     "ci95_high_cny": 43.24839708983738,
+     "delta_mean_cycle_cny": -9.13166769771053,
+     "delta_mean_energy_mwh": -0.0913166769771053
+    },
+    "200.0": {
+     "control_mean_net_cny": 8.430920911663605,
+     "candidate_mean_net_cny": 30.65693347404606,
+     "delta_mean_net_cny": 22.226012562382458,
+     "delta_median_net_cny": 0.00019052091340710382,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -0.056785817894919294,
+     "ci95_high_cny": 53.483865637907535,
+     "delta_mean_cycle_cny": -9.13166769771053,
+     "delta_mean_energy_mwh": -0.0913166769771053
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS27",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 107.18105584399024,
+     "candidate_mean_net_cny": 110.75152211450342,
+     "delta_mean_net_cny": 3.5704662705132,
+     "delta_median_net_cny": 1.0026073009933259e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -3.947953362483329,
+     "ci95_high_cny": 12.546438072425321,
+     "delta_mean_cycle_cny": -8.516748383760351,
+     "delta_mean_energy_mwh": -0.08516748383760346
+    },
+    "50.0": {
+     "control_mean_net_cny": 84.93856532443553,
+     "candidate_mean_net_cny": 92.7674057868289,
+     "delta_mean_net_cny": 7.8288404623933765,
+     "delta_median_net_cny": 2.250436525952237e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -2.2988682318511673,
+     "ci95_high_cny": 18.401779609239025,
+     "delta_mean_cycle_cny": -8.516748383760351,
+     "delta_mean_energy_mwh": -0.08516748383760346
+    },
+    "100.0": {
+     "control_mean_net_cny": 62.69607480488084,
+     "candidate_mean_net_cny": 74.78328945915439,
+     "delta_mean_net_cny": 12.087214654273543,
+     "delta_median_net_cny": 3.594694685350995e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -0.6497921205263596,
+     "ci95_high_cny": 25.391848582063773,
+     "delta_mean_cycle_cny": -8.516748383760351,
+     "delta_mean_energy_mwh": -0.08516748383760346
+    },
+    "150.0": {
+     "control_mean_net_cny": 40.45358428532616,
+     "candidate_mean_net_cny": 56.799173131479876,
+     "delta_mean_net_cny": 16.345588846153717,
+     "delta_median_net_cny": 0.00045034610251898664,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 0.4870433821851925,
+     "ci95_high_cny": 34.27080715286407,
+     "delta_mean_cycle_cny": -8.516748383760351,
+     "delta_mean_energy_mwh": -0.08516748383760346
+    },
+    "200.0": {
+     "control_mean_net_cny": 18.211093765771473,
+     "candidate_mean_net_cny": 38.815056803805355,
+     "delta_mean_net_cny": 20.603963038033882,
+     "delta_median_net_cny": 0.00046291791127111453,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 1.2909630680395014,
+     "ci95_high_cny": 43.744184318585155,
+     "delta_mean_cycle_cny": -8.516748383760351,
+     "delta_mean_energy_mwh": -0.08516748383760346
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_best",
+   "seed": 23,
+   "role": "auxiliary_regression",
+   "scope": "fleet",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 426.79198692364065,
+     "candidate_mean_net_cny": 387.2438797259596,
+     "delta_mean_net_cny": -39.54810719768106,
+     "delta_median_net_cny": -5.2130503721437165e-05,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -95.12510895674832,
+     "ci95_high_cny": 0.9541395996230752,
+     "delta_mean_cycle_cny": -46.58512979210266,
+     "delta_mean_energy_mwh": -0.465851297921027
+    },
+    "50.0": {
+     "control_mean_net_cny": 334.7867627934678,
+     "candidate_mean_net_cny": 318.5312204918381,
+     "delta_mean_net_cny": -16.255542301629703,
+     "delta_median_net_cny": 6.96796781251283e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -41.15004472389635,
+     "ci95_high_cny": 3.3756713785039207,
+     "delta_mean_cycle_cny": -46.58512979210266,
+     "delta_mean_energy_mwh": -0.465851297921027
+    },
+    "100.0": {
+     "control_mean_net_cny": 242.78153866329495,
+     "candidate_mean_net_cny": 249.81856125771654,
+     "delta_mean_net_cny": 7.037022594421629,
+     "delta_median_net_cny": 0.0002833916141333202,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 0.057658480634021486,
+     "ci95_high_cny": 14.86712586402836,
+     "delta_mean_cycle_cny": -46.58512979210266,
+     "delta_mean_energy_mwh": -0.465851297921027
+    },
+    "150.0": {
+     "control_mean_net_cny": 150.77631453312208,
+     "candidate_mean_net_cny": 181.10590202359506,
+     "delta_mean_net_cny": 30.329587490472978,
+     "delta_median_net_cny": 0.0004455810862095989,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 3.709870895329399,
+     "ci95_high_cny": 65.07640695573825,
+     "delta_mean_cycle_cny": -46.58512979210266,
+     "delta_mean_energy_mwh": -0.465851297921027
+    },
+    "200.0": {
+     "control_mean_net_cny": 58.7710904029492,
+     "candidate_mean_net_cny": 112.39324278947353,
+     "delta_mean_net_cny": 53.62215238652435,
+     "delta_median_net_cny": 0.0006077705582858776,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 4.890369471124839,
+     "ci95_high_cny": 120.1827373290536,
+     "delta_mean_cycle_cny": -46.58512979210266,
+     "delta_mean_energy_mwh": -0.465851297921027
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_best",
+   "seed": 23,
+   "role": "auxiliary_regression",
+   "scope": "ESS9",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 92.19280873420688,
+     "candidate_mean_net_cny": 92.49540766100885,
+     "delta_mean_net_cny": 0.302598926801967,
+     "delta_median_net_cny": -3.537350515409495e-06,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -0.5038527077299559,
+     "ci95_high_cny": 1.4600978439137011,
+     "delta_mean_cycle_cny": -3.1833352231558365e-05,
+     "delta_mean_energy_mwh": -3.1833352229614224e-07
+    },
+    "50.0": {
+     "control_mean_net_cny": 77.08822085463689,
+     "candidate_mean_net_cny": 77.39083569811497,
+     "delta_mean_net_cny": 0.3026148434780854,
+     "delta_median_net_cny": 7.906191674956641e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.5038373374225689,
+     "ci95_high_cny": 1.4601129644533415,
+     "delta_mean_cycle_cny": -3.1833352231558365e-05,
+     "delta_mean_energy_mwh": -3.1833352229614224e-07
+    },
+    "100.0": {
+     "control_mean_net_cny": 61.98363297506689,
+     "candidate_mean_net_cny": 62.286263735221084,
+     "delta_mean_net_cny": 0.3026307601541931,
+     "delta_median_net_cny": 1.9349733865322786e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.5038219355898956,
+     "ci95_high_cny": 1.4601279973135843,
+     "delta_mean_cycle_cny": -3.1833352231558365e-05,
+     "delta_mean_energy_mwh": -3.1833352229614224e-07
+    },
+    "150.0": {
+     "control_mean_net_cny": 46.879045095496885,
+     "candidate_mean_net_cny": 47.1816917723272,
+     "delta_mean_net_cny": 0.3026466768303134,
+     "delta_median_net_cny": 3.0793276055688916e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.5038065337571798,
+     "ci95_high_cny": 1.4601437186695594,
+     "delta_mean_cycle_cny": -3.1833352231558365e-05,
+     "delta_mean_energy_mwh": -3.1833352229614224e-07
+    },
+    "200.0": {
+     "control_mean_net_cny": 31.774457215926898,
+     "candidate_mean_net_cny": 32.07711980943332,
+     "delta_mean_net_cny": 0.30266259350642477,
+     "delta_median_net_cny": 4.223681824605505e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.5037911319245065,
+     "ci95_high_cny": 1.4601631265465829,
+     "delta_mean_cycle_cny": -3.1833352231558365e-05,
+     "delta_mean_energy_mwh": -3.1833352229614224e-07
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_best",
+   "seed": 23,
+   "role": "auxiliary_regression",
+   "scope": "ESS14",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 126.51446601612676,
+     "candidate_mean_net_cny": 94.58030236660318,
+     "delta_mean_net_cny": -31.934163649523583,
+     "delta_median_net_cny": -0.13213653439062098,
+     "delta_positive_share": 0.25,
+     "ci95_low_cny": -76.42674597239196,
+     "ci95_high_cny": -0.7471809760873562,
+     "delta_mean_cycle_cny": -24.021656558434742,
+     "delta_mean_energy_mwh": -0.24021656558434745
+    },
+    "50.0": {
+     "control_mean_net_cny": 98.03525671574738,
+     "candidate_mean_net_cny": 78.11192134544115,
+     "delta_mean_net_cny": -19.92333537030621,
+     "delta_median_net_cny": -0.13211742325333198,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -47.058338297123015,
+     "ci95_high_cny": -0.7471354741512014,
+     "delta_mean_cycle_cny": -24.021656558434742,
+     "delta_mean_energy_mwh": -0.24021656558434745
+    },
+    "100.0": {
+     "control_mean_net_cny": 69.55604741536797,
+     "candidate_mean_net_cny": 61.643540324279144,
+     "delta_mean_net_cny": -7.912507091088828,
+     "delta_median_net_cny": -0.13209831211604298,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -17.689928743063735,
+     "ci95_high_cny": -0.7470894564792362,
+     "delta_mean_cycle_cny": -24.021656558434742,
+     "delta_mean_energy_mwh": -0.24021656558434745
+    },
+    "150.0": {
+     "control_mean_net_cny": 41.07683811498858,
+     "candidate_mean_net_cny": 45.17515930311712,
+     "delta_mean_net_cny": 4.098321188128532,
+     "delta_median_net_cny": 0.0001307913943184608,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -1.5605195632499345,
+     "ci95_high_cny": 10.908835249779235,
+     "delta_mean_cycle_cny": -24.021656558434742,
+     "delta_mean_energy_mwh": -0.24021656558434745
+    },
+    "200.0": {
+     "control_mean_net_cny": 12.59762881460918,
+     "candidate_mean_net_cny": 28.706778281955106,
+     "delta_mean_net_cny": 16.109149467345922,
+     "delta_median_net_cny": 0.00017124071997930005,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -1.5604830374824263,
+     "ci95_high_cny": 39.519279650657104,
+     "delta_mean_cycle_cny": -24.021656558434742,
+     "delta_mean_energy_mwh": -0.24021656558434745
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_best",
+   "seed": 23,
+   "role": "auxiliary_regression",
+   "scope": "ESS17",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 113.46812123269898,
+     "candidate_mean_net_cny": 90.55904849103162,
+     "delta_mean_net_cny": -22.90907274166735,
+     "delta_median_net_cny": -6.016595846317474e-05,
+     "delta_positive_share": 0.375,
+     "ci95_low_cny": -56.52801322539327,
+     "ci95_high_cny": 2.84066723467239,
+     "delta_mean_cycle_cny": -22.563456769187937,
+     "delta_mean_energy_mwh": -0.22563456769187945
+    },
+    "50.0": {
+     "control_mean_net_cny": 87.08181614006538,
+     "candidate_mean_net_cny": 75.45447178299202,
+     "delta_mean_net_cny": -11.627344357073374,
+     "delta_median_net_cny": 2.6462664831918828e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -31.129753473423857,
+     "ci95_high_cny": 5.262155342022358,
+     "delta_mean_cycle_cny": -22.563456769187937,
+     "delta_mean_energy_mwh": -0.22563456769187945
+    },
+    "100.0": {
+     "control_mean_net_cny": 60.69551104743179,
+     "candidate_mean_net_cny": 60.34989507495239,
+     "delta_mean_net_cny": -0.34561597247940856,
+     "delta_median_net_cny": 5.2168510207219124e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -9.252715306070739,
+     "ci95_high_cny": 9.951000552468527,
+     "delta_mean_cycle_cny": -22.563456769187937,
+     "delta_mean_energy_mwh": -0.22563456769187945
+    },
+    "150.0": {
+     "control_mean_net_cny": 34.3092059547982,
+     "candidate_mean_net_cny": 45.245318366912784,
+     "delta_mean_net_cny": 10.936112412114575,
+     "delta_median_net_cny": 0.00023242807869012643,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 2.5827243735638414,
+     "ci95_high_cny": 22.000757650931828,
+     "delta_mean_cycle_cny": -22.563456769187937,
+     "delta_mean_energy_mwh": -0.22563456769187945
+    },
+    "200.0": {
+     "control_mean_net_cny": 7.922900862164624,
+     "candidate_mean_net_cny": 30.140741658873164,
+     "delta_mean_net_cny": 22.21784079670854,
+     "delta_median_net_cny": 0.00032995942440789344,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 5.949887306309951,
+     "ci95_high_cny": 43.92038301170443,
+     "delta_mean_cycle_cny": -22.563456769187937,
+     "delta_mean_energy_mwh": -0.22563456769187945
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_best",
+   "seed": 23,
+   "role": "auxiliary_regression",
+   "scope": "ESS27",
+   "primary": false,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 94.6165909406081,
+     "candidate_mean_net_cny": 109.60912120731591,
+     "delta_mean_net_cny": 14.992530266707798,
+     "delta_median_net_cny": 1.9842324246668805e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": 0.016239064741391626,
+     "ci95_high_cny": 35.23195645697154,
+     "delta_mean_cycle_cny": 1.5368872233523234e-05,
+     "delta_mean_energy_mwh": 1.5368872232916269e-07
+    },
+    "50.0": {
+     "control_mean_net_cny": 72.58146908301822,
+     "candidate_mean_net_cny": 87.5739916652899,
+     "delta_mean_net_cny": 14.992522582271684,
+     "delta_median_net_cny": 1.994198164160921e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": 0.016239410066919178,
+     "ci95_high_cny": 35.23192646579593,
+     "delta_mean_cycle_cny": 1.5368872233523234e-05,
+     "delta_mean_energy_mwh": 1.5368872232916269e-07
+    },
+    "100.0": {
+     "control_mean_net_cny": 50.54634722542832,
+     "candidate_mean_net_cny": 65.5388621232639,
+     "delta_mean_net_cny": 14.99251489783557,
+     "delta_median_net_cny": 3.065505977993911e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": 0.016238409946326627,
+     "ci95_high_cny": 35.23189918632588,
+     "delta_mean_cycle_cny": 1.5368872233523234e-05,
+     "delta_mean_energy_mwh": 1.5368872232916269e-07
+    },
+    "150.0": {
+     "control_mean_net_cny": 28.51122536783843,
+     "candidate_mean_net_cny": 43.503732581237884,
+     "delta_mean_net_cny": 14.992507213399447,
+     "delta_median_net_cny": 4.1368137918268997e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": 0.016234096314311608,
+     "ci95_high_cny": 35.23187190685583,
+     "delta_mean_cycle_cny": 1.5368872233523234e-05,
+     "delta_mean_energy_mwh": 1.5368872232916269e-07
+    },
+    "200.0": {
+     "control_mean_net_cny": 6.476103510248546,
+     "candidate_mean_net_cny": 21.468603039211878,
+     "delta_mean_net_cny": 14.992499528963338,
+     "delta_median_net_cny": 5.208121605659893e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": 0.01622978268230351,
+     "ci95_high_cny": 35.2318446273858,
+     "delta_mean_cycle_cny": 1.5368872233523234e-05,
+     "delta_mean_energy_mwh": 1.5368872232916269e-07
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "fleet",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 355.099969727119,
+     "candidate_mean_net_cny": 360.1436604184334,
+     "delta_mean_net_cny": 5.04369069131437,
+     "delta_median_net_cny": 1.9640266293441638e-05,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -18.797051888877494,
+     "ci95_high_cny": 32.472989133054824,
+     "delta_mean_cycle_cny": -41.583381978992435,
+     "delta_mean_energy_mwh": -0.41583381978992445
+    },
+    "50.0": {
+     "control_mean_net_cny": 266.9593436851794,
+     "candidate_mean_net_cny": 292.79472536599,
+     "delta_mean_net_cny": 25.835381680810578,
+     "delta_median_net_cny": 0.00016355527910486516,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 5.512439037057657,
+     "ci95_high_cny": 52.73350022094055,
+     "delta_mean_cycle_cny": -41.583381978992435,
+     "delta_mean_energy_mwh": -0.41583381978992445
+    },
+    "100.0": {
+     "control_mean_net_cny": 178.81871764323986,
+     "candidate_mean_net_cny": 225.4457903135467,
+     "delta_mean_net_cny": 46.627072670306816,
+     "delta_median_net_cny": 0.0005508585633525632,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 9.374838738041243,
+     "ci95_high_cny": 93.29713887504955,
+     "delta_mean_cycle_cny": -41.583381978992435,
+     "delta_mean_energy_mwh": -0.41583381978992445
+    },
+    "150.0": {
+     "control_mean_net_cny": 90.6780916013003,
+     "candidate_mean_net_cny": 158.09685526110334,
+     "delta_mean_net_cny": 67.41876365980305,
+     "delta_median_net_cny": 0.0009381618476002611,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 12.603542663317848,
+     "ci95_high_cny": 142.10473432008203,
+     "delta_mean_cycle_cny": -41.583381978992435,
+     "delta_mean_energy_mwh": -0.41583381978992445
+    },
+    "200.0": {
+     "control_mean_net_cny": 2.537465559360726,
+     "candidate_mean_net_cny": 90.74792020866002,
+     "delta_mean_net_cny": 88.21045464929925,
+     "delta_median_net_cny": 0.0013254651318479593,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 15.83224658859448,
+     "ci95_high_cny": 190.91294001288688,
+     "delta_mean_cycle_cny": -41.583381978992435,
+     "delta_mean_energy_mwh": -0.41583381978992445
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS9",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 92.55394950955878,
+     "candidate_mean_net_cny": 92.6498700547169,
+     "delta_mean_net_cny": 0.09592054515812354,
+     "delta_median_net_cny": 6.087961221343819e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -16.276444253606115,
+     "ci95_high_cny": 14.252217213901694,
+     "delta_mean_cycle_cny": -13.861140800398523,
+     "delta_mean_energy_mwh": -0.13861140800398516
+    },
+    "50.0": {
+     "control_mean_net_cny": 70.5187798204605,
+     "candidate_mean_net_cny": 77.54527076581788,
+     "delta_mean_net_cny": 7.026490945357381,
+     "delta_median_net_cny": 3.5761210021145466e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -4.725342436483224,
+     "ci95_high_cny": 21.028668245228957,
+     "delta_mean_cycle_cny": -13.861140800398523,
+     "delta_mean_energy_mwh": -0.13861140800398516
+    },
+    "100.0": {
+     "control_mean_net_cny": 48.48361013136221,
+     "candidate_mean_net_cny": 62.44067147691885,
+     "delta_mean_net_cny": 13.957061345556639,
+     "delta_median_net_cny": 0.00023375035155554625,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 2.1250289034131047,
+     "ci95_high_cny": 28.214791537609212,
+     "delta_mean_cycle_cny": -13.861140800398523,
+     "delta_mean_energy_mwh": -0.13861140800398516
+    },
+    "150.0": {
+     "control_mean_net_cny": 26.448440442263923,
+     "candidate_mean_net_cny": 47.33607218801983,
+     "delta_mean_net_cny": 20.8876317457559,
+     "delta_median_net_cny": 0.00041345834324752433,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 5.774543541018195,
+     "ci95_high_cny": 41.796123089072594,
+     "delta_mean_cycle_cny": -13.861140800398523,
+     "delta_mean_energy_mwh": -0.13861140800398516
+    },
+    "200.0": {
+     "control_mean_net_cny": 4.413270753165648,
+     "candidate_mean_net_cny": 32.23147289912081,
+     "delta_mean_net_cny": 27.818202145955166,
+     "delta_median_net_cny": 0.0005931663349395022,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 6.9549992333306445,
+     "ci95_high_cny": 55.12288599028497,
+     "delta_mean_cycle_cny": -13.861140800398523,
+     "delta_mean_energy_mwh": -0.13861140800398516
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS14",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 85.03252174328179,
+     "candidate_mean_net_cny": 86.0105743357677,
+     "delta_mean_net_cny": 0.9780525924859156,
+     "delta_median_net_cny": 9.73544894209059e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.03650633331407329,
+     "ci95_high_cny": 2.773918280201486,
+     "delta_mean_cycle_cny": -1.071553215581389e-05,
+     "delta_mean_energy_mwh": -1.0715532151052829e-07
+    },
+    "50.0": {
+     "control_mean_net_cny": 62.997359623242176,
+     "candidate_mean_net_cny": 63.97541757349417,
+     "delta_mean_net_cny": 0.978057950251989,
+     "delta_median_net_cny": 2.1547291036036283e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": -0.036497202443003626,
+     "ci95_high_cny": 2.7739197182980466,
+     "delta_mean_cycle_cny": -1.071553215581389e-05,
+     "delta_mean_energy_mwh": -1.0715532151052829e-07
+    },
+    "100.0": {
+     "control_mean_net_cny": 40.962197503202574,
+     "candidate_mean_net_cny": 41.94026081122064,
+     "delta_mean_net_cny": 0.9780633080180623,
+     "delta_median_net_cny": 4.4186961767372814e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": -0.03648531475367774,
+     "ci95_high_cny": 2.773921843211614,
+     "delta_mean_cycle_cny": -1.071553215581389e-05,
+     "delta_mean_energy_mwh": -1.0715532151052829e-07
+    },
+    "150.0": {
+     "control_mean_net_cny": 18.927035383162977,
+     "candidate_mean_net_cny": 19.905104048947116,
+     "delta_mean_net_cny": 0.9780686657841366,
+     "delta_median_net_cny": 6.682663249870939e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": -0.03647603652799559,
+     "ci95_high_cny": 2.773923403909217,
+     "delta_mean_cycle_cny": -1.071553215581389e-05,
+     "delta_mean_energy_mwh": -1.0715532151052829e-07
+    },
+    "200.0": {
+     "control_mean_net_cny": -3.1081267368766277,
+     "candidate_mean_net_cny": -2.130052713326414,
+     "delta_mean_net_cny": 0.9780740235502162,
+     "delta_median_net_cny": 8.946630323004588e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": -0.03646675830230989,
+     "ci95_high_cny": 2.773924964606838,
+     "delta_mean_cycle_cny": -1.071553215581389e-05,
+     "delta_mean_energy_mwh": -1.0715532151052829e-07
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS17",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 82.90842077003883,
+     "candidate_mean_net_cny": 87.2811876067804,
+     "delta_mean_net_cny": 4.372766836741585,
+     "delta_median_net_cny": 4.628926868785751e-06,
+     "delta_positive_share": 0.625,
+     "ci95_low_cny": -0.9837402348823234,
+     "ci95_high_cny": 10.944381172738279,
+     "delta_mean_cycle_cny": -13.861127294664676,
+     "delta_mean_energy_mwh": -0.1386112729466467
+    },
+    "50.0": {
+     "control_mean_net_cny": 60.87326283105507,
+     "candidate_mean_net_cny": 72.176593315129,
+     "delta_mean_net_cny": 11.303330484073918,
+     "delta_median_net_cny": 4.557310496735387e-05,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 2.758092306680478,
+     "ci95_high_cny": 22.553308776081433,
+     "delta_mean_cycle_cny": -13.861127294664676,
+     "delta_mean_energy_mwh": -0.1386112729466467
+    },
+    "100.0": {
+     "control_mean_net_cny": 38.83810489207133,
+     "candidate_mean_net_cny": 57.07199902347758,
+     "delta_mean_net_cny": 18.233894131406252,
+     "delta_median_net_cny": 0.00015623483350901544,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 3.834324448125239,
+     "ci95_high_cny": 37.11613306293901,
+     "delta_mean_cycle_cny": -13.861127294664676,
+     "delta_mean_energy_mwh": -0.1386112729466467
+    },
+    "150.0": {
+     "control_mean_net_cny": 16.80294695308757,
+     "candidate_mean_net_cny": 41.967404731826164,
+     "delta_mean_net_cny": 25.164457778738594,
+     "delta_median_net_cny": 0.000266896562050677,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 4.91055658957001,
+     "ci95_high_cny": 53.35792500674244,
+     "delta_mean_cycle_cny": -13.861127294664676,
+     "delta_mean_energy_mwh": -0.1386112729466467
+    },
+    "200.0": {
+     "control_mean_net_cny": -5.232210985896181,
+     "candidate_mean_net_cny": 26.862810440174748,
+     "delta_mean_net_cny": 32.09502142607092,
+     "delta_median_net_cny": 0.0003775582905923385,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 5.986788731014765,
+     "ci95_high_cny": 69.6273603441091,
+     "delta_mean_cycle_cny": -13.861127294664676,
+     "delta_mean_energy_mwh": -0.1386112729466467
+    }
+   }
+  },
+  {
+   "phase": "A",
+   "split": "Probe",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS27",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 94.60507770423959,
+     "candidate_mean_net_cny": 94.20202842116835,
+     "delta_mean_net_cny": -0.40304928307123067,
+     "delta_median_net_cny": -3.19013700448151e-05,
+     "delta_positive_share": 0.5,
+     "ci95_low_cny": -10.514674439629676,
+     "ci95_high_cny": 9.937242198296213,
+     "delta_mean_cycle_cny": -13.861103168397115,
+     "delta_mean_energy_mwh": -0.13861103168397115
+    },
+    "50.0": {
+     "control_mean_net_cny": 72.56994141042165,
+     "candidate_mean_net_cny": 79.09744371154898,
+     "delta_mean_net_cny": 6.5275023011273205,
+     "delta_median_net_cny": 3.5553629440364464e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -4.393180182727431,
+     "ci95_high_cny": 18.535545562377813,
+     "delta_mean_cycle_cny": -13.861103168397115,
+     "delta_mean_energy_mwh": -0.13861103168397115
+    },
+    "100.0": {
+     "control_mean_net_cny": 50.534805116603714,
+     "candidate_mean_net_cny": 63.9928590019296,
+     "delta_mean_net_cny": 13.458053885325889,
+     "delta_median_net_cny": 7.287573438322456e-05,
+     "delta_positive_share": 0.75,
+     "ci95_low_cny": -2.185496601572363,
+     "ci95_high_cny": 33.3724617384177,
+     "delta_mean_cycle_cny": -13.861103168397115,
+     "delta_mean_energy_mwh": -0.13861103168397115
+    },
+    "150.0": {
+     "control_mean_net_cny": 28.49966882278577,
+     "candidate_mean_net_cny": 48.88827429231023,
+     "delta_mean_net_cny": 20.388605469524453,
+     "delta_median_net_cny": 0.00019098030980335017,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": -0.007216856305031499,
+     "ci95_high_cny": 47.92553261549905,
+     "delta_mean_cycle_cny": -13.861103168397115,
+     "delta_mean_energy_mwh": -0.13861103168397115
+    },
+    "200.0": {
+     "control_mean_net_cny": 6.464532528967833,
+     "candidate_mean_net_cny": 33.78368958269084,
+     "delta_mean_net_cny": 27.319157053723004,
+     "delta_median_net_cny": 0.00026527420308607196,
+     "delta_positive_share": 0.875,
+     "ci95_low_cny": 1.0423105783119195,
+     "ci95_high_cny": 63.0294460942962,
+     "delta_mean_cycle_cny": -13.861103168397115,
+     "delta_mean_energy_mwh": -0.13861103168397115
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "fleet",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 206.57382593298425,
+     "candidate_mean_net_cny": 200.43585398022284,
+     "delta_mean_net_cny": -6.137971952761401,
+     "delta_median_net_cny": 1.3491469779527098e-05,
+     "delta_positive_share": 0.5471698113207547,
+     "ci95_low_cny": -24.720191225731572,
+     "ci95_high_cny": 9.861776770057984,
+     "delta_mean_cycle_cny": -35.59989541725102,
+     "delta_mean_energy_mwh": -0.3559989541725101
+    },
+    "50.0": {
+     "control_mean_net_cny": 110.44069903369297,
+     "candidate_mean_net_cny": 122.10267478955704,
+     "delta_mean_net_cny": 11.6619757558641,
+     "delta_median_net_cny": 9.179605831348777e-05,
+     "delta_positive_share": 0.660377358490566,
+     "ci95_low_cny": -4.393507190378528,
+     "ci95_high_cny": 27.370587737384547,
+     "delta_mean_cycle_cny": -35.59989541725102,
+     "delta_mean_energy_mwh": -0.3559989541725101
+    },
+    "100.0": {
+     "control_mean_net_cny": 14.30757213440164,
+     "candidate_mean_net_cny": 43.76949559889126,
+     "delta_mean_net_cny": 29.46192346448961,
+     "delta_median_net_cny": 0.00019796764906075703,
+     "delta_positive_share": 0.7547169811320755,
+     "ci95_low_cny": 11.997846814383777,
+     "ci95_high_cny": 49.05960451895227,
+     "delta_mean_cycle_cny": -35.59989541725102,
+     "delta_mean_energy_mwh": -0.3559989541725101
+    },
+    "150.0": {
+     "control_mean_net_cny": -81.82555476488967,
+     "candidate_mean_net_cny": -34.563683591774534,
+     "delta_mean_net_cny": 47.26187117311514,
+     "delta_median_net_cny": 0.0003322599141579891,
+     "delta_positive_share": 0.7735849056603774,
+     "ci95_low_cny": 24.63534931425921,
+     "ci95_high_cny": 72.51643791367434,
+     "delta_mean_cycle_cny": -35.59989541725102,
+     "delta_mean_energy_mwh": -0.3559989541725101
+    },
+    "200.0": {
+     "control_mean_net_cny": -177.95868166418103,
+     "candidate_mean_net_cny": -112.89686278244035,
+     "delta_mean_net_cny": 65.06181888174063,
+     "delta_median_net_cny": 0.031163145420066485,
+     "delta_positive_share": 0.8301886792452831,
+     "ci95_low_cny": 35.91738879017067,
+     "ci95_high_cny": 98.61031038494508,
+     "delta_mean_cycle_cny": -35.59989541725102,
+     "delta_mean_energy_mwh": -0.3559989541725101
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS9",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 14.576064690951963,
+     "candidate_mean_net_cny": 19.457077734277327,
+     "delta_mean_net_cny": 4.881013043325368,
+     "delta_median_net_cny": 1.0203945723521648e-06,
+     "delta_positive_share": 0.5471698113207547,
+     "ci95_low_cny": 1.2297085709055073,
+     "ci95_high_cny": 9.4903698307551,
+     "delta_mean_cycle_cny": 3.458642504194396,
+     "delta_mean_energy_mwh": 0.034586425041943966
+    },
+    "50.0": {
+     "control_mean_net_cny": 10.031648942459714,
+     "candidate_mean_net_cny": 13.183340733687881,
+     "delta_mean_net_cny": 3.1516917912281706,
+     "delta_median_net_cny": -1.493734171129741e-07,
+     "delta_positive_share": 0.49056603773584906,
+     "ci95_low_cny": 0.49765749308418367,
+     "ci95_high_cny": 6.274932886674148,
+     "delta_mean_cycle_cny": 3.458642504194396,
+     "delta_mean_energy_mwh": 0.034586425041943966
+    },
+    "100.0": {
+     "control_mean_net_cny": 5.487233193967465,
+     "candidate_mean_net_cny": 6.909603733098438,
+     "delta_mean_net_cny": 1.4223705391309718,
+     "delta_median_net_cny": -9.237681649058819e-07,
+     "delta_positive_share": 0.49056603773584906,
+     "ci95_low_cny": -0.8893886620736404,
+     "ci95_high_cny": 4.032641421519244,
+     "delta_mean_cycle_cny": 3.458642504194396,
+     "delta_mean_energy_mwh": 0.034586425041943966
+    },
+    "150.0": {
+     "control_mean_net_cny": 0.9428174454752196,
+     "candidate_mean_net_cny": 0.6358667325089914,
+     "delta_mean_net_cny": -0.30695071296622795,
+     "delta_median_net_cny": -8.343570339869487e-06,
+     "delta_positive_share": 0.4339622641509434,
+     "ci95_low_cny": -3.51438309409433,
+     "ci95_high_cny": 3.0704216023336763,
+     "delta_mean_cycle_cny": 3.458642504194396,
+     "delta_mean_energy_mwh": 0.034586425041943966
+    },
+    "200.0": {
+     "control_mean_net_cny": -3.601598303017027,
+     "candidate_mean_net_cny": -5.6378702680804516,
+     "delta_mean_net_cny": -2.0362719650634253,
+     "delta_median_net_cny": -1.0494552868863238e-05,
+     "delta_positive_share": 0.41509433962264153,
+     "ci95_low_cny": -6.580079087109753,
+     "ci95_high_cny": 2.271609436258139,
+     "delta_mean_cycle_cny": 3.458642504194396,
+     "delta_mean_energy_mwh": 0.034586425041943966
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS14",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 61.78869943010759,
+     "candidate_mean_net_cny": 57.185416889534835,
+     "delta_mean_net_cny": -4.603282540572744,
+     "delta_median_net_cny": 1.2414199233271394e-06,
+     "delta_positive_share": 0.5094339622641509,
+     "ci95_low_cny": -11.754152686289427,
+     "ci95_high_cny": 1.6550999661897752,
+     "delta_mean_cycle_cny": -16.246928438137246,
+     "delta_mean_energy_mwh": -0.16246928438137234
+    },
+    "50.0": {
+     "control_mean_net_cny": 30.020588361710928,
+     "candidate_mean_net_cny": 33.540770040206795,
+     "delta_mean_net_cny": 3.5201816784958755,
+     "delta_median_net_cny": 2.862410232474655e-05,
+     "delta_positive_share": 0.660377358490566,
+     "ci95_low_cny": -2.466564886691249,
+     "ci95_high_cny": 9.074354274098178,
+     "delta_mean_cycle_cny": -16.246928438137246,
+     "delta_mean_energy_mwh": -0.16246928438137234
+    },
+    "100.0": {
+     "control_mean_net_cny": -1.7475227066857375,
+     "candidate_mean_net_cny": 9.896123190878754,
+     "delta_mean_net_cny": 11.643645897564491,
+     "delta_median_net_cny": 6.891290706873693e-05,
+     "delta_positive_share": 0.7358490566037735,
+     "ci95_low_cny": 5.151563894108332,
+     "ci95_high_cny": 18.508931154872823,
+     "delta_mean_cycle_cny": -16.246928438137246,
+     "delta_mean_energy_mwh": -0.16246928438137234
+    },
+    "150.0": {
+     "control_mean_net_cny": -33.5156337750824,
+     "candidate_mean_net_cny": -13.748523658449296,
+     "delta_mean_net_cny": 19.76711011663311,
+     "delta_median_net_cny": 0.00011731543978132236,
+     "delta_positive_share": 0.8113207547169812,
+     "ci95_low_cny": 11.098070003931296,
+     "ci95_high_cny": 29.390064562267103,
+     "delta_mean_cycle_cny": -16.246928438137246,
+     "delta_mean_energy_mwh": -0.16246928438137234
+    },
+    "200.0": {
+     "control_mean_net_cny": -65.28374484347906,
+     "candidate_mean_net_cny": -37.39317050777733,
+     "delta_mean_net_cny": 27.89057433570173,
+     "delta_median_net_cny": 0.003543033078017288,
+     "delta_positive_share": 0.8679245283018868,
+     "ci95_low_cny": 16.493333237516957,
+     "ci95_high_cny": 40.37169204408513,
+     "delta_mean_cycle_cny": -16.246928438137246,
+     "delta_mean_energy_mwh": -0.16246928438137234
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS17",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 59.13991568547366,
+     "candidate_mean_net_cny": 53.70861975043445,
+     "delta_mean_net_cny": -5.431295935039197,
+     "delta_median_net_cny": -3.941719665905443e-08,
+     "delta_positive_share": 0.49056603773584906,
+     "ci95_low_cny": -12.331467890384546,
+     "ci95_high_cny": 0.4206777959619085,
+     "delta_mean_cycle_cny": -15.071132705686793,
+     "delta_mean_energy_mwh": -0.15071132705686802
+    },
+    "50.0": {
+     "control_mean_net_cny": 29.490652187596243,
+     "candidate_mean_net_cny": 31.594922605400452,
+     "delta_mean_net_cny": 2.1042704178042047,
+     "delta_median_net_cny": 1.652963877821247e-05,
+     "delta_positive_share": 0.6226415094339622,
+     "ci95_low_cny": -3.6092442805107896,
+     "ci95_high_cny": 7.745603423482592,
+     "delta_mean_cycle_cny": -15.071132705686793,
+     "delta_mean_energy_mwh": -0.15071132705686802
+    },
+    "100.0": {
+     "control_mean_net_cny": -0.15861131028115438,
+     "candidate_mean_net_cny": 9.481225460366451,
+     "delta_mean_net_cny": 9.639836770647607,
+     "delta_median_net_cny": 5.1908569210658024e-05,
+     "delta_positive_share": 0.6981132075471698,
+     "ci95_low_cny": 3.0774418410559297,
+     "ci95_high_cny": 17.000193675779478,
+     "delta_mean_cycle_cny": -15.071132705686793,
+     "delta_mean_energy_mwh": -0.15071132705686802
+    },
+    "150.0": {
+     "control_mean_net_cny": -29.807874808158555,
+     "candidate_mean_net_cny": -12.632471684667548,
+     "delta_mean_net_cny": 17.175403123491005,
+     "delta_median_net_cny": 0.0001080995058670067,
+     "delta_positive_share": 0.7924528301886793,
+     "ci95_low_cny": 8.146547595915292,
+     "ci95_high_cny": 27.149967111133268,
+     "delta_mean_cycle_cny": -15.071132705686793,
+     "delta_mean_energy_mwh": -0.15071132705686802
+    },
+    "200.0": {
+     "control_mean_net_cny": -59.45713830603596,
+     "candidate_mean_net_cny": -34.746168829701546,
+     "delta_mean_net_cny": 24.710969476334412,
+     "delta_median_net_cny": 0.0002629608114934586,
+     "delta_positive_share": 0.8490566037735849,
+     "ci95_low_cny": 12.94154650839033,
+     "ci95_high_cny": 38.339088906613476,
+     "delta_mean_cycle_cny": -15.071132705686793,
+     "delta_mean_energy_mwh": -0.15071132705686802
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS27",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 71.06914612645107,
+     "candidate_mean_net_cny": 70.08473960597624,
+     "delta_mean_net_cny": -0.9844065204748299,
+     "delta_median_net_cny": 3.64832484688085e-06,
+     "delta_positive_share": 0.5849056603773585,
+     "ci95_low_cny": -5.423887027498895,
+     "ci95_high_cny": 2.85404838049532,
+     "delta_mean_cycle_cny": -7.740476777621367,
+     "delta_mean_energy_mwh": -0.0774047677762138
+    },
+    "50.0": {
+     "control_mean_net_cny": 40.89780954192608,
+     "candidate_mean_net_cny": 43.78364141026193,
+     "delta_mean_net_cny": 2.8858318683358606,
+     "delta_median_net_cny": 2.1193102985821868e-05,
+     "delta_positive_share": 0.6415094339622641,
+     "ci95_low_cny": -1.2170107075068541,
+     "ci95_high_cny": 7.326869660640271,
+     "delta_mean_cycle_cny": -7.740476777621367,
+     "delta_mean_energy_mwh": -0.0774047677762138
+    },
+    "100.0": {
+     "control_mean_net_cny": 10.726472957401073,
+     "candidate_mean_net_cny": 17.48254321454762,
+     "delta_mean_net_cny": 6.756070257146549,
+     "delta_median_net_cny": 3.9127992498939906e-05,
+     "delta_positive_share": 0.7547169811320755,
+     "ci95_low_cny": 1.8668993631803261,
+     "ci95_high_cny": 12.590219885038188,
+     "delta_mean_cycle_cny": -7.740476777621367,
+     "delta_mean_energy_mwh": -0.0774047677762138
+    },
+    "150.0": {
+     "control_mean_net_cny": -19.44486362712393,
+     "candidate_mean_net_cny": -8.81855498116669,
+     "delta_mean_net_cny": 10.62630864595724,
+     "delta_median_net_cny": 6.871441464798009e-05,
+     "delta_positive_share": 0.7735849056603774,
+     "ci95_low_cny": 4.6723939009652815,
+     "ci95_high_cny": 18.366709203075725,
+     "delta_mean_cycle_cny": -7.740476777621367,
+     "delta_mean_energy_mwh": -0.0774047677762138
+    },
+    "200.0": {
+     "control_mean_net_cny": -49.61620021164894,
+     "candidate_mean_net_cny": -35.119653176881,
+     "delta_mean_net_cny": 14.496547034767925,
+     "delta_median_net_cny": 0.00012269661622928743,
+     "delta_positive_share": 0.8113207547169812,
+     "ci95_low_cny": 6.875789705214833,
+     "ci95_high_cny": 23.918397413144056,
+     "delta_mean_cycle_cny": -7.740476777621367,
+     "delta_mean_energy_mwh": -0.0774047677762138
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "fleet",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 251.3139849426145,
+     "candidate_mean_net_cny": 242.94702773088306,
+     "delta_mean_net_cny": -8.366957211731417,
+     "delta_median_net_cny": 4.481491172490755e-06,
+     "delta_positive_share": 0.5094339622641509,
+     "ci95_low_cny": -24.95389871765881,
+     "ci95_high_cny": 6.289049641264033,
+     "delta_mean_cycle_cny": -36.51469626684661,
+     "delta_mean_energy_mwh": -0.36514696266846586
+    },
+    "50.0": {
+     "control_mean_net_cny": 125.91911425137921,
+     "candidate_mean_net_cny": 135.8095051730711,
+     "delta_mean_net_cny": 9.890390921691875,
+     "delta_median_net_cny": 9.115282053867154e-05,
+     "delta_positive_share": 0.660377358490566,
+     "ci95_low_cny": -4.932375484499374,
+     "ci95_high_cny": 23.530365089111093,
+     "delta_mean_cycle_cny": -36.51469626684661,
+     "delta_mean_energy_mwh": -0.36514696266846586
+    },
+    "100.0": {
+     "control_mean_net_cny": 0.5242435601439458,
+     "candidate_mean_net_cny": 28.671982615259115,
+     "delta_mean_net_cny": 28.147739055115174,
+     "delta_median_net_cny": 0.00020361392692761166,
+     "delta_positive_share": 0.7169811320754716,
+     "ci95_low_cny": 11.817001910042947,
+     "ci95_high_cny": 45.6239649412703,
+     "delta_mean_cycle_cny": -36.51469626684661,
+     "delta_mean_energy_mwh": -0.36514696266846586
+    },
+    "150.0": {
+     "control_mean_net_cny": -124.87062713109131,
+     "candidate_mean_net_cny": -78.46553994255284,
+     "delta_mean_net_cny": 46.40508718853847,
+     "delta_median_net_cny": 0.000491160284623627,
+     "delta_positive_share": 0.7547169811320755,
+     "ci95_low_cny": 25.190796714947496,
+     "ci95_high_cny": 69.95189438400902,
+     "delta_mean_cycle_cny": -36.51469626684661,
+     "delta_mean_energy_mwh": -0.36514696266846586
+    },
+    "200.0": {
+     "control_mean_net_cny": -250.26549782232658,
+     "candidate_mean_net_cny": -185.6030625003648,
+     "delta_mean_net_cny": 64.66243532196175,
+     "delta_median_net_cny": 0.05403555717721531,
+     "delta_positive_share": 0.8113207547169812,
+     "ci95_low_cny": 37.212669020948056,
+     "ci95_high_cny": 95.08191769994073,
+     "delta_mean_cycle_cny": -36.51469626684661,
+     "delta_mean_energy_mwh": -0.36514696266846586
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS9",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 65.48046284257944,
+     "candidate_mean_net_cny": 63.28813274524458,
+     "delta_mean_net_cny": -2.1923300973348896,
+     "delta_median_net_cny": 1.2088396569532797e-06,
+     "delta_positive_share": 0.5094339622641509,
+     "ci95_low_cny": -7.5376373231656,
+     "ci95_high_cny": 3.065987018107906,
+     "delta_mean_cycle_cny": -10.325981474787007,
+     "delta_mean_energy_mwh": -0.10325981474787012
+    },
+    "50.0": {
+     "control_mean_net_cny": 34.02107340603883,
+     "candidate_mean_net_cny": 36.99173404609745,
+     "delta_mean_net_cny": 2.9706606400586155,
+     "delta_median_net_cny": 2.004972451052138e-05,
+     "delta_positive_share": 0.6415094339622641,
+     "ci95_low_cny": -1.7965878552138304,
+     "ci95_high_cny": 7.797377174445198,
+     "delta_mean_cycle_cny": -10.325981474787007,
+     "delta_mean_energy_mwh": -0.10325981474787012
+    },
+    "100.0": {
+     "control_mean_net_cny": 2.561683969498217,
+     "candidate_mean_net_cny": 10.695335346950337,
+     "delta_mean_net_cny": 8.133651377452122,
+     "delta_median_net_cny": 5.695159646370176e-05,
+     "delta_positive_share": 0.6981132075471698,
+     "ci95_low_cny": 3.075532030935248,
+     "ci95_high_cny": 13.904639434455513,
+     "delta_mean_cycle_cny": -10.325981474787007,
+     "delta_mean_energy_mwh": -0.10325981474787012
+    },
+    "150.0": {
+     "control_mean_net_cny": -28.897705467042414,
+     "candidate_mean_net_cny": -15.601063352196777,
+     "delta_mean_net_cny": 13.296642114845625,
+     "delta_median_net_cny": 8.796720835464557e-05,
+     "delta_positive_share": 0.7547169811320755,
+     "ci95_low_cny": 6.784747774509513,
+     "ci95_high_cny": 20.64254779282749,
+     "delta_mean_cycle_cny": -10.325981474787007,
+     "delta_mean_energy_mwh": -0.10325981474787012
+    },
+    "200.0": {
+     "control_mean_net_cny": -60.35709490358303,
+     "candidate_mean_net_cny": -41.897462051343894,
+     "delta_mean_net_cny": 18.459632852239135,
+     "delta_median_net_cny": 0.0010431318647799817,
+     "delta_positive_share": 0.8113207547169812,
+     "ci95_low_cny": 10.05612059757799,
+     "ci95_high_cny": 27.822293228129986,
+     "delta_mean_cycle_cny": -10.325981474787007,
+     "delta_mean_energy_mwh": -0.10325981474787012
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS14",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 60.43708608247313,
+     "candidate_mean_net_cny": 62.7393169383152,
+     "delta_mean_net_cny": 2.3022308558420796,
+     "delta_median_net_cny": 0.006688547128656186,
+     "delta_positive_share": 0.6981132075471698,
+     "ci95_low_cny": 0.38023905295759886,
+     "ci95_high_cny": 4.813041600803945,
+     "delta_mean_cycle_cny": 0.7784699174956415,
+     "delta_mean_energy_mwh": 0.007784699174956512
+    },
+    "50.0": {
+     "control_mean_net_cny": 29.038089455823673,
+     "candidate_mean_net_cny": 30.951085352917925,
+     "delta_mean_net_cny": 1.9129958970942542,
+     "delta_median_net_cny": 3.7993773564039885e-05,
+     "delta_positive_share": 0.6792452830188679,
+     "ci95_low_cny": 0.25061089318622426,
+     "ci95_high_cny": 3.9272622312819894,
+     "delta_mean_cycle_cny": 0.7784699174956415,
+     "delta_mean_energy_mwh": 0.007784699174956512
+    },
+    "100.0": {
+     "control_mean_net_cny": -2.36090717082578,
+     "candidate_mean_net_cny": -0.8371462324793542,
+     "delta_mean_net_cny": 1.5237609383464283,
+     "delta_median_net_cny": 6.256866394998542e-05,
+     "delta_positive_share": 0.6792452830188679,
+     "ci95_low_cny": 0.13657836737321685,
+     "ci95_high_cny": 3.219917082306316,
+     "delta_mean_cycle_cny": 0.7784699174956415,
+     "delta_mean_energy_mwh": 0.007784699174956512
+    },
+    "150.0": {
+     "control_mean_net_cny": -33.75990379747523,
+     "candidate_mean_net_cny": -32.62537781787663,
+     "delta_mean_net_cny": 1.1345259795986027,
+     "delta_median_net_cny": 9.71990594729466e-05,
+     "delta_positive_share": 0.660377358490566,
+     "ci95_low_cny": -0.15085210797666798,
+     "ci95_high_cny": 2.8208689213691254,
+     "delta_mean_cycle_cny": 0.7784699174956415,
+     "delta_mean_energy_mwh": 0.007784699174956512
+    },
+    "200.0": {
+     "control_mean_net_cny": -65.15890042412468,
+     "candidate_mean_net_cny": -64.41360940327392,
+     "delta_mean_net_cny": 0.7452910208507774,
+     "delta_median_net_cny": 0.0001117184447218765,
+     "delta_positive_share": 0.6415094339622641,
+     "ci95_low_cny": -0.6810295668554379,
+     "ci95_high_cny": 2.576538235014312,
+     "delta_mean_cycle_cny": 0.7784699174956415,
+     "delta_mean_energy_mwh": 0.007784699174956512
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS17",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 59.715576658918145,
+     "candidate_mean_net_cny": 58.3448105035034,
+     "delta_mean_net_cny": -1.3707661554147281,
+     "delta_median_net_cny": 2.505574549508187e-06,
+     "delta_positive_share": 0.5660377358490566,
+     "ci95_low_cny": -6.46926003324884,
+     "ci95_high_cny": 3.879839611608956,
+     "delta_mean_cycle_cny": -10.292877207681563,
+     "delta_mean_energy_mwh": -0.1029287720768155
+    },
+    "50.0": {
+     "control_mean_net_cny": 28.485945664430538,
+     "candidate_mean_net_cny": 32.26161811285658,
+     "delta_mean_net_cny": 3.7756724484260467,
+     "delta_median_net_cny": 2.9462740815391626e-05,
+     "delta_positive_share": 0.6981132075471698,
+     "ci95_low_cny": -0.9584709818811408,
+     "ci95_high_cny": 8.775476562533395,
+     "delta_mean_cycle_cny": -10.292877207681563,
+     "delta_mean_energy_mwh": -0.1029287720768155
+    },
+    "100.0": {
+     "control_mean_net_cny": -2.7436853300570494,
+     "candidate_mean_net_cny": 6.178425722209774,
+     "delta_mean_net_cny": 8.922111052266821,
+     "delta_median_net_cny": 6.246588236148241e-05,
+     "delta_positive_share": 0.7547169811320755,
+     "ci95_low_cny": 3.545326983351701,
+     "ci95_high_cny": 14.969536967373664,
+     "delta_mean_cycle_cny": -10.292877207681563,
+     "delta_mean_energy_mwh": -0.1029287720768155
+    },
+    "150.0": {
+     "control_mean_net_cny": -33.97331632454465,
+     "candidate_mean_net_cny": -19.90476666843705,
+     "delta_mean_net_cny": 14.068549656107598,
+     "delta_median_net_cny": 0.00012934074267654692,
+     "delta_positive_share": 0.7924528301886793,
+     "ci95_low_cny": 7.402685210763972,
+     "ci95_high_cny": 21.539758007562728,
+     "delta_mean_cycle_cny": -10.292877207681563,
+     "delta_mean_energy_mwh": -0.1029287720768155
+    },
+    "200.0": {
+     "control_mean_net_cny": -65.20294731903225,
+     "candidate_mean_net_cny": -45.98795905908388,
+     "delta_mean_net_cny": 19.21498825994837,
+     "delta_median_net_cny": 0.005135238915954687,
+     "delta_positive_share": 0.8490566037735849,
+     "ci95_low_cny": 10.640362346246748,
+     "ci95_high_cny": 28.67000378381744,
+     "delta_mean_cycle_cny": -10.292877207681563,
+     "delta_mean_energy_mwh": -0.1029287720768155
+    }
+   }
+  },
+  {
+   "phase": "B",
+   "split": "Train",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS27",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 65.68085935864372,
+     "candidate_mean_net_cny": 58.57476754381986,
+     "delta_mean_net_cny": -7.106091814823875,
+     "delta_median_net_cny": -1.0288052744941045e-06,
+     "delta_positive_share": 0.4716981132075472,
+     "ci95_low_cny": -14.651364389931718,
+     "ci95_high_cny": -0.7127124633790048,
+     "delta_mean_cycle_cny": -16.674307501873677,
+     "delta_mean_energy_mwh": -0.1667430750187367
+    },
+    "50.0": {
+     "control_mean_net_cny": 34.37400572508614,
+     "candidate_mean_net_cny": 35.6050676611991,
+     "delta_mean_net_cny": 1.2310619361129598,
+     "delta_median_net_cny": 2.3891483444666642e-05,
+     "delta_positive_share": 0.6792452830188679,
+     "ci95_low_cny": -4.890307112900468,
+     "ci95_high_cny": 6.574149496507523,
+     "delta_mean_cycle_cny": -16.674307501873677,
+     "delta_mean_energy_mwh": -0.1667430750187367
+    },
+    "100.0": {
+     "control_mean_net_cny": 3.0671520915285475,
+     "candidate_mean_net_cny": 12.635367778578345,
+     "delta_mean_net_cny": 9.568215687049797,
+     "delta_median_net_cny": 5.713896958597597e-05,
+     "delta_positive_share": 0.7358490566037735,
+     "ci95_low_cny": 2.8845795317640586,
+     "ci95_high_cny": 16.3005253091516,
+     "delta_mean_cycle_cny": -16.674307501873677,
+     "delta_mean_energy_mwh": -0.1667430750187367
+    },
+    "150.0": {
+     "control_mean_net_cny": -28.23970154202905,
+     "candidate_mean_net_cny": -10.33433210404241,
+     "delta_mean_net_cny": 17.905369437986632,
+     "delta_median_net_cny": 0.00024884432411074293,
+     "delta_positive_share": 0.8301886792452831,
+     "ci95_low_cny": 9.374924446668572,
+     "ci95_high_cny": 27.436122603805043,
+     "delta_mean_cycle_cny": -16.674307501873677,
+     "delta_mean_energy_mwh": -0.1667430750187367
+    },
+    "200.0": {
+     "control_mean_net_cny": -59.54655517558662,
+     "candidate_mean_net_cny": -33.30403198666316,
+     "delta_mean_net_cny": 26.242523188923474,
+     "delta_median_net_cny": 0.023413517219982083,
+     "delta_positive_share": 0.8867924528301887,
+     "ci95_low_cny": 15.282803245242237,
+     "ci95_high_cny": 38.70136397333295,
+     "delta_mean_cycle_cny": -16.674307501873677,
+     "delta_mean_energy_mwh": -0.1667430750187367
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "fleet",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 183.7339643751877,
+     "candidate_mean_net_cny": 172.4920769248313,
+     "delta_mean_net_cny": -11.241887450356394,
+     "delta_median_net_cny": -2.68754423279669e-06,
+     "delta_positive_share": 0.45454545454545453,
+     "ci95_low_cny": -59.681091946397025,
+     "ci95_high_cny": 34.888896104084104,
+     "delta_mean_cycle_cny": -58.91621691201624,
+     "delta_mean_energy_mwh": -0.5891621691201624
+    },
+    "50.0": {
+     "control_mean_net_cny": 88.90108240465476,
+     "candidate_mean_net_cny": 107.11730341030648,
+     "delta_mean_net_cny": 18.21622100565172,
+     "delta_median_net_cny": 6.685614915069287e-05,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": -22.25071644511161,
+     "ci95_high_cny": 64.60347212246032,
+     "delta_mean_cycle_cny": -58.91621691201624,
+     "delta_mean_energy_mwh": -0.5891621691201624
+    },
+    "100.0": {
+     "control_mean_net_cny": -5.93179956587819,
+     "candidate_mean_net_cny": 41.74252989578166,
+     "delta_mean_net_cny": 47.674329461659845,
+     "delta_median_net_cny": 0.00017457896601417566,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": 1.1663978339302505,
+     "ci95_high_cny": 115.82018650716242,
+     "delta_mean_cycle_cny": -58.91621691201624,
+     "delta_mean_energy_mwh": -0.5891621691201624
+    },
+    "150.0": {
+     "control_mean_net_cny": -100.76468153641116,
+     "candidate_mean_net_cny": -23.632243618743175,
+     "delta_mean_net_cny": 77.13243791766796,
+     "delta_median_net_cny": 9.45081854115449,
+     "delta_positive_share": 0.9090909090909091,
+     "ci95_low_cny": 13.313617004032233,
+     "ci95_high_cny": 176.99058485318042,
+     "delta_mean_cycle_cny": -58.91621691201624,
+     "delta_mean_energy_mwh": -0.5891621691201624
+    },
+    "200.0": {
+     "control_mean_net_cny": -195.59756350694408,
+     "candidate_mean_net_cny": -89.00701713326801,
+     "delta_mean_net_cny": 106.59054637367608,
+     "delta_median_net_cny": 25.13622148628866,
+     "delta_positive_share": 0.9090909090909091,
+     "ci95_low_cny": 16.085464016581312,
+     "ci95_high_cny": 239.86052251670586,
+     "delta_mean_cycle_cny": -58.91621691201624,
+     "delta_mean_energy_mwh": -0.5891621691201624
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS9",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 2.4070004979001185,
+     "candidate_mean_net_cny": 9.449875571701579,
+     "delta_mean_net_cny": 7.042875073801462,
+     "delta_median_net_cny": 6.4286113455212985e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": 1.4355123999404118e-06,
+     "ci95_high_cny": 21.128611357681645,
+     "delta_mean_cycle_cny": 5.035631628712174,
+     "delta_mean_energy_mwh": 0.05035631628712176
+    },
+    "50.0": {
+     "control_mean_net_cny": 1.5676920803888192,
+     "candidate_mean_net_cny": 6.092751339834192,
+     "delta_mean_net_cny": 4.525059259445373,
+     "delta_median_net_cny": 8.244368279115812e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": 2.762925902989501e-06,
+     "ci95_high_cny": 13.575163336444072,
+     "delta_mean_cycle_cny": 5.035631628712174,
+     "delta_mean_energy_mwh": 0.05035631628712176
+    },
+    "100.0": {
+     "control_mean_net_cny": 0.7283836628775198,
+     "candidate_mean_net_cny": 2.7356271079668057,
+     "delta_mean_net_cny": 2.0072434450892858,
+     "delta_median_net_cny": 9.11273632749254e-06,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": 1.6418695048217795e-06,
+     "ci95_high_cny": 6.0217177394130985,
+     "delta_mean_cycle_cny": 5.035631628712174,
+     "delta_mean_energy_mwh": 0.05035631628712176
+    },
+    "150.0": {
+     "control_mean_net_cny": -0.11092475463377939,
+     "candidate_mean_net_cny": -0.6214971239005812,
+     "delta_mean_net_cny": -0.5105723692668017,
+     "delta_median_net_cny": 2.768433785066689e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": -1.531743718095402,
+     "ci95_high_cny": 2.004770549381323e-05,
+     "delta_mean_cycle_cny": 5.035631628712174,
+     "delta_mean_energy_mwh": 0.05035631628712176
+    },
+    "200.0": {
+     "control_mean_net_cny": -0.9502331721450793,
+     "candidate_mean_net_cny": -3.9786213557679684,
+     "delta_mean_net_cny": -3.028388183622889,
+     "delta_median_net_cny": 4.519843896611637e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": -9.0851937513813,
+     "ci95_high_cny": 2.27410252530067e-05,
+     "delta_mean_cycle_cny": 5.035631628712174,
+     "delta_mean_energy_mwh": 0.05035631628712176
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS14",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 68.48536403682651,
+     "candidate_mean_net_cny": 60.81744357076123,
+     "delta_mean_net_cny": -7.667920466065288,
+     "delta_median_net_cny": 5.128120988009259e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": -26.479732555689996,
+     "ci95_high_cny": 6.7913268431450495,
+     "delta_mean_cycle_cny": -22.752283621718632,
+     "delta_mean_energy_mwh": -0.22752283621718652
+    },
+    "50.0": {
+     "control_mean_net_cny": 33.4557459971899,
+     "candidate_mean_net_cny": 37.163967341983934,
+     "delta_mean_net_cny": 3.708221344794035,
+     "delta_median_net_cny": 3.6135675841352045e-05,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": -10.686508421414874,
+     "ci95_high_cny": 18.98359513617175,
+     "delta_mean_cycle_cny": -22.752283621718632,
+     "delta_mean_energy_mwh": -0.22752283621718652
+    },
+    "100.0": {
+     "control_mean_net_cny": -1.5738720424467167,
+     "candidate_mean_net_cny": 13.510491113206648,
+     "delta_mean_net_cny": 15.084363155653364,
+     "delta_median_net_cny": 0.00015952284914295871,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 0.07642188698653271,
+     "ci95_high_cny": 38.80448515139453,
+     "delta_mean_cycle_cny": -22.752283621718632,
+     "delta_mean_energy_mwh": -0.22752283621718652
+    },
+    "150.0": {
+     "control_mean_net_cny": -36.60349008208333,
+     "candidate_mean_net_cny": -10.14298511557064,
+     "delta_mean_net_cny": 26.46050496651269,
+     "delta_median_net_cny": 0.9086506793378817,
+     "delta_positive_share": 0.9090909090909091,
+     "ci95_low_cny": 4.6972444714194275,
+     "ci95_high_cny": 60.83343149339577,
+     "delta_mean_cycle_cny": -22.752283621718632,
+     "delta_mean_energy_mwh": -0.22752283621718652
+    },
+    "200.0": {
+     "control_mean_net_cny": -71.63310812171994,
+     "candidate_mean_net_cny": -33.79646134434793,
+     "delta_mean_net_cny": 37.83664677737201,
+     "delta_median_net_cny": 0.9087150829476229,
+     "delta_positive_share": 0.9090909090909091,
+     "ci95_low_cny": 6.050849890793314,
+     "ci95_high_cny": 82.69695817319723,
+     "delta_mean_cycle_cny": -22.752283621718632,
+     "delta_mean_energy_mwh": -0.22752283621718652
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS17",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 57.37533506529298,
+     "candidate_mean_net_cny": 47.017492138416515,
+     "delta_mean_net_cny": -10.357842926876465,
+     "delta_median_net_cny": -2.8800270847441014e-06,
+     "delta_positive_share": 0.45454545454545453,
+     "ci95_low_cny": -28.97394615403998,
+     "ci95_high_cny": 6.123356002758123,
+     "delta_mean_cycle_cny": -25.62427976800945,
+     "delta_mean_energy_mwh": -0.2562427976800945
+    },
+    "50.0": {
+     "control_mean_net_cny": 26.531920615773878,
+     "candidate_mean_net_cny": 28.986217572902135,
+     "delta_mean_net_cny": 2.4542969571282613,
+     "delta_median_net_cny": 2.4855929637282985e-05,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": -11.465168491316245,
+     "ci95_high_cny": 18.181667297682452,
+     "delta_mean_cycle_cny": -25.62427976800945,
+     "delta_mean_energy_mwh": -0.2562427976800945
+    },
+    "100.0": {
+     "control_mean_net_cny": -4.311493833745229,
+     "candidate_mean_net_cny": 10.954943007387762,
+     "delta_mean_net_cny": 15.266436841132988,
+     "delta_median_net_cny": 0.0001555156852724272,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 0.44994689432455576,
+     "ci95_high_cny": 38.19321289124574,
+     "delta_mean_cycle_cny": -25.62427976800945,
+     "delta_mean_energy_mwh": -0.2562427976800945
+    },
+    "150.0": {
+     "control_mean_net_cny": -35.154908283264334,
+     "candidate_mean_net_cny": -7.076331558126615,
+     "delta_mean_net_cny": 28.078576725137715,
+     "delta_median_net_cny": 12.352975198183273,
+     "delta_positive_share": 0.9090909090909091,
+     "ci95_low_cny": 5.199637953094598,
+     "ci95_high_cny": 61.84892713757745,
+     "delta_mean_cycle_cny": -25.62427976800945,
+     "delta_mean_energy_mwh": -0.2562427976800945
+    },
+    "200.0": {
+     "control_mean_net_cny": -65.99832273278344,
+     "candidate_mean_net_cny": -25.10760612364099,
+     "delta_mean_net_cny": 40.890716609142444,
+     "delta_median_net_cny": 19.089103230434063,
+     "delta_positive_share": 0.9090909090909091,
+     "ci95_low_cny": 7.772184943782738,
+     "ci95_high_cny": 85.42252701379566,
+     "delta_mean_cycle_cny": -25.62427976800945,
+     "delta_mean_energy_mwh": -0.2562427976800945
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed11_final",
+   "seed": 11,
+   "role": "primary",
+   "scope": "ESS27",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 55.46626477516809,
+     "candidate_mean_net_cny": 55.207265643952,
+     "delta_mean_net_cny": -0.2589991312160878,
+     "delta_median_net_cny": 7.392620248233704e-06,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": -13.986057823571223,
+     "ci95_high_cny": 10.920024251288993,
+     "delta_mean_cycle_cny": -15.575285151000315,
+     "delta_mean_energy_mwh": -0.15575285151000307
+    },
+    "50.0": {
+     "control_mean_net_cny": 27.34572371130216,
+     "candidate_mean_net_cny": 34.87436715558622,
+     "delta_mean_net_cny": 7.528643444284065,
+     "delta_median_net_cny": 1.830950833180222e-05,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": -4.810510458678491,
+     "ci95_high_cny": 20.283003487244642,
+     "delta_mean_cycle_cny": -15.575285151000315,
+     "delta_mean_energy_mwh": -0.15575285151000307
+    },
+    "100.0": {
+     "control_mean_net_cny": -0.7748173525637803,
+     "candidate_mean_net_cny": 14.54146866722044,
+     "delta_mean_net_cny": 15.316286019784219,
+     "delta_median_net_cny": 6.460445076553654e-05,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 1.3631012183344726,
+     "ci95_high_cny": 37.33793454220469,
+     "delta_mean_cycle_cny": -15.575285151000315,
+     "delta_mean_energy_mwh": -0.15575285151000307
+    },
+    "150.0": {
+     "control_mean_net_cny": -28.895358416429715,
+     "candidate_mean_net_cny": -5.791429821145341,
+     "delta_mean_net_cny": 23.103928595284373,
+     "delta_median_net_cny": 0.00011690710629504191,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 3.2282863021274726,
+     "ci95_high_cny": 55.52253872509893,
+     "delta_mean_cycle_cny": -15.575285151000315,
+     "delta_mean_energy_mwh": -0.15575285151000307
+    },
+    "200.0": {
+     "control_mean_net_cny": -57.015899480295644,
+     "candidate_mean_net_cny": -26.12432830951113,
+     "delta_mean_net_cny": 30.891571170784527,
+     "delta_median_net_cny": 0.00016920976182454737,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 2.679458435129042,
+     "ci95_high_cny": 73.83571003276977,
+     "delta_mean_cycle_cny": -15.575285151000315,
+     "delta_mean_energy_mwh": -0.15575285151000307
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "fleet",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 273.6125896419208,
+     "candidate_mean_net_cny": 241.50161027556325,
+     "delta_mean_net_cny": -32.11097936635754,
+     "delta_median_net_cny": 8.474920692761709e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": -92.19927484443296,
+     "ci95_high_cny": 12.421058752993499,
+     "delta_mean_cycle_cny": -69.65827935606242,
+     "delta_mean_energy_mwh": -0.6965827935606245
+    },
+    "50.0": {
+     "control_mean_net_cny": 134.4707507440674,
+     "candidate_mean_net_cny": 137.18891105574107,
+     "delta_mean_net_cny": 2.7181603116736786,
+     "delta_median_net_cny": 4.416937889474272e-05,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": -39.27872998632905,
+     "ci95_high_cny": 45.88539188358163,
+     "delta_mean_cycle_cny": -69.65827935606242,
+     "delta_mean_energy_mwh": -0.6965827935606245
+    },
+    "100.0": {
+     "control_mean_net_cny": -4.671088153785987,
+     "candidate_mean_net_cny": 32.87621183591891,
+     "delta_mean_net_cny": 37.5472999897049,
+     "delta_median_net_cny": 8.85700126901682e-05,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": -2.3400641295799947,
+     "ci95_high_cny": 105.32837045251992,
+     "delta_mean_cycle_cny": -69.65827935606242,
+     "delta_mean_energy_mwh": -0.6965827935606245
+    },
+    "150.0": {
+     "control_mean_net_cny": -143.8129270516394,
+     "candidate_mean_net_cny": -71.43648738390326,
+     "delta_mean_net_cny": 72.37643966773614,
+     "delta_median_net_cny": 0.0008006252615429836,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 10.551018364227165,
+     "ci95_high_cny": 168.89316247115758,
+     "delta_mean_cycle_cny": -69.65827935606242,
+     "delta_mean_energy_mwh": -0.6965827935606245
+    },
+    "200.0": {
+     "control_mean_net_cny": -282.95476594949275,
+     "candidate_mean_net_cny": -175.74918660372543,
+     "delta_mean_net_cny": 107.20557934576732,
+     "delta_median_net_cny": 0.001160036779342045,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 10.818183181178966,
+     "ci95_high_cny": 235.83136638126575,
+     "delta_mean_cycle_cny": -69.65827935606242,
+     "delta_mean_energy_mwh": -0.6965827935606245
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS9",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 67.81953234619314,
+     "candidate_mean_net_cny": 60.25031301709757,
+     "delta_mean_net_cny": -7.569219329095563,
+     "delta_median_net_cny": 1.727030560787183e-06,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": -26.31834968336862,
+     "ci95_high_cny": 6.909700720336679,
+     "delta_mean_cycle_cny": -22.215486264998383,
+     "delta_mean_energy_mwh": -0.2221548626499839
+    },
+    "50.0": {
+     "control_mean_net_cny": 33.05821297379711,
+     "candidate_mean_net_cny": 36.596736777200746,
+     "delta_mean_net_cny": 3.538523803403632,
+     "delta_median_net_cny": 1.75921098575189e-05,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": -10.28954784683896,
+     "ci95_high_cny": 18.80430385005082,
+     "delta_mean_cycle_cny": -22.215486264998383,
+     "delta_mean_energy_mwh": -0.2221548626499839
+    },
+    "100.0": {
+     "control_mean_net_cny": -1.7031063985989165,
+     "candidate_mean_net_cny": 12.943160537303912,
+     "delta_mean_net_cny": 14.646266935902826,
+     "delta_median_net_cny": 4.297676462719851e-05,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": 0.23168496731389113,
+     "ci95_high_cny": 37.36995922594688,
+     "delta_mean_cycle_cny": -22.215486264998383,
+     "delta_mean_energy_mwh": -0.2221548626499839
+    },
+    "150.0": {
+     "control_mean_net_cny": -36.46442577099494,
+     "candidate_mean_net_cny": -10.710415702592924,
+     "delta_mean_net_cny": 25.754010068402025,
+     "delta_median_net_cny": 0.0002666457302313146,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 4.535738312297817,
+     "ci95_high_cny": 58.48537799798668,
+     "delta_mean_cycle_cny": -22.215486264998383,
+     "delta_mean_energy_mwh": -0.2221548626499839
+    },
+    "200.0": {
+     "control_mean_net_cny": -71.22574514339098,
+     "candidate_mean_net_cny": -34.363991942489754,
+     "delta_mean_net_cny": 36.86175320090121,
+     "delta_median_net_cny": 0.0003861605221356389,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 5.940712223380216,
+     "ci95_high_cny": 79.72906918760981,
+     "delta_mean_cycle_cny": -22.215486264998383,
+     "delta_mean_energy_mwh": -0.2221548626499839
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS14",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 67.25609570111425,
+     "candidate_mean_net_cny": 67.84194017176321,
+     "delta_mean_net_cny": 0.5858444706489627,
+     "delta_median_net_cny": 6.03392621209574e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": 0.000116745314578687,
+     "ci95_high_cny": 1.2647542127760114,
+     "delta_mean_cycle_cny": 0.5238932565685701,
+     "delta_mean_energy_mwh": 0.005238932565685336
+    },
+    "50.0": {
+     "control_mean_net_cny": 32.48750218369199,
+     "candidate_mean_net_cny": 32.81140002605668,
+     "delta_mean_net_cny": 0.323897842364697,
+     "delta_median_net_cny": -4.376096982675471e-06,
+     "delta_positive_share": 0.45454545454545453,
+     "ci95_low_cny": -0.3804775912811211,
+     "ci95_high_cny": 1.0699281005928094,
+     "delta_mean_cycle_cny": 0.5238932565685701,
+     "delta_mean_energy_mwh": 0.005238932565685336
+    },
+    "100.0": {
+     "control_mean_net_cny": -2.2810913337302803,
+     "candidate_mean_net_cny": -2.2191401196498517,
+     "delta_mean_net_cny": 0.061951214080429716,
+     "delta_median_net_cny": -7.217920544997863e-06,
+     "delta_positive_share": 0.45454545454545453,
+     "ci95_low_cny": -1.094513413437641,
+     "ci95_high_cny": 1.0449833586575585,
+     "delta_mean_cycle_cny": 0.5238932565685701,
+     "delta_mean_energy_mwh": 0.005238932565685336
+    },
+    "150.0": {
+     "control_mean_net_cny": -37.04968485115255,
+     "candidate_mean_net_cny": -37.24968026535639,
+     "delta_mean_net_cny": -0.19999541420384023,
+     "delta_median_net_cny": -5.918334124444929e-06,
+     "delta_positive_share": 0.45454545454545453,
+     "ci95_low_cny": -1.8953198080398168,
+     "ci95_high_cny": 1.0419883024737693,
+     "delta_mean_cycle_cny": 0.5238932565685701,
+     "delta_mean_energy_mwh": 0.005238932565685336
+    },
+    "200.0": {
+     "control_mean_net_cny": -71.81827836857482,
+     "candidate_mean_net_cny": -72.28022041106293,
+     "delta_mean_net_cny": -0.46194204248810633,
+     "delta_median_net_cny": -4.618747703891954e-06,
+     "delta_positive_share": 0.45454545454545453,
+     "ci95_low_cny": -2.6811765722902545,
+     "ci95_high_cny": 1.0420049674540406,
+     "delta_mean_cycle_cny": 0.5238932565685701,
+     "delta_mean_energy_mwh": 0.005238932565685336
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS17",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 65.0822171344839,
+     "candidate_mean_net_cny": 56.456725837733416,
+     "delta_mean_net_cny": -8.62549129675047,
+     "delta_median_net_cny": 3.22344494822998e-06,
+     "delta_positive_share": 0.5454545454545454,
+     "ci95_low_cny": -26.225607422205833,
+     "ci95_high_cny": 4.80780248174802,
+     "delta_mean_cycle_cny": -22.47757939833022,
+     "delta_mean_energy_mwh": -0.2247757939833023
+    },
+    "50.0": {
+     "control_mean_net_cny": 30.189868157111253,
+     "candidate_mean_net_cny": 32.80316655952589,
+     "delta_mean_net_cny": 2.6132984024146437,
+     "delta_median_net_cny": 1.433178065283891e-05,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": -10.929326740059539,
+     "ci95_high_cny": 17.274216990654292,
+     "delta_mean_cycle_cny": -22.47757939833022,
+     "delta_mean_energy_mwh": -0.2247757939833023
+    },
+    "100.0": {
+     "control_mean_net_cny": -4.702480820261397,
+     "candidate_mean_net_cny": 9.149607281318358,
+     "delta_mean_net_cny": 13.852088101579756,
+     "delta_median_net_cny": 3.166213569833226e-05,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": 0.07904249498069645,
+     "ci95_high_cny": 37.08816224185817,
+     "delta_mean_cycle_cny": -22.47757939833022,
+     "delta_mean_energy_mwh": -0.2247757939833023
+    },
+    "150.0": {
+     "control_mean_net_cny": -39.59482979763405,
+     "candidate_mean_net_cny": -14.503951996889173,
+     "delta_mean_net_cny": 25.090877800744877,
+     "delta_median_net_cny": 0.00026543335489352866,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 3.887539262753657,
+     "ci95_high_cny": 58.15484291138418,
+     "delta_mean_cycle_cny": -22.47757939833022,
+     "delta_mean_energy_mwh": -0.2247757939833023
+    },
+    "200.0": {
+     "control_mean_net_cny": -74.48717877500668,
+     "candidate_mean_net_cny": -38.15751127509671,
+     "delta_mean_net_cny": 36.32966749990998,
+     "delta_median_net_cny": 0.0003832807033783436,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": 4.336795530982562,
+     "ci95_high_cny": 80.26732049383776,
+     "delta_mean_cycle_cny": -22.47757939833022,
+     "delta_mean_energy_mwh": -0.2247757939833023
+    }
+   }
+  },
+  {
+   "phase": "C",
+   "split": "Validation",
+   "checkpoint": "seed23_final",
+   "seed": 23,
+   "role": "primary",
+   "scope": "ESS27",
+   "primary": true,
+   "by_rate": {
+    "0.0": {
+     "control_mean_net_cny": 73.4547444601295,
+     "candidate_mean_net_cny": 56.952631248969034,
+     "delta_mean_net_cny": -16.502113211160484,
+     "delta_median_net_cny": 3.748526806115341e-06,
+     "delta_positive_share": 0.6363636363636364,
+     "ci95_low_cny": -41.292016394788845,
+     "ci95_high_cny": 1.0775759451817617,
+     "delta_mean_cycle_cny": -25.48910694930236,
+     "delta_mean_energy_mwh": -0.2548910694930236
+    },
+    "50.0": {
+     "control_mean_net_cny": 38.73516742946707,
+     "candidate_mean_net_cny": 34.97760769295777,
+     "delta_mean_net_cny": -3.7575597365093047,
+     "delta_median_net_cny": 1.662158536706043e-05,
+     "delta_positive_share": 0.7272727272727273,
+     "ci95_low_cny": -19.38285230461121,
+     "ci95_high_cny": 12.102131271670151,
+     "delta_mean_cycle_cny": -25.48910694930236,
+     "delta_mean_energy_mwh": -0.2548910694930236
+    },
+    "100.0": {
+     "control_mean_net_cny": 4.015590398804624,
+     "candidate_mean_net_cny": 13.002584136946503,
+     "delta_mean_net_cny": 8.986993738141877,
+     "delta_median_net_cny": 3.1092826599764974e-05,
+     "delta_positive_share": 0.8181818181818182,
+     "ci95_low_cny": -4.466997779413295,
+     "ci95_high_cny": 32.31606554065624,
+     "delta_mean_cycle_cny": -25.48910694930236,
+     "delta_mean_energy_mwh": -0.2548910694930236
+    },
+    "150.0": {
+     "control_mean_net_cny": -30.70398663185782,
+     "candidate_mean_net_cny": -8.972439419064758,
+     "delta_mean_net_cny": 21.731547212793064,
+     "delta_median_net_cny": 0.01628691038658303,
+     "delta_positive_share": 1.0,
+     "ci95_low_cny": 0.32972126833129173,
+     "ci95_high_cny": 54.37936757593682,
+     "delta_mean_cycle_cny": -25.48910694930236,
+     "delta_mean_energy_mwh": -0.2548910694930236
+    },
+    "200.0": {
+     "control_mean_net_cny": -65.42356366252027,
+     "candidate_mean_net_cny": -30.94746297507603,
+     "delta_mean_net_cny": 34.476100687444244,
+     "delta_median_net_cny": 0.016279686794291592,
+     "delta_positive_share": 1.0,
+     "ci95_low_cny": 0.32972412026377196,
+     "ci95_high_cny": 77.65494023509454,
+     "delta_mean_cycle_cny": -25.48910694930236,
+     "delta_mean_energy_mwh": -0.2548910694930236
+    }
+   }
+  }
+ ]
+}

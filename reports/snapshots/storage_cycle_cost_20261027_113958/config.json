@@ -1,0 +1,501 @@
+{
+  "case_identity": {
+    "alignment": {
+      "conversion_applied": "none",
+      "dates_aligned": false,
+      "dates_aligned_note": "the two curves are from different dates and neither is moved to the other's date",
+      "index_t_is": "the interval [15t, 15(t+1)) on both sides",
+      "interpolation_applied": "none",
+      "interval_minutes": 15,
+      "load_axis": {
+        "interval_minutes": 15,
+        "label_convention": "interval_start",
+        "n_periods": 96,
+        "timezone": null
+      },
+      "method": "period index to period index, no shift, no resampling",
+      "periods_per_day": 96,
+      "price_axis": {
+        "interval_minutes": 15,
+        "label_convention": "interval_end",
+        "n_periods": 96,
+        "timezone": null
+      },
+      "resampling_applied": "none"
+    },
+    "case_type": "cross_date_diagnostic",
+    "date_rule": {
+      "case_type": "cross_date_diagnostic",
+      "dates_may_differ": true,
+      "dates_recorded_not_rewritten": true,
+      "load_date": "2022-11-30",
+      "price_date": "2026-10-09",
+      "rule": "cross-date pairing allowed; both dates recorded",
+      "same_day": false
+    },
+    "ledger_kind": "formal_ledger",
+    "ledger_sha256": "45b9e9d18e2b75b9eb4bcde3d56cc6aa22239d39f4584ec8f3ea540f4656c932",
+    "load_date": "2022-11-30",
+    "load_source": {
+      "industry_aggregation": {
+        "method": "per-slot average active power, converted once per meter-day and summed by user then by bus",
+        "note": "a slot reading is a mean power, not an energy, so no 60/SLOT_MINUTES factor is applied; see S1 and reports/industry_load_rebuild.md",
+        "reading_conversion": "value x 综合倍率 -> kW, / 1000 -> MW",
+        "slot_length_factor": null
+      },
+      "ledger": "data/processed/node_loads/typical_day_industry_subset/bus_loads_96x33.csv",
+      "ledger_sha256": "45b9e9d18e2b75b9eb4bcde3d56cc6aa22239d39f4584ec8f3ea540f4656c932",
+      "selection_evidence": null,
+      "selection_rule": null,
+      "users_per_bus": {
+        "16": [
+          "U0abfaa684d80"
+        ],
+        "23": [
+          "U39e8a17aba10",
+          "Ue971298ed105"
+        ],
+        "24": [
+          "Ub1da4ce43b04"
+        ],
+        "25": [
+          "U018990a98eb1",
+          "U3a097bfc3f9e",
+          "Ue9e499c141dd"
+        ],
+        "26": [
+          "U1f2d028ac65f",
+          "U5765bec968a1"
+        ],
+        "27": [
+          "U6e0c9c380ad3",
+          "U73fcc2041874",
+          "Ucf65d248ce93",
+          "Uf67c750d6c55"
+        ],
+        "3": [
+          "U656f86497702"
+        ],
+        "30": [
+          "U2aa2cf305ab6",
+          "U6e5b7a2d2097"
+        ],
+        "31": [
+          "U46342f0b3576"
+        ]
+      },
+      "users_with_data": [
+        "U018990a98eb1",
+        "U0abfaa684d80",
+        "U1f2d028ac65f",
+        "U2aa2cf305ab6",
+        "U39e8a17aba10",
+        "U3a097bfc3f9e",
+        "U46342f0b3576",
+        "U5765bec968a1",
+        "U656f86497702",
+        "U6e0c9c380ad3",
+        "U6e5b7a2d2097",
+        "U73fcc2041874",
+        "Ub1da4ce43b04",
+        "Ucf65d248ce93",
+        "Ue971298ed105",
+        "Ue9e499c141dd",
+        "Uf67c750d6c55"
+      ]
+    },
+    "price_date": "2026-10-09",
+    "price_source": {
+      "date": "2026-10-09",
+      "date_is": "parsed from the sheet name's own YY/MM/DD label",
+      "externally_confirmed": false,
+      "sheet": "261009",
+      "spatial_statistic": "spatial_mean",
+      "temporal_statistic": "single_day",
+      "workbook": "C:\\Projects\\00_WorkSpace\\01_Projects\\MakerB\\docs\\日前价格261009.xlsx"
+    },
+    "same_day": false,
+    "unit_basis": {
+      "basis": "user_confirmed_project_ruling",
+      "evidence": "user_confirmed_project_ruling",
+      "is_externally_verified": false,
+      "reading_unit": "kW",
+      "unit_status": "unit_basis_ruling"
+    },
+    "unit_status": "unit_basis_ruling",
+    "workbook_sha256": "63b826d9206f239f31f977bde281253ee5d61e94b02f3d8c23897478b52aebbb"
+  },
+  "command": "C:\\ProgramData\\anaconda3\\python.exe src/storage_cycle_cost_sensitivity.py",
+  "configs": {
+    "C100": {
+      "dt_scaled_money": true,
+      "market_design": {
+        "bid_mult_range": [
+          0.3,
+          1.8
+        ],
+        "carbon_cap_tco2": null,
+        "default_bid_mult": 1.0,
+        "default_offer_adder": 0.0,
+        "emission_factor_grid": 0.58,
+        "enable_multi_objective": false,
+        "lambda_carbon": 80.0,
+        "lambda_curtail": 200.0,
+        "lambda_re": 50.0,
+        "offer_adder_range": [
+          0.0,
+          50.0
+        ],
+        "penalty_carbon_slack": 5000.0,
+        "penalty_re_slack": 3000.0,
+        "penalty_unserved": 2500.0,
+        "re_min_rate": null,
+        "use_constraint_multi_obj": false
+      },
+      "network": {
+        "base_kv": 12.66,
+        "base_mva": 1.0,
+        "inverter_smax_multiplier": 1.1,
+        "line_capacity_multiplier": 1.5,
+        "line_capacity_overrides": {},
+        "load_power_factor": 0.8503,
+        "n_loss_iters": 3,
+        "ramp_limit_mw_per_period": null,
+        "reactive_support": true,
+        "reverse_power_limit_mw": 2.5,
+        "v_max_pu": 1.05,
+        "v_min_pu": 0.93
+      },
+      "opf_max_iter": 100,
+      "opf_mode": "socp",
+      "opf_tolerance": 1e-06,
+      "rt": {
+        "da_forecast_noise_pct": 0.0,
+        "da_rolling_enabled": false,
+        "da_window_length": 48,
+        "da_window_step": 8,
+        "rt_forecast_mode": "noisy_da",
+        "rt_forecast_noise_pct": 10.0,
+        "rt_horizon": 8,
+        "rt_step": 1
+      },
+      "storage": {
+        "charge_discount": 0.75,
+        "churn_free_quotes": true,
+        "cycle_cost": 100.0,
+        "discharge_premium": 1.3,
+        "discount_factor": 0.997,
+        "exclusive_mode": "off",
+        "mpc_bus_markup_pct": 30.0,
+        "mpc_congestion_pass": false,
+        "mpc_fast_heuristic": false,
+        "mpc_horizon": 64,
+        "mpc_price_noise_pct": 5.0,
+        "prosumer_storage_scale": 1.0,
+        "self_schedule": false,
+        "soc_buffer": 0.05,
+        "terminal_soc_equal": true,
+        "terminal_value": null,
+        "use_nodal_price": true
+      },
+      "verbose": false
+    },
+    "C80": {
+      "dt_scaled_money": true,
+      "market_design": {
+        "bid_mult_range": [
+          0.3,
+          1.8
+        ],
+        "carbon_cap_tco2": null,
+        "default_bid_mult": 1.0,
+        "default_offer_adder": 0.0,
+        "emission_factor_grid": 0.58,
+        "enable_multi_objective": false,
+        "lambda_carbon": 80.0,
+        "lambda_curtail": 200.0,
+        "lambda_re": 50.0,
+        "offer_adder_range": [
+          0.0,
+          50.0
+        ],
+        "penalty_carbon_slack": 5000.0,
+        "penalty_re_slack": 3000.0,
+        "penalty_unserved": 2500.0,
+        "re_min_rate": null,
+        "use_constraint_multi_obj": false
+      },
+      "network": {
+        "base_kv": 12.66,
+        "base_mva": 1.0,
+        "inverter_smax_multiplier": 1.1,
+        "line_capacity_multiplier": 1.5,
+        "line_capacity_overrides": {},
+        "load_power_factor": 0.8503,
+        "n_loss_iters": 3,
+        "ramp_limit_mw_per_period": null,
+        "reactive_support": true,
+        "reverse_power_limit_mw": 2.5,
+        "v_max_pu": 1.05,
+        "v_min_pu": 0.93
+      },
+      "opf_max_iter": 100,
+      "opf_mode": "socp",
+      "opf_tolerance": 1e-06,
+      "rt": {
+        "da_forecast_noise_pct": 0.0,
+        "da_rolling_enabled": false,
+        "da_window_length": 48,
+        "da_window_step": 8,
+        "rt_forecast_mode": "noisy_da",
+        "rt_forecast_noise_pct": 10.0,
+        "rt_horizon": 8,
+        "rt_step": 1
+      },
+      "storage": {
+        "charge_discount": 0.75,
+        "churn_free_quotes": true,
+        "cycle_cost": 80.0,
+        "discharge_premium": 1.3,
+        "discount_factor": 0.997,
+        "exclusive_mode": "off",
+        "mpc_bus_markup_pct": 30.0,
+        "mpc_congestion_pass": false,
+        "mpc_fast_heuristic": false,
+        "mpc_horizon": 64,
+        "mpc_price_noise_pct": 5.0,
+        "prosumer_storage_scale": 1.0,
+        "self_schedule": false,
+        "soc_buffer": 0.05,
+        "terminal_soc_equal": true,
+        "terminal_value": null,
+        "use_nodal_price": true
+      },
+      "verbose": false
+    },
+    "C90": {
+      "dt_scaled_money": true,
+      "market_design": {
+        "bid_mult_range": [
+          0.3,
+          1.8
+        ],
+        "carbon_cap_tco2": null,
+        "default_bid_mult": 1.0,
+        "default_offer_adder": 0.0,
+        "emission_factor_grid": 0.58,
+        "enable_multi_objective": false,
+        "lambda_carbon": 80.0,
+        "lambda_curtail": 200.0,
+        "lambda_re": 50.0,
+        "offer_adder_range": [
+          0.0,
+          50.0
+        ],
+        "penalty_carbon_slack": 5000.0,
+        "penalty_re_slack": 3000.0,
+        "penalty_unserved": 2500.0,
+        "re_min_rate": null,
+        "use_constraint_multi_obj": false
+      },
+      "network": {
+        "base_kv": 12.66,
+        "base_mva": 1.0,
+        "inverter_smax_multiplier": 1.1,
+        "line_capacity_multiplier": 1.5,
+        "line_capacity_overrides": {},
+        "load_power_factor": 0.8503,
+        "n_loss_iters": 3,
+        "ramp_limit_mw_per_period": null,
+        "reactive_support": true,
+        "reverse_power_limit_mw": 2.5,
+        "v_max_pu": 1.05,
+        "v_min_pu": 0.93
+      },
+      "opf_max_iter": 100,
+      "opf_mode": "socp",
+      "opf_tolerance": 1e-06,
+      "rt": {
+        "da_forecast_noise_pct": 0.0,
+        "da_rolling_enabled": false,
+        "da_window_length": 48,
+        "da_window_step": 8,
+        "rt_forecast_mode": "noisy_da",
+        "rt_forecast_noise_pct": 10.0,
+        "rt_horizon": 8,
+        "rt_step": 1
+      },
+      "storage": {
+        "charge_discount": 0.75,
+        "churn_free_quotes": true,
+        "cycle_cost": 90.0,
+        "discharge_premium": 1.3,
+        "discount_factor": 0.997,
+        "exclusive_mode": "off",
+        "mpc_bus_markup_pct": 30.0,
+        "mpc_congestion_pass": false,
+        "mpc_fast_heuristic": false,
+        "mpc_horizon": 64,
+        "mpc_price_noise_pct": 5.0,
+        "prosumer_storage_scale": 1.0,
+        "self_schedule": false,
+        "soc_buffer": 0.05,
+        "terminal_soc_equal": true,
+        "terminal_value": null,
+        "use_nodal_price": true
+      },
+      "verbose": false
+    },
+    "NoESS": {
+      "dt_scaled_money": true,
+      "market_design": {
+        "bid_mult_range": [
+          0.3,
+          1.8
+        ],
+        "carbon_cap_tco2": null,
+        "default_bid_mult": 1.0,
+        "default_offer_adder": 0.0,
+        "emission_factor_grid": 0.58,
+        "enable_multi_objective": false,
+        "lambda_carbon": 80.0,
+        "lambda_curtail": 200.0,
+        "lambda_re": 50.0,
+        "offer_adder_range": [
+          0.0,
+          50.0
+        ],
+        "penalty_carbon_slack": 5000.0,
+        "penalty_re_slack": 3000.0,
+        "penalty_unserved": 2500.0,
+        "re_min_rate": null,
+        "use_constraint_multi_obj": false
+      },
+      "network": {
+        "base_kv": 12.66,
+        "base_mva": 1.0,
+        "inverter_smax_multiplier": 1.1,
+        "line_capacity_multiplier": 1.5,
+        "line_capacity_overrides": {},
+        "load_power_factor": 0.8503,
+        "n_loss_iters": 3,
+        "ramp_limit_mw_per_period": null,
+        "reactive_support": true,
+        "reverse_power_limit_mw": 2.5,
+        "v_max_pu": 1.05,
+        "v_min_pu": 0.93
+      },
+      "opf_max_iter": 100,
+      "opf_mode": "socp",
+      "opf_tolerance": 1e-06,
+      "rt": {
+        "da_forecast_noise_pct": 0.0,
+        "da_rolling_enabled": false,
+        "da_window_length": 48,
+        "da_window_step": 8,
+        "rt_forecast_mode": "noisy_da",
+        "rt_forecast_noise_pct": 10.0,
+        "rt_horizon": 8,
+        "rt_step": 1
+      },
+      "storage": {
+        "charge_discount": 0.75,
+        "churn_free_quotes": true,
+        "cycle_cost": 100.0,
+        "discharge_premium": 1.3,
+        "discount_factor": 0.997,
+        "exclusive_mode": "off",
+        "mpc_bus_markup_pct": 30.0,
+        "mpc_congestion_pass": false,
+        "mpc_fast_heuristic": false,
+        "mpc_horizon": 64,
+        "mpc_price_noise_pct": 5.0,
+        "prosumer_storage_scale": 1.0,
+        "self_schedule": false,
+        "soc_buffer": 0.05,
+        "terminal_soc_equal": true,
+        "terminal_value": null,
+        "use_nodal_price": true
+      },
+      "verbose": false
+    }
+  },
+  "costs": {
+    "C100": 100.0,
+    "C80": 80.0,
+    "C90": 90.0
+  },
+  "day_seed": 42,
+  "dt_hours": 0.25,
+  "experiment": "storage_cycle_cost_sensitivity",
+  "label": "diagnostic_only",
+  "no_ess": "NoESS",
+  "periods": 96,
+  "policy": null,
+  "scenario": "typical_day_industry_subset",
+  "software": {
+    "executable": "C:\\ProgramData\\anaconda3\\python.exe",
+    "gurobi": "13.0.2",
+    "gurobipy": "13.0.2",
+    "numpy": "1.26.4",
+    "pandapower": "2.14.0",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "python": "3.12.7",
+    "scipy": "1.16.3",
+    "torch": "2.5.1+cpu"
+  },
+  "status": "ok",
+  "storage_fleet": {
+    "agents": [
+      {
+        "bus": 9,
+        "e_max_mwh": 1.6,
+        "eta_ch": 0.92,
+        "eta_dis": 0.92,
+        "name": "ESS9",
+        "p_ch_max_mw": 0.4,
+        "p_dis_max_mw": 0.4,
+        "soc0": 0.5,
+        "soc_max": 0.9,
+        "soc_min": 0.1
+      },
+      {
+        "bus": 14,
+        "e_max_mwh": 1.6,
+        "eta_ch": 0.92,
+        "eta_dis": 0.92,
+        "name": "ESS14",
+        "p_ch_max_mw": 0.4,
+        "p_dis_max_mw": 0.4,
+        "soc0": 0.5,
+        "soc_max": 0.9,
+        "soc_min": 0.1
+      },
+      {
+        "bus": 17,
+        "e_max_mwh": 1.6,
+        "eta_ch": 0.92,
+        "eta_dis": 0.92,
+        "name": "ESS17",
+        "p_ch_max_mw": 0.4,
+        "p_dis_max_mw": 0.4,
+        "soc0": 0.5,
+        "soc_max": 0.9,
+        "soc_min": 0.1
+      },
+      {
+        "bus": 27,
+        "e_max_mwh": 1.6,
+        "eta_ch": 0.92,
+        "eta_dis": 0.92,
+        "name": "ESS27",
+        "p_ch_max_mw": 0.4,
+        "p_dis_max_mw": 0.4,
+        "soc0": 0.5,
+        "soc_max": 0.9,
+        "soc_min": 0.1
+      }
+    ],
+    "count": 4
+  }
+}

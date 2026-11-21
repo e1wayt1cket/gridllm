@@ -1,0 +1,48 @@
+{
+  "phase": 19,
+  "files": {
+    "src/audit_phase19_critic_calibration.py": "7ee33e52cb0e13d542d508a8fffd0962c35bb3f31c4593ee3002b47b6369976c",
+    "src/audit_phase19_actor_gradient_chain.py": "e8d162745307cc8c942574d74e6b69c98e24f894ee665fa921382465ee100fb3",
+    "src/audit_phase19_cross_ess_gradient.py": "3e007cc836b367b420ac9c99590d4e559b464e50fb7e75496c335d54093b2326",
+    "data/processed/v2_cy_jn_2025/phase19_critic_training_calibration_rows.csv": "9e084dbe343a6273da1db7e5c64cac28c65d7c074d473c304ee815ec9300ad0f",
+    "data/processed/v2_cy_jn_2025/phase19_critic_training_calibration.json": "631496b28b3001cd92578c60b8747146d3dc974cca26abd0d6bcbdcf55f0cbc1",
+    "data/processed/v2_cy_jn_2025/phase19_replay_coverage.csv": "ee114c24b2be2576b194d828d3d10957b0a0c0000dd02db1ff67d494c06befc8",
+    "data/processed/v2_cy_jn_2025/phase19_actor_gradient_chain.csv": "c3b60ef34134c79daecc15e58a0a650c07387b2611bcd9f0b13db416e61a2479",
+    "data/processed/v2_cy_jn_2025/phase19_actor_gradient_chain.json": "8f4993afcda6de09f8124b0cfd5cb0d2dd463df3ce8550b61c07819c5c856291",
+    "data/processed/v2_cy_jn_2025/phase19_cross_ess_gradient.csv": "ed6ed5bef55dfb0567cf5689483d3f964018f87f37f62fd4af3328dfb9547d1e",
+    "data/processed/v2_cy_jn_2025/phase19_cross_ess_gradient.json": "42c19fc972b7eb47d54de3033b1d5600a5cc3ac6df368d40690368fc9d8fe47e",
+    "reports/v2_cy_jn_2025/phase19_critic_calibration.md": "32ce0e50d093f4ce4cc8e5c23edbddea995c18145ac814676602395b234e01f9",
+    "reports/v2_cy_jn_2025/phase19_actor_gradient_chain.md": "5e52b7c7a99b796e3d97b8d3c5bf1b4931a786fd3ed6b2deb6b019de8b653ac7",
+    "reports/v2_cy_jn_2025/phase19_cross_ess_gradient_conflict.md": "ec6ac194a99c4b5c2c40cfdac040cba7392facbd6634afad925229628500d4dc",
+    "reports/v2_cy_jn_2025/phase19_diagnostic_decision.md": "068ba9eaa8a2177e0aac70d444a8ad0469f42ce505c353aa9b69ab8e92ca44a7",
+    "data/processed/v2_cy_jn_2025/near/split.json": "19697cb4f8a008ed725497610fbb56c5a0866d774d3f727e89353c11524b96c9",
+    "data/processed/v2_cy_jn_2025/common_split.json": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335",
+    "runs/DEV_DA_GATE_seed11_v2/run_manifest.json": "345f728805ff5f890ab9d674ba8fc84dd6f72a574701416c04ba1e640e9dc3b0",
+    "runs/DEV_DA_GATE_seed11_v2_best/manifest.json": "61f8089bf853609af0681ffe9377a9ecdf35ac076fa097bd9e75fa12218c4b75",
+    "runs/DEV_DA_GATE_seed11_v2/manifest.json": "1de13d92170b49441aea3ab9816eeb0494292bc3a0379ea0450aa346333fc61b",
+    "runs/DEV_DA_GATE_seed11_v2_best/checkpoints/step_00001272/counters.json": "bc27cce649fcf1465be3df93383ab7a94ba947c70d8b00b36c830e2eaace0eba",
+    "runs/DEV_DA_GATE_seed11_v2/checkpoints/step_00003816/counters.json": "12d46c527c1e7b7f16ba746ee0bc820e71f47f781ce9578a13bfbe2d4d81e793"
+  },
+  "checkpoints": {
+    "da_best": {
+      "root": "runs/DEV_DA_GATE_seed11_v2_best",
+      "step": 1272,
+      "schema": "matd3-checkpoint-v3"
+    },
+    "da_final": {
+      "root": "runs/DEV_DA_GATE_seed11_v2",
+      "step": 3816,
+      "schema": "matd3-checkpoint-v3"
+    }
+  },
+  "training_days_used": [
+    "2022-12-17",
+    "2022-12-24",
+    "2022-12-29"
+  ],
+  "validation_cases": [
+    "2022-12-13|2025-12-11",
+    "2022-12-30|2025-12-31",
+    "2022-12-31|2025-12-28"
+  ]
+}

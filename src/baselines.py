@@ -29,7 +29,7 @@ from typing import Callable, Dict, Optional
 import numpy as np
 
 from models import MarketConfig
-from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V4, ActionSpec
+from rl_spec import ACTION_STORAGE_QUOTE_V2, OBS_V6, ActionSpec
 
 # The action a policy returns, in the declared action order.
 Action = np.ndarray
@@ -38,7 +38,7 @@ Policy = Callable[[np.ndarray], Action]
 BASELINE_NAMES = ("truthful", "rule", "myopic")
 
 
-def _feature_index(spec=OBS_V4) -> Dict[str, int]:
+def _feature_index(spec=OBS_V6) -> Dict[str, int]:
     """Name -> position for every feature the observation carries."""
     return {name: i for i, name in enumerate(spec.feature_order)}
 

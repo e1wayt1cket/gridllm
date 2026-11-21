@@ -1,0 +1,55 @@
+{
+ "generated_at": "2026-11-12T15:50:25+08:00",
+ "label": "NON_FORMAL_DIAGNOSTIC",
+ "checks": {
+  "input_hashes_intact": {
+   "status": "PASS",
+   "detail": "28 inputs, mismatches=0"
+  },
+  "outputs_unique": {
+   "status": "PASS",
+   "detail": "{\"ess_day_pnl.csv\": {\"rows\": 1280, \"duplicates\": 0}, \"fleet_day_pnl.csv\": {\"rows\": 320, \"duplicates\": 0}, \"paired_mapping_delta.csv\": {\"rows\": 800, \"duplicates\": 0}, \"cycle_cost_sensitivity.csv\": {\"rows\": 200, \"duplicates\": 0}, \"concentration_sensitivity.csv\": {\"rows\": 800, \"duplicates\": 0}, \"concentration_summary.csv\": {\"rows\": 200, \"duplicates\": 0}}"
+  },
+  "pairing_complete": {
+   "status": "PASS",
+   "detail": "160 checkpoint/date groups, incomplete=0"
+  },
+  "pnl_identity": {
+   "status": "PASS",
+   "detail": "max |net - (revenue - purchase - cycle)| = 6.821e-13"
+  },
+  "ess_fleet_identity": {
+   "status": "PASS",
+   "detail": "max |fleet - sum(ESS)| = 0.000e+00 over revenue, purchase, cycle and net"
+  },
+  "paired_delta_identity": {
+   "status": "PASS",
+   "detail": "max |delta_net - (delta_rev - delta_pur - delta_cycle)| = 7.958e-13"
+  },
+  "original_net_reproduced": {
+   "status": "PASS",
+   "detail": "6400 cells compared with the Phase 6D reconciliation, max |diff| = 0.000e+00"
+  },
+  "bootstrap_reproduced": {
+   "status": "PASS",
+   "detail": "40 groups, max |diff| = 1.812e-13"
+  },
+  "cycle_cost_100_matches_existing": {
+   "status": "PASS",
+   "detail": "rate 100 rows equal the Phase 6 bootstrap summary on control mean, candidate mean, delta mean, median, positive share and both CI bounds"
+  },
+  "cycle_cost_linearity": {
+   "status": "PASS",
+   "detail": "max residual of delta(r) = delta(100) + (100 - r) x delta_energy: 2.842e-14"
+  },
+  "no_checkpoint_or_replay_modification": {
+   "status": "PASS",
+   "detail": "92 checkpoint/replay files hashed before and after the analysis, changed=0"
+  },
+  "no_test_holiday_h2_read": {
+   "status": "PASS",
+   "detail": "every pair_id in the artifacts lies in the Train or Validation split of data/processed/v2_cy_jn_2025/common_split.json, and both are disjoint from its test and holiday blocks; the H2 price holdout stays sealed (h2_opened=False)"
+  }
+ },
+ "status": "PASS"
+}

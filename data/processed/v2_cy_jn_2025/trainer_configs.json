@@ -1,0 +1,40 @@
+{
+  "NEAR_B_C2_GATE": {
+    "config": {
+      "experiment_id": "NEAR_B_C2_GATE",
+      "reward_mode": "B_C2",
+      "gamma": 0.99,
+      "fixed_scale": 1000.0,
+      "gate_temperature": 1.0,
+      "price_noise_std": 0.5,
+      "target_policy_noise": 0.2,
+      "target_noise_clip": 0.5,
+      "lr": 0.0003,
+      "tau": 0.005,
+      "policy_delay": 2,
+      "batch_size": 128,
+      "buffer_capacity": 100000,
+      "start_steps": 0
+    },
+    "hash": "1e3ecbd62cbd13949b9445fb6e0fb683f18e7db6c51b401cbbce7033060976aa"
+  },
+  "NEAR_B_ONLY_GATE": {
+    "config": {
+      "experiment_id": "NEAR_B_ONLY_GATE",
+      "reward_mode": "B",
+      "gamma": 0.99,
+      "fixed_scale": 1000.0,
+      "gate_temperature": 1.0,
+      "price_noise_std": 0.5,
+      "target_policy_noise": 0.2,
+      "target_noise_clip": 0.5,
+      "lr": 0.0003,
+      "tau": 0.005,
+      "policy_delay": 2,
+      "batch_size": 128,
+      "buffer_capacity": 100000,
+      "start_steps": 0
+    },
+    "hash": "232ef59c8e7d7f0f26d64ebea766b3031e2e9babcc05c4cbb0e7dd09c1c3e205"
+  }
+}

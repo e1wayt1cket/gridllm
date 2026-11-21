@@ -1,0 +1,327 @@
+formal_training:
+  experiment_id: FORMAL_NEAR_COMMON_B_C2_GATE
+  protocol_version: 6
+  accepted_candidate: V6_candidate_001
+  dataset: JN-Base-NEAR / common_split near view
+  split: data\processed\v2_cy_jn_2025\common_split.json
+  split_view: near
+  split_seed: 20261101
+  reward_mode: B_C2
+  gamma: 0.99
+  fixed_scale: 100.0
+  terminal_soc:
+    initial: 0.5
+    final: 0.5
+    day_end_window_only: true
+  cycle_cost_cny_per_mwh: 100.0
+  clearing_engine: socp
+  network_support: line50_q2.0
+  b1_source: b1_terminal_neutral
+  settlement: two_settlement_ledger
+  observation:
+    name: v6_12d
+    version: 6
+    dimensions: 12
+  action:
+    name: storage_quote_v4
+    version: 4
+    quote_map: linear_core_v1
+    dimensions_per_unit: 2
+    ess_order:
+    - ESS9
+    - ESS14
+    - ESS17
+    - ESS27
+  gate:
+    per_unit: 2
+    total: 8
+    estimator: straight_through_bernoulli
+    temperature_start: 4.0
+    temperature_end: 1.0
+    warmup_episodes: 106
+    evaluation_temperature: 1.0
+    logit_bound: 4.0
+  networks:
+    actor: 256-128-4
+    critic: centralized twin 256-256 no dropout
+  optimizer:
+    name: Adam
+    lr: 0.0003
+    tau: 0.005
+    policy_delay: 2
+    batch_size: 128
+    buffer_capacity: 6000
+    start_steps: 480
+    critic_weight_decay: 0.0
+    actor_weight_decay: 1.0e-05
+    calibration_interval: 8
+  anchor:
+    weight: 0.1
+    form: sum over an agent's legs of squared quotes scaled by each leg's high, averaged
+      over the batch
+    calibrated_by: reports/algorithm_diagnostics/v4_anchor_calibration.json
+    selection_rule: largest weight with zero corner excess over weight 0
+    note: not a profit-selected hyperparameter
+  hinge:
+    advantage_hinge_delta: 0.1
+    twin_gap_weight: 1.0
+    form: -ReLU(Q(a) - Q(a_truthful) - delta_eff) with delta_eff = clamp(twin_gap_weight
+      * |Q1 - Q2|, min=delta)
+    calibrated_by: reports/algorithm_diagnostics/v4_hinge_calibration.json
+    selection_rule: delta = round_up_0.05(max Q variation over states whose payoff
+      range over the three lowest quotes < 0.5 CNY)
+    note: not a profit-selected hyperparameter
+  sampler:
+    uniform_fraction: 0.5
+    beta: 0.5
+    max_upweight: 5.0
+  exploration:
+    epsilon_start: 0.2
+    epsilon_end: 0.05
+    decay_episodes: 159
+    charge_scale: 0.5
+    high_fraction: 0.5
+  target:
+    policy_noise: 0.2
+    noise_clip: 0.5
+  episode:
+    blocks: 24
+    commit_periods: 4
+    lookahead_periods: 16
+  budget:
+    seeds:
+    - 11
+    - 23
+    minimum_rounds: 10
+    exposures_per_day_min: 10
+    exposures_per_day_max: 15
+    episodes_per_seed_min: 530
+    episodes_per_seed_max: 795
+    block_steps_per_seed_min: 12720
+    block_steps_per_seed_max: 19080
+    critic_updates_per_block: 1
+    actor_updates_every_blocks: 2
+  validation:
+    passes: after each full pass over the 53 training days
+    metric: mean fleet delta G over the 11 validation days (settlement, not reward)
+    best_checkpoint: highest validation mean fleet delta G
+    resume_checkpoint: every round
+    final_checkpoint: end of budget or early stop
+    early_stop_patience: 3
+  compatibility:
+    supersedes: reports/v2_cy_jn_2025/formal_training_v5
+    reward_scale: 'fixed_scale 100 (v4, v5 and v6) vs 1000 (v3): reward and delta-G
+      magnitudes are NOT comparable across protocols; compare settlement-side G_policy/G_b1
+      in CNY only'
+    checkpoints: 'v6 runs refuse to load a checkpoint from any earlier protocol: the
+      source hashes are part of the frozen manifest, so an earlier checkpoint does
+      not describe the v6 clearing (F4 nodal slack penalties, F6 terminal value under
+      a pinned endpoint, the v6 non-finite guards). The B1 baseline moves to the recomputed
+      artifact, so a v5 run''s delta G was measured against a different network'
+  boundaries:
+    train_only_in_replay: true
+    validation_not_in_replay: true
+    test_evaluated: false
+    holiday_evaluated: false
+    h2_opened: false
+    test_label: LEGACY_SEEN_TEST
+    independent_generalisation_claim: false
+  claims:
+    allowed: formal training on the NEAR80 controlled simulation under the frozen
+      protocol
+    not_allowed: independent generalisation or blind-test result
+    old_g10_status: NO-GO remains for an independent generalisation claim
+  code:
+    candidate: V6_candidate_001
+    source_sha256:
+      rl_da_gate.py: bbd14fe4cbffe8dbe8472435464001e4854f6e83eee1a63689562361d53fd2f2
+      rl_b_c2_gate.py: f4a16326db621a2cfd340aa7ddecb7eebd0283c17df1cd27707a697eac85dea7
+      train_da_gate.py: 04233fe28ce6b13c926adbb8cc031744f188fd1358de46bd6ded853b8ec3454f
+      da_quote_map.py: 821d7a3052b77d3884569c69a277fa36781f6ea13e964b2b6f5b2c2816980358
+      da_replay.py: 9ee8fe0eec1356fccb1762b97ddc8a43b5c3adcc071687d31b7c0a57ef06bb53
+      truthful_gate_actor_adapter.py: c1878a288449ca2cf272e1fb34378e0f694d44028300b8d506bed1ff8e1a013b
+      rl_spec.py: ef686b7692b9306b3d32f0340a74121f315327aa44f8ab1974303164b857c3c1
+      rl_bidding.py: a697e5f42b92a86c860154f222a0556697fd64374c0c65cefa9c03d6f54b940c
+      calibrate_anchor_v4.py: 2f66b5c32b10a235cb40ff72d13e2a7d0bb571defb47b1e4bb0850dde707cb06
+      calibrate_hinge_v4.py: 563e403cc5ed16e4a41b39a6fe2c82193cd83eb5e39f9656b5dba37c0f4c82e9
+      rl_env.py: 5b1567060b8a3d21e6693617fedd9aa6b6620d35ff19b0d5e872325987149deb
+      c2_reward.py: 81a25150b112f83b6bdcda99397a6b55e3329d97da282c8e6ed07e1e2ce5756c
+      daily_reward_b.py: c3467ddce0a0c568977b385fee2319ccc6b1445a4c79522abfcce40c1b613541
+      b1_daily_baseline.py: 1b7a0bf9d88e2ec3b094ce3bf4a6ad5e76e3025f71f1e93dd11864222d2e78bd
+      dispatch_socp.py: 1e55f34be6658229e172ac239acc0f45256a588a4e8e8f1df978c61ecb7ad6e8
+      v2_cy_jn_env.py: 39052b21a8c455d3cf2f04bd31eceb0767cc82ee0f013278b5d11a4a01dc491a
+      checkpoint_writer_v2.py: bac5c3c909d38f37d86c12929bb83580ce2f9d60412ceae31a5b2587b21cfd90
+      checkpoint_loader_v2.py: 23726dca7f3e7dd8fd218965988360d9c55fcf6f08f6e0def59a7f2841810cbe
+      run_formal_training.py: 4261b235abcdf4eddee8207108477f515110dedfebff7cff0f7d4aa7e7e62eba
+      training_contract.py: db4bda665106ff1fad9ee50fb2e31e1510b63ac3d7f1d2792ff4501bbd3c1fe4
+      audit_run.py: 88fe2d3bc9f4202ddd8671c17077914123c0342c734034ec2c8098be27e220fd
+      make_formal_training_manifests.py: f4bfefbb4ac90ecd5889d37e3199e8fdd63683edcd2fc8385b0929a7ae04a50d
+    git:
+      revision: 32384ad
+      dirty: true
+      dirty_paths:
+      - claude/hooks/protect_frozen.py
+      - .claude/rules/training_contract.md
+      - .claude/settings.json
+      - .gitignore
+      - CLAUDE.md
+      - TECHNICAL_DEBT.md
+      - reports/audit_remediation_2026-11-15/REPORT.md
+      - src/checkpoint_writer_v2.py
+      - src/data_aggregator.py
+      - src/dispatch.py
+      - src/dispatch_ldf.py
+      - src/dispatch_socp.py
+      - src/llm.py
+      - src/make_formal_training_manifests.py
+      - src/make_training_summary.py
+      - src/market.py
+      - src/models.py
+      - src/rl_b_c2_gate.py
+      - src/rl_da_gate.py
+      - src/rl_env.py
+      - src/run_artifacts.py
+      - src/run_formal_training.py
+      - src/run_terminal_neutral_b1.py
+      - src/train_da_gate.py
+      - src/train_rl.py
+      - src/training_contract.py
+      - tests/test_day_capture.py
+      - tests/test_payoff_kpi.py
+      - tests/test_rl_spec.py
+      - tests/test_run_artifacts.py
+      - tests/test_v4_mechanics.py
+      - .agents/
+      - .codex/
+      - 0)
+      - 0`
+      - '"0`\351\224\233\345\261\275\346\264\234\346\266\223\347\257\255n`add_storage_net_power`"'
+      - config/independent_da.json
+      - data/processed/industry_meter_bus_map_v2.csv
+      - data/processed/v2_cy_jn_2025_v6/
+      - docs/2026-11-13-ieee33-load-mapping-proposal.md
+      - docs/2026-11-13-local-da-clearing-spec.md
+      - docs/2026-11-13-local-da-market-integrated-plan.md
+      - docs/2026-11-13-multi-user-load-revision.md
+      - docs/2026-11-14-da-market-system-spec.md
+      - docs/2026-11-15-old-engine-rule-alignment-plan.md
+      - docs/superpowers/plans/2026-11-16-candidate-training-day-library.md
+      - docs/superpowers/specs/2026-11-16-candidate-training-day-library-design.md
+      - rating
+      - reports/2026-11-14-two-week-briefing.md
+      - reports/audit_remediation_2026-11-15/REFREEZE_V5.md
+      - reports/audit_remediation_2026-11-15/REMEDIATION_PLAN.md
+      - reports/candidate_days_2026-11-16/
+      - reports/candidate_q050_2026-11-13/
+      - reports/da_market_system_2026-11-14/
+      - reports/full_project_audit_2026-11-15/
+      - reports/historical_mapping_da_2026-11-13/
+      - reports/load_selection_2026-11-13/
+      - reports/local_da_clearing_2026-11-13/
+      - reports/market_mechanism_audit/M1D_local_da_market_2026-11-12/
+      - reports/market_mechanism_audit/M1E_local_market_robustness_2026-11-13/
+      - reports/multi_user_load_2026-11-13/
+      - reports/physical_infeasibility_2026-11-13/
+      - reports/v2_cy_jn_2025/b1_terminal_neutral_audit_v6.md
+      - reports/v2_cy_jn_2025/formal_training_v5/
+      - reports/withdrawal_diagnosis_2026-11-14/
+      - src/da_market.py
+      - src/da_market_config.py
+      - src/da_market_conic.py
+      - src/da_market_cutting.py
+      - src/da_market_data.py
+      - src/da_market_model.py
+      - src/da_market_pricing.py
+      - src/da_market_settlement.py
+      - src/local_da_accounting.py
+      - src/local_da_candidate.py
+      - src/local_da_clearing.py
+      - src/local_da_contracts.py
+      - src/local_da_operating.py
+      - src/run_candidate_q050.py
+      - src/run_da_market.py
+      - src/run_historical_da.py
+      - src/run_local_da.py
+      - tests/test_candidate_q050.py
+      - tests/test_da_market_system.py
+      - tests/test_local_da_market.py
+      - tests/test_local_da_operating.py
+      - tmp/con_after.npz
+      - tmp/con_before.npz
+      - tmp/day_after.npz
+      - tmp/day_before.npz
+      - tmp/day_full_rows.npy
+      - tmp/diag_band_bisect.py
+      - tmp/diag_cone.py
+      - tmp/diag_cycle_in_clearing.py
+      - tmp/diag_cycle_mismatch.py
+      - tmp/diag_day_full.py
+      - tmp/diag_day_report.py
+      - tmp/diag_driver.py
+      - tmp/diag_lines.py
+      - tmp/diag_lmp.py
+      - tmp/diag_markup.py
+      - tmp/diag_matrix.py
+      - tmp/diag_multiobj.py
+      - tmp/diag_pen.py
+      - tmp/diag_settle_paths.py
+      - tmp/diag_shed.py
+      - tmp/diag_shedmin.py
+      - tmp/diag_storage_influence.py
+      - tmp/diag_train_base.py
+      - tmp/diag_train_sat.py
+      - tmp/diag_v5_before_after.py
+      - tmp/diag_vdrop.py
+      - tmp/diag_voltage_lmp.py
+      - tmp/diag_vprofile.py
+      - tmp/est_balanced_coverage.py
+      - tmp/est_coverage_first.py
+      - tmp/est_daily_subset_peaks.py
+      - tmp/est_smallest_first.py
+      - tmp/extract_page_xy.py
+      - tmp/extract_rules.py
+      - tmp/ldf_after.npz
+      - tmp/ldf_before.npz
+      - tmp/ldf_before_src/
+      - tmp/pdfs/
+      - tmp/probe.npz
+      - tmp/pylibs/
+      - tmp/refreeze_v5/src/
+      - tmp/rules/
+      - tmp/trace_ldf_residual.py
+      - tmp/v4_src_tree/
+      - tmp/verify_v5_targeted.py
+  data:
+    counts:
+      train: 53
+      validation: 11
+      test: 11
+      holiday_block: 5
+    legacy_seen_test_pairs:
+    - 2022-07-24|2025-07-12
+    - 2022-07-25|2025-07-14
+    - 2022-10-03|2025-10-03
+    - 2022-10-04|2025-10-04
+    - 2022-10-05|2025-10-05
+    - 2022-10-06|2025-10-06
+    - 2022-10-07|2025-10-07
+    - 2022-10-11|2025-10-10
+    - 2022-10-12|2025-10-09
+    - 2022-10-27|2025-10-27
+    - 2022-10-30|2025-10-25
+    - 2022-11-06|2025-11-01
+    - 2022-12-14|2025-12-15
+    - 2022-12-19|2025-12-19
+    - 2022-12-24|2025-12-21
+    - 2022-12-29|2025-12-30
+    input_sha256:
+      near/load_price_pairing.csv: e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363
+      bus_loads_96x33.npz: 754fbc6bb83d057e63b3396062670a00d803d0657a3114a658a53642e90d8078
+      price_curves.npz: 316595de0e5e4a01fcf0f1637d6bd12f97dbc7d435b1c12377362bdd5a9b73e1
+      common_split.json: fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335
+      holdout_status.json: 4f31263d8ebc1ecb02fbabecc64c118a3aea25ba81da1c6e81d38997d84e5e85
+      b1_terminal_neutral_manifest.json: 24aa7a26f609859f2b22f04cec06ec2af3227e3cf6ecc4d3def97a124433d08f
+      b1_terminal_neutral_results.csv: 94d35d0cc120332cd1f1ebfef7fc939e4ea2dc0336d8fcc2dd82a0ed9addc8e2
+      b1_terminal_neutral_block_payoffs.json: c2b3372959516090b81ebbd1abb235e52b1445eb4e42ba0162bff9ced6e001cf
+      terminal_soc_config.json: abf4f910b87e8c0cf1a5985c6e044758a56b726cd434f2905e3bf88bd461b1c3
+      trainer_configs.json: b3d4b084ce9586a6708abc9097aff5d83f1ccba51f2593f6405a11914a34d5a9

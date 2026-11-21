@@ -1,0 +1,24 @@
+{
+  "mechanism": "24 blocks; each clears a 16-period rolling window and commits 4",
+  "terminal_soc_target": 0.5,
+  "per_unit": true,
+  "initial_soc": 0.5,
+  "applied_horizon_type": "day_end",
+  "intermediate_horizon_type": "window",
+  "windows_that_reach_day_end": [
+    "block 20",
+    "block 21",
+    "block 22",
+    "block 23"
+  ],
+  "storage_field": "StorageSpec.terminal_soc_target",
+  "dispatch_horizon_types": [
+    "full_day",
+    "window",
+    "day_end"
+  ],
+  "market_config_hash": "5c6c93f16209203b61bfcc11436b110b80206fde5b2c2247a7ea29295b2c4162",
+  "note": "The target lives on the per-agent StorageSpec, so the MarketConfig hash is unchanged; the mechanism is recorded in the B1 and checkpoint manifests.",
+  "old_rolling_results_tag": "CASHFLOW_NO_TERMINAL",
+  "b1_manifest": "data/processed/v2_cy_jn_2025/b1_terminal_neutral_manifest.json"
+}

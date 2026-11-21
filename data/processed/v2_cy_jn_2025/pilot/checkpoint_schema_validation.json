@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "inference_valid": true,
+    "resume_valid": true,
+    "bundle_valid": true,
+    "missing_critic_detected": true,
+    "buffer_without_reason_detected": true,
+    "bad_hash_detected": true,
+    "inference_does_not_require_buffer": true
+  },
+  "errors": {
+    "bundle": [],
+    "inference": [],
+    "resume": []
+  }
+}

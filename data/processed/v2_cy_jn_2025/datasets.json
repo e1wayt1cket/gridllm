@@ -1,0 +1,132 @@
+{
+  "experiment": "V2-CY-JN-2025",
+  "datasets": {
+    "JN-Base-FULL96": {
+      "table": "data/processed/v2_cy_jn_2025/load_price_pairing.csv",
+      "manifest": "data/processed/v2_cy_jn_2025/pairing_manifest.json",
+      "split": "data/processed/v2_cy_jn_2025/split.json",
+      "sha256": {
+        "table": "9cb980dc4cb4be4397634c48eb98be000b7834fc155c7f670fb49ff203e0e2f1"
+      },
+      "group_counts": {
+        "autumn": 47,
+        "national_day_2022": 5,
+        "summer": 21,
+        "winter": 23
+      },
+      "distance_stats": {
+        "pairs": 96,
+        "mean_days": 9.38,
+        "median_days": 2.0,
+        "max_days": 67,
+        "over_14": 16,
+        "over_30": 13,
+        "same_month_day": 27,
+        "type_mismatch": 1
+      },
+      "split_seed": 20261030
+    },
+    "JN-Base-NEAR": {
+      "table": "data/processed/v2_cy_jn_2025/near/load_price_pairing.csv",
+      "manifest": "data/processed/v2_cy_jn_2025/near/pairing_manifest.json",
+      "split": "data/processed/v2_cy_jn_2025/near/split.json",
+      "sha256": {
+        "table": "e41b8992cea469b2f7bb05896742837322451ddfca54ddc7ac538036a0555363"
+      },
+      "group_counts": {
+        "autumn": 34,
+        "national_day_2022": 5,
+        "summer": 18,
+        "winter": 23
+      },
+      "distance_stats": {
+        "pairs": 80,
+        "mean_days": 2.0,
+        "median_days": 1.5,
+        "max_days": 12,
+        "over_14": 0,
+        "over_30": 0,
+        "same_month_day": 27,
+        "type_mismatch": 1
+      },
+      "split_seed": 20261031
+    }
+  },
+  "relationship": {
+    "near_is_subset_of_full": true,
+    "near_days_also_in_full": 80,
+    "cross_dataset_overlap": "every NEAR date is also a FULL96 date; the two splits are independent assignments over the same days and are not independent evidence",
+    "split_overlap_full_vs_near": {
+      "train": {
+        "train": 35,
+        "validation": 8,
+        "test": 7,
+        "holiday_block": 0
+      },
+      "validation": {
+        "train": 7,
+        "validation": 2,
+        "test": 4,
+        "holiday_block": 0
+      },
+      "test": {
+        "train": 11,
+        "validation": 1,
+        "test": 0,
+        "holiday_block": 0
+      },
+      "holiday_block": {
+        "train": 0,
+        "validation": 0,
+        "test": 0,
+        "holiday_block": 5
+      }
+    }
+  },
+  "distance_filter": {
+    "applied_to": "JN-Base-FULL96",
+    "to_make": "JN-Base-NEAR",
+    "threshold_days": 14,
+    "rule": "keep price_date within 14 days of the load day's 2025 month-day",
+    "status": "sensitivity rule, not a validated scientific boundary and not a property of the source"
+  },
+  "common_split": {
+    "path": "data/processed/v2_cy_jn_2025/common_split.json",
+    "sha256": "fef4842872d3496a273aa2dd337950296ac7ad303c60dee72325ec05bd25d335",
+    "seed": 20261101,
+    "counts": {
+      "common": {
+        "train": 53,
+        "validation": 11,
+        "test": 11,
+        "holiday_block": 5
+      },
+      "full96": {
+        "train": 69,
+        "validation": 11,
+        "test": 11,
+        "holiday_block": 5
+      },
+      "near": {
+        "train": 53,
+        "validation": 11,
+        "test": 11,
+        "holiday_block": 5
+      }
+    },
+    "test_index": "data/processed/v2_cy_jn_2025/common_test_index.csv",
+    "test_index_sha256": "6eec449a5068639b621d8fd11448a692b4dd298cc2417a89fd7066d5ed28d3a3",
+    "supersedes": "the per-dataset splits for any cross-dataset comparison; those remain the datasets' own records",
+    "report": "reports/v2_cy_jn_2025/common_split_audit.md"
+  },
+  "near_jn_base_reuse": {
+    "audit": "reports/v2_cy_jn_2025/near_clearing_reuse_audit.md",
+    "index": "data/processed/v2_cy_jn_2025/near/clearing_reuse.csv",
+    "index_sha256": "a47df6c2949df4a4c99452ce5f22c18c5b4015c23198aafcd9591f0f9fda4cef",
+    "scope": "JN-Base only",
+    "reusable_pairs": 80,
+    "total_near_pairs": 80,
+    "fully_verified": true,
+    "not_applicable": "C80/C90/C100/NoESS (21-day probe, not NEAR)"
+  }
+}

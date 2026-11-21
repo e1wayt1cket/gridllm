@@ -1,0 +1,55 @@
+{
+  "day": "2022-12-09|2025-12-09",
+  "seed": 123,
+  "econ_grad_norm_at_init": 0.1542866686359048,
+  "anchor_grad_norm_at_init": 0.06055756099522114,
+  "grid": {
+    "0.0": {
+      "grad_ratio": 0.0,
+      "anchor_at_init": 0.09575729817152023,
+      "corner_frac": 0.875,
+      "quote_mean": 0.12496546655893326,
+      "quote_spread": 0.3306275469860959,
+      "corner_excess_vs_lam0": 0.0
+    },
+    "0.01": {
+      "grad_ratio": 0.003925002823032534,
+      "anchor_at_init": 0.09575729817152023,
+      "corner_frac": 0.875,
+      "quote_mean": 0.12497232109308243,
+      "quote_spread": 0.3306456823788078,
+      "corner_excess_vs_lam0": 0.0
+    },
+    "0.03": {
+      "grad_ratio": 0.011775008469097601,
+      "anchor_at_init": 0.09575729817152023,
+      "corner_frac": 1.0,
+      "quote_mean": 0.0,
+      "quote_spread": 0.0,
+      "corner_excess_vs_lam0": 0.125
+    },
+    "0.1": {
+      "grad_ratio": 0.03925002823032534,
+      "anchor_at_init": 0.09575729817152023,
+      "corner_frac": 1.0,
+      "quote_mean": 0.0,
+      "quote_spread": 0.0,
+      "corner_excess_vs_lam0": 0.125
+    },
+    "0.3": {
+      "grad_ratio": 0.11775008469097602,
+      "anchor_at_init": 0.09575729817152023,
+      "corner_frac": 1.0,
+      "quote_mean": 0.0,
+      "quote_spread": 0.0,
+      "corner_excess_vs_lam0": 0.125
+    }
+  },
+  "rule": {
+    "grad_ratio_cap": 0.2,
+    "corner_excess_cap": 0.0,
+    "reference": "corner_frac at lam = 0 (frozen-critic econ-only baseline)",
+    "select": "largest lam > 0 passing both caps"
+  },
+  "selected": 0.01
+}

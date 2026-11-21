@@ -1,0 +1,20 @@
+{
+  "written_at": "2026-11-12T13:41:30+08:00",
+  "label": "NON_FORMAL_DIAGNOSTIC",
+  "files": {
+    "phase6_config.json": "9c0f29403aaf6cfcc4abd3fbc4716090fd81c4c06baab01e3291e457ab2d6a05",
+    "source_hashes.json": "a26b39b5c5be57e18a39abf04ed19791f67ada6c877a9a18172ad70dd034dd89",
+    "provenance_addendum.json": "b52a54bc54ae139508a007bc7903a0e9e2c2676c30d316e7bfc9bb3afaea37fa",
+    "phase6A_smoke_results.csv": "12b6e27a7cb2be998e3a57c4a4c82d73bcf2b051b7aec7df67b050ec6aa45927",
+    "phase6B_train_results.csv": "65fe3125e8ad737e717f1015aaf9cdf5cc50435c90394d7f01b73abe1550fd0f",
+    "phase6C_validation_results.csv": "0ffe227a0700f453b6f590cdedac2c07ab540db6aeab7b9a928e6d54747dccf7",
+    "daily_paired_deltas.csv": "657f5176293dd6516c3bce9a3fbc9ed58019a2a85632e54ab17175c0a733c782",
+    "per_ess_payoff.csv": "8b7d19a73a9ff1f26495333a89660ffe18f9d711436eb7438e79413be4d475a4",
+    "fleet_payoff.csv": "b8037191c63d4bb7f40e4caf331b5c8ed4854838503073eb5d30356fdbfecc0c",
+    "physical_validation.csv": "d37861a0e413d5692caa02a41df3c30789c3beee6fafcf8e812997cd92c574b0",
+    "solver_validation.csv": "14462441da4cab6d6424696a4dfceb45541c8389a0b7af1cc62dd7ff928931ab",
+    "bootstrap_summary.json": "568fbcb4e528a76f53c7a5094a21776b49e7c315a85e592b81c9fb1aa4b751e4",
+    "phase6_decision_report.md": "8265b5eada535b3675fe2cdf37da6746c3e8452f23569bdb68f6a51941648259",
+    "phase6_preflight.json": "3693d662c349443b695bc1a3a9d5bfc7b0ac7227993d0072430b6ad1e58ebe1b"
+  }
+}

@@ -1,0 +1,1116 @@
+=== page 1 ===
+IEEETRANSACTIONSONPOWERSYSTEMS,VOL.33,NO.4,JULY2018 4061
+Distribution Locational Marginal Pricing (DLMP) for
+Congestion Management and Voltage Support
+LinquanBai ,StudentMember,IEEE,JianhuiWang ,SeniorMember,IEEE,
+ChengshanWang ,SeniorMember,IEEE,ChenChen,Member,IEEE,andFangxingLi,Fellow,IEEE
+Abstract—Inthispaper,aday-aheadmarket-clearingmodelfor DER Set of distributed energy resources
+smartdistributionsystemsisproposed.Varioustypesofdistributed (DER)
+energyresources(DERs),suchasdistributedenergystorage,dis- CB Setofcapacitorbanks(CB)
+tributedgenerators,microgrids,andloadaggregators,canbidinto
+SVC SetofstaticVARcompensators(SVC)
+the day-ahead distribution-level electricity market. Considering
+system Volt/VAR control, network reconfiguration, and interac- N,N f ,D Setofnodes,substations,anddistribu-
+tionswiththewholesalemarket,anoptimizationmodelisbuiltto tionlines
+cleartheday-aheadmarket,throughwhichthedistributionloca- pr(i),cr(i) Setofparentandchildrennodesofnode
+tionalmarginalpricing(DLMPs)forbothactivepowerandreac- i
+tivepoweraredetermined.ThroughderivationsoftheLagrangian PS,QS Active/reactivepowerfromthesubsta-
+function and sensitivity factors, DLMPs are decomposed to five t t
+components(i.e.,marginalcostsforactivepower,reactivepower,
+tionattimet
+congestion,voltagesupport,andloss),whichprovidepricesignals PD,QD Active/reactiveloaddemandatnodeiat
+i,t i,t
+to motivate DERs to contribute to congestion management and timet
+voltagesupport.Finally,casestudiesdemonstratetheeffectiveness PMG,QMG Active/reactive power of MG i at
+oftheproposedmethod. i,t i,t
+timet
+IndexTerms—Congestionmanagement,day-aheadmarket,dis- PMG ,PMG Minimum/maximum active power of
+i,t,min i,t,max
+tribution locational marginal pricing (DLMP), market clearing, MGiattimet
+smartdistributionsystem,voltagesupport,lossprice.
+QMG ,QMG Minimum/maximumreactivepowerof
+i,t,min i,t,max
+NOMENCLATURE
+MGiattimet
+PDG,QDG Active/reactivepowerofDGiattimet
+i,t i,t
+CAISO CaliforniaIndependentSystemOpera- PDG ,PDG Minimum/maximum active power of
+i,t,min i,t,max
+tor DGiattimet
+DCOPF Direct-currentoptimalpowerflow PLA,QLA Active/reactivepowerofLAiattimet
+MG Setofmicrogrids(MG) i,t i,t
+PLA MaximumactivepowerlimitofLAiat
+DG Setofdistributedgenerators(DG) i,t,max
+timet
+DS Setofdistributedstorage(DS) PDS,+ ,PDS,− Charge/discharge power of DS i at
+LA Setofloadaggregators(LA) i,t i,t
+timet
+QDS ReactivepowerofDSiattimet
+i,t
+PDS,c ,PDS,d
+Charging/discharging power limits of
+ManuscriptreceivedApril10,2017;revisedSeptember7,2017;accepted i,max i,max
+October7,2017.DateofpublicationOctober30,2017;dateofcurrentversion
+DSi
+June18,2018.ThisworkwassupportedinpartbytheCURENTresearchcenter Pf ,Qf Active/reactive powerflowonlinel at
+l,t l,t
+fundedbytheNationalScienceFoundation(NSF)andDepartmentofEnergy timet
+undertheNSFGrantEEC-1041877.TheworkofJ.Wangwassupportedbythe
+U.S.DepartmentofEnergyOfficeofElectricityDeliveryandEnergyReliability. P Loss,t ,Q Loss,t Total active and reactive power loss at
+Paperno.TPWRS-00526-2017.(Correspondingauthor:FangxingLi.) timet
+L. Bai and F. Li are with the Department of Electrical Engineering and LFP,LFQ
+Active/reactive power loss factor of
+ComputerScience,TheUniversityofTennessee,Knoxville,TN37996USA i,t i,t
+(e-mail:lbai3@vols.utk.edu;fli6@utk.edu).
+nodeiattimet
+J.WangiswiththeDepartmentofElectricalEngineering,SouthernMethodist DFP,DFQ Active/reactivepowerdeliveryfactorof
+i,t i,t
+University,Dallas,TX75275-0221USA,andalsowiththeEnergySystemsDi- nodeiattimet
+vision,ArgonneNationalLaboratory,Lemont,IL60439USA(e-mail:jianhui.
+wang@ieee.org). F i P ,t ,F i Q ,t Fictitiousactive/reactivenodaldemand
+C.WangiswiththeKeyLaboratoryofSmartGridofMinistryofEducation, atnodeiattimet
+Tia
+C
+n
+.
+ji
+C
+n
+h
+U
+e
+n
+n
+iv
+is
+er
+w
+si
+i
+t
+t
+y
+h
+,
+t
+T
+h
+i
+e
+an
+A
+ji
+r
+n
+go
+3
+n
+0
+n
+0
+e
+07
+N
+2
+a
+,
+ti
+C
+on
+h
+a
+in
+l
+a
+L
+(
+a
+e
+b
+-
+o
+m
+ra
+a
+t
+i
+o
+l:
+r
+c
+y
+s
+,
+w
+L
+a
+e
+n
+m
+g
+o
+@
+nt
+t
+,
+ju
+I
+.
+L
+ed
+6
+u
+0
+.c
+4
+n
+3
+)
+9
+.
+USA
+SOC
+i,min
+,SOC
+i,max
+StateofchargelimitsofDSi
+(e-mail:morningchen@anl.gov). E i,t RemainingenergyinDSiattimet
+Colorversionsofoneormoreofthefiguresinthispaperareavailableonline ER RatedenergycapacityofDSi
+athttp://ieeexplore.ieee.org. i
+DigitalObjectIdentifier10.1109/TPWRS.2017.2767632
+η
+i
+c,η
+i
+d Charge/dischargeefficiencyofDSi
+0885-8950©2017IEEE.Personaluseispermitted,butrepublication/redistributionrequiresIEEEpermission.
+Seehttp://www.ieee.org/publicationsstandards/publications/rights/index.htmlformoreinformation.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 2 ===
+4062 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.33,NO.4,JULY2018
+V i,min ,V i,max Minimum/maximum nodal voltage electricity market is considered to be a promising means of
+limits efficiently managing and utilizing large amounts of DERs in
+V i,t Voltageofnodeiattimet distribution networks [2], [3]. In the distribution-level market,
+I ij,t Currentoflinei−j attimet theintroductionofexplicitmarketmechanismsintodistribution
+I ij,max Currentlimitoflinei−j systemsisintendedtoprovideaplatformfortransparentenergy
+SMG Tie-linecapacityofMGi transactions and economic allocations among various market
+i,max
+SDS InvertercapacityofDSi participants [4], where a distribution system operator (DSO)
+i,max
+Ssub Capacityofthesubstation receives the bids from all market participants and makes fi-
+max
+Sf Capacityoflinei−j nancialsettlements.Thedistribution-levelmarketcouldunlock
+ij,max
+QSVC,QCB Reactive power of SVC and CB i at the opportunities for active customers and utilities to realize
+i,t i,t
+theirpotentialvalueindistributiongrids.Awell-designeddis-
+timet
+QSVC,QSVC Minimum/maximumreactivepowerof tributionmarketcouldalsoincentivizerationaldeploymentand
+i,min i,max investmentofnewDERsinfutureplanning[5].
+SVCi
+In the United States, a few market-oriented reforms in dis-
+u,w Squareofnodalvoltageandlinecurrent
+tribution systems are under investigation. The Public Service
+N,N f Numberofnodesandsubstations
+CommissionofNewYorkStateissuedthe“ReformingtheEn-
+K Numberofpositionsoftheonloadtap
+ergy Vision” (REV) proceeding, which proposes to create a
+changer(OLTC)ofthetransformer
+distributedsystemplatform(DSP)toaccommodatehighpene-
+TAP t Integervariableindicatingtheposition
+trationsofDERs[6].Similarly,Californiahasinitiatedmultiple
+oftapchangerofOLTCattimet
+proceedingsforthedevelopmentof“distributedresourceplans”
+a VoltagechangeperstepofOLTC
+[7].Inaddition,theutilitiesinMassachusetts,Hawaii,andMin-
+N tp ,N s ,N cap Maximum number of operations of
+nesotaarepreparinggridmodernizationplans[8].
+OLTC, feeder switching and shunt ca-
+Intheresearchcommunity,adistribution-levelmarketisin-
+pacitors
+qcap SizeofkthcapacitorinCB troducedintheadvancedgridarchitecture[9].Someworkhas
+k been done to extend the locational marginal pricing (LMP)
+z ij,t Binaryvariableindicatingthestatusof
+scheme in transmission-level wholesale markets to distribu-
+thefeederswitchonlinei−jattimet
+tion systems. A reliability-based distribution network pricing
+(0open,1close)
+isproposedin[10]foridentifyingandrecoveringlong-runin-
+c ik,t Binaryvariableindicatingthestatusof
+vestment costs. In [11]–[13], distribution locational marginal
+kthcapacitoroftheithCBattimet(0
+pricing(DLMP)isdevelopedforthedistributionsystemoper-
+open,1close)
+ation with DGs. In [14], [15], DLMP is proposed to alleviate
+γ t Binary variable indicating the actions
+congestions in future distribution networks with high penetra-
+ofOLTCattimet
+tions of EVs. A distribution congestion price based on DLMP
+r
+ij
++jx
+ij
+Impedanceoflinei−j
+σP ,σQ Active/reactivepowerLMPatthesub- isemployedin[16]tohandlecongestionsinducedbydemand
+S,t S,t response. The above DLMP methods are proven to be effec-
+stationattimet
+σP ,σQ Bidding price of active/reactive power tiveincongestionmanagement.However,theyaredesignedfor
+i,t i,t EVmanagementanddemandresponse,withoutconsideringthe
+ofDERs
+other distributed energy resources. In addition, these DLMPs
+σSVC,σCB Bidding price of reactive power of
+i,t i,t are calculated based on DCOPF and do not consider voltage
+SVCs/CBs
+and reactive power, which are critical features in ensuring the
+transmissionofrealpowerindistributionsystemoperationses-
+I. INTRODUCTION
+pecially when subjected to voltage problems [17]. In [18], a
+THE evolution of smart distribution grids is driven by the co-optimization model of energy and reserves is presented in
+rapidgrowthofdistributedenergy resources(DERs)[1]. transmission and distribution markets with renewable genera-
+TheintegrationofDERs,suchasdistributedgenerators(DGs), tion and DERs and then a distribution market DLMP clearing
+distributedstorage(DS),demandresponse(DR),electricvehi- modelisproposed.In[19],[20],aformulationofLMPfordis-
+cles(EVs),microgrids(MGs)etc.,makesthedistributionsys- tributionnetworksisproposedforlossandemissionreduction
+tem more active. Here, MG is viewed as a localized group of allocationindistributionnetworks.
+DG,DS,EVandloads,andcanbeconsideredasatypeofDER Thispaperpresentsaframeworkforadistribution-levelelec-
+inabroadsense.Withtheproliferationofproactivecustomers, tricitymarketandproposesaday-aheadmarket-clearingmodel
+the traditional passive operation mode of distribution utilities for smart distribution systems. The market participants, such
+whichonlyfocusonreliablepowersupplyisinadequate.New as MGs, DS, DGs, and load aggregators (LAs), are mod-
+distributionbusinessmodelsarerequiredtooptimallyallocate eled. An optimization framework for a DSO is formulated
+andintegratethedistribution-levelDERs.Thehighpenetration to clear the day-ahead distribution-level market. The optimal
+of DERs may cause network congestion and voltage issues network reconfigurations, Volt/VAR control, and interactions
+in smart distribution systems. Establishing a distribution-level with the wholesale market are incorporated into the proposed
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 3 ===
+BAIetal.:DISTRIBUTIONLOCATIONALMARGINALPRICING(DLMP)FORCONGESTIONMANAGEMENTANDVOLTAGESUPPORT 4063
+participate in the market. Small-scale prosumers, such as in-
+dividualresidentialhouseholds,areencouragedtobidintothe
+marketthroughaggregators.TheDSOreceivesthebidsfromall
+participants and clears the market considering the interactions
+with the wholesale market. As an appropriate voltage level
+is critical to ensure the deliverability of electric power in a
+distribution network, reactive power is also a key product that
+canimprovethesystemefficiencyandsupportsystemvoltage.
+Hence, our proposed day-ahead distribution market-clearing
+modelsimultaneouslydeterminesthelocationalmarginalprices
+for active power and reactive power provided by the market
+participants.
+B. ModelingMarketParticipants
+Themodelsofvariousrepresentativeparticipantsintheday-
+aheaddistribution-levelmarketarepresentedasfollows.
+1) Microgrid: Themicrogridoperatorscouldimportorex-
+Fig.1. Theframeworkofdistribution-levelelectricitymarket.
+port active power and reactive power through the tie-line con-
+nectingtheMGtothedistributionnetwork.Theapparentpower
+market-clearingmodel.Basedontheoptimizednetworktopol- flowthroughthetie-lineislimitedbyitslinecapacity.
+ogyandvoltagecontrol,DLMPsforactivepowerandreactive
+PMG ≤PMG ≤PMG ,∀i∈MG,∀t (1)
+power are derived to reflect the temporal-spatial values of the i,t,min i,t i,t,max
+services provided by DERs. Furthermore, DLMPs are decom- QMG ≤QMG ≤QMG ,∀i∈MG,∀t (2)
+i,t,min i,t i,tmax
+posedintomarginalcostsofactivepower,reactivepower,con- (cid:2) (cid:3) (cid:2) (cid:3) (cid:2) (cid:3)
+gestion,voltagesupport,andloss.Thepricesignalsmotivatethe PMG 2 + QMG 2 ≤ SMG 2 ,∀i∈MG,∀t (3)
+i,t i,t i,max
+DERstocontributetoalleviatingnetworkcongestionsandpro-
+2) DGs: The DGs in distribution networks can be gener-
+viding voltage support for distribution systems. The effective-
+ally divided into two categories: inverter-based DGs and syn-
+nessandperformanceoftheproposedmethodaredemonstrated
+chronousmachine-basedDGs.Forinverter-basedDGs,suchas
+throughcasestudies.
+distributedwindturbines(WTs)andphotovoltaics(PVs),they
+The rest of this paper is organized as follows. Section II
+can not only provide active power but also absorb or gener-
+presents a day-ahead market framework for distribution net-
+atereactivepowerthroughcontrollingthesmartinverters[21].
+works with modeling system control and various market par-
+UtilitiesusuallyrequireaminimumpowerfactorforDGinte-
+ticipants. Section III proposes the distribution market-clearing
+gration.ThepowerfactorofDGscanbeadjustedbycontrolling
+modelandderivestheDLMPsanditsdecomposition.SectionIV
+the inverters. The power factor range needs to be maintained
+presentscasestudiestodemonstratetheeffectivenessofthepro-
+posedmethod.Finally,SectionVconcludesthepaper.
+within[κ
+min
+lagging,κ
+min
+leading].
+PDG ≤PDG ≤PDG ,∀i∈DG,∀t (4)
+i,t,min i,t i,t,max
+II. FRAMEWORKANDMODELSFORDISTRIBUTION-LEVEL
+PDG
+DAY-AHEADMARKET (cid:4) (cid:2) (cid:3) i,t (cid:2) (cid:3) ≥κ i,min ,∀i∈DG,∀t (5)
+PDG 2 + QDG 2
+Thissectionpresentstheday-aheadmarketframework,mod- i,t i,t
+eling of various market participants and system controls for
+Inthispaper, the power factor range issetas[0.95lagging,
+distributionnetworks.
+0.95 leading] according to the DG interconnection standards
+[22].
+A. Distribution-LevelDay-AheadMarketFramework
+Constraint (5) can be transformed to a linear constraint re-
+Theframeworkoftheproposeddistribution-levelelectricity gardingthereactivepowerfromDGas
+(cid:4)
+marketisshowninFig.1.
+PDG 1−(κ )2
+In the future high-penetration distribution systems, there − i,t i,min ≤QDG
+could be a tremendous amount of DERs participating in κ i,t
+i,min
+the distribution-level market. To manage the market more (cid:4)
+efficiently, the DSO may set a capacity threshold for market PDG 1−(κ )2
+i,t i,min
+participants. For example, CAISO requires that distributed ≤ ∀i∈DG,∀t (6)
+κ
+i,min
+energy resource aggregations (DERAs) with a 0.5 MW mini-
+mum capacity can participate in the markets. In this proposed The maximum output of inverter-based DGs depends
+distribution-level market framework, MG operators, load ag- on weather-based generation capability and their physical
+gregators,DGs,DSownersandlargeprosumersareallowedto limitations. The maximum/minimum output of synchronous
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 4 ===
+4064 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.33,NO.4,JULY2018
+machine-based DGs, such as diesel generators and micro- the voltage level of the distribution system. Considering oper-
+turbines,arelimitedbytheirphysicaldesign. ation security, the DSO may not conduct feeder switching or
+3) DS: Thedistributedenergystoragecanbemodeledas adjustthetapchangerfrequently.Thus,weimposelimitsonthe
+numberofsuchactionsovertheday-aheadhorizon.
+0≤PDS,+ ≤PDS,c,0≤PDS,− ≤PDS,d, ∀i∈DS,∀t
+i,t i,max i,t i,max 1) Feeder Reconfiguration: In most cases, the distribution
+(7) network operates in a radial manner. To guarantee the radial
+(cid:2) (cid:3)
+topology of a distribution network, two conditions need to be
+E =E +ηcPDS,+ − 1/ηd PDS,−, ∀i∈DS,∀t
+i,t i,t−1 i i,t i i,t satisfied:(1)noloopsshouldbeformedand(2)everynodeother
+(8)
+than the substation node has only one parent. The following
+E i R ·SOC i,min ≤E i,t ≤E i R ·SOC i,max , ∀i∈DS,∀t (9) constraints ensure the radiality of the network topology as a
+spanningtree[25].
+E i,t=T =E i,t=0 , ∀i∈DS (10) (cid:7)
+(cid:5) PDS,+ −PDS,− (cid:6) 2 + (cid:2) QDS (cid:3) 2 ≤ (cid:2) SDS (cid:3) 2 , ∀i∈DS,∀t (i,j)∈D z ij,t =N −N f , ∀t (14)
+i,t i,t i,t i,max
+(11) b ij,t +b ji,t =z ij,t ,(i,j)∈D, ∀t (15)
+(cid:7)
+Constraint (7) represents the limits on the charging/disch-
+arging power of DS. The energy state change of DS is rep- b ij,t =1, ∀i∈N\N f , ∀t (16a)
+j∈N(i)
+resented by (8). To avoid deep charge/discharge, (9) imposes
+limits on the state of charge (SOC) of DS. (10) ensures the b ij,t =0, ∀i∈N f ,j ∈N(i), ∀t (16b)
+total amount of discharging energy equals the total amount of
+chargingenergyoveronedaysuchthattheSOCattheendofa whereb ij,t andb ji,t areauxiliarybinaryvariablesforeachline.
+Equations(14)–(16)ensurethateachnodeexceptthesubstation
+day equals the initial state for the next-day use. Equation (11)
+denotesthelimitsoftheinvertercapacity.Itisnotedthat,inthe
+nodehasexactlyoneparentnode.In(16a),b
+ij,t
+=1ifnodej
+senseofminimizingtotaloperationcost,simultaneouscharging
+istheparentnodeofiandb
+ji,t
+=1ifnodeiistheparentnode
+ofj.Sincethesubstationnodehasnoparents,(16b)isenforced
+anddischargingofDSwillnothappenatonetime-stepdueto
+forthesubstationnode.
+the power losses in the charging/discharging process [23]. No
+Themaximumnumberofallowedoperationsforeachswitch
+additionalbinaryvariablesindicatingcharging/dischargingsta-
+tusarerequiredinthisformulation.Thismodelalsoappliesto
+duringthedayissettoN s,expressedas
+(cid:7)
+otherstorage-likedevices,suchasEVaggregators,bymaking |z ij,t −z ij,t−1 |≤N s , ∀(i,j)∈D (17)
+differentparametersettings,suchasinitialandtargetSOC.
+t∈T
+The number of charging and discharging cycles results in
+decreasingthelifetimeofbatteries.TheDSownerscaninclude Since |z ij,t −z ij,t−1 | = max{z ij,t −z ij,t−1 ,z ij,t−1 −z ij,t },
+thedegradationcostintheirbiddingprice,orDSOcanconsider (17)canbeexpressedeliminatingtheabsolutevalueoperatoras
+(cid:7)
+additionalconstraintsinthemarket-clearingmodel.
+β ij,t ≤N s , ∀(i,j)∈D (18a)
+4) LAs: ForLAsthatcanimplementdemandresponse,they
+t∈T
+can bid as a demand response resource in the way similar to
+a virtual power plant in the wholesale market. When demand β ij,t ≥z ij,t −z ij,t−1 , ∀(i,j)∈D, ∀t (18b)
+r to es t p h o e n l s o e ad is f i a m c p to le r m re e q n u t i e r d e , m th e e nt p , o κ w L e A r , f a a s ct s o h r o o w f n L i A n( i 1 s 3 a ) l . sosubject β ij,t ≥z ij,t−1 −z ij,t , ∀(i,j)∈D, ∀t (18c)
+i
+0≤PLA ≤PLA , ∀i∈LA, ∀t (12) whereβ ij,t isanauxiliarycontinuousvariable.
+i,t i,t,max 2) Volt/VARControl: Thispaperconsiderstwotypesofre-
+(cid:2) (cid:2) (cid:3)(cid:3)
+0≤QLA ≤PLA· tan arccos κLA , ∀i∈LA, ∀t (13) activepowercompensationdevicesinthedistributionnetwork,
+i,t i,t i
+i.e.,SVCsandCBs.AnSVCisabletoprovidebothinductive
+Other large prosumers could participate in the distribution- andcapacitivereactivepowertothesystem.Thatis,itcanab-
+level market in the forms of LAs or MGs. The storage-like sorbandgeneratereactivepower.Incontrast,shuntcapacitors
+participants,suchasEVaggregators[14]thathavesimilarchar- areonlyabletogeneratereactivepower[26].TheoutputofSVC
+acteristicstoDS,canbeconsideredasDS.Therefore,theabove canbedispatchedinacontinuousmanner,whiletheoutputof
+fourtypesofDERsarerepresentativeoftheparticipantsinthe shunt capacitors can only be adjusted discretely by switching
+distributionmarket. eachcapacitorinthecapacitorbanks.
+QSVC ≤QSVC ≤QSVC , ∀i∈SVC, ∀t (19)
+C. FeederReconfigurationandVolt/VARControl i,min i,t i,max
+(cid:7)
+With the integration of DERs, the distribution network be- QC i,t B = c ik,t q k cap, ∀i∈CB,k ∈CB(i), ∀t (20)
+comes“active”withbi-directionalpowerflow.Bothactiveand k
+reactive power flows could be further optimized through net-
+whereCB(i)isthesetofcapacitorsintheCBatnodei.
+work reconfiguration [24] and system Volt/VAR control. Volt-
+(cid:7)
+age control technologies, such as SVC, shunt capacitor banks |c ik,t −c ik,t−1 |≤N cap , ∀i∈CB, ∀k ∈CB(i) (21)
+(CB),andonloadtapchanger(OLTC),areutilizedtomaintain
+t∈T
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 5 ===
+BAIetal.:DISTRIBUTIONLOCATIONALMARGINALPRICING(DLMP)FORCONGESTIONMANAGEMENTANDVOLTAGESUPPORT 4065
+The limit on the number of capacitor switching is shown ofdistributionsystemsandincorporatesthedistributionsystem
+in (21), which can be replaced by the following set of linear controlintotheDLMP.
+constraints(22)–(24)viaanotherauxiliaryvariable,s ik,t. Here is an analogy of this strategy and the wholesale ISO
+market. In the ISO market operation, the ISO will take two
+s ik,t ≥c ik,t −c ik,t−1 , ∀i∈CB, ∀k ∈CB(i), ∀t (22) steps: (1) run unit commitment to give optimal on/off status
+s ik,t ≥c ik,t−1 −c ik,t , ∀i∈CB, ∀k ∈CB(i), ∀t (23) (binary variables) in the day-ahead market; and (2) then per-
+(cid:7) formtheLMPcalculationbasedonthegivenon/offstatus.The
+s ik,t ≤N cap , ∀i∈CB, ∀k ∈CB(i) (24) firststepissimilartothefollowingmixed-integersecond-order-
+t∈T coneprogramming(MISOCP)-basedmodelinthispaperwhich
+Inaddition,OLTConthesubstationtransformercanbeused will give the binary variables such as the feeder configuration
+toadjustthevoltageattherootnodeofthedistributionnetwork, status, OLTC, shunt capacitor, etc. Then, in the second step, a
+further affecting all the nodal voltages and power flow along linear programming model is performed to obtain DLMP and
+thedistributionfeeders.Theseareimportantmeanstoconduct itsdecompositionbasedonthefixedbinaryvariablesfromthe
+voltageandreactivepowercontrolbytheDSO.TheOLTCcan firststep.
+bemodeledas
+V i,t =V min +TAP t ·a·V sub,t ,i∈N f , ∀t (25) A. Day-AheadDSOMarketScheduling
+Tofullyconsiderthefeaturesofthedistributionsystempre-
+whereV sub,tisthevoltageattheprimaryside,V
+sub,t
+=1.0p.u.
+sented in the previous section as well as network losses, the
+Tobealignedwiththemarket-clearingmodelinSectionIII,
+day-aheadDSOmarket-schedulingproblemisformulatedasa
+wereformulate(25)withrespecttothesquareofnodalvoltage
+MISOCPproblem[27].
+asfollows.
+Theobjectivefunctionistominimizethetotaloperationcost
+(cid:7)K (cid:7)K
+over 24 hours in the distribution network, including the cost
+V2 = (V +a·k)2o , o =1, ∀t,i∈N
+i,t i,min k,t k,t f ofpurchasingactivepowerfromthewholesaleenergymarket,
+k=0 k=0
+reactive power from the ancillary service market, and genera-
+(26)
+whereo k,t isabinaryvariableindicatingthepositionofthetap tioncostforbothactiveandreactivepowerofDERs.Thecosts
+attimet.K isthenumberoftappositions.o
+k,t
+=1ifthetapis ofVolt/VARcontrolandfeederreconfigurationcanalsobein-
+atthekthposition,0otherwise. cluded.Alltheparticipantsareassumedtobidattheirmarginal
+operationcosts.Ifsubsidiesareprovidedbythegovernmentto
+Considering the device lifetime and operation security, the
+encourage clean power generation, the bidding cost of DERs
+numberofdailyswitchingactionsofOLTCshouldnotexceed
+can be further lowered. It is noted that since synchronous
+thevaluesetbytheDSO.
+machine-based DGs can normally be started up and shut
+m k,t ≥o k,t −o k,t−1 ,m k,t ≥o k,t−1 −o k,t , downveryquickly,theirstart-up/shut-downtimeandcostsare
+ignored.
+1(cid:7)K
+γ t = 2 m k,t , ∀k, ∀t (27) for T m h u e la d t i e s d tri a b s u f t o io ll n o - w le s v . elday-aheadmarketschedulingmodelis
+k=0
+(cid:7) (cid:8)
+γ t ≤N tp (28) min (cid:7) σP PS +σQ QS + (cid:7) (cid:5) σP PG +σQQˆG (cid:6)
+t∈T S,t t S,t t i,t i,t i,t i,t
+t∈T i∈DER
+where m k,t is an auxiliary variable indicating the position (cid:9)
+(cid:7) (cid:7)
+changesofthetapin(27).Ifthetappositionisdifferentfromthe + σSVCQˆSVC + σCBQCB (29a)
+i,t i,t i,t i,t
+previous time slot, there will be two non-zero elements in the
+i∈SVC i∈CB
+vectorm t.Thus,ifthetappositionischanged, γ t =1,other-
+wiseγ
+t
+=0.ThelimitonthetotalnumberofOLTCoperations DER={MG,DG,DS,LA}
+isshownin(28). s.t. (1)−(28)
+u =V2,w =I2 , ∀t∈T, ∀i∈N, ∀(i,j)∈D
+III. DISTRIBUTION-LEVELDAY-AHEADMARKETCLEARING, i,t i,t ij,t ij,t
+PRICINGANDDLMPDECOMPOSITION (29b)
+(cid:7) (cid:7)
+Basedontheframeworkandmodelsintheprevioussection, (Pf −r w )− Pf =PD −PG, ∀t
+ki,t ki ki,t ij,t i,t i,t
+thissectionpresentstheday-aheadmarket-clearingmodeland
+k∈pr(i) j∈cr(i)
+performsdistributionlocationalmarginalpricing(DLMP)and
+(29c)
+DLMPdecomposition.Theproposeddistribution-levelmarket- (cid:7) (cid:7)
+clearing includes two steps: (1) DSO market scheduling to (Qf −x w )− Qf =QD −QG
+ki,t ki ki,t ij,t i,t i,t
+determinetheoptimalfeederreconfiguration,OLTC,shuntca- k∈pr(i) j∈cr(i)
+pacitor,etc.;(2)DSOmarketpricingforDLMPcalculationand
+− QSVC −QCB (29d)
+decomposition. This procedure takes into account the features i,t i,t
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 6 ===
+4066 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.33,NO.4,JULY2018
+QˆG i,t ≥QG i,t ,QˆG i,t ≥−QG i,t , ∀t∀i∈N (29e) theelectricserviceprovidersandconsumers.Throughthemar-
+QˆSVC ≥QSVC,QˆSVC ≥−QSVC, ∀t, ∀i∈N (29f) ket pricing model, DLMPs for both active power and reactive
+i,t i,t i,t i,t powerarederivedformarketsettlementtoallparticipants,such
+(cid:5) (cid:6)
+−M(1−z )≤u −u −2 r Pf +x Qf as DERs and load demands. Further, the DLMPs are decom-
+ij,t i,t j,t ij ij,t ij ij,t
+posed into five components, i.e., reference active power price,
++ (r2 +x2 )w ≤M(1−z ),∀j ∈cr(i), ∀i∈N, ∀t reference reactive power price, congestion price, voltage sup-
+ij ij ij,t ij,t
+port price and loss price. The DERs are paid for each service
+(29g)
+element they provide to the system explicitly. Moreover, with
+V i 2 ,min ≤u i,t ≤V i 2 ,max , ∀i∈N, ∀t (29h) theresponseofDERstothepricesignals,congestionmanage-
+ment and voltage support are achieved through the proposed
+0≤w ij,t ≤z ij,t I i 2 j,max , ∀(i,j)∈D, ∀t (29i) distributionmarketframework.
+(cid:5) (cid:6) (cid:5) (cid:6)
+P i f j,t 2 + Qf ij,t 2 =w ij,t u i,t , ∀(i,j)∈D, ∀t (29j) ma A l f d te e r ci s s o io lv n i s ng of th f e ee m de a r rk s e w t i s t c c h h e in d g u , li s n h g un m t o c d a e p l a i c n it ( o 2 r 9 a ), n t d he O o L p T t C i-
+(cid:5) (cid:6) 2 (cid:5) (cid:6) 2 (cid:5) (cid:6) 2 are determined, denoted as z∗,c∗, and o∗. Thus, the output of
+P i f j,t + Qf ij,t ≤ S i f j,max , ∀t∀(i,j)∈D (29k) CB,QCB,∗ andthevoltageatrootnode,V∗ areknown.These
+(cid:2) (cid:3) (cid:2) (cid:3) (cid:2) (cid:3) optimaldecisionvariablesaredenotedasy∗andothercontinu-
+P
+t
+S 2 + QS
+t
+2 ≤ S
+m
+su
+a
+b
+x
+2 , ∀t (29l) ousdecisionvariablesaredenotedasx.Thenetworktopology,
+where PG and QˆG represent the active and reactive power transformertappositionandshuntcapacitorsarefixedforeach
+i,t i,t time interval. To facilitate DLMP calculation and decomposi-
+output of DERs, respectively. Note that both generating and
+tion,theDSOmarketpricingmodelisreformulatedasalinear
+absorbingreactivepowerwillinduceextracosttotheDERunits,
+sowehaveQˆG =|QG |in(29a).Similarly,QˆSVC =|QSVC|, programmingproblemasfollows.
+i,t i,t i,t i,t 1) DistFlow-BasedLinearizedPowerFlowModel: TheDis-
+andtheabsoluteoperatorislinearizedby(29e)and(29f).(29c)
+tFlow model [29] has been widely used in radial distribution
+and(29d)arethenodalactive/reactivepowerbalanceequations.
+networks,expressedas
+Thenodalbalanceoftherootnodeistheimportedpowertothe
+(cid:2) (cid:3)
+substationequalstothesumoflineflowsfromthesubstation, P =P −r P2 +Q2 /V2 −p
+i+1 i i i i i i+1
+which is also implicitly contained in (29c) and (29d). (29h) (cid:2) (cid:3)
+Q =Q −x P2 +Q2 /V2 −q
+and(29i)representthevoltageandcurrentlimits,respectively. i+1 i i i i i i+1
+(cid:2) (cid:3)(cid:2) (cid:3)
+(29j) describes the relationship between line flow, current and V2 =V2 −2(r P +x Q )+ r2 +x2 P2 +Q2 /V2
+voltage.(29k) and(29l)arethelineflowlimitsand substation i+1 i i i i i i i i i i
+(30)
+capacitylimits.
+Feeder reconfiguration is incorporated in constraints (29g) whereP i andQ i representtheactiveandreactivepowerflowin
+and(29i)usingthebig-Mmethod.M isthebig-Mvaluesetto line i;p i and q i indicate active and reactive power injection at
+V max −V min, whichensuresthevoltagedropconstraint(29g) nodeialongasinglefeeder.
+tobenonbindingwhenthelineswitchisopen.Whenthelineis Thenodalvoltageinthedistributionsystemisoperatedclose
+open,thelinecurrentwillbeforcedtozeroin(29i)andtheline to1.Thevariationsofthenodalvoltagesaremaintainedwithin
+flowswillbezeroaccordingto(29j). smallbounds.
+We notice that (29j) is a non-convex constraint. The conic
+realization is used to relax the constraint (29j) to (29m). The 1−ε≤V i ≤1+ε, ∀i (31)
+exactnessoftherelaxationisprovedin[27].Then(29m)canbe
+transformedtoastandardsecond-order-coneformas(29n). According to the operating standard [30], the voltage range
+(cid:5) (cid:6) (cid:5) (cid:6) issetto[0.95,1.05]undernormalconditions.Thus,εissetto
+2 2
+P i f j,t + Qf ij,t ≤w ij,t u i,t , ∀(i,j)∈D, ∀t (29m) 0.05in(31).
+(cid:10) (cid:10) Based on the fact that the nonlinear loss related terms are
+(cid:10) (cid:10) 2P i f j,t (cid:10) (cid:10) much smaller than the linear branch flow terms, the nonlinear
+(cid:10) (cid:10)
+(cid:10) (cid:10) (cid:10) 2Qf ij,t (cid:10) (cid:10) (cid:10) ≤w ij,t +u i,t , ∀(i,j)∈D, ∀t (29n) t h e a r v m e s (V ca i n − b 1 e )2 ig = no V re i 2 d − [3 2 1 V ]. i I + n 1 ad ≈ dit 0 i , o t n h , e a n c V co i 2 rd ≈ in 2 g V t i o − (3 1 1 . ) S , u w b e -
+w −u
+ij,t i,t 2 stitutingitinto(30),wehave2V i+1 −1=2V i −1−2(r i P i +
+With the above reformulations, the DSO market scheduling
+x
+i
+Q
+i
+),yieldingtoV
+i+1
+=V
+i
+−(r
+i
+P
+i
++x
+i
+Q
+i
+).
+model is formulated as an MISOCP problem and can be effi- Finally,thelinearizedDistFlowmodelcanbeexpressedas
+cientlysolvedbyavailablesoftwaretools.Bysolvingthismodel,
+P =P −p
+theswitchstatusoffeedersandCBsaswellasthepositionsof i+1 i i+1
+OLTCareoptimallydetermined. Q =Q −q
+i+1 i i+1
+B. DSOMarketPricing V i+1 =V i −(r i P i +x i Q i ) (32)
+Anessentialfunctionoftheday-aheadmarket[28]istode- Thequadraticconstraints,suchas(3),(11),(29k),and(29l)
+terminelocational-temporaldifferentiatedelectricitypricesfor canbelinearizedbyaseriesoflinearequationsusingapolyg-
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 7 ===
+BAIetal.:DISTRIBUTIONLOCATIONALMARGINALPRICING(DLMP)FORCONGESTIONMANAGEMENTANDVOLTAGESUPPORT 4067
+onalinner-approximationmethod. ∂P (cid:7) ∂Pf
+LFP = Loss = 2Pf∗·r l,t
+i,t ∂P l,t l∂P
+α c,0 P +α c,1 Q+α c,2 S ≤0, ∀c∈{1,2,...,12} (33) i,t l∈D i,t
+(cid:7) (cid:7)
+where α c,0 ,α c,1, and α c,2 are the coefficients to describe the = 2·P l f ,t ∗·r l SF lp,l−i (38)
+l∈D i∈N
+polygonalapproximation,whichcanbefoundin[22].
+2) Branch Flow and Voltage Sensitivity Factors: Based on DFP =1−LFP (39)
+i,t i,t
+thelinearizedDistflowmodel,wecanclearlyexpresstherela-
+tionships between line flow and nodal injections according to wherePf isavariabledenotingtheactivepowerflowinlinel
+l,t
+the system topology and nodal power balance. Similar to the andPf∗
+isthevalueobtainedfrom(29).Allothervariableswith
+l,t
+conceptofpowertransferdistributionfactor(PTDF),anindex ∗ indicate fixed values obtained from the optimization results
+matrix M can be derived whose element M ij represents the of(29).
+sensitivitybetweentheactive/reactivepowerinjectionofnode
+Similarly,wecancalculatethelossfactoranddeliveryfactor
+j andtheactive/reactivepowerflowoflinei.
+forreactivepoweras
+Accordingto(32),wehave
+(cid:7) (cid:7)
+Pf =MP inj ,Qf =MQ inj (34) Q Loss,t = x l I l 2 ,t ≈ x l Qf l,t 2 (40)
+l∈D l∈D
+(cid:7) (cid:7)
+ΔV =RPf +XQf =RMP inj +XMQ inj (35) LFQ = 2·Qf∗·x SF ,DFQ =1−LFQ
+i,t l,t l lq,l−i i,t i,t
+l∈D i∈N
+whereP inj andQ inj arethenodalactiveandreactivepower (41)
+injections. ΔV is the voltage drop along the branches to the
+nodescomparedtotherootsubstationnode.R andX arethe TheconceptofFND[32]isusedtorepresentthepowerlosses.
+resistanceandreactancematrix.ThematrixRandXdepictthe Thebasicideaistodividethepowerlossinalineintotwoequal
+pathfromtherootnodetoeachnodeinthedistributionsystem. powerinjectionstothetwoendnodesoftheline.Thus,wehave
+Agraphsearchalgorithmcanfindthepathfromtherootnode apowerinjection,FND,ateachnodeforlossconsideration.
+toeachnode. 1 (cid:7) (cid:5) (cid:6) 2 1 (cid:7) (cid:5) (cid:6) 2
+Thenwecanderivethesensitivityfactors(SF),asfollows. FP = r Pf∗ ,FQ = x Qf∗
+i,t 2 ij ij,t i,t 2 ij ij,t
+j∈N(i) j∈N(i)
+∂ΔV ∂(RMP +XMQ )
+SF = = inj inj =RM (42)
+vp ∂P
+inj
+∂P
+inj
+wherejisthenodethatisconnectedtoi.Theabovederivations
+(36a) arebasedontheassumptionin(31),i.e.,V i 2 ≈1.
+4) DLMP Calculation and Decomposition: The optimiza-
+∂ΔV ∂(RMP +XMQ )
+SF = = inj inj =XM tionmodelfortheDSOpricingrunisformulatedasfollows.The
+vq ∂Q ∂Q
+inj inj DLMPcalculationanddecompositioncanbeachievedthrough
+(36b)
+the pricing model. Through the decomposition of DLMP, we
+∂Pf ∂Qf can value the individual services provided by DERs and paid
+SF lp = ∂P =M, SF lq = ∂Q =M (36c) bythecustomerstoensureclearerandmoretransparentmarket
+inj inj
+pricing. This model is still a multi-period optimization prob-
+whereSF vpandSF vqarethesensitivityfactorsofnodalvoltage lemduetotheintertemporalconstraintsofdistributedstorage.
+changesw.r.t.nodalactive/reactivepowerinjections,andSF
+lp
+Forsimplicity,weavoidusingthetimeindextinthefollowing
+and SF lq are the sensitivity factors of line flows w.r.t. nodal formulation.
+active/reactivepowerinjections.Basedonthesensitivityfactors, min C(x,y∗) (43a)
+thevoltageandlineflowconstraintscanberepresentedbythe
+nodalinjections. s.t.
+3) LossFactorandFictitiousNodalDemand: Thelossfac- (cid:7) (cid:7)
+DFP ·PG − DFP ·PD +P∗ =0,
+tor and Fictitious Nodal Demand (FND) model [32], [33] are i i i i Loss
+employedinthispapertorepresentnetworklosses. i i
+(cid:2) (cid:3)
+Themarginallossfactor(LF)anddeliveryfactor(DF)canbe ∀i∈N λr (43b)
+p
+obtainedbasedontheresultsofthemarketschedulingmodelin (cid:7) (cid:7)
+DFQ ·QG − DFQ ·QD +Q∗ =0,
+(29).Thelossfactorforactivepowercanbeexpressedas i i i i Loss
+(cid:7) i (cid:2) (cid:3) i
+P l f ,t = SF lp,l−i P i,t , ∀i∈N λr q (43c)
+i∈N (cid:2) (cid:3)
+(cid:7) (cid:7) PG ≤PG ≤PG , ∀i∈N η− ,η+ (43d)
+P Loss,t = r l I l 2 ,t ≈ r l P l f ,t 2 , ∀t (37) Q i G ,min ≤Q i G ≤Q i, G max , ∀i∈N (cid:2) η p − ,i ,η p + ,i (cid:3) (43e)
+l∈D l∈D i,min i i,max q,i q,i
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 8 ===
+4068 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.33,NO.4,JULY2018
+(cid:7) (cid:7)(cid:7)
+V ≤V − SF (PD −PG +FP) =λr + SF ω α
+i,min i=1 vp,i−j j j i q lq,l−i l,c c,1
+j l c
+(cid:7) (cid:2) (cid:3) (cid:7) (cid:2) (cid:3) (cid:5) (cid:6)
+− SF vq,i−j (QD j −QG j +F i Q)≤V i,max , μ i −,μ i + + SF vq,j−i μ− j −μ+ j +λr q DF i Q −1 (46)
+j j
+(43f)
+In(45),itcanbeobservedthattheactivepowerDLMPcan
+(cid:7)
+α SF (PD −PG +FP) bedecomposedintoenergy(referenceactivepower)price,con-
+c,0 lp,l−i i i i
+gestion price, voltage support price, and loss price. Similarly,
+i
+(cid:7) thereactivepowerDLMPin(46)canbedecomposedintoref-
++ α SF (QD −QG +FQ)+α Sf ≤0
+c,1 lq,l−i i i i c,2 l,max erence reactive power price, congestion price, voltage support
+i price and loss price. The totaldemand payment DP i fromthe
+∀i∈N, ∀l∈D, ∀c (ω l,c ) (43g) customersincludesactivepowerandreactivepowerpayments.
+whereλr p ,λr q ,η p − ,i ,η p + ,i ,η q − ,i ,η q + ,i ,μ i −,μ i +,andω l,c arethedual DP i =π i P ·P i D +π i Q ·QD i (47)
+variablesoftheconstraints.Here,wedenoteQG asthereactive Among the total payments, the customers need to pay for
+i
+powerofDERs,SVCandCBforsimplicity. the congestion and voltage support to DERs. The congestion
+TheLagrangianfunctionoftheoptimizationmodelin(43)is payment CP i and voltage support payment VP i are shown in
+expressedas (48)and(49).
+(cid:7)(cid:7)
+(cid:5)(cid:7)
+CP = SF ω α ·PD
+L=C(x,y∗)−λr DFP ·PG i lp,l−i l,c c,0 i
+p i i
+l c
+i (cid:7)(cid:7)
+− (cid:7) DFP ·PD +P∗ (cid:6) + SF lq,l−i ω l,c α c,1 ·QD i (48)
+i i Loss l c
+i (cid:7)
+(cid:8) (cid:9)
+VP = SF (μ−−μ+)·PD
+(cid:7) (cid:7) i vp,j−i j j i
+− λr DFQ ·QG − DFQ ·QD +Q∗ j
+q i i i i Loss
+(cid:7)
+(cid:7) i i (cid:7) + SF vq,j−i (μ− j −μ+ j )·QD i (49)
+− η− (PG −PG )− η+ (PG −PG)
+p,i i min,i p,i max,i i j
+i i
+(cid:7) (cid:7) Incentivized bythe price signals of network congestion and
+− η− (QG −QG )− η+ (QG −QG) voltage support, the DERs and flexible loads can adjust their
+q,i i min,i q,i max,i i
+i i own operation plans, which will support system operation. In
+(cid:8) (cid:11) (cid:9)
+(cid:7) V −V − SF (PD −PG +FP) the short-term, this proposed DLMP is effective in congestion
+− μ− i= (cid:11) 1 i,min j vp,i−j j j i alleviationandvoltagesupport,whileinthelong-term,sucha
+i i − j SF vq,i−j (QD j −QG j +F i Q) frameworkencouragesrationalfuturedeploymentofDERsand
+(cid:8) (cid:11) (cid:9) dynamicreactivepowercompensationdevices.
+(cid:7) V −V + SF (PD −PG +FP)
+− μ+ i, (cid:11) max i=1 j vp,i−j j j i
+i
+i +
+j
+SF
+vq,i−j
+(QD
+j
+−QG
+j
++F
+i
+Q) IV. CASESTUDIES
+⎛ (cid:11) ⎞
+−α SF (PD −PG +FP) Inthissection,amodifiedIEEE33-nodedistributionsystem
+(cid:7)(cid:7) c,0 i lp,l−i i i i
+⎜ (cid:11) ⎟ isusedtodemonstratetheeffectivenessoftheproposeddistribu-
+− ω l,c ⎝−α c,1 i SF lq,l−i (QD i −QG i +F i Q)⎠ tionmarketframework.Further,thecomputationalperformance
+l c −α c,2 S l f ,max oftheproposedmarket-clearingmodelistestedonamodified
+(44) 861-node system. The optimization model is implemented in
+MatlabandsolvedusingMOSEK8.0.Thesimulationsarecar-
+The DLMPs are the first-order partial derivative of the La- ried out on a personal computer with Intel Core i7 2.70 GHz
+grangianfunctionw.r.t.theactiveandreactiveloaddemand. CPUand16GBRAM.
+∂L
+πP =
+i ∂PD A. SystemData
+i
+(cid:7)(cid:7) The single-line diagram of the IEEE 33-node system [29]
+=λr + SF ω α
+p lp,l−i l,c c,0 is depicted in Fig. 2. The total base load is 3.715 MW and
+l c 2.3 MVar. In this modified system, three 1000 kW PVs are
+(cid:7) (cid:2) (cid:3) (cid:2) (cid:3)
++ SF vp,j−i μ− j −μ+ j +λr p DF i P −1 (45) l 1 o 2 ca a t n e d d 2 a 8 t ; no tw d o es 3 18 M , W 25 × an 2 d 3 h 3 D ; S tw s o ar M e G at s n a o r d e e l s oc 3 at a e n d d a 2 t 9 n , o a d n e d s
+j
+one200kWLAislocatedatnode7.Inaddition,two300kVAr
+∂L
+πQ = SVCsareatnodes18and33.Five150kVarCBsareatnodes8,
+i ∂QD
+i 13,22,23,and27.FortheCBs,thesizeofeachcapacitoris50
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 9 ===
+BAIetal.:DISTRIBUTIONLOCATIONALMARGINALPRICING(DLMP)FORCONGESTIONMANAGEMENTANDVOLTAGESUPPORT 4069
+Fig.2. IEEE33-nodedistributionsystem.
+Fig.3. LMP,LoadandPVoutputmultipliersover24hours.
+kVar. The load and PVoutput multipliersare shown inFig.3.
+The OLTC of the substation transformer has 11 tap positions
+witha0.01p.u.adjustmentstep.Thevoltagerangeofallnodes
+issetto[0.95,1.05]p.u..Thedataoftheday-aheadwholesale
+market LMP are from PJM, as shown in Fig. 3. The line flow
+limitissetto5MVA. Fig.4. (a)ActivepowerDLMP.(b)ReactivepowerDLMP.
+There is no day-ahead market-clearing mechanism for re-
+active power in existing wholesale markets. In this paper, the
+powerofallthenodesover24hoursareobtainedasshownin
+reactive power price is assumed to be 1/10 LMP. There is one
+Fig.4(a)and(b),respectively.
+sectionalizing switch on each distribution line and several tie-
+It can be observed from Fig. 4(b) that negative reactive
+lineswitches(dottedlinesinFig.2)thatareopenundernormal
+DLMPsoccuratcertainhourswhenthePVgenerationishigh.
+operation. The active and reactive power bidding prices of the
+This is caused by the production of negative reactive power
+DERs are set to 15 $/MWh and 3 $/MVArh, respectively. The
+by DERs and SVCs for supporting system voltage. When the
+dailymaximumnumbersofoperationsofeachswitchissetto2
+DERsgenerateactivepower,thenodalvoltageincreases,then
+andtheshuntcapacitorandOLTCaresetto5.Thechargingand
+theDERsandSVCsneedtoabsorbreactivepowertodecrease
+dischargingefficienciesofbatteryare90%.TheSOCoperation
+range ofenergy storageissetto[40%,90%].Thesimulations the voltage level. This is also a kind of service provided by
+DERs to support the grid operation, thus negative DLMP will
+areconductedonthefollowingtwocasesinthiscasestudy.
+compensateforandawardtheDERswhentheyabsorbreactive
+Case1: (basecase)DSOoptimizationwithoutfeederrecon-
+powertomaintainthesystemvoltagelevel.
+figurationandOLTC.
+Fig. 5 shows the DLMP and LMP and their difference at
+Case2: DSO optimization with feeder reconfiguration and
+node 18 over 24 hours. ADLMP and RDLMP are the DLMPs
+OLTC.
+foractivepowerandreactivepower,respectively.Similarly,we
+First,weuseCase1asthebasecasetoillustrateandverifythe
+denote ALMP and RLMP as the LMPs for active power and
+effectivenessofDLMPincongestionmanagementandvoltage
+reactivepowerpurchasedfromthewholesalemarket.
+support.Then,Case1iscomparedwithCase2todemonstrate
+The DLMP decomposition results are shown in Table I, in
+theeffectoffeederreconfigurationandOLTConsystemoper-
+which the total ADLMP and RDLMP and their components
+ationandDLMP.
+at certain hours are listed. In Table I, “Ref.” denotes the ref-
+erence active/reactive power price and “Conges.” denotes the
+B. DLMPandItsDecomposition
+congestionpriceforactive/reactivepower.
+Basedonthesystemparametersandbiddingdatafromallthe Whenthemarginalcongestioncostandmarginalvoltagecost
+marketparticipants,theday-aheadmarketclearingisperformed arepositive,itmeansthatiftheDERatthisnodeincreasesits
+by the DSO. Then the DLMPs for active power and reactive power output, the line congestion and low-voltage condition
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 10 ===
+4070 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.33,NO.4,JULY2018
+Fig.5. ThedifferencebetweenDLMPandLMPatnode18.
+Fig.6. Lineloadingonline1–2underbaselinepriceandDLMP.
+TABLEI
+DLMPANDITSCOMPONENTSATNODE18
+t ADLMP($/MWh) RDLMP($/MVArh)
+Total Ref. Conges. Voltage Loss Total Ref. Conges. Voltage Loss
+5 17.60 13.92 0.57 1.93 1.18 3.00 1.39 0.15 1.44 0.02
+6 16.55 15.00 0 0.75 0.80 2.02 1.50 0 0.48 0.04
+8 20.75 20.79 0 0 −0.03 2.13 2.08 0 0 0.06
+11 28.36 37.98 0 −6.05 −3.56 −1.24 3.80 0 −5.00 −0.03
+19 54.63 51.72 0.55 0 2.36 3.01 5.17 −2.05 0 −0.12
+in the system can be alleviated. In contrast, if the marginal
+congestion and voltage costs are negative, it means that if the
+participant reduces its output, the line congestion and over-
+voltageissueswillbelightened.TableIshowstheDLMPand
+itscomponentsthatcanreflectthesystemconditionsatdifferent
+Fig.7. Schedulingofdistributedstorageunderbaselineprice.
+hoursandincentivizetheDERstocontributetothesystemoper-
+ationbythepricesignals.Throughthedecomposition,DLMPs
+areclearandtransparenttothemarketparticipants.
+C. EffectofDLMPsonCongestionManagementand
+VoltageSupport
+FromtheDLMPdecompostion,wedemonstratethattheprice
+componentsofcongestionandvoltagesupportarecontainedin
+the DLMPs and passed on to the DERs. To validate the effect
+ofDLMPoncongestionmanagementandvoltagesupport,we
+comparetheimpactofDERsonlineloadingandnodalvoltage
+undertheLMPprice(baselineprice)andDLMPindistribution
+systems.WechoosethewholesalemarketLMPasthebaseline
+price for comparison purposes in this study. The LMP can be
+obtained after the ISO clears the wholesale electricity market.
+In response to the price signals, each DER performs optimal
+Fig.8. SchedulingofdistributedstorageunderDLMP.
+self-scheduling decisions as a price-taker tomaximize itsown
+profitovertheday-aheadtimehorizon.ForeachDER,aiming
+atmaximizingitstotalprofit,anoptimizationmodelisbuiltto fromFig.6thatunderthebaselineprice,thelineloadinglevel
+schedulethepoweroutputoftheDERinthenext24hourssub- isveryhighduetothedischarging/chargingofbothofthetwo
+jecttothecorrespondingoperationconstraintsinSectionII-B. distributed energy storage at the same time slot as shown in
+Once all the output of the DERs is detemined by themselves, Fig.7.Inconstrast,asshowninFig.8,theDLMPsatthenode3
+thelineflowsandnodalvoltagesinthesystemcanbeobtained. and29peakatdifferenttimes;then,thetwodistributedstorage
+Theloadinglevelsofline1–2andthenodalvoltagesunderthe havedifferentself-schedulesinresponsetothedifferentnodal
+baselinepriceandDLMParecomparedinFigs.6–9.Thedashed prices.Meanwhile,thebiddingforreactivepoweralsoreduces
+line in Fig. 6 represents the line capacity. It can be observed thedischargingactivepowerofDSs.TheDSsinFig.8arenot
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 11 ===
+BAIetal.:DISTRIBUTIONLOCATIONALMARGINALPRICING(DLMP)FORCONGESTIONMANAGEMENTANDVOLTAGESUPPORT 4071
+Fig.10. Feederreconfigurationresults.
+Fig.11. Comparisonofnodalvoltagewith/withoutsystemcontrolathour7.
+Fig. 9. (a) Nodal voltages under baseline price and DLMP at hour 12.
+(b)NodalvoltagesunderbaselinepriceandDLMPathour5.
+discharging/discharging atfullcapaicityduetoreactivepower
+production.Thisavoidshighline-loadinglevel.
+The nodal voltages under the two prices are compared in
+Fig. 9(a) and (b). The green dashed line shows the voltage
+limits.Itcan beobserved thatunder DLMP,thevoltage levels
+can be well maintained within the voltage limits compared to
+the voltage level under baseline price. Taking t=12h as an
+exampleinFig.9(a),thereactivepowerpriceisnegativeatnode
+18,theSVCandPVonnode18willabsorbreactivepowerto
+helpreducethevoltagelevel. Fig.12. Comparisonofloadinglevelofline1–2with/withoutsystemcontrol.
+This study demonstrates that the proposed DLMP is effec-
+tiveinalleviatingnetworkcongestionandvoltageissuesinthe In Figs. 11 and 12, we compare the cases without system
+distributionsystem. control (Case 1) and with system control (Case 2). It can be
+observedthatwithfeederreconfigurationandOLTC,thereare
+D. ImpactofFeederReconfigurationandOLTConDLMP fewer voltage binding conditions and less line congestion in
+Case 2 compared to Case 1. Thus, generally, the congestion
+Thefeederreconfigurationchangesthenetworktopologyand
+prices and voltage support prices in the DLMPs in Case 2 are
+OLTCchangesthesystemnodalvoltagestoutilizeDERssuch
+lower than those in Case 1. The DLMPs in Case 2 incentivize
+thatthepowerflowinthedistributionnetworkisalteredandop-
+theDERstocontributetocongestionmanagementandvoltage
+timized.ThroughtheoperationoffeederswitchingandOLTC,
+support for the system with optimized network topology and
+thebindingconditionsofvoltageandlineflowconstraintscan
+referencevoltage.
+be alleviated, thus affecting the DLMPs. In this case, the total
+operation cost decreases from $1425 to $1371 when the DSO
+E. ComputationalPerformance
+conductsfeederreconfigurationandOLTC.
+TheresultsofnetworkreconfigurationareshowninFig.10. The computational performance is a key factor for the real
+The switches on line 3–4, 8–9, 9–10, and 2–19 are open. The applicationoftheproposeddistribution-levelmarketframework
+switchesonline25–29,9–15,12–22,and18–33areclosed. andclearingmodel.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 12 ===
+4072 IEEETRANSACTIONSONPOWERSYSTEMS,VOL.33,NO.4,JULY2018
+TABLEII [7] CaliforniaState,“Distributionresourcesplan,”CaliforniaPublicUtility
+COMPUTATIONALTIME Commission,SanFrancisco,CA,USA,2014.
+[8] MinnesotaDepartmentofCommerce,St.Paul,MN,USA,“Valueofsolar
+tariffmethodology,”Dec.2014.
+DSOMarketScheduling DSOMarketPricing
+[9] J.D.TaftandA.Becker-Dippmann,“Gridarchitecture,”PNNL-24044,
+Jan. 2015. [Online]. Available: http://energy.gov/epsa/downloads/grid-
+IEEE33-nodesystem 9.26s 0.39s
+architecture
+Modified861-nodesystem 226.08s 2.36s
+[10] C.Gu,J.Wu,andF.Li,“Reliability-baseddistributionnetworkpricing,”
+IEEETrans.PowerSyst.,vol.27,no.3,pp.1646–1655,Aug.2012.
+[11] P.M.SotkiewiczandJ.M.Vignolo,“Nodalpricingfordistributionnet-
+Toverifytheperformanceonlargedistributionsystems,we works:EfficientpricingforefficiencyenhancingDG,”IEEETrans.Power
+test the model on a modified 861-node system. The base case Syst.,vol.21,no.2,pp.1013–1014,May2006.
+[12] R. K. Singh and S. K. Goswami, “Optimum allocation of distributed
+dataofthe861-nodesystemcanbefoundin[34],whichisbuilt
+generationsbasedonnodalpricingforprofit,lossreduction,andvoltage
+by replicating seven instances of the IEEE 123-node system. improvement including voltage rise issue,” Int. J. Elect. Power Energy
+We added 100 PVs and 20 distributed energy storages in the Syst.,vol.32,no.6,pp.637–644,Jul.2010.
+[13] F.MengandB.H.Chowdhury,“DistributionLMP-basedeconomicop-
+system.75sectionalizingandtie-lineswitchesareconsideredin
+erationforfuturesmartgrid,”inProc.IEEEPowerEnergyConf.Illinois,
+thefeederreconfigurationand11voltagetapstepsrangingfrom 2011,pp.1–5.
+0.95p.u.to1.05p.u.areconsideredforOLTC.Theoptimality [14] S.Huang,Q.Wu,S.S.Oren,R.Li,andZ.Liu,“Distributionlocational
+marginalpricingthroughquadraticprogrammingforcongestionmanage-
+gaptoleranceissetto3%.
+mentindistributionnetworks,”IEEETrans.PowerSyst.,vol.30,no.4,
+The computational times of the IEEE 33-node case (with pp.2170–2178,Jul.2015.
+feeder reconfiguration and OLTC) and 861-node case are re- [15] R.Li,Q.Wu,andS.S.Oren,“Distributionlocationalmarginalpricingfor
+optimalelectricvehiclechargingmanagement,”IEEETrans.PowerSyst.,
+portedinTableII.
+vol.29,no.1,pp.203–211,Jan.2014.
+Itcanbeobservedthatthecomputationaltimeoftheproposed [16] W.Liu,Q.Wu,F.Wen,andJ.Østergaard,“Day-aheadcongestionman-
+modelissatisfyingforaday-aheadmarket. agementindistributionsystemsthroughhouseholddemandresponseand
+distribution congestion prices,” IEEE Trans. Smart Grid, vol. 5, no. 6,
+pp.2739–2747,Jul.2014.
+V. CONCLUSION [17] J.Momoh,X.Yan,andG.D.Boswell,“Locationalmarginalpricingfor
+realandreactivepower,”inProc.IEEEPowerEnergySoc.Gen.Meeting,
+In this paper, a day-ahead distribution-level market frame- Pittsburgh,PA,USA,2008,pp.1–6.
+[18] M.Caramanis,E.Ntakou,W.Hogan,A.Chakrabortty,andJ.Schoene,
+work and clearing model is presented for smart distribution
+“Co-optimization of power and reserves in dynamic T&D power mar-
+systems with high penetration of DERs. Incorporating feeder ketswith nondispatchablerenewablegenerationanddistributedenergy
+reconfiguration and Volt/VAR control, an MISOCP model is resources,”Proc.IEEE,vol.104,no.4,pp.807–836,Apr.2016.
+[19] K.Shaloudegi,N.Madinehi,S.H.Hosseinian,andH.A.Abyaneh,“A
+proposed for DSO optimization considering network losses.
+novelpolicyforlocationalmarginalpricecalculationindistributionsys-
+DLMPsforactivepowerandreactivepowerarederivedbased temsbasedonlossreductionallocationusinggametheory,”IEEETrans.
+on the market-clearing model. Further, the decomposition of PowerSyst.,vol.27,no.2,pp.811–820,May2012.
+[20] E.Farsani,H.Abynaeh,M.Abedi,andS.H.Hosseinian,“Anovelpolicy
+DLMP clearly illustrates the reward for each service provided
+forLMPcalculationindistributionnetworksbasedonlossandemission
+byDERs.ThepricesignalsincentivizeDERstoprovidevoltage reductionallocationusingnucleolustheory,”IEEETrans.PowerSyst.,
+support and alleviate network congestions in distribution sys- vol.31,no.1,pp.163–152,Jan.2016.
+[21] M.Farivar,C.R.Clark,S.H.Low,andK.M.Chandy,“InverterVAR
+tems.Thecasestudiesdemonstratethatfeederreconfiguration
+controlfordistributionsystemswithrenewables,”inProc.Int.Conf.Smart
+andOLTCcouldhelpoptimizethepowerflowandvoltagepro- GridCommun.,2011,pp.457–462.
+file. Compared to the existing DCOPF-based DLMP method, [22] S. Wang, S. Chen, L. Ge, and L. Wu, “Distributed generation hosting
+capacityevaluationfordistributionsystemsconsideringtherobustoptimal
+the proposed DLMP is more practical by considering the im-
+operationofOLTCandSVC,”IEEETrans.Sustain.Energy,vol.7,no.3,
+pact of reactive power and voltage constraints. The proposed pp.1111–1123,Jul.2016.
+market-clearing model and DLMP have been demonstrated to [23] K.Baker,H.Gabriela,andX.Li,“Energystoragesizingtakingintoac-
+beeffectiveindecreasingthelineloadinglevelandmaintaining countforecastuncertaintiesandrecedinghorizonoperation,”IEEETrans.
+Sustain.Energy,vol.8,no.1,pp.331–340,Jan.2017.
+thenodalvoltageindistributionsystems.
+[24] M.Dorostkar-Ghamsari,M.Fotuhi-Firuzabad,M.Lehtonen,andA.Saf-
+darian, “Value of distribution network reconfiguration in presence of
+REFERENCES renewable energy resources,” IEEE Trans. Power Syst., vol. 31, no. 3,
+pp.1879–1888,May2016.
+[1] G. T. Heydt et al., “Pricing and control in the next generation power [25] R.Jabr,R.Singh,andB.Pal,“Minimumlossnetworkreconfigurationus-
+distributionsystem,”IEEETrans.SmartGrid,vol.3,no.2,pp.907–914, ingmixed-integerconvexprogramming,”IEEETrans.PowerSyst.,vol.27,
+Jun.2012. no.2,pp.1106–1115,May2012.
+[2] S.Bahramirad,A.Khodaei,andR.Masiello,“Distributionmarkets,”IEEE [26] Z.Wang,H.Chen.J.Wang,andM.Begovic,“Inverter-lesshybridvolt-
+PowerEnergyMag.,vol.14,no.2,pp.102–106,Mar./Apr.2016. age/var control for distribution circuits with photovoltaic generators,”
+[3] F.RahimiandS.Mokhtari,“FromISOtoDSO:Imaginingnewconstruct– IEEETrans.SmartGrid,vol.5,no.6,pp.2718–2728,Nov.2014.
+An independent system operator for the distribution network,” Public [27] M. Farivar and S. H. Low, “Branch flow model: Relaxations and
+UtilitiesFortnightly,vol.152,no.6,pp.42–50,2014. convexification–Part I,” IEEE Trans. Power Syst., vol. 28, no. 3,
+[4] E.Ela etal.,“Theevolutionofthemarket:Designingamarketforhigh pp.2554–2564,Aug.2013.
+levelsofvariablegeneration,”IEEEPowerEnergyMag.,vol.13,no.6, [28] H.Chao,F.Li,L.Trinh,J.Pan,M.Gopinathan,andD.J.Pillo,“Market
+pp.60–66,Nov./Dec.2015. basedtransmissionplanningconsideringreliabilityandeconomicperfor-
+[5] S.Parhizi,A.Khodaei,andS.Bahramirad,“Distributionmarketclearing mances,” in Proc. Int. Conf. Probabilistic Methods Appl. Power Syst.,
+andsettlement,”inProc.IEEEPESGen.Meeting,Boston,MA,USA, Sep.2004,pp.557–562.
+2016,pp.1–5. [29] M.E.BaranandF.F.Wu,“Networkreconfigurationindistributionsystems
+[6] NewYorkState,“Reformingtheenergyvision,”NYSDept.PublicSer- forlossreductionandloadbalancing,”IEEETrans.PowerDel.,vol.4,
+vice,Albany,NY,USA,2014. no.2,pp.1401–1407,Apr.1989.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
+
+=== page 13 ===
+BAIetal.:DISTRIBUTIONLOCATIONALMARGINALPRICING(DLMP)FORCONGESTIONMANAGEMENTANDVOLTAGESUPPORT 4073
+[30] IEEEStandardforInterconnectingDistributedResourceswithElectric ChengshanWang(M’08–SM’11)receivedtheB.Sc.,M.S.,andPh.D.degrees
+PowerSystems–Amendment1,IEEEStd1547a-2014,May2014. inelectricalengineeringfromTianjinUniversity,Tianjin,China,in1983,1985,
+[31] Y.Hen-Geul,D.F.Gayme,andS.H.Low,“AdaptiveVARcontrolfor and1991,respectively.HeiscurrentlyaProfessorandtheDirectoroftheSchool
+distribution circuits with photovoltaic generators,” IEEE Trans. Power ofElectricalandInformationEngineering,TianjinUniversity.Hisresearchin-
+Syst.,vol.27,no.3,pp.1656–1663,Aug.2012. terestsincludedistributedgenerationandmicrogrids,powerdistributionsystem
+[32] F.LiandR.Bo,“DCOPF-basedLMPsimulation:Algorithm,compari- analysisandplanning.
+sonwithACOPF,sensitivity,”IEEETrans.PowerSyst.,vol.22,no.4,
+pp.1475–1485,Nov.2007.
+[33] H. Yuan, F. Li, Y. Wei, and J. Zhu, “Novel linearized power flow and
+linearizedOPFmodelsforactivedistributionnetworkswithapplication
+indistributionLMP,“IEEETrans.SmartGrid,tobepublished,Jan.2018.
+[34] T. Ding, F. Li, X. Li, H. Sun, and R. Bo, “Interval radial power flow
+using extended distflow formulation and krawczyk iteration method
+withsparseapproximateinversepreconditioner,”IETGener.,Transmiss. ChenChen(M’13)receivedtheB.S.andM.S.degreesfromXi’anJiaotong
+Distrib.,vol.9,no.14,pp.1998–2006,Nov.2015. University, Xi’an, China, in 2006 and 2009, respectively, and the Ph.D. de-
+greeinelectricalengineeringfromLehighUniversity,Bethlehem,PA,USA,in
+2013.During2013–2015,heworkedasaPostdoctoralResearcherattheEnergy
+SystemsDivision,ArgonneNationalLaboratory,Lemont,IL,USA.Heiscur-
+rentlyaComputationalEngineerwiththeEnergySystemsDivisionatArgonne
+LinquanBai(S’13)receivedtheB.S.andM.S.degreesinelectricalengineering NationalLaboratory.Hisprimaryresearchisinoptimization,communications
+fromTianjinUniversity,Tianjin,China,in2010and2013,respectively,and andsignalprocessingforsmartelectricpowersystems,cyber-physicalsystem
+thePh.D.degreeinelectricalengineeringfromtheUniversityofTennessee, modelingforsmartgrids,andpowersystemresilience.
+Knoxville,TN,USA,in2017.Hisresearchinterestsincludeelectricitymarkets,
+powersystemoperationandoptimization,andintegratedenergysystems.
+JianhuiWang(M’07–SM’12)receivedthePh.D.degreeinelectricalengineer- FangxingLi(S’98–M’01–SM’05–F’17)isalsoknownasFranLi.Hereceived
+ingfromtheIllinoisInstituteofTechnology,Chicago,IL,USA,in2007. theB.S.E.E.andM.S.E.E.degreesfromSoutheastUniversity,Nanjing,China,
+HeiscurrentlyanAssociateProfessorintheDepartmentofElectricalEngi- in1994and1997,respectively,andthePh.D.degreefromVirginiaTech,Blacks-
+neering,SouthernMethodistUniversity,Dallas,TX,USA.Healsoholdsajoint burg,VA,USA,in2001.
+appointmentasSectionLeadforAdvancedPowerGridModelingattheEnergy Currently,heistheJamesW.McConnellProfessorinElectricalEngineer-
+SystemsDivision,ArgonneNationalLaboratory,Lemont,IL,USA. ing and the Campus Director of CURENT at the University of Tennessee,
+Dr.WangistheSecretaryoftheIEEEPower&EnergySociety(PES)Power Knoxville,TN,USA.Hiscurrentresearchinterestsincluderenewableenergy
+SystemOperations,Planning&EconomicsCommittee.HeisanAssociateEd- integration,distributedgeneration,energymarkets,powersystemcomputing,
+itoroftheJournalofEnergyEngineeringandaneditorialboardmemberof reactivepowerandvoltagestability,andmeasurement-basedtechnology.
+AppliedEnergy.HehasheldvisitingpositionsinEurope,Australia,andHong Prof.LiiscurrentlyservingastheViceChairofIEEEPESPSOPECom-
+KongincludingaVELUXVisitingProfessorshipattheTechnicalUniversity mittee,anEditoroftheIEEETRANSACTIONSONPOWERSYSTEMS,anEditor
+ofDenmark(DTU).HeistheEditor-in-ChiefoftheIEEETRANSACTIONSON oftheIEEETRANSACTIONSONSUSTAINABLEENERGY,anEditorofIEEEPES
+SMARTGRIDandanIEEEPESDistinguishedLecturer.HereceivedtheIEEE LETTERS,andaneditorialboardmemberforseveralIEEEandotherinterna-
+PESPowerSystemOperationCommitteePrizePaperAwardin2015. tionaljournals.
+Authorized licensed use limited to: TIANJIN UNIVERSITY. Downloaded on September 17,2026 at 14:48:30 UTC from IEEE Xplore. Restrictions apply.
