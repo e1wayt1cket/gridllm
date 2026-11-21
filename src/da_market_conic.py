@@ -166,7 +166,8 @@ class ConicMarketModel:
         base,day=self.base,self.day
         result.update(clearing_objective=float((self.objective@x+self.constant)*self.rules.objective_scale),
                       objective_bound=float((solution.obj_val_dual+self.reduced_constant)*self.rules.objective_scale),
-                      pcc_mw=curve(base.pcc),qcc_mvar=curve(base.qcc),
+                      pcc_mw=curve(base.pcc)+curve(base.pcc_emergency),
+                      pcc_emergency_mw=curve(base.pcc_emergency),qcc_mvar=curve(base.qcc),
                       voltage_sq=np.array([[value(base.v[t,b]) for b in range(day.network.buses)] for t in range(day.periods)]),
                       branch_p=np.array([[value(base.p[t,l]) for l in range(len(day.network.branches))] for t in range(day.periods)]),
                       branch_q=np.array([[value(base.q[t,l]) for l in range(len(day.network.branches))] for t in range(day.periods)]),

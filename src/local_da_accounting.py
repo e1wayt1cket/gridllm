@@ -60,7 +60,8 @@ def physical_audit(day, result, tolerance=1e-6, cone_tolerance=1e-5):
     bound = max(bound, float((net.voltage_min - v).max()), float((v - net.voltage_max).max()),
                 float(abs(v[:, net.slack] - net.slack_vm_pu).max()))
     if day.import_limit_mw is not None:
-        bound = max(bound, float((result["pcc_mw"] - day.import_limit_mw).max()))
+        bound = max(bound, float((result["pcc_mw"] - day.import_limit_mw
+                                  - (day.import_emergency_mw or 0.)).max()))
     if day.export_limit_mw is not None:
         bound = max(bound, float((-result["pcc_mw"] - day.export_limit_mw).max()))
     checks = {
@@ -159,7 +160,9 @@ def settle_day(day, clearing, *, inventory_price_cny_mwh):
             "real_cost_cny": float(dispatch.sum() * dt * generator.real_cost_cny_mwh),
             "curtailment_mwh": float((generator.available_mw - dispatch).sum() * dt)}
     consumer = float((price * day.active_load_mw).sum() * dt)
-    external = float(np.dot(day.external_price_cny_mwh, result["pcc_mw"]) * dt)
+    emergency = result.get("pcc_emergency_mw", np.zeros_like(result["pcc_mw"]))
+    external = float((np.dot(day.external_price_cny_mwh, result["pcc_mw"])
+                      + day.emergency_import_premium_cny_mwh * float(emergency.sum())) * dt)
     ess_cash = sum(unit["net_cash_cny"] for unit in units.values())
     generator_cash = sum(unit["revenue_cny"] for unit in generation.values())
     operator = consumer - ess_cash - generator_cash - external

@@ -6,8 +6,9 @@ from unittest import mock
 
 import numpy as np
 
-from local_da_contracts import (DayAheadInput, Generator, RadialNetwork, StorageBid,
-                                StorageUnit, condenser, validate_day)
+from local_da_contracts import (DayAheadInput, GATEWAY_IMPORT_LIMIT_MW, Generator,
+                                RadialNetwork, StorageBid, StorageUnit, condenser,
+                                validate_day)
 from local_da_accounting import ac_replay, physical_audit, settle_day
 from local_da_clearing import (ClearingModel, choose_directions, clear_day,
                                qualification_label)
@@ -32,6 +33,18 @@ class ContractTests(unittest.TestCase):
     def test_slack_voltage_defaults_to_one_pu(self):
         net = RadialNetwork(2, 0, ((0, 1),), np.array([.01]), np.array([.02]))
         self.assertEqual(net.slack_vm_pu, 1.)
+
+    def test_the_gateway_import_limit_is_a_contract_default(self):
+        """The cap belongs to the market's gateway, so a day carries it unasked.
+
+        It only changes anything while it sits below the benchmark's own
+        coincident peak: above that the cheapest marginal source is always the
+        external purchase, a storage quote cannot reach a price, and the fleet
+        is a price taker. That ordering is the assumption, so it is what the
+        test holds.
+        """
+        self.assertEqual(small_day().import_limit_mw, GATEWAY_IMPORT_LIMIT_MW)
+        self.assertLess(GATEWAY_IMPORT_LIMIT_MW, 3.715)
 
     def test_slack_voltage_outside_the_band_is_refused(self):
         day = small_day()
@@ -81,7 +94,8 @@ class SolverTests(unittest.TestCase):
         np.testing.assert_allclose(result["pricing"]["charge"]["ESS"], [.4, 0], atol=1e-6)
         np.testing.assert_allclose(result["pricing"]["discharge"]["ESS"], [0, .4], atol=1e-6)
         np.testing.assert_allclose(result["pricing"]["lmp_cny_mwh"][:, 0], [20, 200], atol=1e-6)
-        expected = .25 * (20 * 1.4 + 200 * .6 + 100 * .4 - 50 * .4)
+        # Import, the two quoted legs, and the wear the settlement charges.
+        expected = .25 * (20 * 1.4 + 200 * .6 + 100 * .4 - 50 * .4 + 10 * (.4 + .4))
         self.assertAlmostEqual(result["pricing"]["clearing_objective"], expected, places=5)
         ledger = settle_day(day, result, inventory_price_cny_mwh=200)
         self.assertAlmostEqual(ledger["units"]["ESS"]["net_cash_cny"], 18., places=5)
@@ -141,12 +155,26 @@ class SolverTests(unittest.TestCase):
 
     def test_infeasible_load_has_no_price_or_settlement_fallback(self):
         day = small_day(storage=False)
-        day = replace(day, import_limit_mw=0)
+        day = replace(day, import_limit_mw=0, import_emergency_mw=0)
         result = clear_day(day, seconds=15)
         self.assertFalse(result["qualified_for_settlement"])
         self.assertNotIn("pricing", result)
         with self.assertRaisesRegex(ValueError, "Unqualified"):
             settle_day(day, result, inventory_price_cny_mwh=100)
+
+    def test_emergency_import_is_a_dearer_tranche_above_the_scheduled_cap(self):
+        # The tranche is declared capacity, not a relaxation of the cap: it is
+        # used only once the scheduled import is full, and it carries its own
+        # premium over the external price.
+        day = replace(small_day(storage=False), import_limit_mw=.6,
+                      import_emergency_mw=1.)
+        result = clear_day(day, seconds=15)
+        np.testing.assert_allclose(result["pricing"]["pcc_mw"], [1., 1.], atol=1e-6)
+        np.testing.assert_allclose(result["pricing"]["pcc_emergency_mw"], [.4, .4], atol=1e-6)
+        self.assertAlmostEqual(result["pricing"]["clearing_objective"],
+                               .25 * (20. * 1. + 200. * 1. + 250. * .8), places=5)
+        uncapped = clear_day(replace(day, import_limit_mw=None), seconds=15)
+        self.assertLess(float(uncapped["pricing"]["pcc_emergency_mw"].max()), 1e-6)
 
     def test_generation_is_curtailable_and_cash_is_included(self):
         day = small_day(storage=False)

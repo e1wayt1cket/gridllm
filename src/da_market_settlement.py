@@ -29,7 +29,9 @@ def settle(day,result):
                         'real_cost_cny':float(dispatch['generation'][g.name].sum()*dt*g.real_cost_cny_mwh)}
                 for g in day.generators}
     consumer=float((price*day.active_load_mw).sum()*dt)
-    external=float(day.external_price_cny_mwh@dispatch['pcc_mw']*dt)
+    emergency=dispatch.get('pcc_emergency_mw',0.)
+    external=float((day.external_price_cny_mwh@dispatch['pcc_mw']
+                    +day.emergency_import_premium_cny_mwh*emergency.sum())*dt)
     ess=sum(v['net_cash_cny'] for v in units.values())
     generation=sum(v['revenue_cny'] for v in generators.values())
     residual=consumer-ess-generation-external

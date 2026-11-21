@@ -29,8 +29,10 @@ class MarketModelTests(unittest.TestCase):
         result=clear_market_day(day,{},rules=rules)
         self.assertEqual(result['status'],'SETTLED',result)
         self.assertEqual(result['price_qualification'],'SMOOTH_PASS')
-        self.assertAlmostEqual(result['settlement']['units']['ESS']['net_cash_cny'],18.,places=4)
-        self.assertAlmostEqual(result['settlement']['units']['ESS']['economic_payoff_cny'],-2.,places=4)
+        # The 180 CNY/MWh spread does not cover a 200 CNY/MWh round trip at the
+        # default wear, so the fleet does not cycle and earns nothing.
+        self.assertAlmostEqual(result['settlement']['units']['ESS']['net_cash_cny'],0.,places=4)
+        self.assertAlmostEqual(result['settlement']['units']['ESS']['economic_payoff_cny'],0.,places=4)
         invalid=replace(day,bids={'ESS':replace(day.bids['ESS'],charge_quantity_mw=np.full(2,.5))})
         self.assertEqual(clear_market_day(invalid,{},rules=rules)['status'],'INPUT_INVALID')
 
@@ -73,7 +75,9 @@ class MarketModelTests(unittest.TestCase):
                 model.close()
             self.assertTrue(result["optimal"])
             np.testing.assert_allclose(result["lmp_cny_mwh"][:,0],[20,200],atol=1e-5)
-            self.assertAlmostEqual(result["clearing_objective"],42.,places=5)
+            # Import at both periods and no cycling: the wear is in the
+            # objective, so a 200 CNY/MWh round trip against a 180 spread loses.
+            self.assertAlmostEqual(result["clearing_objective"],55.,places=5)
             self.assertTrue(audit(day,{},rules,result)["passed"])
 
     def test_standard_cone_matches_rotated_form_and_ac(self):

@@ -64,6 +64,24 @@ class RadialNetwork:
     shunts: tuple = ()
 
 
+# Project assumption, not a Jiangsu rule. The gateway admits 3.0 MW, which is
+# below the IEEE33 benchmark's 3.715 MW coincident peak, so the feeder cannot be
+# served by import alone at its daily peak and the storage fleet is a marginal
+# supplier there. With no cap the marginal source is always the external
+# purchase, a storage quote cannot reach any price, and the fleet is a price
+# taker whose only strategic move is to stop cycling.
+GATEWAY_IMPORT_LIMIT_MW = 3.0
+# A second, dearer gateway tranche above that cap, priced at a flat premium
+# over the external price. Without it a fleet that withholds makes the day
+# infeasible, so the only lesson withholding teaches is to stop withholding;
+# with it the market substitutes emergency import at a declared ceiling and a
+# storage ask between the external price and that ceiling can set a price.
+# The tranche lifts physical headroom to 4.0 MW, above the 3.715 MW benchmark
+# peak. Both numbers are project assumptions, not Jiangsu rules.
+GATEWAY_EMERGENCY_IMPORT_MW = 1.0
+EMERGENCY_IMPORT_PREMIUM_CNY_MWH = 250.
+
+
 @dataclass(frozen=True)
 class DayAheadInput:
     network: RadialNetwork
@@ -76,7 +94,9 @@ class DayAheadInput:
     bid_price_lower: float
     bid_price_upper: float
     dt_hours: float = .25
-    import_limit_mw: float | None = None
+    import_limit_mw: float | None = GATEWAY_IMPORT_LIMIT_MW
+    import_emergency_mw: float | None = GATEWAY_EMERGENCY_IMPORT_MW
+    emergency_import_premium_cny_mwh: float = EMERGENCY_IMPORT_PREMIUM_CNY_MWH
     export_limit_mw: float | None = 2.5
     terminal_soc_equal: bool = False
 
@@ -138,9 +158,11 @@ def validate_day(day):
     vector(day.external_price_cny_mwh, day.periods, "External price")
     if not np.isfinite([day.bid_price_lower, day.bid_price_upper]).all() or day.bid_price_lower > day.bid_price_upper:
         raise ValueError("An explicit finite ordered research bid price interval is required")
-    for bound in [day.import_limit_mw, day.export_limit_mw]:
+    for bound in [day.import_limit_mw, day.import_emergency_mw, day.export_limit_mw]:
         if bound is not None and (not np.isfinite(bound) or bound < 0):
             raise ValueError("PCC limits must be nonnegative or None")
+    if not np.isfinite(day.emergency_import_premium_cny_mwh) or day.emergency_import_premium_cny_mwh < 0:
+        raise ValueError("The emergency import premium must be finite and nonnegative")
     names = [unit.name for unit in day.storage]
     if len(set(names)) != len(names) or set(day.bids) != set(names):
         raise ValueError("Every independent storage unit requires exactly one distinct bid")

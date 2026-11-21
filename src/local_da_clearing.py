@@ -28,12 +28,14 @@ class ClearingModel:
         m.Params.TimeLimit = seconds
         m.Params.FeasibilityTol = 1e-8
         m.Params.OptimalityTol = 1e-8
-        # The cones are the only quadratics in either model, and 1e-8 keeps them
-        # inside the 1e-6 physical audit on the reference day; Gurobi's default
-        # 1e-6 leaves that gap at 1.8e-6. A tighter barrier does not buy any
-        # exclusivity now that the disjunction is structural, and at 1e-10 the
-        # exact model stalls before certifying a window the settlement accepts.
-        m.Params.BarQCPConvTol = 1e-8
+        # The cones are the only quadratics in either model. The second gateway
+        # tranche doubled the residual the barrier leaves behind, and the exact
+        # model at 1e-8 puts a sampled day at 1.04e-5, past the 1e-5 audit
+        # bound; 1e-9 brings it to 8.6e-7. The continuous pricing model cannot
+        # certify 1e-9 at all, so it keeps 1e-8 and stays under 1.6e-6; at 1e-10
+        # the exact model stalls before certifying a window the settlement
+        # accepts.
+        m.Params.BarQCPConvTol = 1e-9 if exact else 1e-8
         m.Params.NumericFocus = 1
         m.Params.SoftMemLimit = 2
         # The exact model's exclusivity is an explicit binary disjunction, so its
@@ -60,6 +62,10 @@ class ClearingModel:
                             else -day.export_limit_mw,
                             ub=GRB.INFINITY if day.import_limit_mw is None else day.import_limit_mw,
                             name="pcc_net_import")
+        self.pcc_emergency = m.addVars(
+            periods, lb=0.,
+            ub=0. if day.import_emergency_mw is None else day.import_emergency_mw,
+            name="pcc_emergency_import")
         self.qcc = m.addVars(periods, lb=-GRB.INFINITY, name="pcc_q")
         self.charge, self.discharge, self.energy = {}, {}, {}
         self.is_charge = {}
@@ -105,8 +111,14 @@ class ClearingModel:
                                 name=f"charge_only_if_{name}_{t}")
                     m.addConstr(dis <= float(bid.discharge_quantity_mw[t]) * (1 - z),
                                 name=f"discharge_only_if_{name}_{t}")
-                objective += day.dt_hours * (float(bid.discharge_price_cny_mwh[t]) * dis
-                                             - float(bid.charge_price_cny_mwh[t]) * ch)
+                # Wear is a resource cost the settlement already charges, so the
+                # clearing carries it too. Without it the market cycles the fleet
+                # for free against an import price it never has to pay, and a
+                # truthful participant is dispatched into a settled loss.
+                objective += day.dt_hours * ((float(bid.discharge_price_cny_mwh[t])
+                                             + unit.degradation_cny_mwh) * dis
+                                            + (unit.degradation_cny_mwh
+                                               - float(bid.charge_price_cny_mwh[t])) * ch)
         self.generation, self.generator_q = {}, {}
         for generator in day.generators:
             name = generator.name
@@ -124,10 +136,12 @@ class ClearingModel:
         for t in range(periods):
             m.addConstr(self.v[t, net.slack] == net.slack_vm_pu ** 2)
             objective += day.dt_hours * float(day.external_price_cny_mwh[t]) * self.pcc[t]
+            objective += day.dt_hours * (float(day.external_price_cny_mwh[t])
+                                         + day.emergency_import_premium_cny_mwh) * self.pcc_emergency[t]
             for bus in buses:
                 active, reactive = gp.LinExpr(), gp.LinExpr()
                 if bus == net.slack:
-                    active += self.pcc[t]
+                    active += self.pcc[t] + self.pcc_emergency[t]
                     reactive += self.qcc[t]
                 for unit in day.storage:
                     if unit.bus == bus:
@@ -185,7 +199,9 @@ class ClearingModel:
         def curve(variables):
             return np.array([variables[t].X for t in range(len(variables))])
 
-        info.update(pcc_mw=curve(self.pcc), qcc_mvar=curve(self.qcc),
+        scheduled, emergency = curve(self.pcc), curve(self.pcc_emergency)
+        info.update(pcc_mw=scheduled + emergency, pcc_emergency_mw=emergency,
+                    qcc_mvar=curve(self.qcc),
                     voltage_sq=np.array([[self.v[t, b].X for b in range(day.network.buses)] for t in periods]),
                     branch_p=np.array([[self.p[t, line].X for line in range(len(day.network.branches))] for t in periods]),
                     branch_q=np.array([[self.q[t, line].X for line in range(len(day.network.branches))] for t in periods]),

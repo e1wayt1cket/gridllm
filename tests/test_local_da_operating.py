@@ -16,7 +16,8 @@ def tiny_day(load=1., reactive=.2, import_limit=None):
     bid = StorageBid(np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1))
     return DayAheadInput(net, np.array([[0., load]]), np.array([[0., reactive]]),
                          np.array([100.]), (unit,), (Generator("PV1", 1, np.array([.3])),),
-                         {unit.name: bid}, 0., 600., import_limit_mw=import_limit)
+                         {unit.name: bid}, 0., 600., import_limit_mw=import_limit,
+                         import_emergency_mw=0.)
 
 
 class OperatingTests(unittest.TestCase):
